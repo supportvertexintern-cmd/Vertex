@@ -7,7 +7,7 @@ import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import type { CaseStageKey } from "@/components/portal/caseStages";
 import type { MilestonePaymentType } from "@prisma/client";
 
-const MILESTONE_TYPES: MilestonePaymentType[] = ["documentation", "permit", "visa"];
+const MILESTONE_TYPES: readonly ("documentation" | "permit" | "visa")[] = ["documentation", "permit", "visa"];
 
 // GET /api/finance/payments-due — Finance's own worklist (2026-07-31, per
 // the Operational Workflow SOP): every case whose fee policy is enabled
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         application: {
           include: {
             candidate: { include: { user: { select: { full_name: true } }, partner: { select: { name: true } } } },
-            job: { select: { title: true, service_fee_gbp: true } },
+            job: { select: { title: true, service_fee_gbp: true, is_credit_service: true } },
           },
         },
         payments: { where: { status: "collected" }, select: { type: true } },
@@ -57,7 +57,11 @@ export async function GET(req: NextRequest) {
 
   for (const c of cases as (typeof cases)[number][]) {
     const job = c.application.job;
-    if (!job?.service_fee_gbp) continue;
+    // Credit Service Programme jobs (2026-08-29) are skipped — this
+    // worklist is built around the stage-triggered documentation/permit/
+    // visa milestone schedule (paymentSchedule.ts), which doesn't apply to
+    // their upfront + N-installment structure at all.
+    if (!job?.service_fee_gbp || job.is_credit_service) continue;
 
     const countryId = c.application.candidate.country_id;
     const enabled = (countryId ? policyByCountry.get(countryId) : undefined)?.enabled ?? globalPolicy?.enabled ?? false;

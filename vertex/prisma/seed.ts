@@ -16,9 +16,14 @@ const prisma = new PrismaClient();
 // the CIF's country picker couldn't select them at all. Greece,
 // Netherlands and Croatia added the same way for the 2026 pricing
 // revision (2026-07-31) — 3 new programmes in the updated Service &
-// Pricing List with no destination Country to pick from yet.
+// Pricing List with no destination Country to pick from yet. Albania and
+// Belgium added for the European Credit Service Programme (2026-08-29) —
+// their only Job entries are partner_only: true (see CREDIT_SERVICE_JOBS
+// below), so they're selectable on the general CIF country picker with no
+// public-facing Job to apply to there — cosmetic, not a data risk (see
+// the Credit Service Programme plan's own note on this).
 const REGIONS: Record<string, string[]> = {
-  Europe: ["United Kingdom", "Poland", "Belarus", "Italy", "Hungary", "Romania", "Serbia", "Bulgaria", "Slovakia", "Germany", "Portugal", "Spain", "Czech Republic", "Greece", "Netherlands", "Croatia"],
+  Europe: ["United Kingdom", "Poland", "Belarus", "Italy", "Hungary", "Romania", "Serbia", "Bulgaria", "Slovakia", "Germany", "Portugal", "Spain", "Czech Republic", "Greece", "Netherlands", "Croatia", "Albania", "Belgium"],
   "Middle East & Gulf": ["United Arab Emirates", "Saudi Arabia", "Qatar"],
   Africa: ["Kenya", "Uganda", "Nigeria", "Ghana"],
 };
@@ -78,6 +83,9 @@ const DOCUMENT_REQUIREMENT_TYPES: { key: string; label: string; is_universal?: b
   { key: "payment_receipt_documentation", label: "Payment Receipt — Documentation", sort_order: 22 },
   { key: "payment_receipt_permit", label: "Payment Receipt — Permit", sort_order: 23 },
   { key: "payment_receipt_visa", label: "Payment Receipt — Visa", sort_order: 24 },
+  // Credit Service Programme's single upfront payment (2026-08-29) — same
+  // one-key-per-stage rationale as the 3 above.
+  { key: "payment_receipt_upfront", label: "Payment Receipt — Upfront", sort_order: 25 },
 ];
 
 // The 15 work-permit programmes from the 2026 Service & Pricing List for
@@ -319,6 +327,140 @@ const JOBS: {
   },
 ];
 
+// The 6 Credit Service Programme opportunities (European Credit Service
+// Programme, Edition 2026) — a second, parallel pricing model to the 15
+// programmes above (installment financing instead of the fixed 25/25/50
+// milestone split), and partner_only: true throughout — never shown on the
+// public /jobs site or the self-service/recruiter-walk-in Candidate
+// Information Form (see getPublicJobsList's partner_only filter). Italy,
+// Netherlands, Portugal, and Spain already have their own, different
+// standard-model Job rows above at the same destinations — these are
+// additional parallel programmes, not replacements. financing_percent
+// determines the upfront/financed split; installment_count is stored
+// explicitly since it isn't derivable from financing_percent alone (see
+// computeCreditServiceSchedule, src/lib/fees.ts). processing_time is left
+// as the source document's own general "Processing" term (starts once
+// documentation and any applicable initial payment are received) rather
+// than a fabricated per-country figure, since the PDF gives none.
+const CREDIT_SERVICE_JOBS: {
+  title: string;
+  country: string;
+  city: string;
+  category: string;
+  salary_range: string;
+  job_description: string;
+  requirements: string;
+  visa_type: string;
+  duration_permit: string;
+  processing_time: string;
+  service_fee_gbp: number;
+  financing_percent: number;
+  installment_count: number;
+}[] = [
+  {
+    title: "Albania — Skilled Construction Programme (Credit Service)",
+    country: "Albania",
+    city: "Tirana / Elbasan",
+    category: "Construction",
+    salary_range: "Role / employer dependent",
+    job_description:
+      "Skilled construction work at employer-assigned project locations, with vacancies across Plumber (installation, maintenance, pipework, fittings, sanitary systems, and repairs), Electrician (electrical installation, wiring, fixtures, testing, and maintenance within authorised scope), Mason/Bricklayer (brick/block work, mortar preparation, and structural/finishing masonry), and Other skilled trades (additional skilled construction trades per employer demand). 12-month renewable contract, full-time on a site schedule. Accommodation is employer/project-dependent. Financed under the Credit Service Programme — 100% financing, no upfront Credit Service Fee payment, repaid over 9 monthly installments of £200 after placement.",
+    requirements:
+      "Valid passport with sufficient validity for the immigration process. Professional trade qualification or certificate relevant to the submitted role. Evidence of practical experience in the relevant skilled trade. Police Clearance Certificate and Medical Fitness Certificate. Physically fit for construction-site work and able to comply with site safety requirements. Trade certificates and professional documents authenticated/legalised where required.",
+    visa_type: "Unique Permit (Leje Unike) + Type D visa where applicable",
+    duration_permit: "12 months - renewable",
+    processing_time: "Begins once required documentation is received; no upfront payment under 100% financing.",
+    service_fee_gbp: 1800,
+    financing_percent: 100,
+    installment_count: 9,
+  },
+  {
+    title: "Italy — Agriculture Programme (Credit Service)",
+    country: "Italy",
+    city: "Verona / Bologna / Trento",
+    category: "Agriculture",
+    salary_range: "From EUR 1,300 / month",
+    job_description:
+      "Agricultural work across Agricultural Worker (planting, tending, and harvesting per seasonal schedules), Field support (irrigation, watering, and routine field maintenance), Produce handling (sorting, grading, handling, and packing harvested produce), and General farm duties (moving crates/tools/materials safely, assisting with loading). 24-month contract, 40 hours/week. Accommodation is employer-arranged. Financed under the Credit Service Programme — 70% financing, £885 upfront, repaid over 3 installments of £688.33/£688.33/£688.34 after placement.",
+    requirements:
+      "Minimum age 21 and valid passport. Clean Police Clearance Certificate and Medical Fitness Certificate. Physically fit for outdoor work, standing, bending, and lifting. No previous experience required; farm or harvest experience is an advantage. Basic English or Italian desirable. Able to relocate and complete the employment contract.",
+    visa_type: "Nulla osta + national work visa",
+    duration_permit: "24 months",
+    processing_time: "Begins once the initial payment and complete documentation are received.",
+    service_fee_gbp: 2950,
+    financing_percent: 70,
+    installment_count: 3,
+  },
+  {
+    title: "Netherlands — Healthcare Assistance Programme (Credit Service)",
+    country: "Netherlands",
+    city: "Amsterdam / Rotterdam / Utrecht",
+    category: "Healthcare",
+    salary_range: "EUR 1,800 / month",
+    job_description:
+      "Healthcare assistance work across Healthcare Assistant (supporting residents with personal care and daily living activities), Mobility support (assisting with safe mobility, transfers, and positioning where trained), Meals & routines (supporting meals, hydration, and basic household routines), and Care-team support (observing and reporting changes or concerns to the responsible care team member). 12-month renewable contract, full-time on rostered shifts. Accommodation is arranged by the employer. Financed under the Credit Service Programme — 70% financing, £690 upfront, repaid over 3 installments of £536.67/£536.67/£536.66 after placement.",
+    requirements:
+      "Minimum age 21; valid passport, clean police clearance, and medical fitness. Previous elderly-care, support-work, or housekeeping experience preferred. Basic English required; Dutch is advantageous and may be employer-required. Manual-handling or first-aid training is an advantage. Comfortable with rotating shifts, including weekends and nights where scheduled. Patient, respectful, and reliable with vulnerable or elderly residents.",
+    visa_type: "GVVA / applicable work-residence authorisation",
+    duration_permit: "12 months - renewable",
+    processing_time: "Begins once the initial payment and complete documentation are received.",
+    service_fee_gbp: 2300,
+    financing_percent: 70,
+    installment_count: 3,
+  },
+  {
+    title: "Belgium — Warehouse Programme (Credit Service)",
+    country: "Belgium",
+    city: "Liège",
+    category: "Warehouse & Logistics",
+    salary_range: "EUR 2,200–2,300 / month",
+    job_description:
+      "Warehouse work across Loader-Warehouse (receiving, unloading, and handling cartons and pallets), Stock handling (moving stock using hand pallet trucks and roll cages), Dispatch support (loading outbound vehicles and supporting dispatch operations), and Warehouse safety (maintaining an organised loading area and following health and safety procedures). 12-month renewable contract, 38 hours/week on shifts. Accommodation is provided by the employer. Financed under the Credit Service Programme — 70% financing, £900 upfront, repaid over 3 installments of £700 after placement.",
+    requirements:
+      "Valid passport and complete supporting documentation for the work-authorisation process. Spoken French required for workplace communication. Physically fit for warehouse work involving standing, lifting, and regular movement. Able to work scheduled shifts and follow supervisor instructions. Reliable, punctual, and able to work safely as part of a warehouse team. Able to comply with employer safety rules and Belgian immigration requirements.",
+    visa_type: "Single Permit + Type D Visa",
+    duration_permit: "12 months - renewable",
+    processing_time: "Begins once the initial payment and complete documentation are received.",
+    service_fee_gbp: 3000,
+    financing_percent: 70,
+    installment_count: 3,
+  },
+  {
+    title: "Portugal — General Labour Programme (Credit Service)",
+    country: "Portugal",
+    city: "Lisbon / Porto / Faro / Santarém",
+    category: "General Labour",
+    salary_range: "EUR 870–900 / month",
+    job_description:
+      "General labour work across Warehouse Worker in Lisbon (receiving, unloading, checking, and sorting incoming goods; picking, packing, and preparing orders), Food Production Worker in Porto (preparing, portioning, and packaging food products; carrying out visual quality checks), Hotel Housekeeping Assistant in Faro (cleaning and preparing guest rooms, bathrooms, and public areas), and Agricultural Worker in Santarém (supporting planting, cultivation, crop care, and harvesting). 12-month renewable contract, 40 hours/week. Accommodation is provided/assisted. Financed under the Credit Service Programme — 90% financing, £280 upfront, repaid over 12 installments of £210 after placement.",
+    requirements:
+      "Minimum age 21. Valid passport, CV, and recent photographs. Clean Police Clearance Certificate and Medical Fitness Report/Certificate. Physically fit for the submitted role. No previous experience required for most general roles. Relevant experience and role-specific certificates are advantageous.",
+    visa_type: "Visa D1 / residence formalities",
+    duration_permit: "12 months - renewable",
+    processing_time: "Begins once the initial payment and complete documentation are received.",
+    service_fee_gbp: 2800,
+    financing_percent: 90,
+    installment_count: 12,
+  },
+  {
+    title: "Spain — General Labour Programme (Credit Service)",
+    country: "Spain",
+    city: "Madrid / Murcia / Barcelona / Valencia",
+    category: "General Labour",
+    salary_range: "EUR 870–1,000 / month",
+    job_description:
+      "General labour work across Warehouse Worker in Madrid (receiving, unloading, checking, and sorting incoming goods; picking, packing, and preparing orders), Factory Worker in Barcelona (production-line assembly, packaging, labelling, and basic visual quality checks), Agricultural Worker in Murcia (supporting planting, cultivation, crop care, harvesting, and produce handling), and Hotel Housekeeping Assistant in Valencia (cleaning and preparing guest rooms, bathrooms, and public areas). 12-month renewable contract, full-time on an employer schedule. Accommodation is provided/assisted. Financed under the Credit Service Programme — 90% financing, £280 upfront, repaid over 12 installments of £210 after placement.",
+    requirements:
+      "Minimum age 21. Valid passport, CV, and recent photographs. Clean Police Clearance Certificate and Medical Fitness Report/Certificate. Physically fit for the submitted role. No previous experience required for most general roles. Relevant experience and role-specific certificates are advantageous.",
+    visa_type: "Initial residence/work + visa",
+    duration_permit: "12 months - renewable",
+    processing_time: "Begins once the initial payment and complete documentation are received.",
+    service_fee_gbp: 2800,
+    financing_percent: 90,
+    installment_count: 12,
+  },
+];
+
 async function main() {
   for (const t of DOCUMENT_REQUIREMENT_TYPES) {
     await prisma.documentRequirementType.upsert({
@@ -449,6 +591,36 @@ async function main() {
     await syncJobMilestonePricing(jobId).catch((err) =>
       console.error(`Failed to sync Stripe pricing for job ${jobId} ("${j.title}").`, err)
     );
+  }
+
+  for (const j of CREDIT_SERVICE_JOBS) {
+    const existing = await prisma.job.findFirst({ where: { title: j.title } });
+    const data = {
+      country: j.country,
+      city: j.city,
+      category: j.category,
+      salary_range: j.salary_range,
+      job_description: j.job_description,
+      requirements: j.requirements,
+      status: "active" as const,
+      visa_type: j.visa_type,
+      duration_permit: j.duration_permit,
+      processing_time: j.processing_time,
+      service_fee_gbp: j.service_fee_gbp,
+      is_credit_service: true,
+      financing_percent: j.financing_percent,
+      installment_count: j.installment_count,
+      partner_only: true,
+    };
+    if (existing) {
+      await prisma.job.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.job.create({ data: { title: j.title, application_fee: 0, ...data } });
+    }
+    // No syncJobMilestonePricing call here — is_credit_service jobs are
+    // skipped inside that function itself (see stripeProvisioning.ts) since
+    // JobMilestonePrice/MilestonePaymentType can't represent a variable
+    // N-installment schedule; calling it would just be a wasted round-trip.
   }
 
   console.log("Seed complete: regions, countries, sectors, document requirements, and work-permit programmes.");

@@ -1,14 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { computeMilestoneSplit } from "@/lib/fees";
-import type { MilestonePaymentType } from "@prisma/client";
+
+// This whole file only ever provisions the standard 3-stage split — Credit
+// Service Programme Jobs (2026-08-29, is_credit_service: true) are skipped
+// by syncJobMilestonePricing's own guard below, so "upfront" never reaches
+// any of this file's Stripe-provisioning logic. Narrowed to the 3-stage
+// type rather than the full MilestonePaymentType enum for exactly that
+// reason.
+type StripeMilestoneType = "documentation" | "permit" | "visa";
 
 // "First Payment" / "Second Payment" / "Final Payment" — ordinal wording
 // matching the reference Stripe-dashboard screenshot, not the internal
 // documentation/permit/visa jargon these map to everywhere else. Exported
 // so the payment-link email (lib/email.ts) uses the exact same wording
 // the candidate/partner will also see on the Stripe-hosted page itself.
-export const MILESTONE_DESCRIPTIONS: Record<MilestonePaymentType, string> = {
+export const MILESTONE_DESCRIPTIONS: Record<StripeMilestoneType, string> = {
   documentation: "First Payment",
   permit: "Second Payment",
   visa: "Final Payment",
@@ -33,12 +40,18 @@ function productName(job: { country: string; visa_type: string | null; duration_
  */
 export async function syncJobMilestonePricing(jobId: string): Promise<void> {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
-  if (!job || !job.service_fee_gbp) return; // general-programme Job with no fee: nothing to provision
+  // general-programme Job with no fee: nothing to provision. Credit
+  // Service Programme Jobs (2026-08-29) are skipped too — their
+  // 3/9/12-installment repayment schedule can't be represented by this
+  // function's fixed 3-value MilestonePaymentType/JobMilestonePrice shape,
+  // and they're partner-only anyway (Stripe Payment Links are already
+  // restricted to self-applicants, so there's nothing to link to here).
+  if (!job || !job.service_fee_gbp || job.is_credit_service) return;
 
   const split = computeMilestoneSplit(job.service_fee_gbp);
   const name = productName(job);
 
-  const milestones: { type: MilestonePaymentType; amount: number }[] = [
+  const milestones: { type: StripeMilestoneType; amount: number }[] = [
     { type: "documentation", amount: split.documentation },
     { type: "permit", amount: split.permit },
     { type: "visa", amount: split.visa },

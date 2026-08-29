@@ -116,6 +116,17 @@ export const createJobSchema = z.object({
   processing_time: z.string().optional(),
   service_fee_gbp: z.number().positive().optional(),
   visa_success_rates: z.string().optional(),
+  // Credit Service Programme pricing model (2026-08-29) — see
+  // Job.is_credit_service in schema.prisma for the full rationale.
+  // financing_percent/installment_count being required only when
+  // is_credit_service is true is enforced by createJobSchema's own
+  // .refine() at the POST route's call site, not here — keeping this base
+  // schema a plain ZodObject so PUT's existing createJobSchema.partial()
+  // usage keeps working (.partial() isn't available after .refine()).
+  is_credit_service: z.boolean().default(false),
+  financing_percent: z.number().int().min(1).max(100).optional(),
+  installment_count: z.number().int().positive().optional(),
+  partner_only: z.boolean().default(false),
 });
 
 // Applications — the Candidate Information Form: the first thing a
@@ -773,7 +784,7 @@ export const signContractSchema = z.object({
 // (Stage 1 · 25%, on engagement), permit (Stage 2 · 25%, after the work
 // permit is issued), visa (Stage 3 · 50%, after the visa is granted).
 export const recordCasePaymentSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  type: z.enum(["documentation", "permit", "visa", "upfront"]),
   amount: z.number().positive(),
   currency: z.string().length(3).default("USD"),
   receipt_reference: z.string().max(200).optional(),
@@ -799,7 +810,7 @@ export const generateCasePaymentLinkSchema = z.object({
 // uploaded via the existing /api/upload pipeline first — this just
 // records the amount/recipient and attaches that upload to the email.
 export const sendCaseInvoiceSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  type: z.enum(["documentation", "permit", "visa", "upfront"]),
   amount: z.number().positive(),
   recipient: z.enum(["candidate", "partner"]),
   invoice_document_id: z.string().cuid("Attach the invoice file first."),

@@ -10,6 +10,7 @@ import CandidateEditDetails from "./CandidateEditDetails";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CandidateDocumentUpload from "./CandidateDocumentUpload";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
+import { computeCreditServiceSchedule } from "@/lib/fees";
 import { CheckCircle, WarningCircle, Trash } from "@phosphor-icons/react";
 
 interface PartnerCandidateDetail {
@@ -46,7 +47,16 @@ interface PartnerCandidateDetail {
   bridged_candidate_id: string | null;
   submitted_at: string;
   partner: { id: string; name: string; contact_email: string; contact_name: string; contact_phone: string };
-  job: { id: string; title: string; country: string; city: string; service_fee_gbp: number | null } | null;
+  job: {
+    id: string;
+    title: string;
+    country: string;
+    city: string;
+    service_fee_gbp: number | null;
+    is_credit_service: boolean;
+    financing_percent: number | null;
+    installment_count: number | null;
+  } | null;
   reviewer: { full_name: string } | null;
   bridged_candidate: { id: string; documents: { id: string; type: string; verification_status: string; uploaded_at: string }[] } | null;
   document_completeness: { complete: boolean; missingTypes: string[] } | null;
@@ -265,9 +275,35 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-midnight-900/70 uppercase tracking-wider mb-4">Opportunity</h3>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Programme" value={data.job?.title} />
+              <Field
+                label="Programme"
+                value={
+                  data.job?.title ? (
+                    <span className="inline-flex items-center gap-2">
+                      {data.job.title}
+                      {data.job.is_credit_service && (
+                        <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Credit Service
+                        </span>
+                      )}
+                    </span>
+                  ) : null
+                }
+              />
               <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
-              <Field label="Service Fee" value={data.job?.service_fee_gbp != null ? `£${data.job.service_fee_gbp.toLocaleString()}` : null} />
+              {data.job?.is_credit_service && data.job.service_fee_gbp != null && data.job.financing_percent != null && data.job.installment_count != null ? (
+                (() => {
+                  const s = computeCreditServiceSchedule(data.job.service_fee_gbp, data.job.financing_percent, data.job.installment_count);
+                  return (
+                    <Field
+                      label="Credit Service Terms"
+                      value={`£${data.job.service_fee_gbp.toLocaleString()} total · £${s.upfrontGbp.toLocaleString()} upfront · ${s.installmentCount}× £${s.installmentAmountGbp.toLocaleString()}`}
+                    />
+                  );
+                })()
+              ) : (
+                <Field label="Service Fee" value={data.job?.service_fee_gbp != null ? `£${data.job.service_fee_gbp.toLocaleString()}` : null} />
+              )}
               <Field label="Earliest Travel Date" value={new Date(data.earliest_travel_date).toLocaleDateString()} />
             </div>
           </div>
