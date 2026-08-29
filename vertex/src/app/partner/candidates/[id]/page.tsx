@@ -10,6 +10,7 @@ import YesNoDetailField from "@/components/YesNoDetailField";
 import SupportingDocumentUpload from "@/components/portal/SupportingDocumentUpload";
 import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
+import { computeCreditServiceSchedule } from "@/lib/fees";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -84,7 +85,15 @@ interface PartnerCandidateDetail {
   rejection_reason: string | null;
   bridged_candidate_id: string | null;
   submitted_at: string;
-  job: { title: string; country: string; city: string } | null;
+  job: {
+    title: string;
+    country: string;
+    city: string;
+    service_fee_gbp: number | null;
+    is_credit_service: boolean;
+    financing_percent: number | null;
+    installment_count: number | null;
+  } | null;
   bridged_candidate: {
     id: string;
     documents: { id: string; type: string; verification_status: string; uploaded_at: string; label: string | null }[];
@@ -294,8 +303,31 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-midnight-900/70 uppercase tracking-wider mb-4">Opportunity</h3>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Programme" value={data.job?.title} />
+              <Field
+                label="Programme"
+                value={
+                  data.job?.title ? (
+                    <span className="inline-flex items-center gap-2">
+                      {data.job.title}
+                      {data.job.is_credit_service && (
+                        <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Credit Service
+                        </span>
+                      )}
+                    </span>
+                  ) : null
+                }
+              />
               <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
+              {data.job?.is_credit_service && data.job.service_fee_gbp != null && data.job.financing_percent != null && data.job.installment_count != null && (() => {
+                const s = computeCreditServiceSchedule(data.job.service_fee_gbp, data.job.financing_percent, data.job.installment_count);
+                return (
+                  <Field
+                    label="Credit Service Terms"
+                    value={`£${data.job.service_fee_gbp.toLocaleString()} total · £${s.upfrontGbp.toLocaleString()} upfront · ${s.installmentCount}× £${s.installmentAmountGbp.toLocaleString()}`}
+                  />
+                );
+              })()}
               {editing && editForm ? (
                 <>
                   <div>

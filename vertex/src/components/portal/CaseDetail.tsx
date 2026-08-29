@@ -9,7 +9,7 @@ import ApplicationEditDetails from "./ApplicationEditDetails";
 import CaseStageProgress from "./CaseStageProgress";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseStages";
 import { CASE_UPLOAD_EXCLUDED_KEYS, PAYMENT_RECEIPT_TYPE_KEYS, paymentReceiptTypeKey } from "@/lib/documentTypes";
-import { computeMilestoneSplit } from "@/lib/fees";
+import { computeMilestoneSplit, computeCreditServiceSchedule } from "@/lib/fees";
 import { UploadSimple } from "@phosphor-icons/react";
 
 interface Document {
@@ -114,7 +114,15 @@ interface CaseData {
       desired_role: string | null;
     };
     job_id: string | null;
-    job: { title: string; country: string; city: string; service_fee_gbp: number | null } | null;
+    job: {
+      title: string;
+      country: string;
+      city: string;
+      service_fee_gbp: number | null;
+      is_credit_service: boolean;
+      financing_percent: number | null;
+      installment_count: number | null;
+    } | null;
     preferred_country_1: { name: string } | null;
     preferred_sector: { name: string } | null;
     current_location_country_name: string | null;
@@ -225,7 +233,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [contractContent, setContractContent] = useState("");
   const [signName, setSignName] = useState("");
 
-  const [payType, setPayType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [payType, setPayType] = useState<"documentation" | "permit" | "visa" | "upfront">("documentation");
   const [payAmount, setPayAmount] = useState("");
   const [payReceipt, setPayReceipt] = useState("");
   const [payReceiptDocumentId, setPayReceiptDocumentId] = useState<string | null>(null);
@@ -241,7 +249,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // available regardless of candidate.source, unlike Send Payment Link
   // above (self-applicants only). Defaults recipient to "partner" when
   // one exists, since that's the common case this was built for.
-  const [invoiceType, setInvoiceType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [invoiceType, setInvoiceType] = useState<"documentation" | "permit" | "visa" | "upfront">("documentation");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceRecipient, setInvoiceRecipient] = useState<"candidate" | "partner">("candidate");
   const [invoiceReference, setInvoiceReference] = useState("");
@@ -279,13 +287,46 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // page shows) whenever the milestone type changes, but stays a plain
   // editable input (this app's established "auto-fill but stay editable"
   // convention) — falls back to fully-manual entry for a general-
-  // programme application with no specific Job.
+  // programme application with no specific Job. Credit Service Programme
+  // Jobs (2026-08-29) use a different schedule entirely — payType is
+  // forced to "upfront" (the only payment this pass supports recording;
+  // see computeCreditServiceSchedule) rather than left on the meaningless
+  // documentation/permit/visa split.
   const jobServiceFee = data?.application.job?.service_fee_gbp;
+  const isCreditServiceJob = !!data?.application.job?.is_credit_service;
+  const jobFinancingPercent = data?.application.job?.financing_percent;
+  const jobInstallmentCount = data?.application.job?.installment_count;
   useEffect(() => {
-    if (jobServiceFee != null) {
+    if (isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null) {
+      setPayType("upfront");
+      setPayAmount(String(computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp));
+    } else if (jobServiceFee != null && payType !== "upfront") {
       setPayAmount(String(computeMilestoneSplit(jobServiceFee)[payType]));
     }
-  }, [payType, jobServiceFee]);
+  }, [payType, jobServiceFee, isCreditServiceJob, jobFinancingPercent, jobInstallmentCount]);
+
+  // Same forcing as the Record form above, for the Send Invoice block below
+  // — the only real off-Stripe payment path for partner-sourced cases
+  // (which is what every Credit Service Programme case is), so it needs
+  // the same "upfront" treatment, not the meaningless 3-stage split.
+  useEffect(() => {
+    if (isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null) {
+      setInvoiceType("upfront");
+      setInvoiceAmount(String(computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp));
+    }
+  }, [isCreditServiceJob, jobServiceFee, jobFinancingPercent, jobInstallmentCount]);
+
+  // A 100%-financed programme's upfront amount is genuinely £0 (Albania,
+  // e.g.) — there's no money changing hands to record a CasePayment for
+  // (the schema requires amount.positive(), and there's nothing for a
+  // receipt to prove receipt of), so the Record/Send Invoice controls are
+  // replaced with a plain informational note in that case rather than a
+  // control that can never actually submit.
+  const creditUpfrontGbp =
+    isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null
+      ? computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp
+      : null;
+  const hasNoUpfrontDue = creditUpfrontGbp === 0;
 
   const [docTypes, setDocTypes] = useState<{ key: string; label: string }[]>([]);
   const [uploadType, setUploadType] = useState("");
@@ -720,7 +761,14 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       <div className="card p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-xl font-semibold text-midnight-900">{candidateName}</h2>
+            <h2 className="text-xl font-semibold text-midnight-900 flex items-center gap-2">
+              {candidateName}
+              {isCreditServiceJob && (
+                <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                  Credit Service
+                </span>
+              )}
+            </h2>
             <p className="text-sm text-midnight-900/50">
               {data.application.job
                 ? <>{data.application.job.title} · {data.application.job.city}, {data.application.job.country}</>
@@ -1227,19 +1275,32 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 </div>
               ))}
             </div>
-            {capabilities.managePayments && (
+            {capabilities.managePayments && hasNoUpfrontDue && (
+              <div className="pt-3 border-t border-midnight-900/10">
+                <p className="text-sm text-midnight-900/60">
+                  This Credit Service Programme is 100% financed — there&rsquo;s no upfront payment due, so nothing to
+                  record here. Ongoing installment repayments aren&rsquo;t tracked in the system yet; handle them
+                  manually until that&rsquo;s built.
+                </p>
+              </div>
+            )}
+            {capabilities.managePayments && !hasNoUpfrontDue && (
               <>
                 <div className="flex items-center gap-2 pt-3 border-t border-midnight-900/10">
-                  <SearchableSelect
-                    value={payType}
-                    onChange={(value) => setPayType(value as "documentation" | "permit" | "visa")}
-                    className="w-auto"
-                    options={[
-                      { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
-                      { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
-                      { value: "visa", label: "Visa (Stage 3 · 50%)" },
-                    ]}
-                  />
+                  {isCreditServiceJob ? (
+                    <span className="input-field text-sm w-auto bg-midnight-900/5 text-midnight-900/70 font-medium">Upfront Payment</span>
+                  ) : (
+                    <SearchableSelect
+                      value={payType}
+                      onChange={(value) => setPayType(value as "documentation" | "permit" | "visa")}
+                      className="w-auto"
+                      options={[
+                        { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
+                        { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
+                        { value: "visa", label: "Visa (Stage 3 · 50%)" },
+                      ]}
+                    />
+                  )}
                   <input type="number" min="0" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} className="input-field text-sm w-28" placeholder="Amount" />
                   <input value={payReceipt} onChange={(e) => setPayReceipt(e.target.value)} className="input-field text-sm" placeholder="Receipt reference" />
                   <label className="text-[11px] text-midnight-900/50 flex items-center gap-1.5 cursor-pointer">
@@ -1257,6 +1318,13 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                   </label>
                   <button onClick={recordPayment} disabled={!payAmount} className="btn-primary text-xs disabled:opacity-40">Record</button>
                 </div>
+                {isCreditServiceJob && (
+                  <p className="text-[11px] text-midnight-900/45 pt-1.5">
+                    Ongoing installment repayments for this Credit Service Programme aren&rsquo;t tracked in the
+                    system yet — record the upfront payment above, and handle installments manually until that&rsquo;s
+                    built.
+                  </p>
+                )}
 
                 {/* Stripe restricted to self-applicants (2026-07-31) —
                     partner/recruiter-sourced payments never go through
@@ -1303,16 +1371,20 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 <div className="pt-3 mt-3 border-t border-midnight-900/10">
                   <div className="text-xs font-semibold text-midnight-900/70 mb-2">Send Invoice</div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <SearchableSelect
-                      value={invoiceType}
-                      onChange={(value) => setInvoiceType(value as "documentation" | "permit" | "visa")}
-                      className="w-auto"
-                      options={[
-                        { value: "documentation", label: "Documentation (Stage 1)" },
-                        { value: "permit", label: "Work Permit (Stage 2)" },
-                        { value: "visa", label: "Visa (Stage 3)" },
-                      ]}
-                    />
+                    {isCreditServiceJob ? (
+                      <span className="input-field text-sm w-auto bg-midnight-900/5 text-midnight-900/70 font-medium">Upfront Payment</span>
+                    ) : (
+                      <SearchableSelect
+                        value={invoiceType}
+                        onChange={(value) => setInvoiceType(value as "documentation" | "permit" | "visa")}
+                        className="w-auto"
+                        options={[
+                          { value: "documentation", label: "Documentation (Stage 1)" },
+                          { value: "permit", label: "Work Permit (Stage 2)" },
+                          { value: "visa", label: "Visa (Stage 3)" },
+                        ]}
+                      />
+                    )}
                     <input
                       type="number"
                       min="0"

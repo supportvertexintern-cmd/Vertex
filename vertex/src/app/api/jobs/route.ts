@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
@@ -11,6 +12,14 @@ export const dynamic = "force-dynamic";
 // kept outside the three-tier operational hierarchy (Regional Supervisory
 // Operational Workflow). Admin keeps override access.
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
+
+// Same role set already authorized to submit a candidate on a partner's
+// behalf (POST /api/partner/candidates) — a partner-only Job becomes
+// visible in exactly the contexts a partner submission is already
+// legitimately made in. regional_recruiter is deliberately excluded: the
+// self-apply/recruiter-walk-in ApplicationForm never sends ?audience=
+// partner at all, so this list only matters for callers that do.
+const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team", "operations_director", "admin"];
 
 // GET /api/jobs — public paginated listing. Also called directly
 // (in-process, not over HTTP) by the homepage and /jobs listing Server
@@ -27,6 +36,8 @@ export async function GET(req: NextRequest) {
   const status = isJobManager ? (searchParams.get("status") as "draft" | "active" | "closed" | "all" | null) ?? undefined : undefined;
   const sortBy = isJobManager ? (searchParams.get("sortBy") as "created_at" | "title" | "applications" | null) ?? undefined : undefined;
   const sortDir = isJobManager && searchParams.get("sortDir") === "asc" ? "asc" : "desc";
+  const wantsPartnerAudience = searchParams.get("audience") === "partner";
+  const includePartnerOnly = wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role);
 
   const result = await getPublicJobsList({
     page: Number(searchParams.get("page") || 1),
@@ -37,6 +48,7 @@ export async function GET(req: NextRequest) {
     status,
     sortBy,
     sortDir,
+    includePartnerOnly,
   });
 
   return NextResponse.json(result);
@@ -51,7 +63,12 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const parsed = createJobSchema.safeParse(body);
+  const parsed = createJobSchema
+    .refine((data) => !data.is_credit_service || (data.financing_percent != null && data.installment_count != null), {
+      message: "financing_percent and installment_count are required when is_credit_service is true",
+      path: ["financing_percent"],
+    })
+    .safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }

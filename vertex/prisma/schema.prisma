@@ -827,6 +827,25 @@ model Job {
   // logic keys off it.
   tier               String?
 
+  // Credit Service Programme pricing model (European Credit Service
+  // Programme, Edition 2026) — an alternative to the standard 25/25/50
+  // milestone split. service_fee_gbp remains the shared "total fee" field
+  // for both models; financing_percent sets the upfront/financed split
+  // (100% = no upfront; 70% = 30% upfront/70% financed; 90% = 10%
+  // upfront/90% financed); installment_count is stored explicitly since
+  // it isn't derivable from financing_percent (varies 3/9/12 per
+  // opportunity). See computeCreditServiceSchedule in lib/fees.ts.
+  is_credit_service  Boolean  @default(false)
+  financing_percent  Int?
+  installment_count  Int?
+
+  // Restricts visibility to Partners only (their own portal, and staff
+  // submitting a candidate on a partner's behalf) — never shown on the
+  // public /jobs site or the self-service/recruiter-walk-in Candidate
+  // Information Form. Plain boolean, not an enum — exactly two audiences
+  // exist today.
+  partner_only       Boolean  @default(false)
+
   // Which employer/client this vacancy is actually for (SRS FR-5.2) —
   // optional since not every posting is linked to an on-file client yet.
   employer_client_id String?
@@ -840,6 +859,7 @@ model Job {
   @@index([status])
   @@index([country])
   @@index([employer_client_id])
+  @@index([partner_only])
 }
 
 // Pre-provisioned Stripe Product + one-off Price per (Job × milestone), so
@@ -1115,6 +1135,12 @@ enum MilestonePaymentType {
   documentation
   permit
   visa
+  // A Credit Service Programme's single upfront/initial payment (2026-08-29)
+  // — always one fixed, well-defined amount (never variable-N), so it fits
+  // this enum's existing one-row-per-type shape. The ongoing per-installment
+  // repayments after this one aren't represented here — that needs a
+  // separate schedule model, not built yet.
+  upfront
 }
 
 // status defaults "collected" so every existing/manually-recorded row's

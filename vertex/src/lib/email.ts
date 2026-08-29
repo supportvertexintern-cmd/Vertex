@@ -4,7 +4,6 @@ import path from "path";
 import { signEmailToken, signCandidateInviteToken, signAccountSetupToken } from "./jwt";
 import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
-import type { MilestonePaymentType } from "@prisma/client";
 import { prisma } from "./prisma";
 
 import { log } from "./log";
@@ -605,13 +604,21 @@ export async function sendCaseReminderEmail(
 // Stage position/percentage/plain-English timing, matching the wording
 // already used in CaseDetail.tsx's own milestone-type dropdown, so a
 // recipient sees the exact same framing staff do.
-const MILESTONE_STAGE_INFO: Record<MilestonePaymentType, { position: string; percent: string; timing: string }> = {
+// Exclusively used by the Stripe Payment Link flow below, which is
+// restricted to self-registered candidates (2026-07-31) — a self-
+// registered candidate can never be assigned a partner_only Job, so
+// "upfront" (Credit Service Programme, 2026-08-29) never reaches this
+// path. Narrowed to the 3-stage type rather than the full
+// MilestonePaymentType enum for exactly that reason.
+type StripeMilestoneType = "documentation" | "permit" | "visa";
+
+const MILESTONE_STAGE_INFO: Record<StripeMilestoneType, { position: string; percent: string; timing: string }> = {
   documentation: { position: "Stage 1 of 3", percent: "25%", timing: "On engagement, before documentation begins" },
   permit: { position: "Stage 2 of 3", percent: "25%", timing: "After the work permit is issued" },
   visa: { position: "Stage 3 of 3", percent: "50%", timing: "After the visa is granted" },
 };
 
-function milestonePlanRow(type: MilestonePaymentType, amount: number, isCurrent: boolean) {
+function milestonePlanRow(type: StripeMilestoneType, amount: number, isCurrent: boolean) {
   const info = MILESTONE_STAGE_INFO[type];
   const label = MILESTONE_DESCRIPTIONS[type];
   return `
@@ -638,7 +645,7 @@ export async function sendMilestonePaymentLinkEmail(
   candidateName: string,
   programmeTitle: string,
   paymentUrl: string,
-  type: MilestonePaymentType,
+  type: StripeMilestoneType,
   fullPlan: { documentation: number; permit: number; visa: number }
 ) {
   const milestoneLabel = MILESTONE_DESCRIPTIONS[type];

@@ -14,14 +14,18 @@
 // reachable. "payment_receipt" (no suffix) is kept only for backward
 // compatibility with already-collected payments created before this
 // split; nothing uploads against it going forward.
+// payment_receipt_upfront (2026-08-29) added for the Credit Service
+// Programme's single upfront payment (see MilestonePaymentType.upfront) —
+// same one-key-per-stage rationale as the 3 above.
 export const PAYMENT_RECEIPT_TYPE_KEYS = [
   "payment_receipt",
   "payment_receipt_documentation",
   "payment_receipt_permit",
   "payment_receipt_visa",
+  "payment_receipt_upfront",
 ] as const;
 
-export function paymentReceiptTypeKey(milestoneType: "documentation" | "permit" | "visa"): string {
+export function paymentReceiptTypeKey(milestoneType: "documentation" | "permit" | "visa" | "upfront"): string {
   return `payment_receipt_${milestoneType}`;
 }
 

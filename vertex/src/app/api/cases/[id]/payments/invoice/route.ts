@@ -142,7 +142,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sectorName,
       {
         buffer: fileContent.buffer,
-        filename: `${MILESTONE_DESCRIPTIONS[parsed.data.type].replace(/\s+/g, "_")}_Invoice.${fileContent.extension}`,
+        // "upfront" (Credit Service Programme, 2026-08-29) isn't part of
+        // MILESTONE_DESCRIPTIONS' Stripe-ordinal wording (First/Second/
+        // Final Payment) — that set is specifically for the 3-stage
+        // milestone split this invoice type doesn't apply to.
+        filename: `${(parsed.data.type === "upfront" ? "Upfront Payment" : MILESTONE_DESCRIPTIONS[parsed.data.type]).replace(/\s+/g, "_")}_Invoice.${fileContent.extension}`,
         contentType: CONTENT_TYPES[fileContent.extension] || "application/octet-stream",
       }
     );

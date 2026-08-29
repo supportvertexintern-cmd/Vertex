@@ -6,7 +6,8 @@ import {
   IdentificationCard, Clock, ShieldCheck, CheckCircle, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPublicJobById } from "@/server/services/publicJobs";
-import { computeMilestoneSplit } from "@/lib/fees";
+import { computeMilestoneSplit, computeCreditServiceSchedule } from "@/lib/fees";
+import { getAuthUser } from "@/lib/api-auth";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,10 @@ interface Job {
   processing_time: string | null;
   service_fee_gbp: number | null;
   visa_success_rates: string | null;
+  partner_only: boolean;
+  is_credit_service: boolean;
+  financing_percent: number | null;
+  installment_count: number | null;
   _count: { applications: number };
 }
 
@@ -42,11 +47,28 @@ const feeStages = (totalGbp: number) => {
   ];
 };
 
+// Same idea, for Credit Service Programme opportunities (see
+// computeCreditServiceSchedule) — a 2-line summary (upfront + the
+// installment plan) rather than feeStages' fixed 3 rows, since the
+// installment count varies per opportunity (3/9/12) and listing each one
+// individually wouldn't fit this sidebar's format.
+const creditStages = (totalGbp: number, financingPercent: number, installmentCount: number) => {
+  const s = computeCreditServiceSchedule(totalGbp, financingPercent, installmentCount);
+  const installmentLabel =
+    s.installmentAmountGbp === s.finalInstallmentAmountGbp
+      ? `${s.installmentCount} × ${s.installmentAmountGbp.toLocaleString()} GBP`
+      : `${s.installmentCount} × ${s.installmentAmountGbp.toLocaleString()} GBP (last: ${s.finalInstallmentAmountGbp.toLocaleString()} GBP)`;
+  return [
+    { label: `Upfront · ${100 - financingPercent}%`, note: "On engagement", amount: s.upfrontGbp },
+    { label: `Financed · ${financingPercent}%`, note: installmentLabel, amount: null },
+  ];
+};
+
 // Calls the same query the API route uses directly (in-process), rather
 // than self-fetching /api/jobs/[id] over HTTP — see server/services/publicJobs.ts.
-async function getJob(id: string): Promise<Job | null> {
+async function getJob(id: string, includePartnerOnly: boolean): Promise<Job | null> {
   try {
-    return await getPublicJobById(id);
+    return await getPublicJobById(id, includePartnerOnly);
   } catch {
     return null;
   }
@@ -54,7 +76,8 @@ async function getJob(id: string): Promise<Job | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const job = await getJob(id);
+  const user = await getAuthUser();
+  const job = await getJob(id, user?.role === "partner");
   if (!job) return { title: "Job Not Found" };
   return {
     title: `${job.title} — ${job.city}, ${job.country}`,
@@ -64,16 +87,24 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const job = await getJob(id);
+  const user = await getAuthUser();
+  const includePartnerOnly = user?.role === "partner";
+  const job = await getJob(id, includePartnerOnly);
   if (!job) notFound();
 
   const isActive = job.status === "active";
 
   const ApplyButton = ({ className }: { className?: string }) =>
     isActive ? (
-      <Link href={`/apply?job=${job.id}`} className={`btn-gold ${className ?? ""}`}>
-        Apply Now <ArrowRight size={16} weight="bold" />
-      </Link>
+      job.partner_only ? (
+        <Link href="/partner" className={`btn-gold ${className ?? ""}`}>
+          Submit a Candidate <ArrowRight size={16} weight="bold" />
+        </Link>
+      ) : (
+        <Link href={`/apply?job=${job.id}`} className={`btn-gold ${className ?? ""}`}>
+          Apply Now <ArrowRight size={16} weight="bold" />
+        </Link>
+      )
     ) : (
       <div className="bg-midnight-900/5 text-midnight-900/50 rounded-full px-6 py-3.5 text-sm text-center">
         No longer accepting applications
@@ -107,6 +138,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <span className={`badge-${job.status} flex-shrink-0`}>{job.status}</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-6 text-ivory-50/55 text-sm font-light">
+            {job.is_credit_service && (
+              <span className="inline-flex items-center rounded-full bg-gold-500/20 text-gold-300 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                Credit Service Programme
+              </span>
+            )}
             {job.category && (
               <span className="inline-flex items-center gap-1.5">
                 <Tag size={15} weight="regular" /> {job.category}
@@ -213,7 +249,34 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </p>
             </div>
 
-            {job.service_fee_gbp != null && (
+            {job.service_fee_gbp != null && job.is_credit_service && job.financing_percent != null && job.installment_count != null ? (
+              <div className="bg-midnight-950 text-ivory-50 rounded-2xl p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-gold-300 mb-3">Credit Service Programme</p>
+                <div className="flex items-baseline justify-between gap-2 mb-5 pt-1 border-t border-white/10">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ivory-50/60">Total Credit Service Fee</span>
+                  <span className="text-2xl font-semibold text-gold-300">
+                    {job.service_fee_gbp.toLocaleString()} <span className="text-sm font-medium">GBP</span>
+                  </span>
+                </div>
+                <div className="space-y-2.5 mb-5">
+                  {creditStages(job.service_fee_gbp, job.financing_percent, job.installment_count).map((stage) => (
+                    <div key={stage.label} className="flex items-center justify-between gap-3 bg-white/5 rounded-lg px-3.5 py-2.5">
+                      <div>
+                        <div className="text-xs font-semibold text-gold-300">{stage.label}</div>
+                        <div className="text-ivory-50/45 text-xs mt-0.5">{stage.note}</div>
+                      </div>
+                      {stage.amount != null && (
+                        <div className="font-semibold text-ivory-50 whitespace-nowrap">{stage.amount.toLocaleString()} GBP</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-ivory-50/40 leading-relaxed">
+                  International airfare is not included unless a different arrangement is confirmed in writing; the
+                  consular fee is per embassy requirements and payable separately where required.
+                </p>
+              </div>
+            ) : job.service_fee_gbp != null ? (
               <div className="bg-midnight-950 text-ivory-50 rounded-2xl p-6">
                 <ServiceFeeNotice variant="dark" />
                 <div className="flex items-baseline justify-between gap-2 mb-5 pt-1 border-t border-white/10">
@@ -238,7 +301,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
                   provided (may be deducted from salary).
                 </p>
               </div>
-            )}
+            ) : null}
           </aside>
         </div>
       </section>

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const candidate = await prisma.partnerCandidate.findUnique({
     where: { id, status: { not: "draft" } },
     include: {
-      job: { select: { title: true, country: true, city: true } },
+      job: { select: { title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
       current_location_country: { select: { name: true } },
       bridged_candidate: {
         select: {

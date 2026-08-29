@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Role } from "@prisma/client";
 import { limitByIp } from "@/lib/rate-limit";
 import { isNotFound, prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations";
@@ -15,13 +16,22 @@ const FEE_RELEVANT_FIELDS = ["service_fee_gbp", "country", "visa_type", "duratio
 
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
+// Same role set as src/app/api/jobs/route.ts's PARTNER_JOB_VISIBILITY_ROLES
+// — see that file for the full rationale.
+const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team", "operations_director", "admin"];
+
 // GET /api/jobs/[id] — public. Also called directly (in-process, not over
 // HTTP) by /jobs/[id]'s Server Component — see server/services/publicJobs.ts.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = limitByIp(req, "job-detail", { max: 120 });
   if (limited) return limited;
   const { id } = await params;
-  const job = await getPublicJobById(id);
+  const { searchParams } = req.nextUrl;
+  const wantsPartnerAudience = searchParams.get("audience") === "partner";
+  const user = wantsPartnerAudience ? await getAuthUser(req) : null;
+  const includePartnerOnly = wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role);
+
+  const job = await getPublicJobById(id, includePartnerOnly);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   return NextResponse.json(job);
 }

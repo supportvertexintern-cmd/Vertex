@@ -37,6 +37,10 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
     processing_time: "",
     service_fee_gbp: "",
     visa_success_rates: "",
+    is_credit_service: false,
+    financing_percent: "",
+    installment_count: "",
+    partner_only: false,
   });
 
   useEffect(() => {
@@ -71,6 +75,10 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           processing_time: data.processing_time || "",
           service_fee_gbp: data.service_fee_gbp != null ? String(data.service_fee_gbp) : "",
           visa_success_rates: data.visa_success_rates || "",
+          is_credit_service: data.is_credit_service ?? false,
+          financing_percent: data.financing_percent != null ? String(data.financing_percent) : "",
+          installment_count: data.installment_count != null ? String(data.installment_count) : "",
+          partner_only: data.partner_only ?? false,
         });
         setFetching(false);
       })
@@ -97,6 +105,8 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           processing_time: formData.processing_time || undefined,
           visa_success_rates: formData.visa_success_rates || undefined,
           service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : undefined,
+          financing_percent: formData.financing_percent ? Number(formData.financing_percent) : undefined,
+          installment_count: formData.installment_count ? Number(formData.installment_count) : undefined,
         }),
       });
 
@@ -237,6 +247,51 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Visa Success Rates</label>
                 <input type="text" name="visa_success_rates" value={formData.visa_success_rates} onChange={handleChange} className="input-field w-full" placeholder="e.g. Asia: 70–80% · Africa: 85–95% · South America: above 95%" />
+              </div>
+
+              <div className="col-span-1 md:col-span-2 border-t border-midnight-900/10 pt-6 mt-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-midnight-900/40 mb-4">
+                  Credit Service Programme <span className="font-normal normal-case">(Optional — an alternative to the standard 25/25/50 split above)</span>
+                </p>
+              </div>
+
+              <div className="col-span-1 md:col-span-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_credit_service"
+                  checked={formData.is_credit_service}
+                  onChange={(e) => setFormData({ ...formData, is_credit_service: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="is_credit_service" className="text-sm font-medium text-midnight-900/70">
+                  This is a Credit Service Programme (installment financing, not the standard 25/25/50 split)
+                </label>
+              </div>
+
+              {formData.is_credit_service && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Financing %</label>
+                    <input type="number" min="1" max="100" step="1" name="financing_percent" value={formData.financing_percent} onChange={handleChange} className="input-field w-full" placeholder="e.g. 70" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Installment Count</label>
+                    <input type="number" min="1" step="1" name="installment_count" value={formData.installment_count} onChange={handleChange} className="input-field w-full" placeholder="e.g. 3" />
+                  </div>
+                </>
+              )}
+
+              <div className="col-span-1 md:col-span-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="partner_only"
+                  checked={formData.partner_only}
+                  onChange={(e) => setFormData({ ...formData, partner_only: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="partner_only" className="text-sm font-medium text-midnight-900/70">
+                  Partner-only — hide from the public /jobs site and self-service Candidate Information Form
+                </label>
               </div>
 
               <div className="col-span-1 md:col-span-2">
