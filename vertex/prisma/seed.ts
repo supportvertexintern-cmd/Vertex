@@ -700,6 +700,25 @@ const PDF_POSITIONS_BY_JOB_TITLE: Record<string, { sector: string; positions: { 
       ],
     },
   ],
+  // Production-only Job (2026-09-02) — created directly in production,
+  // never added to the JOBS array above, so it's not on dev/staging at
+  // all; this entry is a no-op there (findFirst by title returns null)
+  // and only takes effect in production, where the title match is real.
+  // Title has literal tab characters, copied byte-for-byte from the live
+  // row rather than "corrected" — renaming it is a separate concern from
+  // attaching sector/position data. Canada's 3 production-only jobs are
+  // deliberately NOT included here — pending a separate pricing change
+  // (50% upfront / 50% after visa, a different split from the standard
+  // 25/25/50 milestone schedule) before they're touched.
+  "Belgium-Manufacturing\t&\tWarehouse": [
+    {
+      sector: "Logistics & Warehousing",
+      positions: [
+        { title: "Packer", city: "Liege" },
+        { title: "Loader", city: "Charleroi" },
+      ],
+    },
+  ],
 };
 
 // Applies the PDF catalog above on top of whatever backfillDefaultSectorAndPosition
