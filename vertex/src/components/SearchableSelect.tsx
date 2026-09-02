@@ -103,11 +103,11 @@ export default function SearchableSelect({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`${className ?? "input-field"} flex items-center justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`${className ?? "input-field"} flex items-start justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed`}
         {...aria}
       >
-        <span className={`block truncate min-w-0 ${selected ? "" : "text-midnight-900/35"}`}>{selected ? selected.label : placeholder}</span>
-        <CaretDown size={14} weight="bold" className="text-midnight-900/30 shrink-0 ml-2" />
+        <span className={`block min-w-0 break-words ${selected ? "" : "text-midnight-900/35"}`}>{selected ? selected.label : placeholder}</span>
+        <CaretDown size={14} weight="bold" className="text-midnight-900/30 shrink-0 ml-2 mt-0.5" />
       </button>
 
       {open && (
@@ -134,12 +134,12 @@ export default function SearchableSelect({
                   type="button"
                   onClick={() => commit(opt)}
                   onMouseEnter={() => setHighlighted(i)}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left ${
+                  className={`w-full flex items-start justify-between gap-2 px-3 py-2 text-sm text-left ${
                     i === highlighted ? "bg-ivory-100" : ""
                   } ${opt.value === value ? "font-semibold text-midnight-900" : "text-midnight-900/80"}`}
                 >
-                  <span className="block truncate min-w-0">{opt.label}</span>
-                  {opt.value === value && <Check size={14} weight="bold" className="text-gold-600 shrink-0" />}
+                  <span className="block min-w-0 break-words">{opt.label}</span>
+                  {opt.value === value && <Check size={14} weight="bold" className="text-gold-600 shrink-0 mt-0.5" />}
                 </button>
               </li>
             ))}
