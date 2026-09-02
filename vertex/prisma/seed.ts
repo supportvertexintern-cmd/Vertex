@@ -700,16 +700,19 @@ const PDF_POSITIONS_BY_JOB_TITLE: Record<string, { sector: string; positions: { 
       ],
     },
   ],
-  // Production-only Job (2026-09-02) — created directly in production,
-  // never added to the JOBS array above, so it's not on dev/staging at
-  // all; this entry is a no-op there (findFirst by title returns null)
-  // and only takes effect in production, where the title match is real.
-  // Title has literal tab characters, copied byte-for-byte from the live
-  // row rather than "corrected" — renaming it is a separate concern from
-  // attaching sector/position data. Canada's 3 production-only jobs are
-  // deliberately NOT included here — pending a separate pricing change
-  // (50% upfront / 50% after visa, a different split from the standard
-  // 25/25/50 milestone schedule) before they're touched.
+  // Production-only Jobs (2026-09-02) — created directly in production,
+  // never added to the JOBS array above, so they're not on dev/staging at
+  // all; these entries are a no-op there (findFirst by title returns
+  // null) and only take effect in production, where the title match is
+  // real. Belgium's title has literal tab characters, copied byte-for-
+  // byte from the live row rather than "corrected" — renaming it is a
+  // separate concern from attaching sector/position data. The 3 Canada
+  // jobs currently have category: "" in production (never categorized)
+  // — their sector here is taken from the PDF directly, same as every
+  // other entry in this map, not derived from their own category field.
+  // Canada's separate 50%-upfront/50%-after-visa pricing/milestone-split
+  // work (a different schedule from the standard 25/25/50 split) is not
+  // part of this — sector/position data only.
   "Belgium-Manufacturing\t&\tWarehouse": [
     {
       sector: "Logistics & Warehousing",
@@ -717,6 +720,24 @@ const PDF_POSITIONS_BY_JOB_TITLE: Record<string, { sector: string; positions: { 
         { title: "Packer", city: "Liege" },
         { title: "Loader", city: "Charleroi" },
       ],
+    },
+  ],
+  "Canada-Truck Driver-Montreal, Quebec (FRENCH SPEAKERS ONLY)": [
+    {
+      sector: "Transport & Delivery",
+      positions: [{ title: "Truck Driver · French required", city: "Montreal, QC" }],
+    },
+  ],
+  "Canada-Industrial Warehouse & Logistics Support Worker-Quebec City, Quebec (FRENCH SPEAKERS ONLY)": [
+    {
+      sector: "Logistics & Warehousing",
+      positions: [{ title: "Warehouse Worker · French", city: "Quebec City, QC" }],
+    },
+  ],
+  "Canada-Oil & Gas Manufacturing Support Worker-Fort McMurray, Alberta": [
+    {
+      sector: "Manufacturing & Production",
+      positions: [{ title: "Machine Operator Assistant", city: "Fort McMurray, AB" }],
     },
   ],
 };
