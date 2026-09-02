@@ -141,7 +141,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const candidateName = candidate.user?.full_name ?? candidate.full_name ?? "the candidate";
   const programmeTitle = caseRecord.application.job?.title ?? "";
-  const fullPlan = computeMilestoneSplit(caseRecord.application.job?.service_fee_gbp ?? 0);
+  const fullPlan = computeMilestoneSplit(
+    caseRecord.application.job?.service_fee_gbp ?? 0,
+    caseRecord.application.job?.two_stage_pricing
+  );
 
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently

@@ -13,7 +13,20 @@ export interface MilestoneSplit {
 // independently; visa absorbs whatever's left so all three always sum
 // exactly to the total, rather than three independent roundings that can
 // drift the total by ±1.
-export function computeMilestoneSplit(totalGbp: number): MilestoneSplit {
+//
+// twoStage (2026-09-02, Job.two_stage_pricing) — a small number of
+// programmes (first: Canada) have no separate "work permit" milestone at
+// all, just 50% on documentation and 50% on visa. Returns the same
+// 3-key shape rather than a different one so every existing consumer
+// keeps working unchanged: permit is always exactly 0 in this mode, and
+// callers that render a list of stages filter out zero-amount ones
+// instead of branching on twoStage themselves.
+export function computeMilestoneSplit(totalGbp: number, twoStage = false): MilestoneSplit {
+  if (twoStage) {
+    const documentation = Math.round(totalGbp * 0.5);
+    const visa = totalGbp - documentation;
+    return { documentation, permit: 0, visa };
+  }
   const documentation = Math.round(totalGbp * 0.25);
   const permit = Math.round(totalGbp * 0.25);
   const visa = totalGbp - documentation - permit;

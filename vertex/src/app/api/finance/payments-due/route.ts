@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         application: {
           include: {
             candidate: { include: { user: { select: { full_name: true } }, partner: { select: { name: true } } } },
-            job: { select: { title: true, service_fee_gbp: true, is_credit_service: true } },
+            job: { select: { title: true, service_fee_gbp: true, is_credit_service: true, two_stage_pricing: true } },
           },
         },
         payments: { where: { status: "collected" }, select: { type: true } },
@@ -68,10 +68,13 @@ export async function GET(req: NextRequest) {
     if (!enabled) continue;
 
     const collectedTypes = new Set(c.payments.map((p: (typeof c.payments)[number]) => p.type));
-    const split = computeMilestoneSplit(job.service_fee_gbp);
+    const split = computeMilestoneSplit(job.service_fee_gbp, job.two_stage_pricing);
     const candidateName = c.application.candidate.user?.full_name ?? c.application.candidate.full_name ?? "— unnamed —";
 
-    for (const type of MILESTONE_TYPES) {
+    // two_stage_pricing jobs (2026-09-02) have no "permit" milestone —
+    // skip it here too, rather than surfacing a £0 "payment due" row.
+    const types = job.two_stage_pricing ? (["documentation", "visa"] as const) : MILESTONE_TYPES;
+    for (const type of types) {
       if (collectedTypes.has(type)) continue;
       if (!isMilestoneDue(type, c.current_stage as CaseStageKey)) continue;
       due.push({

@@ -48,14 +48,20 @@ export async function syncJobMilestonePricing(jobId: string): Promise<void> {
   // restricted to self-applicants, so there's nothing to link to here).
   if (!job || !job.service_fee_gbp || job.is_credit_service) return;
 
-  const split = computeMilestoneSplit(job.service_fee_gbp);
+  const split = computeMilestoneSplit(job.service_fee_gbp, job.two_stage_pricing);
   const name = productName(job);
 
-  const milestones: { type: StripeMilestoneType; amount: number }[] = [
+  // two_stage_pricing jobs (2026-09-02) have no "permit" milestone at
+  // all — computeMilestoneSplit always returns permit: 0 for them, so
+  // filtering zero-amount stages here means no Stripe product/price (and
+  // no JobMilestonePrice row) ever gets created for it, rather than
+  // provisioning a real Stripe Price for £0.
+  const allMilestones: { type: StripeMilestoneType; amount: number }[] = [
     { type: "documentation", amount: split.documentation },
     { type: "permit", amount: split.permit },
     { type: "visa", amount: split.visa },
   ];
+  const milestones = allMilestones.filter((m) => m.amount > 0);
 
   for (const milestone of milestones) {
     const existing = await prisma.jobMilestonePrice.findUnique({

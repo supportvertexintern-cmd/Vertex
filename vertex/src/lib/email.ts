@@ -822,7 +822,11 @@ export async function sendMilestonePaymentLinkEmail(
 ) {
   const milestoneLabel = MILESTONE_DESCRIPTIONS[type];
   const amountGbp = fullPlan[type];
+  // two_stage_pricing jobs (2026-09-02) always have permit: 0 in fullPlan
+  // — filtered out here rather than showing a real recipient a "Second
+  // Payment — 0 GBP" row for a milestone that doesn't apply to them.
   const planRows = (["documentation", "permit", "visa"] as const)
+    .filter((t) => fullPlan[t] > 0)
     .map((t) => milestonePlanRow(t, fullPlan[t], t === type))
     .join("");
 

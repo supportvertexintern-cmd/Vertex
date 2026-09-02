@@ -871,6 +871,14 @@ model Job {
   // logic keys off it.
   tier               String?
 
+  // True 2-stage 50%/50% split — documentation + visa only, no separate
+  // "work permit" milestone (2026-09-02, first used by Canada's 3
+  // programmes). An alternative to the standard 25/25/50 three-stage
+  // split, independent of is_credit_service — still a direct one-off
+  // payment per stage, not an installment/financing schedule. See
+  // computeMilestoneSplit in lib/fees.ts.
+  two_stage_pricing Boolean @default(false)
+
   // Credit Service Programme pricing model (European Credit Service
   // Programme, Edition 2026) — an alternative to the standard 25/25/50
   // milestone split. service_fee_gbp remains the shared "total fee" field
