@@ -106,7 +106,7 @@ export default function SearchableSelect({
         className={`${className ?? "input-field"} flex items-center justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed`}
         {...aria}
       >
-        <span className={`truncate min-w-0 ${selected ? "" : "text-midnight-900/35"}`}>{selected ? selected.label : placeholder}</span>
+        <span className={`block truncate min-w-0 ${selected ? "" : "text-midnight-900/35"}`}>{selected ? selected.label : placeholder}</span>
         <CaretDown size={14} weight="bold" className="text-midnight-900/30 shrink-0 ml-2" />
       </button>
 
@@ -138,7 +138,7 @@ export default function SearchableSelect({
                     i === highlighted ? "bg-ivory-100" : ""
                   } ${opt.value === value ? "font-semibold text-midnight-900" : "text-midnight-900/80"}`}
                 >
-                  <span className="truncate min-w-0">{opt.label}</span>
+                  <span className="block truncate min-w-0">{opt.label}</span>
                   {opt.value === value && <Check size={14} weight="bold" className="text-gold-600 shrink-0" />}
                 </button>
               </li>
