@@ -6,10 +6,23 @@ import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
 import SearchableSelect from "@/components/SearchableSelect";
+import { Plus, Trash, PencilSimple, Check, X } from "@phosphor-icons/react";
 
 interface EmployerClient {
   id: string;
   name: string;
+}
+
+interface JobPositionData {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorData {
+  id: string;
+  sector: string;
+  positions: JobPositionData[];
 }
 
 export default function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +56,19 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
     partner_only: false,
   });
 
+  // Sectors & Positions (2026-09-02) — a live-saving sub-resource of this
+  // Job, independent of the main "Save Changes" button above (each add/
+  // edit/delete call hits its own /api/jobs/:id/sectors... route
+  // immediately, same as the referral-agent commission-rules grid's
+  // per-row Save pattern).
+  const [sectors, setSectors] = useState<JobSectorData[]>([]);
+  const [addingSector, setAddingSector] = useState("");
+  const [savingSector, setSavingSector] = useState(false);
+  const [positionDrafts, setPositionDrafts] = useState<Record<string, { title: string; city: string }>>({});
+  const [savingPositionFor, setSavingPositionFor] = useState<string | null>(null);
+  const [editingPosition, setEditingPosition] = useState<{ id: string; title: string; city: string } | null>(null);
+  const [sectorsError, setSectorsError] = useState("");
+
   useEffect(() => {
     fetch("/api/admin/employer-clients")
       .then((r) => r.json())
@@ -50,9 +76,14 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
       .catch(() => {});
   }, []);
 
+  // The real work-permit programme sectors (2026-08-31), matching the
+  // business's own Positions by Country & Sector reference sheet and the
+  // Candidate Information Form's Section 1 sector picker exactly — was
+  // previously a stale, unrelated placeholder list.
   const categories = [
-    "Technology", "Healthcare", "Engineering", "Operations",
-    "Sales & Marketing", "Finance", "Education", "Other"
+    "Agriculture", "Logistics & Warehousing", "Manufacturing & Production",
+    "Construction & Trades", "Hospitality", "Healthcare", "Transport & Delivery",
+    "General / Unskilled",
   ];
 
   useEffect(() => {
@@ -80,6 +111,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           installment_count: data.installment_count != null ? String(data.installment_count) : "",
           partner_only: data.partner_only ?? false,
         });
+        setSectors(data.sectors ?? []);
         setFetching(false);
       })
       .catch(() => {
@@ -125,6 +157,100 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const availableSectorsToAdd = categories.filter((c) => !sectors.some((s) => s.sector === c));
+
+  const addSector = async () => {
+    if (!addingSector) return;
+    setSavingSector(true);
+    setSectorsError("");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/sectors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sector: addingSector }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || "Failed to add sector.");
+      setSectors((prev) => [...prev, body.data]);
+      setAddingSector("");
+    } catch (err) {
+      setSectorsError(err instanceof Error ? err.message : "Failed to add sector.");
+    } finally {
+      setSavingSector(false);
+    }
+  };
+
+  const deleteSector = async (sectorId: string) => {
+    if (!window.confirm("Remove this sector? Its positions will be removed too.")) return;
+    setSectorsError("");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/sectors/${sectorId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error?.message || "Failed to remove sector.");
+      }
+      setSectors((prev) => prev.filter((s) => s.id !== sectorId));
+    } catch (err) {
+      setSectorsError(err instanceof Error ? err.message : "Failed to remove sector.");
+    }
+  };
+
+  const addPosition = async (sectorId: string) => {
+    const draft = positionDrafts[sectorId];
+    if (!draft?.title) return;
+    setSavingPositionFor(sectorId);
+    setSectorsError("");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/sectors/${sectorId}/positions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: draft.title, city: draft.city || undefined }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || "Failed to add position.");
+      setSectors((prev) => prev.map((s) => (s.id === sectorId ? { ...s, positions: [...s.positions, body.data] } : s)));
+      setPositionDrafts((prev) => ({ ...prev, [sectorId]: { title: "", city: "" } }));
+    } catch (err) {
+      setSectorsError(err instanceof Error ? err.message : "Failed to add position.");
+    } finally {
+      setSavingPositionFor(null);
+    }
+  };
+
+  const deletePosition = async (sectorId: string, positionId: string) => {
+    setSectorsError("");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/sectors/${sectorId}/positions/${positionId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error?.message || "Failed to remove position.");
+      }
+      setSectors((prev) => prev.map((s) => (s.id === sectorId ? { ...s, positions: s.positions.filter((p) => p.id !== positionId) } : s)));
+    } catch (err) {
+      setSectorsError(err instanceof Error ? err.message : "Failed to remove position.");
+    }
+  };
+
+  const saveEditPosition = async (sectorId: string) => {
+    if (!editingPosition) return;
+    setSectorsError("");
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/sectors/${sectorId}/positions/${editingPosition.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editingPosition.title, city: editingPosition.city || null }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || "Failed to update position.");
+      setSectors((prev) =>
+        prev.map((s) => (s.id === sectorId ? { ...s, positions: s.positions.map((p) => (p.id === editingPosition.id ? body.data : p)) } : s))
+      );
+      setEditingPosition(null);
+    } catch (err) {
+      setSectorsError(err instanceof Error ? err.message : "Failed to update position.");
+    }
   };
 
   // Job creation/edits already trigger this automatically (best-effort,
@@ -325,6 +451,142 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {!fetching && (
+        <div className="card p-6 md:p-8 max-w-3xl mt-8">
+          <h2 className="text-sm font-semibold text-midnight-900 mb-1">Sectors & Positions</h2>
+          <p className="text-xs text-midnight-900/50 mb-5">
+            Which sectors this programme falls under, and the specific positions available in each — this drives the
+            Sector → Opportunity → Position picker on both the Candidate Information Form and the Partner Agency
+            Application Form.
+          </p>
+
+          {sectorsError && <div className="mb-5 bg-red-50 text-red-700 p-3 rounded-lg border border-red-200 text-sm">{sectorsError}</div>}
+
+          <div className="flex items-end gap-3 mb-6">
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-midnight-900/60 mb-1.5">Add a Sector</label>
+              <SearchableSelect
+                value={addingSector}
+                onChange={setAddingSector}
+                placeholder={availableSectorsToAdd.length === 0 ? "All sectors attached" : "Select a sector…"}
+                options={availableSectorsToAdd.map((s) => ({ value: s, label: s }))}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={addSector}
+              disabled={!addingSector || savingSector}
+              className="btn-primary px-4 py-2.5 disabled:opacity-60"
+            >
+              <Plus size={16} weight="bold" />
+            </button>
+          </div>
+
+          {sectors.length === 0 ? (
+            <p className="text-sm text-midnight-900/50">No sectors attached yet — add one above.</p>
+          ) : (
+            <div className="space-y-5">
+              {sectors.map((sector) => (
+                <div key={sector.id} className="border border-midnight-900/10 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-midnight-900 text-sm">{sector.sector}</h3>
+                    <button
+                      type="button"
+                      onClick={() => deleteSector(sector.id)}
+                      className="text-midnight-900/30 hover:text-red-500"
+                      title="Remove sector"
+                    >
+                      <Trash size={15} weight="regular" />
+                    </button>
+                  </div>
+
+                  {sector.positions.length === 0 ? (
+                    <p className="text-xs text-midnight-900/40 mb-3">No positions yet.</p>
+                  ) : (
+                    <ul className="divide-y divide-midnight-900/5 mb-3">
+                      {sector.positions.map((position) => (
+                        <li key={position.id} className="flex items-center justify-between py-2">
+                          {editingPosition?.id === position.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <input
+                                value={editingPosition.title}
+                                onChange={(e) => setEditingPosition({ ...editingPosition, title: e.target.value })}
+                                className="input-field text-sm flex-1"
+                                placeholder="Position title"
+                              />
+                              <input
+                                value={editingPosition.city}
+                                onChange={(e) => setEditingPosition({ ...editingPosition, city: e.target.value })}
+                                className="input-field text-sm w-32"
+                                placeholder="City (optional)"
+                              />
+                              <button type="button" onClick={() => saveEditPosition(sector.id)} className="text-emerald-600 hover:text-emerald-700">
+                                <Check size={16} weight="bold" />
+                              </button>
+                              <button type="button" onClick={() => setEditingPosition(null)} className="text-midnight-900/40 hover:text-midnight-900/70">
+                                <X size={16} weight="bold" />
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <span className="text-sm text-midnight-900">
+                                {position.title}
+                                {position.city && <span className="text-midnight-900/45"> — {position.city}</span>}
+                              </span>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPosition({ id: position.id, title: position.title, city: position.city ?? "" })}
+                                  className="text-midnight-900/30 hover:text-gold-600"
+                                  title="Edit position"
+                                >
+                                  <PencilSimple size={14} weight="regular" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deletePosition(sector.id, position.id)}
+                                  className="text-midnight-900/30 hover:text-red-500"
+                                  title="Remove position"
+                                >
+                                  <Trash size={14} weight="regular" />
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={positionDrafts[sector.id]?.title ?? ""}
+                      onChange={(e) => setPositionDrafts((prev) => ({ ...prev, [sector.id]: { title: e.target.value, city: prev[sector.id]?.city ?? "" } }))}
+                      className="input-field text-sm flex-1"
+                      placeholder="e.g. Grape Picker"
+                    />
+                    <input
+                      value={positionDrafts[sector.id]?.city ?? ""}
+                      onChange={(e) => setPositionDrafts((prev) => ({ ...prev, [sector.id]: { title: prev[sector.id]?.title ?? "", city: e.target.value } }))}
+                      className="input-field text-sm w-32"
+                      placeholder="City (optional)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addPosition(sector.id)}
+                      disabled={!positionDrafts[sector.id]?.title || savingPositionFor === sector.id}
+                      className="btn-secondary px-3 py-2 disabled:opacity-60"
+                    >
+                      <Plus size={14} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </PortalShell>

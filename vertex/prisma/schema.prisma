@@ -4,9 +4,16 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// DATABASE_URL is the runtime connection the app queries through — a
+// Prisma Accelerate proxy URL in production (2026-08-07, connection
+// pooling for serverless cold starts), the plain direct Postgres URL
+// locally. directUrl is what `prisma db push`/`migrate` use instead,
+// since Accelerate's proxy can't run schema operations — always the
+// direct Postgres URL, in every environment.
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -43,6 +50,14 @@ enum Role {
   // Owns milestone payment links/records and payments-due visibility, once
   // a Case exists (regardless of source).
   finance
+  // An external referral agent's own login (2026-08-29) — publicly
+  // self-registers, admin-approved (director/admin, not system admin),
+  // gets a unique referral code/link and earns a milestone-based
+  // commission as candidates they referred progress through the existing
+  // pipeline. Deliberately kept out of STAFF_ROLES, same as partner/
+  // marketing — not internal staff, and NOT the same as country_supervisor
+  // despite an early business brief conflating the two names.
+  referral_agent
 }
 
 enum ApplicationStatus {
@@ -118,6 +133,13 @@ model User {
   staff_kpi_targets_received StaffKpiTarget[] @relation("StaffKpiTargetRecipient")
   staff_kpi_targets_set      StaffKpiTarget[] @relation("StaffKpiTargetSetter")
 
+  referral_agent                    ReferralAgent?
+  referral_agents_approved          ReferralAgent[]          @relation("ReferralAgentApprover")
+  referral_commission_rules_updated ReferralCommissionRule[] @relation("ReferralCommissionRuleUpdater")
+  referral_commissions_approved     ReferralCommission[]     @relation("ReferralCommissionApprover")
+  referral_commissions_paid         ReferralCommission[]     @relation("ReferralCommissionPayer")
+  referral_agent_targets_set        ReferralAgentTarget[]    @relation("ReferralAgentTargetSetter")
+
   @@index([email])
   @@index([supervisor_id])
   @@index([assigned_country_id])
@@ -155,6 +177,8 @@ model Country {
   partner_current_located_by PartnerCandidate[]           @relation("PartnerCurrentLocation")
   exceptions                 Exception[]
   inhouse_assignments        InhouseCountryAssignment[]
+  referral_agents            ReferralAgent[]
+  referral_commission_rules  ReferralCommissionRule[]
 
   @@index([region_id])
 }
@@ -210,6 +234,11 @@ enum CandidateSource {
   self_registered
   recruiter_sourced
   partner_sourced
+  // Self-registered via the Candidate Information Form with a valid,
+  // active referral code attached (2026-08-29) — same self-registration
+  // pipeline as self_registered, just with referral_agent_id attribution
+  // set on the Candidate. See ReferralAgent/ReferralCommission.
+  referral_sourced
 }
 
 // Mandatory on both the Partner and Direct Candidate Application Forms
@@ -284,6 +313,19 @@ model Candidate {
   partner_id String?
   partner    Partner? @relation(fields: [partner_id], references: [id], onDelete: SetNull)
 
+  // Referral Agent attribution (2026-08-29) — set at creation time when a
+  // valid, active referral code was captured on /apply (see
+  // src/lib/referralMilestones.ts). Unlike partner_id, this Candidate
+  // still goes through the ordinary self-registration pipeline; the
+  // attribution only matters for commission generation.
+  referral_agent_id       String?
+  referral_agent          ReferralAgent? @relation(fields: [referral_agent_id], references: [id], onDelete: SetNull)
+  // Flagged (never auto-blocked) when a referral-sourced candidate matches
+  // an existing Candidate by email/phone/passport_number at creation time
+  // — surfaced to HR in the existing self-applications queue, not a new
+  // review queue.
+  referral_duplicate_flag Boolean        @default(false)
+
   // Screening gate (SRS FR-2.5) + verification-return workflow (FR-2.7)
   consent_given Boolean   @default(false)
   consent_at    DateTime?
@@ -297,7 +339,7 @@ model Candidate {
   screening_result       Boolean?
   screening_evaluated_at DateTime?
 
-  user                     User?              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user                     User?                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   applications             Application[]
   documents                Document[]
   messages                 CandidateMessage[]
@@ -306,11 +348,13 @@ model Candidate {
   // directly.
   partner_candidate_origin PartnerCandidate?
   exceptions               Exception[]
+  referral_commissions     ReferralCommission[]
 
   @@index([user_id])
   @@index([recruiter_id])
   @@index([country_id])
   @@index([partner_id])
+  @@index([referral_agent_id])
   @@index([lifecycle_status])
   @@index([created_at])
   // Matches the most common staff list query shape (scope by
@@ -835,16 +879,16 @@ model Job {
   // upfront/90% financed); installment_count is stored explicitly since
   // it isn't derivable from financing_percent (varies 3/9/12 per
   // opportunity). See computeCreditServiceSchedule in lib/fees.ts.
-  is_credit_service  Boolean  @default(false)
-  financing_percent  Int?
-  installment_count  Int?
+  is_credit_service Boolean @default(false)
+  financing_percent Int?
+  installment_count Int?
 
   // Restricts visibility to Partners only (their own portal, and staff
   // submitting a candidate on a partner's behalf) — never shown on the
   // public /jobs site or the self-service/recruiter-walk-in Candidate
   // Information Form. Plain boolean, not an enum — exactly two audiences
   // exist today.
-  partner_only       Boolean  @default(false)
+  partner_only Boolean @default(false)
 
   // Which employer/client this vacancy is actually for (SRS FR-5.2) —
   // optional since not every posting is linked to an on-file client yet.
@@ -855,11 +899,60 @@ model Job {
   payments           Payment[]
   milestone_prices   JobMilestonePrice[]
   partner_candidates PartnerCandidate[]
+  // One programme can span several sectors (2026-09-02), each with its own
+  // set of specific positions (e.g. Italy's Agriculture Programme could
+  // list "Grape Picker — Verona", "Fruit Packer — Bologna") — additive
+  // alongside the flat `category` field above, which stays exactly as-is
+  // for the public /jobs listing filter and the invoice sector line. See
+  // JobSector/JobPosition below.
+  sectors            JobSector[]
 
   @@index([status])
   @@index([country])
   @@index([employer_client_id])
   @@index([partner_only])
+}
+
+// A sector attached to one specific programme (2026-09-02) — the
+// Candidate Information Form / Partner Agency Application Form's Sector
+// step filters Jobs down to ones with a matching row here, then the
+// Position step lists this row's own JobPosition children. Sector names
+// are the same closed set of 8 canonical names already used everywhere
+// else (Job.category values, both forms' SECTOR_ORDER constant, the
+// marketing category dropdowns) — Marketing attaches/detaches one of
+// those 8 per programme, not free text.
+model JobSector {
+  id         String   @id @default(cuid())
+  job_id     String
+  job        Job      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  sector     String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  positions JobPosition[]
+
+  @@unique([job_id, sector])
+  @@index([job_id])
+}
+
+// A specific, named position under one programme's sector (2026-09-02) —
+// the leaf-level pick on both application forms. city is optional and
+// falls back to the parent Job's own city/country in the UI when unset
+// (the shape every existing programme's backfilled "General Position"
+// row uses — see prisma/seed.ts).
+model JobPosition {
+  id            String    @id @default(cuid())
+  job_sector_id String
+  job_sector    JobSector @relation(fields: [job_sector_id], references: [id], onDelete: Cascade)
+  title         String
+  city          String?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  applications       Application[]
+  partner_candidates PartnerCandidate[]
+
+  @@index([job_sector_id])
 }
 
 // Pre-provisioned Stripe Product + one-off Price per (Job × milestone), so
@@ -966,8 +1059,17 @@ model Application {
   job       Job?      @relation(fields: [job_id], references: [id], onDelete: Cascade)
   case      Case?
 
+  // The specific position picked under job_id's matching sector
+  // (2026-09-02, Sector -> Opportunity -> Position) — optional and
+  // SetNull, deliberately looser than job_id's own onDelete: a position
+  // being edited/removed later must never block or cascade-delete a real
+  // submission.
+  job_position_id String?
+  job_position    JobPosition? @relation(fields: [job_position_id], references: [id], onDelete: SetNull)
+
   @@index([candidate_id])
   @@index([job_id])
+  @@index([job_position_id])
   @@index([current_location_country_id])
   @@index([application_status])
   @@index([submitted_at])
@@ -1067,11 +1169,12 @@ model Case {
   rejected_by      User?      @relation("CaseRejector", fields: [rejected_by_id], references: [id], onDelete: SetNull)
   rejection_reason String?    @db.Text
 
-  stage_events        CaseStageEvent[]
-  contract            Contract?
-  payments            CasePayment[]
-  retention_follow_up RetentionFollowUp?
-  reminders           CaseReminder[]
+  stage_events         CaseStageEvent[]
+  contract             Contract?
+  payments             CasePayment[]
+  retention_follow_up  RetentionFollowUp?
+  reminders            CaseReminder[]
+  referral_commissions ReferralCommission[]
 
   @@index([current_stage])
   @@index([ops_review_status])
@@ -1356,6 +1459,10 @@ model PartnerCandidate {
   // Information Form uses for a candidate exploring options in general.
   job_id                        String?
   job                           Job?      @relation(fields: [job_id], references: [id], onDelete: Restrict)
+  // Same shape as Application.job_position_id — optional/SetNull even
+  // though job_id itself is Restrict here.
+  job_position_id               String?
+  job_position                  JobPosition? @relation(fields: [job_position_id], references: [id], onDelete: SetNull)
   earliest_travel_date          DateTime?
   // Yes/No + an optional free-text detail (2026-08-06), matching
   // Application's identical field — was String? @db.Text. Converted after
@@ -1401,6 +1508,7 @@ model PartnerCandidate {
   @@index([partner_id])
   @@index([status])
   @@index([job_id])
+  @@index([job_position_id])
 }
 
 enum EmployerClientStatus {
@@ -1471,4 +1579,179 @@ model RefreshToken {
 
   @@index([user_id])
   @@index([family_id])
+}
+
+// ---------------------------------------------------------------------
+// Referral Agent System (2026-08-29, Phase 1) — a public referral-
+// marketing programme, completely separate from the internal
+// country_supervisor role and from Partner's own pre-screened-candidate
+// pipeline. A Referral Agent registers publicly, gets director/admin-
+// approved, receives a unique referral code/link, and earns a
+// configurable, milestone-based commission as candidates they referred
+// progress through the EXISTING self-registration pipeline (no parallel
+// status system — see Candidate.referral_agent_id and
+// ReferralMilestone/ReferralCommission below, and
+// src/lib/referralMilestones.ts for the trigger logic).
+// ---------------------------------------------------------------------
+
+enum ReferralAgentStatus {
+  pending_approval
+  active
+  suspended
+  rejected
+}
+
+enum ReferralMilestone {
+  registered
+  qualified
+  application_submitted
+  work_permit_approved
+  visa_approved
+  deployed
+}
+
+enum ReferralCommissionStatus {
+  pending // amount > 0, milestone reached, awaiting director/admin approval
+  approved // approved, awaiting payout recording
+  paid // payout recorded (or amount was 0 — auto-settled, nothing owed)
+  rejected // director/admin declined to pay (e.g. a duplicate-flagged candidate)
+}
+
+// Mirrors Partner's shape (nullable user_id until approval, same
+// login-provisioning mechanism), but registration is public self-service,
+// not admin-initiated — the applicant fills this in themselves and lands
+// at pending_approval; director/admin approves.
+model ReferralAgent {
+  id                        String    @id @default(cuid())
+  full_name                 String
+  email                     String    @unique
+  phone                     String
+  whatsapp_number           String?
+  country                   String // free text, same reasoning as Partner.country_of_operation
+  country_id                String? // resolved against the admin Country list by name, best-effort
+  countryRef                Country?  @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  city                      String?
+  date_of_birth             DateTime?
+  nationality               String?
+  preferred_contact_channel String?
+  previous_experience       String?   @db.Text
+  current_occupation        String?
+  network_size              Int?
+  social_media_profiles     String?   @db.Text
+  promotion_plan            String?   @db.Text
+  // Free-text bank/mobile-money reference for Finance's manual payout
+  // record — matches CasePayment.receipt_reference's informality; no
+  // structured/encrypted payment field, no live payment gateway anywhere
+  // in this system.
+  payment_details           String?   @db.Text
+
+  status         ReferralAgentStatus @default(pending_approval)
+  referral_code  String              @unique
+  email_verified Boolean             @default(false)
+
+  approved_by_id   String?
+  approver         User?     @relation("ReferralAgentApprover", fields: [approved_by_id], references: [id], onDelete: SetNull)
+  approved_at      DateTime?
+  rejection_reason String?   @db.Text
+  suspended_reason String?   @db.Text
+
+  // Nullable until director/admin approves and provisions a login — same
+  // shape as Partner.user_id.
+  user_id String? @unique
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  candidates  Candidate[]
+  commissions ReferralCommission[]
+  targets     ReferralAgentTarget[]
+
+  @@index([status])
+  @@index([referral_code])
+  @@index([country_id])
+}
+
+// One row per (country, milestone) — director/admin-editable, amount can
+// be 0 (some milestones legitimately pay nothing, per the business).
+// A missing row for a given pair is treated identically to an explicit
+// amount-0 rule — nothing has to be pre-seeded before this feature works.
+model ReferralCommissionRule {
+  id         String            @id @default(cuid())
+  country_id String
+  country    Country           @relation(fields: [country_id], references: [id], onDelete: Cascade)
+  milestone  ReferralMilestone
+  amount     Float             @default(0)
+  currency   String            @default("USD")
+  updated_by String
+  updater    User              @relation("ReferralCommissionRuleUpdater", fields: [updated_by], references: [id], onDelete: Cascade)
+  created_at DateTime          @default(now())
+  updated_at DateTime          @updatedAt
+
+  commissions ReferralCommission[]
+
+  @@unique([country_id, milestone])
+  @@index([country_id])
+}
+
+// The commission ledger — one row per candidate per milestone actually
+// reached, generated by generateReferralCommissionIfDue
+// (src/lib/referralMilestones.ts). Mirrors CasePayment's pending→
+// approved→paid audit shape. amount is snapshotted at creation time so a
+// later rule edit never mutates history.
+model ReferralCommission {
+  id                 String                   @id @default(cuid())
+  referral_agent_id  String
+  referral_agent     ReferralAgent            @relation(fields: [referral_agent_id], references: [id], onDelete: Cascade)
+  candidate_id       String
+  candidate          Candidate                @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  case_id            String? // null for pre-Case milestones (registered/qualified/application_submitted)
+  case               Case?                    @relation(fields: [case_id], references: [id], onDelete: SetNull)
+  milestone          ReferralMilestone
+  commission_rule_id String? // snapshot source; SetNull so a later rule edit never mutates history
+  commission_rule    ReferralCommissionRule?  @relation(fields: [commission_rule_id], references: [id], onDelete: SetNull)
+  amount             Float
+  currency           String                   @default("USD")
+  status             ReferralCommissionStatus @default(pending)
+
+  approved_by_id String?
+  approver       User?     @relation("ReferralCommissionApprover", fields: [approved_by_id], references: [id], onDelete: SetNull)
+  approved_at    DateTime?
+
+  paid_by_id        String?
+  payer             User?     @relation("ReferralCommissionPayer", fields: [paid_by_id], references: [id], onDelete: SetNull)
+  paid_at           DateTime?
+  payment_reference String?
+  payment_method    String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Idempotency: a milestone only ever generates once per candidate — the
+  // trigger hooks (applications/route.ts, screening.ts,
+  // candidates/[id]/status/route.ts, cases/[id]/stage/route.ts) rely on
+  // this to stay safe even if a status could theoretically re-fire.
+  @@unique([candidate_id, milestone])
+  @@index([referral_agent_id])
+  @@index([status])
+}
+
+// Deliberately separate from StaffKpiTarget, which is tied to the
+// internal weekly/monthly report system's kpi_label concept — a
+// different domain, same "don't conflate separate target mechanisms"
+// precedent already established between RecruiterTarget and
+// StaffKpiTarget.
+model ReferralAgentTarget {
+  id                String        @id @default(cuid())
+  referral_agent_id String
+  referral_agent    ReferralAgent @relation(fields: [referral_agent_id], references: [id], onDelete: Cascade)
+  period_start      DateTime
+  period_end        DateTime
+  target_referrals  Int
+  set_by            String
+  setter            User          @relation("ReferralAgentTargetSetter", fields: [set_by], references: [id], onDelete: Cascade)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+
+  @@index([referral_agent_id])
 }

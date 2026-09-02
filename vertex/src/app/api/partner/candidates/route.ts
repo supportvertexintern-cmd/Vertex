@@ -133,6 +133,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: "not_found", message: "Opportunity not found or no longer active." } }, { status: 404 });
   }
 
+  // Sector -> Opportunity -> Position (2026-09-02) — same server-side
+  // consistency check as the internal CIF's own route.
+  if (parsed.data.job_position_id) {
+    const jobPosition = await prisma.jobPosition.findUnique({
+      where: { id: parsed.data.job_position_id },
+      include: { job_sector: true },
+    });
+    if (!jobPosition || jobPosition.job_sector.job_id !== job.id) {
+      return NextResponse.json({ error: { code: "validation_error", message: "Selected position does not belong to this opportunity." } }, { status: 422 });
+    }
+  }
+
   // Documents are uploaded as real files at submission time (this form has
   // no separate document-review step, unlike the CIF) — enforce server-side
   // that every checklist type the destination country requires is actually
@@ -206,6 +218,7 @@ export async function POST(req: NextRequest) {
       data: {
         candidate_id: candidate.id,
         job_id: job.id,
+        job_position_id: parsed.data.job_position_id,
         earliest_travel_date: new Date(parsed.data.earliest_travel_date),
         prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,
         prior_eu_visa_applied_details: parsed.data.prior_eu_visa_applied_details,
@@ -241,6 +254,7 @@ export async function POST(req: NextRequest) {
         whatsapp_number: parsed.data.whatsapp_number,
         marital_status: parsed.data.marital_status,
         job_id: job.id,
+        job_position_id: parsed.data.job_position_id,
         earliest_travel_date: new Date(parsed.data.earliest_travel_date),
         prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,
         prior_eu_visa_applied_details: parsed.data.prior_eu_visa_applied_details,

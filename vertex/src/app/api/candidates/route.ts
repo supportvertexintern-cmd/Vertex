@@ -36,6 +36,8 @@ const CANDIDATE_SELECT = {
   country: { select: { id: true, name: true, region: { select: { id: true, name: true } } } },
   country_name: true,
   partner: { select: { id: true, name: true } },
+  referral_agent: { select: { id: true, full_name: true, referral_code: true } },
+  referral_duplicate_flag: true,
   documents: { select: { id: true, type: true, verification_status: true } },
   // Programme + Preferred Country columns (2026-07-27, replaces the old
   // free-text "Role"/desired_role column) — a candidate has at most one
@@ -111,7 +113,11 @@ export async function GET(req: NextRequest) {
   const where: Prisma.CandidateWhereInput = {
     ...scope,
     ...(status ? { lifecycle_status: status as never } : {}),
-    ...(source ? { source: source as never } : {}),
+    // Comma-separated (2026-08-29) — HR's Self Applications queue now
+    // widens this to "self_registered,referral_sourced" so a referral-
+    // sourced candidate lands in the same HR review queue, per the
+    // Referral Agent System's "no new parallel pipeline" decision.
+    ...(source ? { source: { in: source.split(",") } as never } : {}),
     ...(countryId ? { country_id: countryId } : {}),
     ...(q
       ? {

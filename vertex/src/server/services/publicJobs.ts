@@ -30,6 +30,11 @@ const PUBLIC_JOB_LIST_SELECT = {
   is_credit_service: true,
   financing_percent: true,
   installment_count: true,
+  // Sector -> Opportunity -> Position (2026-09-02) — both application
+  // forms already eagerly fetch this full list once and filter
+  // client-side, so the nested sectors/positions ride along here rather
+  // than needing a separate round-trip per job.
+  sectors: { select: { id: true, sector: true, positions: { select: { id: true, title: true, city: true } } } },
   _count: { select: { applications: true } },
 } as const;
 
@@ -108,6 +113,7 @@ const PUBLIC_JOB_DETAIL_SELECT = {
   requirements: true,
   processing_time: true,
   visa_success_rates: true,
+  sectors: { include: { positions: true } },
 } as const;
 
 // Public = active or closed (closed jobs stay reachable from old links and

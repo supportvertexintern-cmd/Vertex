@@ -559,6 +559,178 @@ export async function sendPartnerResubmissionRequestEmail(to: string, contactNam
   }
 }
 
+// --- Referral Agent System (2026-08-29) ------------------------------
+
+export async function sendReferralAgentApplicationReceivedEmail(to: string, fullName: string, verifyUrl: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Application received",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, thanks for applying to become a Vertex Referral Agent.`)}
+      ${p(`Please verify your email address to continue — this is required before we can review your application.`)}
+      ${goldButton(verifyUrl, "Verify Email")}
+      ${small("Once verified, our team will review your application and let you know the outcome.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Verify your email — Vertex Referral Agent application", html });
+  } catch (error) {
+    console.error("Error sending referral agent application received email:", error);
+  }
+}
+
+export async function sendReferralAgentAdminNotificationEmail(fullName: string, country: string) {
+  const to = process.env.REFERRAL_AGENT_NOTIFY_EMAIL;
+  if (!to) {
+    console.log(`[referral-agent] ${fullName} (${country}) applied — no REFERRAL_AGENT_NOTIFY_EMAIL configured, skipping notification email.`);
+    return;
+  }
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "New referral agent application",
+    bodyHtml: `
+      ${p(`<strong>${fullName}</strong> (${country}) applied to become a Referral Agent.`)}
+      ${small("Sign in to the Management portal to review it once their email is verified.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `New referral agent application: ${fullName}`, html });
+  } catch (error) {
+    console.error("Error sending referral agent admin notification:", error);
+  }
+}
+
+export async function sendReferralAgentApprovedEmail(to: string, fullName: string, referralCode: string, referralLink: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "You're approved!",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, your Vertex Referral Agent application has been approved.`)}
+      ${p(`Your referral code: <strong>${referralCode}</strong>`)}
+      ${p(`Your referral link: <a href="${referralLink}">${referralLink}</a>`)}
+      ${small("A separate email is on its way with a link to set your password and access your dashboard.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "You're approved as a Vertex Referral Agent", html });
+  } catch (error) {
+    console.error("Error sending referral agent approved email:", error);
+  }
+}
+
+export async function sendReferralAgentRejectedEmail(to: string, fullName: string, reason: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Application update",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, thanks for your interest in becoming a Vertex Referral Agent.`)}
+      ${p(`We're unable to approve your application at this time.`)}
+      ${p(`<strong>Reason:</strong> ${reason}`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Update on your Vertex Referral Agent application", html });
+  } catch (error) {
+    console.error("Error sending referral agent rejected email:", error);
+  }
+}
+
+export async function sendReferralAgentSuspendedEmail(to: string, fullName: string, reason: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Account suspended",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, your Vertex Referral Agent account has been suspended.`)}
+      ${p(`<strong>Reason:</strong> ${reason}`)}
+      ${small("Contact Vertex if you believe this is a mistake.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Your Vertex Referral Agent account has been suspended", html });
+  } catch (error) {
+    console.error("Error sending referral agent suspended email:", error);
+  }
+}
+
+export async function sendReferralCandidateRegisteredEmail(to: string, agentName: string, candidateName: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "New referral registered",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, <strong>${candidateName}</strong> just registered using your referral link.`)}
+      ${goldButton(`${APP_URL}/referral-agent`, "View Your Referrals")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `New referral: ${candidateName}`, html });
+  } catch (error) {
+    console.error("Error sending referral candidate registered email:", error);
+  }
+}
+
+export async function sendReferralCandidateQualifiedEmail(to: string, agentName: string, candidateName: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Your referral qualified",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, <strong>${candidateName}</strong> passed initial screening.`)}
+      ${goldButton(`${APP_URL}/referral-agent`, "View Your Referrals")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `${candidateName} qualified`, html });
+  } catch (error) {
+    console.error("Error sending referral candidate qualified email:", error);
+  }
+}
+
+export async function sendReferralCommissionEarnedEmail(to: string, agentName: string, candidateName: string, milestone: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission earned",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, you've earned a commission for <strong>${candidateName}</strong> reaching the "${milestone}" milestone.`)}
+      ${p(`<strong>${currency} ${amount.toLocaleString()}</strong> — pending approval.`)}
+      ${goldButton(`${APP_URL}/referral-agent/commissions`, "View Commissions")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission earned — ${candidateName}`, html });
+  } catch (error) {
+    console.error("Error sending referral commission earned email:", error);
+  }
+}
+
+export async function sendReferralCommissionApprovedEmail(to: string, agentName: string, candidateName: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission approved",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, your commission of <strong>${currency} ${amount.toLocaleString()}</strong> for <strong>${candidateName}</strong> has been approved and is being processed for payment.`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission approved — ${candidateName}`, html });
+  } catch (error) {
+    console.error("Error sending referral commission approved email:", error);
+  }
+}
+
+export async function sendReferralCommissionPaidEmail(to: string, agentName: string, candidateName: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission paid",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, your commission of <strong>${currency} ${amount.toLocaleString()}</strong> for <strong>${candidateName}</strong> has been paid.`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission paid — ${candidateName}`, html });
+  } catch (error) {
+    console.error("Error sending referral commission paid email:", error);
+  }
+}
+
 // Operations sending a manual reminder for a delayed document or payment
 // (POST /api/cases/:id/remind, 2026-07-31 per the Operational Workflow
 // SOP) — deliberately not an automated scheduler, matching this

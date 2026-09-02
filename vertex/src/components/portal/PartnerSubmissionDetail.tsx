@@ -57,6 +57,7 @@ interface PartnerCandidateDetail {
     financing_percent: number | null;
     installment_count: number | null;
   } | null;
+  job_position: { title: string; city: string | null } | null;
   reviewer: { full_name: string } | null;
   bridged_candidate: { id: string; documents: { id: string; type: string; verification_status: string; uploaded_at: string }[] } | null;
   document_completeness: { complete: boolean; missingTypes: string[] } | null;
@@ -291,6 +292,10 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                 }
               />
               <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
+              <Field
+                label="Position"
+                value={data.job_position ? (data.job_position.city ? `${data.job_position.title} — ${data.job_position.city}` : data.job_position.title) : null}
+              />
               {data.job?.is_credit_service && data.job.service_fee_gbp != null && data.job.financing_percent != null && data.job.installment_count != null ? (
                 (() => {
                   const s = computeCreditServiceSchedule(data.job.service_fee_gbp, data.job.financing_percent, data.job.installment_count);

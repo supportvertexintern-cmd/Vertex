@@ -129,6 +129,35 @@ export const createJobSchema = z.object({
   partner_only: z.boolean().default(false),
 });
 
+// Programme sectors & positions (2026-09-02) — Marketing attaches one of
+// the same 8 canonical sector names already used everywhere else (the
+// Job.category values, both forms' SECTOR_ORDER constant) to a specific
+// Job, not free text.
+const CANONICAL_SECTORS = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+] as const;
+
+export const createJobSectorSchema = z.object({
+  sector: z.enum(CANONICAL_SECTORS),
+});
+
+export const createJobPositionSchema = z.object({
+  title: z.string().min(2, "Title is required").max(150),
+  city: z.string().max(100).optional(),
+});
+
+export const updateJobPositionSchema = z.object({
+  title: z.string().min(2).max(150).optional(),
+  city: z.string().max(100).nullish(),
+});
+
 // Applications — the Candidate Information Form: the first thing a
 // candidate (or a recruiter on a walk-in lead's behalf) ever fills in, not
 // an application to a specific job listing (jobs aren't listed on the
@@ -148,11 +177,22 @@ export const submitApplicationSchema = z
     // replacing the old 3-country-alternates + sector cluster, for both the
     // public self-submission and the recruiter's own walk-in-lead form).
     job_id: z.string().cuid("Select your opportunity"),
+    // Sector -> Opportunity -> Position (2026-09-02) — optional at the
+    // schema layer (defensive; an old cached page shouldn't hard-fail if
+    // omitted), enforced by the client UI instead. Re-validated server-side
+    // against job_id in the route itself (a position must actually belong
+    // to the submitted job).
+    job_position_id: z.string().cuid().optional(),
     cover_letter: z.string().optional(),
     // Present when staff submits on behalf of an existing candidate record
     // (SRS FR-2.1) — otherwise the authenticated candidate's own profile is
     // used, or (if neither applies) a brand-new Candidate is created.
     candidate_id: z.string().cuid().optional(),
+    // Referral Agent attribution (2026-08-29) — captured from ?ref= on
+    // /apply, never validated against a real ReferralAgent here (that
+    // happens server-side in the route); an invalid/unknown/inactive code
+    // silently produces no attribution rather than a validation error.
+    referral_code: z.string().max(30).optional(),
 
     // Section 2 — Candidate Personal Information. Required only when this
     // submission creates/completes a brand-new Candidate — see the
@@ -413,6 +453,10 @@ export const updateCandidateDetailsSchema = z.object({
   home_address: z.string().max(500).optional(),
   whatsapp_number: z.string().max(30).optional(),
   marital_status: optionalMaritalStatus,
+  // Referral Agent System (2026-08-29) — HR's manual "Clear flag"
+  // affordance after reviewing a duplicate-candidate warning, same
+  // record-through-the-existing-PATCH pattern as consent_given above.
+  referral_duplicate_flag: z.boolean().optional(),
 });
 
 // Candidate lifecycle status transitions (SRS FR-2.4, FR-2.5, FR-2.7)
@@ -925,6 +969,7 @@ export const submitPartnerCandidateSchema = z.object({
   marital_status: optionalMaritalStatus,
 
   job_id: z.string().cuid("Select the candidate's opportunity"),
+  job_position_id: z.string().cuid().optional(),
   earliest_travel_date: z.string().min(1, "Earliest possible travel date is required"),
   prior_eu_visa_applied: z.boolean().optional(),
   prior_eu_visa_applied_details: z.string().max(500).optional(),
@@ -983,6 +1028,70 @@ export const contactMessageSchema = z.object({
   // include its registration/licence number; optional since most contact
   // messages aren't from partners at all.
   registration_number: z.string().max(100).optional(),
+});
+
+// Public self-registration for the Referral Agent System (2026-08-29) —
+// mirrors createPartnerSchema's shape/style, but every field beyond the
+// core identity ones is optional (the brief's own promotion/network
+// fields are useful context for approval, not hard requirements to apply).
+export const registerReferralAgentSchema = z.object({
+  full_name: z.string().min(2, "Full name is required").max(150),
+  email: z.string().email("A valid email is required"),
+  phone: z.string().min(3, "Phone number is required").max(30),
+  whatsapp_number: z.string().max(30).optional(),
+  country: z.string().min(2, "Country is required").max(100),
+  city: z.string().max(100).optional(),
+  date_of_birth: z.string().optional(),
+  nationality: z.string().max(100).optional(),
+  preferred_contact_channel: z.enum(["email", "whatsapp", "phone"]).optional(),
+  previous_experience: z.string().max(2000).optional(),
+  current_occupation: z.string().max(150).optional(),
+  network_size: z.coerce.number().int().min(0).optional(),
+  social_media_profiles: z.string().max(1000).optional(),
+  promotion_plan: z.string().max(2000).optional(),
+  payment_details: z.string().max(500).optional(),
+});
+
+// Director/Admin provisions a Referral Agent's own login on approval — same
+// email-override shape as provisionPartnerAccountSchema.
+export const approveReferralAgentSchema = z.object({
+  email: z.string().email().optional(),
+});
+
+// Covers reject (pending_approval -> rejected), suspend (active ->
+// suspended), and reactivate (suspended -> active) in one route — reason
+// is required for reject/suspend (enforced in the route, since it depends
+// on which status is targeted) and ignored for reactivate.
+export const updateReferralAgentStatusSchema = z.object({
+  status: z.enum(["rejected", "suspended", "active"]),
+  reason: z.string().max(2000).optional(),
+});
+
+// Commission-rule grid (2026-08-29) — one row per (country, milestone),
+// amount explicitly allowed to be 0 (some milestones legitimately pay
+// nothing, per the business — z.number().min(0) allows this, it's not
+// treated as "unset").
+export const upsertReferralCommissionRuleSchema = z.object({
+  country_id: z.string().cuid(),
+  milestone: z.enum(["registered", "qualified", "application_submitted", "work_permit_approved", "visa_approved", "deployed"]),
+  amount: z.coerce.number().min(0),
+  currency: z.string().min(1).max(10).default("USD"),
+});
+
+// Commission payout confirmation (2026-08-29) — receipt is optional here,
+// unlike markCasePaymentPaidSchema's required one: the underlying
+// milestone event (the ReferralCommission row itself) is already the
+// record of what happened, so a receipt is a nice-to-have, not the only
+// proof.
+export const markReferralCommissionPaidSchema = z.object({
+  payment_reference: z.string().max(200).optional(),
+  payment_method: z.string().max(100).optional(),
+});
+
+export const createReferralAgentTargetSchema = z.object({
+  period_start: z.string().min(1, "Start date is required"),
+  period_end: z.string().min(1, "End date is required"),
+  target_referrals: z.coerce.number().int().min(0),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

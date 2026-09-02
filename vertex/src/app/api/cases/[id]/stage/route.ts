@@ -6,6 +6,7 @@ import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { canSetCaseStage, type CaseStage } from "@/server/services/caseLifecycle";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
+import { generateReferralCommissionIfDue, REFERRAL_STAGE_TRIGGER } from "@/lib/referralMilestones";
 
 import { log } from "@/lib/log";
 // PATCH /api/cases/:id/stage — advance or return a case's stage (SRS FR-4.2).
@@ -89,6 +90,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       stage_deadline: parsed.data.stage_deadline ? new Date(parsed.data.stage_deadline) : null,
     },
   });
+
+  // Referral commission trigger (2026-08-29) — work_permit_approved/
+  // visa_approved/deployed reuse the exact same stage keys already
+  // established as candidate payment-milestone triggers in
+  // paymentSchedule.ts. No-ops if this stage isn't one of the 3 referral
+  // milestones, the candidate wasn't referred, or the milestone was
+  // already generated.
+  const referralMilestone = REFERRAL_STAGE_TRIGGER[parsed.data.stage];
+  if (referralMilestone) {
+    await generateReferralCommissionIfDue({
+      candidateId: caseRecord.application.candidate.id,
+      milestone: referralMilestone,
+      caseId: id,
+      actorId: user!.userId,
+    });
+  }
 
   // 90-day retention follow-up (SRS FR-4.7) auto-starts once a case
   // reaches the final stage — departure & arrival support.

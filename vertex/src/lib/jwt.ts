@@ -115,6 +115,11 @@ export interface CifUploadTokenPayload {
   type: "cif_upload";
 }
 
+export interface ReferralAgentEmailVerificationTokenPayload {
+  referralAgentId: string;
+  type: "referral_agent_email_verification";
+}
+
 export function signToken(payload: JwtPayload): string {
   return sign("session", payload, ACCESS_TOKEN_EXPIRES_IN);
 }
@@ -190,4 +195,22 @@ export function signCifUploadToken(candidateId: string): string {
 
 export function verifyCifUploadToken(token: string): CifUploadTokenPayload {
   return verify<CifUploadTokenPayload>("cif_upload", token, ["candidateId"]);
+}
+
+// Verifies a public Referral Agent applicant's email address before admin
+// can approve them (2026-08-29) — no User/session exists yet at this point,
+// same no-account-required shape as signCandidateInviteToken. 24h, matching
+// EMAIL_TOKEN_EXPIRES_IN's existing email-verification precedent rather
+// than the 7-day invite-token TTL, since this is sent immediately after a
+// registration the applicant just submitted themselves (not a delayed
+// staff-initiated invite).
+export function signReferralAgentEmailVerificationToken(referralAgentId: string): string {
+  return jwt.sign({ referralAgentId, type: "referral_agent_email_verification" }, JWT_SECRET, {
+    expiresIn: EMAIL_TOKEN_EXPIRES_IN,
+    algorithm: ALGORITHM,
+  } as jwt.SignOptions);
+}
+
+export function verifyReferralAgentEmailVerificationToken(token: string): ReferralAgentEmailVerificationTokenPayload {
+  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as ReferralAgentEmailVerificationTokenPayload;
 }

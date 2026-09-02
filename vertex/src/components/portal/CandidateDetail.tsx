@@ -33,6 +33,7 @@ interface ApplicationRow {
   submitted_at: string;
   job_id: string | null;
   job: { title: string; country: string; city: string } | null;
+  job_position: { title: string; city: string | null } | null;
   preferred_country_1: { id: string; name: string } | null;
   preferred_country_2: { id: string; name: string } | null;
   preferred_country_3: { id: string; name: string } | null;
@@ -83,6 +84,8 @@ interface CandidateData {
   user: { full_name: string; email: string; phone: string | null } | null;
   recruiter: { id: string; full_name: string } | null;
   country: { id: string; name: string } | null;
+  referral_agent: { id: string; full_name: string; referral_code: string } | null;
+  referral_duplicate_flag: boolean;
   documents: { id: string; type: string; verification_status: string; uploaded_at: string; label: string | null }[];
   applications: ApplicationRow[];
   required_document_types: string[];
@@ -227,6 +230,15 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
     if (res.ok) load();
   };
 
+  const clearReferralFlag = async () => {
+    const res = await fetch(`/api/candidates/${candidateId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referral_duplicate_flag: false }),
+    });
+    if (res.ok) load();
+  };
+
   const saveDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -295,6 +307,21 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
       {data.return_reason && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
           <span className="font-semibold">Returned:</span> {data.return_reason}
+        </div>
+      )}
+
+      {data.referral_agent && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+          <span className="font-semibold">Referred by:</span> {data.referral_agent.full_name} ({data.referral_agent.referral_code})
+        </div>
+      )}
+
+      {data.referral_duplicate_flag && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm flex items-center justify-between gap-4">
+          <span><span className="font-semibold">Possible duplicate:</span> a candidate with matching email, phone, or passport number already exists on file.</span>
+          <button type="button" onClick={clearReferralFlag} className="text-xs font-semibold hover:underline shrink-0">
+            Clear flag
+          </button>
         </div>
       )}
 
@@ -463,6 +490,10 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               <>
                 <Field label="Opportunity" value={app.job.title} />
                 <Field label="Destination" value={`${app.job.city}, ${app.job.country}`} />
+                <Field
+                  label="Position"
+                  value={app.job_position ? (app.job_position.city ? `${app.job_position.title} — ${app.job_position.city}` : app.job_position.title) : undefined}
+                />
               </>
             ) : (
               <>

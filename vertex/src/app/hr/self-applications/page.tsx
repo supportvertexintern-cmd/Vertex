@@ -10,7 +10,7 @@ import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
-import { CheckCircle, ChatCircleDots, Clock } from "@phosphor-icons/react";
+import { CheckCircle, ChatCircleDots, Clock, WarningCircle } from "@phosphor-icons/react";
 
 interface SelfApplicationRow {
   id: string;
@@ -23,6 +23,8 @@ interface SelfApplicationRow {
   pending_documents_count: number;
   message_count: number;
   awaiting_hr_reply: boolean;
+  referral_agent: { id: string; full_name: string; referral_code: string } | null;
+  referral_duplicate_flag: boolean;
 }
 
 const PAGE_SIZE = 15;
@@ -77,7 +79,10 @@ export default function HrSelfApplicationsPage() {
   const load = () => {
     setLoading(true);
     const params = new URLSearchParams({
-      source: "self_registered",
+      // Widened (2026-08-29) to include referral_sourced — a referred
+      // candidate lands in this same HR queue, per the Referral Agent
+      // System's "no new parallel pipeline" decision.
+      source: "self_registered,referral_sourced",
       signals: "true",
       page: String(page),
       pageSize: String(PAGE_SIZE),
@@ -176,6 +181,7 @@ export default function HrSelfApplicationsPage() {
                 <th className="px-5 py-3 font-semibold">Opportunity</th>
                 <th className="px-5 py-3 font-semibold">Documents</th>
                 <th className="px-5 py-3 font-semibold">Messages</th>
+                <th className="px-5 py-3 font-semibold">Duplicate?</th>
                 <SortableTh label="Submitted" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <SortableTh label="Status" sortKey="lifecycle_status" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
               </tr>
@@ -214,6 +220,15 @@ export default function HrSelfApplicationsPage() {
                           <ChatCircleDots size={13} weight={row.awaiting_hr_reply ? "fill" : "regular"} /> {row.message_count}
                           {row.awaiting_hr_reply && " · reply needed"}
                         </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      {row.referral_duplicate_flag ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                          <WarningCircle size={13} weight="fill" /> Possible duplicate
+                        </span>
+                      ) : (
+                        <span className="text-xs text-midnight-900/35">—</span>
                       )}
                     </td>
                     <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.created_at).toLocaleDateString()}</td>

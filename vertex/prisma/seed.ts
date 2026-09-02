@@ -132,7 +132,7 @@ const JOBS: {
   {
     title: "Greece — Hospitality Worker (1-Year Employment Contract)",
     country: "Greece",
-    category: "Hospitality & Hotel",
+    category: "Hospitality",
     tier: "Premium",
     salary_range: "1,200–1,350 EUR / month",
     job_description: `Hospitality-sector work (kitchen, housekeeping, or hotel staff) on a Visa D1, with a 1-year employment contract processed in around 3 months. ${ACCOMMODATION_NOTE}`,
@@ -160,7 +160,7 @@ const JOBS: {
   {
     title: "Germany — Unskilled Worker (180-Day Visa + Resident Card)",
     country: "Germany",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Premium",
     salary_range: "From 2,200 EUR / month",
     job_description: `Unskilled work on a Visa D, combining a 180-day visa with a 1–2 year resident card. Documents process in around 4 months. Skilled applicants should also prepare a ZAB recognition letter. ${ACCOMMODATION_NOTE}`,
@@ -174,7 +174,7 @@ const JOBS: {
   {
     title: "Bulgaria — Hotel Sector Worker (6-Month Contract)",
     country: "Bulgaria",
-    category: "Hospitality & Hotel",
+    category: "Hospitality",
     tier: "Standard",
     salary_range: "750–1,400 EUR / month",
     job_description: `Unskilled hotel-sector work (hotel staff, kitchen assistant, housekeeping, or gardener assistant) on a Visa D. An initial visa is issued for up to 90 days, attached to a 6-month employment contract; documents process in around 3 months. Salary depends on the exact position and working hours. ${ACCOMMODATION_NOTE}`,
@@ -188,7 +188,7 @@ const JOBS: {
   {
     title: "Portugal — Unskilled Worker (12-Month Employment Contract)",
     country: "Portugal",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Standard",
     salary_range: "870 EUR / month",
     job_description: `Unskilled work on a 12-month employment contract (Visa D1), processed in around 3 months with a scheduled embassy appointment. ${ACCOMMODATION_NOTE}`,
@@ -202,7 +202,7 @@ const JOBS: {
   {
     title: "Spain — Unskilled Worker (12-Month Employment Contract)",
     country: "Spain",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Standard",
     salary_range: "870 EUR / month",
     job_description: `Unskilled work on a 12-month employment contract (Visa D1), processed in around 3 months with a scheduled embassy appointment. ${ACCOMMODATION_NOTE}`,
@@ -216,7 +216,7 @@ const JOBS: {
   {
     title: "Croatia — Construction Worker (1-Year Employment Contract)",
     country: "Croatia",
-    category: "Construction",
+    category: "Construction & Trades",
     tier: "Standard",
     salary_range: "1,100 EUR / month",
     job_description: `Construction work on a Visa D1, with a 1-year employment contract processed in around 3 months. ${ACCOMMODATION_NOTE}`,
@@ -244,7 +244,7 @@ const JOBS: {
   {
     title: "Slovakia — Truck Driver, Category CE (Skilled)",
     country: "Slovakia",
-    category: "Driving",
+    category: "Transport & Delivery",
     tier: "Skilled",
     salary_range: "2,250 EUR / month",
     job_description: `Skilled work as a Category CE truck driver, with official employment and a 2-year residence permit on a Visa D — the highest fixed salary in the programme lineup. Documents process in around 3 months; requires an embassy appointment. ${ACCOMMODATION_NOTE}`,
@@ -258,7 +258,7 @@ const JOBS: {
   {
     title: "Czech Republic — 2-Year Resident Card",
     country: "Czech Republic",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Standard",
     salary_range: "From 830 EUR / month",
     job_description: `Unskilled work on a Visa D with a 2-year resident card, processed in around 3 months. ${ACCOMMODATION_NOTE}`,
@@ -272,7 +272,7 @@ const JOBS: {
   {
     title: "Romania — Unskilled Worker (2-Year Resident Card)",
     country: "Romania",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Standard",
     salary_range: "From 700 EUR / month",
     job_description: `Unskilled work on a Visa D with a 2-year resident card, processed in around 4 months. ${ACCOMMODATION_NOTE}`,
@@ -286,7 +286,7 @@ const JOBS: {
   {
     title: "Poland — Unskilled Worker (12- or 18-Month Work Permit)",
     country: "Poland",
-    category: "General Labour",
+    category: "General / Unskilled",
     tier: "Standard",
     salary_range: "From 1,000 EUR / month",
     job_description: `Unskilled work on a Visa D, with a choice of 12-month or 18-month work permit. ${ACCOMMODATION_NOTE}`,
@@ -300,7 +300,7 @@ const JOBS: {
   {
     title: "Serbia — Warehouse Worker (6-Month Work Permit)",
     country: "Serbia",
-    category: "Warehouse & Logistics",
+    category: "Logistics & Warehousing",
     tier: "Entry",
     salary_range: "940 EUR / month",
     job_description: `Warehouse worker programme on a Visa D, with a 6-month engagement that can be extended via a temporary residence card (TRC). Documents process in around 2 months. ${ACCOMMODATION_NOTE}`,
@@ -314,7 +314,7 @@ const JOBS: {
   {
     title: "Belarus — Production & Construction Vacancies (3-Year TRC)",
     country: "Belarus",
-    category: "Construction",
+    category: "Construction & Trades",
     tier: "Entry",
     salary_range: "434–1,085 EUR / month",
     job_description: `Vacancies across General Worker (production), Painter, Plasterer/finishing, and Production Assistant (no experience required) roles on a Visa D. A 30-day entry visa is followed by a temporary residence card (TRC) valid for 3 years on arrival; requires an embassy appointment. Documents process in around 2 months. Salary depends on the exact vacancy. ${ACCOMMODATION_NOTE}`,
@@ -361,7 +361,7 @@ const CREDIT_SERVICE_JOBS: {
     title: "Albania — Skilled Construction Programme (Credit Service)",
     country: "Albania",
     city: "Tirana / Elbasan",
-    category: "Construction",
+    category: "Construction & Trades",
     salary_range: "Role / employer dependent",
     job_description:
       "Skilled construction work at employer-assigned project locations, with vacancies across Plumber (installation, maintenance, pipework, fittings, sanitary systems, and repairs), Electrician (electrical installation, wiring, fixtures, testing, and maintenance within authorised scope), Mason/Bricklayer (brick/block work, mortar preparation, and structural/finishing masonry), and Other skilled trades (additional skilled construction trades per employer demand). 12-month renewable contract, full-time on a site schedule. Accommodation is employer/project-dependent. Financed under the Credit Service Programme — 100% financing, no upfront Credit Service Fee payment, repaid over 9 monthly installments of £200 after placement.",
@@ -412,7 +412,7 @@ const CREDIT_SERVICE_JOBS: {
     title: "Belgium — Warehouse Programme (Credit Service)",
     country: "Belgium",
     city: "Liège",
-    category: "Warehouse & Logistics",
+    category: "Logistics & Warehousing",
     salary_range: "EUR 2,200–2,300 / month",
     job_description:
       "Warehouse work across Loader-Warehouse (receiving, unloading, and handling cartons and pallets), Stock handling (moving stock using hand pallet trucks and roll cages), Dispatch support (loading outbound vehicles and supporting dispatch operations), and Warehouse safety (maintaining an organised loading area and following health and safety procedures). 12-month renewable contract, 38 hours/week on shifts. Accommodation is provided by the employer. Financed under the Credit Service Programme — 70% financing, £900 upfront, repaid over 3 installments of £700 after placement.",
@@ -429,7 +429,7 @@ const CREDIT_SERVICE_JOBS: {
     title: "Portugal — General Labour Programme (Credit Service)",
     country: "Portugal",
     city: "Lisbon / Porto / Faro / Santarém",
-    category: "General Labour",
+    category: "General / Unskilled",
     salary_range: "EUR 870–900 / month",
     job_description:
       "General labour work across Warehouse Worker in Lisbon (receiving, unloading, checking, and sorting incoming goods; picking, packing, and preparing orders), Food Production Worker in Porto (preparing, portioning, and packaging food products; carrying out visual quality checks), Hotel Housekeeping Assistant in Faro (cleaning and preparing guest rooms, bathrooms, and public areas), and Agricultural Worker in Santarém (supporting planting, cultivation, crop care, and harvesting). 12-month renewable contract, 40 hours/week. Accommodation is provided/assisted. Financed under the Credit Service Programme — 90% financing, £280 upfront, repaid over 12 installments of £210 after placement.",
@@ -446,7 +446,7 @@ const CREDIT_SERVICE_JOBS: {
     title: "Spain — General Labour Programme (Credit Service)",
     country: "Spain",
     city: "Madrid / Murcia / Barcelona / Valencia",
-    category: "General Labour",
+    category: "General / Unskilled",
     salary_range: "EUR 870–1,000 / month",
     job_description:
       "General labour work across Warehouse Worker in Madrid (receiving, unloading, checking, and sorting incoming goods; picking, packing, and preparing orders), Factory Worker in Barcelona (production-line assembly, packaging, labelling, and basic visual quality checks), Agricultural Worker in Murcia (supporting planting, cultivation, crop care, harvesting, and produce handling), and Hotel Housekeeping Assistant in Valencia (cleaning and preparing guest rooms, bathrooms, and public areas). 12-month renewable contract, full-time on an employer schedule. Accommodation is provided/assisted. Financed under the Credit Service Programme — 90% financing, £280 upfront, repaid over 12 installments of £210 after placement.",
@@ -460,6 +460,295 @@ const CREDIT_SERVICE_JOBS: {
     installment_count: 12,
   },
 ];
+
+// Backfill for the Sector -> Opportunity -> Position application-form flow
+// (2026-09-02): every programme needs at least one real JobSector/
+// JobPosition row from day one, or the public forms would show zero
+// selectable positions the moment this ships until Marketing manually
+// visits every job. Upserts a JobSector matching the programme's existing
+// category, then find-or-creates one default "General Position" under it
+// — same idempotent-by-natural-key idiom as the Job loops above (no
+// unique key on JobPosition beyond its own id, so find-then-create).
+// Marketing can rename/replace/add to this at their own pace afterward.
+const DEFAULT_POSITION_TITLE = "General Position";
+
+async function backfillDefaultSectorAndPosition(jobId: string, category: string) {
+  const sector = await prisma.jobSector.upsert({
+    where: { job_id_sector: { job_id: jobId, sector: category } },
+    update: {},
+    create: { job_id: jobId, sector: category },
+  });
+
+  const existingPosition = await prisma.jobPosition.findFirst({
+    where: { job_sector_id: sector.id, title: DEFAULT_POSITION_TITLE },
+  });
+  if (!existingPosition) {
+    await prisma.jobPosition.create({ data: { job_sector_id: sector.id, title: DEFAULT_POSITION_TITLE } });
+  }
+}
+
+// Real position catalog from "Positions by Country & Sector" (Partner
+// Reference, Edition 2026, 2026-08-27) — every row on the sheet, including
+// the ones marked SAMPLE (explicit instruction: those are illustrative
+// placeholders per the source doc, not confirmed vacancies, but still real
+// enough to seed as selectable positions rather than leaving them out).
+// Keyed by the exact Job.title already in JOBS/CREDIT_SERVICE_JOBS above so
+// this only ever attaches to a programme that's genuinely on the platform —
+// Canada has no matching Job (not in either list, and the PDF itself flags
+// it "NOT IN PORTFOLIO") so it's deliberately omitted rather than inventing
+// a new programme with fabricated pricing/visa details. Belgium has no
+// standard Job, only the Credit Service one, so its positions attach there.
+// A header row spanning several cities (e.g. Italy's "Agricultural Worker —
+// Verona · Bologna · Trento") becomes one JobPosition per city, matching
+// the SAMPLE rows' own per-city granularity.
+const PDF_POSITIONS_BY_JOB_TITLE: Record<string, { sector: string; positions: { title: string; city?: string }[] }[]> = {
+  "Italy — Agricultural Worker (2-Year Resident Card)": [
+    {
+      sector: "Agriculture",
+      positions: [
+        { title: "Agricultural Worker", city: "Verona" },
+        { title: "Agricultural Worker", city: "Bologna" },
+        { title: "Agricultural Worker", city: "Trento" },
+        { title: "Grape Picker", city: "Verona" },
+        { title: "Fruit Packer", city: "Bologna" },
+        { title: "Apple Picker", city: "Trento" },
+      ],
+    },
+  ],
+  "Portugal — Unskilled Worker (12-Month Employment Contract)": [
+    { sector: "Logistics & Warehousing", positions: [{ title: "Warehouse Worker", city: "Lisbon" }] },
+    { sector: "Hospitality", positions: [{ title: "Hotel Housekeeping", city: "Faro" }] },
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "Food Factory Worker", city: "Lisbon" },
+        { title: "Kitchen Assistant", city: "Faro" },
+      ],
+    },
+  ],
+  "Spain — Unskilled Worker (12-Month Employment Contract)": [
+    { sector: "Logistics & Warehousing", positions: [{ title: "Warehouse Worker", city: "Madrid" }] },
+    { sector: "Manufacturing & Production", positions: [{ title: "Factory Worker", city: "Barcelona" }] },
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "Order Picker", city: "Madrid" },
+        { title: "Car Parts Assembler", city: "Barcelona" },
+      ],
+    },
+  ],
+  "Slovakia — Truck Driver, Category CE (Skilled)": [
+    {
+      sector: "Transport & Delivery",
+      positions: [
+        { title: "Truck Driver · Category CE", city: "Nitra" },
+        { title: "Truck Driver · Category CE", city: "Bratislava" },
+        { title: "Delivery Driver", city: "Nitra" },
+        { title: "Long-Distance Driver", city: "Bratislava" },
+      ],
+    },
+  ],
+  "Serbia — Warehouse Worker (6-Month Work Permit)": [
+    {
+      sector: "Logistics & Warehousing",
+      positions: [
+        { title: "Warehouse Worker", city: "Belgrade" },
+        { title: "Warehouse Worker", city: "Novi Sad" },
+      ],
+    },
+    {
+      sector: "Manufacturing & Production",
+      positions: [
+        { title: "Factory Worker", city: "Kragujevac" },
+        { title: "Factory Worker", city: "Belgrade" },
+      ],
+    },
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "Warehouse Assistant", city: "Belgrade" },
+        { title: "Cold Store Worker", city: "Novi Sad" },
+        { title: "Car Factory Worker", city: "Kragujevac" },
+      ],
+    },
+  ],
+  "Greece — Hospitality Worker (1-Year Employment Contract)": [
+    {
+      sector: "Hospitality",
+      positions: [
+        { title: "Kitchen Helper", city: "Athens" },
+        { title: "Waiter / Waitress", city: "Athens" },
+        { title: "Waiter / Waitress", city: "Thessaloniki" },
+        { title: "Hotel Housekeeping", city: "Thessaloniki" },
+      ],
+    },
+  ],
+  "Germany — Unskilled Worker (180-Day Visa + Resident Card)": [
+    {
+      sector: "Manufacturing & Production",
+      positions: [
+        { title: "General Production Worker", city: "Hamburg" },
+        { title: "General Production Worker", city: "Leipzig" },
+        { title: "General Production Worker", city: "Dortmund" },
+        { title: "Port Worker", city: "Hamburg" },
+        { title: "Assembly Line Worker", city: "Leipzig" },
+        { title: "Parcel Sorter", city: "Dortmund" },
+      ],
+    },
+  ],
+  "Croatia — Construction Worker (1-Year Employment Contract)": [
+    {
+      sector: "Construction & Trades",
+      positions: [
+        { title: "Construction Worker", city: "Zagreb" },
+        { title: "Construction Worker", city: "Split" },
+        { title: "Building Labourer", city: "Zagreb" },
+        { title: "Construction Labourer", city: "Split" },
+      ],
+    },
+  ],
+  "Netherlands — Healthcare Worker (1-Year Employment Contract)": [
+    {
+      sector: "Healthcare",
+      positions: [
+        { title: "Healthcare Assistant", city: "Amsterdam" },
+        { title: "Healthcare Assistant", city: "Rotterdam" },
+        { title: "Healthcare Assistant", city: "Utrecht" },
+        { title: "Care Assistant", city: "Amsterdam" },
+        { title: "Home Care Worker", city: "Utrecht" },
+      ],
+    },
+  ],
+  "Bulgaria — Hotel Sector Worker (6-Month Contract)": [
+    {
+      sector: "Hospitality",
+      positions: [
+        { title: "Receptionist", city: "Sunny Beach" },
+        { title: "Housekeeping", city: "Burgas" },
+      ],
+    },
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "Kitchen Assistant", city: "Sunny Beach" },
+        { title: "Gardener", city: "Burgas" },
+      ],
+    },
+  ],
+  "Belarus — Production & Construction Vacancies (3-Year TRC)": [
+    {
+      sector: "Construction & Trades",
+      positions: [
+        { title: "Painter", city: "Minsk" },
+        { title: "Plumber", city: "Brest" },
+        { title: "Electrician", city: "Gomel" },
+      ],
+    },
+  ],
+  "Romania — Unskilled Worker (2-Year Resident Card)": [
+    {
+      sector: "Transport & Delivery",
+      positions: [
+        { title: "Food Delivery Courier", city: "Bucharest" },
+        { title: "Food Delivery Courier", city: "Cluj-Napoca" },
+        { title: "Parcel Delivery Courier", city: "Timisoara" },
+        { title: "Parcel Delivery Courier", city: "Brasov" },
+      ],
+    },
+  ],
+  "Czech Republic — 2-Year Resident Card": [
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "General Unskilled Worker", city: "Prague" },
+        { title: "General Unskilled Worker", city: "Brno" },
+        { title: "General Unskilled Worker", city: "Ostrava" },
+        { title: "Warehouse Worker", city: "Prague" },
+        { title: "Electronics Assembler", city: "Brno" },
+        { title: "Packer", city: "Ostrava" },
+      ],
+    },
+  ],
+  "Hungary — Assistant Agronomist (6-Month Employment Contract)": [
+    {
+      sector: "Agriculture",
+      positions: [
+        { title: "Assistant Agronomist", city: "Szeged" },
+        { title: "Assistant Agronomist", city: "Kecskemet" },
+        { title: "Greenhouse Worker", city: "Szeged" },
+        { title: "Field Worker", city: "Kecskemet" },
+      ],
+    },
+  ],
+  "Poland — Unskilled Worker (12- or 18-Month Work Permit)": [
+    {
+      sector: "General / Unskilled",
+      positions: [
+        { title: "General Unskilled Worker", city: "Employer-assigned" },
+        { title: "Order Packer", city: "Warsaw" },
+        { title: "Assembly Worker", city: "Poznan" },
+        { title: "Electronics Packer", city: "Wroclaw" },
+      ],
+    },
+  ],
+  "Belgium — Warehouse Programme (Credit Service)": [
+    {
+      sector: "Logistics & Warehousing",
+      positions: [
+        { title: "Packer", city: "Liege" },
+        { title: "Loader", city: "Charleroi" },
+      ],
+    },
+  ],
+};
+
+// Applies the PDF catalog above on top of whatever backfillDefaultSectorAndPosition
+// already created — upserts each real sector/position, then removes the
+// generic "General Position" placeholder now superseded by real data (both
+// within a sector that gained real positions, and for a whole placeholder
+// sector — e.g. Germany/Romania's category-derived default sector doesn't
+// match anything the PDF actually lists for that country).
+async function applyPdfPositionCatalog() {
+  for (const [jobTitle, sectorsData] of Object.entries(PDF_POSITIONS_BY_JOB_TITLE)) {
+    const job = await prisma.job.findFirst({ where: { title: jobTitle } });
+    if (!job) continue;
+
+    const pdfSectorNames = new Set(sectorsData.map((s) => s.sector));
+
+    for (const { sector, positions } of sectorsData) {
+      const jobSector = await prisma.jobSector.upsert({
+        where: { job_id_sector: { job_id: job.id, sector } },
+        update: {},
+        create: { job_id: job.id, sector },
+      });
+
+      for (const pos of positions) {
+        const existing = await prisma.jobPosition.findFirst({
+          where: { job_sector_id: jobSector.id, title: pos.title, city: pos.city ?? null },
+        });
+        if (!existing) {
+          await prisma.jobPosition.create({
+            data: { job_sector_id: jobSector.id, title: pos.title, city: pos.city ?? null },
+          });
+        }
+      }
+
+      await prisma.jobPosition.deleteMany({
+        where: { job_sector_id: jobSector.id, title: DEFAULT_POSITION_TITLE },
+      });
+    }
+
+    const staleSectors = await prisma.jobSector.findMany({
+      where: { job_id: job.id, sector: { notIn: [...pdfSectorNames] } },
+      include: { positions: true },
+    });
+    for (const s of staleSectors) {
+      if (s.positions.every((p) => p.title === DEFAULT_POSITION_TITLE)) {
+        await prisma.jobSector.delete({ where: { id: s.id } });
+      }
+    }
+  }
+}
 
 async function main() {
   for (const t of DOCUMENT_REQUIREMENT_TYPES) {
@@ -591,6 +880,7 @@ async function main() {
     await syncJobMilestonePricing(jobId).catch((err) =>
       console.error(`Failed to sync Stripe pricing for job ${jobId} ("${j.title}").`, err)
     );
+    await backfillDefaultSectorAndPosition(jobId, j.category);
   }
 
   for (const j of CREDIT_SERVICE_JOBS) {
@@ -612,16 +902,22 @@ async function main() {
       installment_count: j.installment_count,
       partner_only: true,
     };
+    let jobId: string;
     if (existing) {
-      await prisma.job.update({ where: { id: existing.id }, data });
+      const updated = await prisma.job.update({ where: { id: existing.id }, data });
+      jobId = updated.id;
     } else {
-      await prisma.job.create({ data: { title: j.title, application_fee: 0, ...data } });
+      const created = await prisma.job.create({ data: { title: j.title, application_fee: 0, ...data } });
+      jobId = created.id;
     }
     // No syncJobMilestonePricing call here — is_credit_service jobs are
     // skipped inside that function itself (see stripeProvisioning.ts) since
     // JobMilestonePrice/MilestonePaymentType can't represent a variable
     // N-installment schedule; calling it would just be a wasted round-trip.
+    await backfillDefaultSectorAndPosition(jobId, j.category);
   }
+
+  await applyPdfPositionCatalog();
 
   console.log("Seed complete: regions, countries, sectors, document requirements, and work-permit programmes.");
 }
