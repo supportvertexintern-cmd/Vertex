@@ -45,9 +45,14 @@ export default function CreateJobPage() {
       .catch(() => {});
   }, []);
 
+  // The real work-permit programme sectors (2026-08-31), matching the
+  // business's own Positions by Country & Sector reference sheet and the
+  // Candidate Information Form's Section 1 sector picker exactly — was
+  // previously a stale, unrelated placeholder list.
   const categories = [
-    "Technology", "Healthcare", "Engineering", "Operations",
-    "Sales & Marketing", "Finance", "Education", "Other"
+    "Agriculture", "Logistics & Warehousing", "Manufacturing & Production",
+    "Construction & Trades", "Hospitality", "Healthcare", "Transport & Delivery",
+    "General / Unskilled",
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {

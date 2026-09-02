@@ -51,6 +51,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       user: { select: { full_name: true, email: true, phone: true } },
       recruiter: { select: { id: true, full_name: true } },
       country: { select: { id: true, name: true } },
+      referral_agent: { select: { id: true, full_name: true, referral_code: true } },
+      referral_duplicate_flag: true,
       documents: { select: { id: true, type: true, verification_status: true, uploaded_at: true, label: true } },
       applications: {
         orderBy: { submitted_at: "desc" },
@@ -60,6 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           submitted_at: true,
           job_id: true,
           job: { select: { title: true, country: true, city: true } },
+          job_position: { select: { title: true, city: true } },
           preferred_country_1_id: true,
           preferred_country_1: { select: { id: true, name: true } },
           preferred_country_2: { select: { id: true, name: true } },

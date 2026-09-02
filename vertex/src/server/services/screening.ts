@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { sendCandidateInviteEmail } from "@/lib/email";
+import { generateReferralCommissionIfDue } from "@/lib/referralMilestones";
 
 import { log } from "@/lib/log";
 export interface ScreeningResult {
@@ -170,6 +171,13 @@ export async function screenAndInvite(candidateId: string, actorId: string | nul
     data: { lifecycle_status: "screened", return_reason: null },
     select: { id: true, lifecycle_status: true, return_reason: true, user_id: true, email: true, full_name: true },
   });
+
+  // Referral commission trigger (2026-08-29) — this single function is
+  // the shared path for both the automatic CIF-submission screening pass
+  // and HR's manual identified->screened action, so hooking here covers
+  // both callers for free. No-ops immediately if the candidate wasn't
+  // referred, or if this milestone was already generated.
+  await generateReferralCommissionIfDue({ candidateId, milestone: "qualified", actorId });
 
   if (!updated.user_id && updated.email) {
     // Deferred via next/server's after() (2026-08-06), not awaited inline —

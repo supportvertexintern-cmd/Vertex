@@ -62,11 +62,13 @@ export default async function JobsPage({
   const { jobs, total, pages } = await getJobs(params, includePartnerOnly);
   const currentPage = Number(params.page || 1);
 
-  // Matches the Sector list seeded in prisma/seed.ts — every work-permit
-  // programme's category is one of these.
+  // Matches the sector naming seeded in prisma/seed.ts (2026-08-31, renamed
+  // to match the business's own Positions by Country & Sector reference
+  // sheet) — every work-permit programme's category is one of these.
   const categories = [
-    "Warehouse & Logistics", "Agriculture", "Hospitality & Hotel",
-    "Driving", "Construction", "Manufacturing", "General Labour"
+    "Agriculture", "Logistics & Warehousing", "Manufacturing & Production",
+    "Construction & Trades", "Hospitality", "Healthcare", "Transport & Delivery",
+    "General / Unskilled",
   ];
 
   return (

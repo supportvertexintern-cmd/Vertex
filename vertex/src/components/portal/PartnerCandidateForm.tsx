@@ -21,16 +21,48 @@ interface DocumentTypeOption {
   is_universal: boolean;
 }
 
+interface JobPositionOption {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorOption {
+  id: string;
+  sector: string;
+  positions: JobPositionOption[];
+}
+
 interface JobOption {
   id: string;
   title: string;
   country: string;
   city: string;
+  category: string | null;
+  sectors: JobSectorOption[];
   service_fee_gbp: number | null;
   is_credit_service: boolean;
   financing_percent: number | null;
   installment_count: number | null;
 }
+
+// Canonical sector order (2026-08-31) — same list ApplicationForm.tsx
+// uses, matching the business's own Positions by Country & Sector
+// reference sheet naming. Includes the partner-only Credit Service
+// programmes too — /api/jobs?audience=partner is the one place they're
+// ever visible, and they carry the same renamed categories as every
+// other Job (e.g. Albania's Credit Service programme is Construction &
+// Trades, Italy's is Agriculture).
+const SECTOR_ORDER = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+];
 
 interface Props {
   onSubmitted: () => void;
@@ -56,6 +88,7 @@ const emptyForm = {
   marital_status: "",
 
   job_id: "",
+  job_position_id: "",
   earliest_travel_date: "",
   prior_eu_visa_applied: null as boolean | null,
   prior_eu_visa_applied_details: "",
@@ -84,6 +117,9 @@ const emptyForm = {
 export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) {
   const [countries, setCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
+  // Sector is a client-side filter only (2026-08-31) — never submitted;
+  // the picked Job/programme itself still determines the country.
+  const [sector, setSector] = useState("");
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeOption[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<{ country_id: string; document_type: string }[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -140,6 +176,32 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
   // document-review step, so a required type needs a real attached file,
   // not just a checked box, before Submit unlocks.
   const selectedJob = useMemo(() => jobs.find((j) => j.id === form.job_id), [jobs, form.job_id]);
+
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobs.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobs]);
+  // A job can belong to more than one sector (2026-09-02) — matches if ANY
+  // of its attached sectors is the one selected.
+  const jobsInSector = useMemo(
+    () => (sector ? jobs.filter((j) => j.sectors.some((s) => s.sector === sector)) : jobs),
+    [jobs, sector]
+  );
+  const positionOptions = useMemo(() => {
+    if (!selectedJob) return [];
+    return selectedJob.sectors.find((s) => s.sector === sector)?.positions ?? [];
+  }, [selectedJob, sector]);
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    const matchingSector = selectedJob.sectors.find((s) => s.sector === sector) ?? selectedJob.sectors[0];
+    if (matchingSector && matchingSector.sector !== sector) setSector(matchingSector.sector);
+    if (matchingSector?.positions.length === 1 && !form.job_position_id) {
+      set("job_position_id", matchingSector.positions[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedJob]);
+
   const requiredTypesForSelectedJob = useMemo(() => {
     if (!selectedJob) return [];
     const checklistKeys = new Set(documentChecklist.map((t) => t.key));
@@ -181,6 +243,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
       body: JSON.stringify({
         ...form,
         partner_id: partnerId || undefined,
+        job_position_id: form.job_position_id || undefined,
         prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
         holds_schengen_visa: form.holds_schengen_visa ?? undefined,
         prior_visa_refusals: form.prior_visa_refusals ?? undefined,
@@ -332,34 +395,72 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-1">Section 2 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Select the specific opportunity the candidate is going for — the required document checklist below adjusts
-          to match its destination country.
+          Choose the sector, then the specific opportunity, then the exact position the candidate is going for — the
+          required document checklist below adjusts to match its destination country.
         </p>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="sector" className={labelCls}>Sector <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="sector"
+              value={sector}
+              onChange={(value) => {
+                setSector(value);
+                if (form.job_id && !jobs.find((j) => j.id === form.job_id)?.sectors.some((s) => s.sector === value)) {
+                  set("job_id", "");
+                }
+                set("job_position_id", "");
+              }}
+              required
+              placeholder="Select a sector…"
+              options={sectorOptions.map((s) => ({ value: s, label: s }))}
+            />
+          </div>
           <div>
             <label htmlFor="job_id" className={labelCls}>Opportunity <span className="text-red-500">*</span></label>
             <SearchableSelect
               id="job_id"
               value={form.job_id}
-              onChange={(value) => set("job_id", value)}
+              onChange={(value) => {
+                set("job_id", value);
+                set("job_position_id", "");
+              }}
               required
-              placeholder="Select an opportunity…"
-              options={jobs.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
+              disabled={!sector}
+              placeholder={sector ? "Select an opportunity…" : "Select a sector first…"}
+              options={jobsInSector.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
             />
             {err("job_id") && <p className={errCls}>{err("job_id")}</p>}
           </div>
           <div>
-            <label htmlFor="earliest_travel_date" className={labelCls}>Candidate's Earliest Possible Travel Date <span className="text-red-500">*</span></label>
-            <input
-              id="earliest_travel_date"
-              type="date"
-              value={form.earliest_travel_date}
-              onChange={(e) => set("earliest_travel_date", e.target.value)}
+            <label htmlFor="job_position_id" className={labelCls}>Position <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="job_position_id"
+              value={form.job_position_id}
+              onChange={(value) => set("job_position_id", value)}
               required
-              className="input-field"
+              disabled={!form.job_id}
+              placeholder={form.job_id ? "Select a position…" : "Select an opportunity first…"}
+              options={positionOptions.map((p) => ({
+                value: p.id,
+                label: p.city ? `${p.title} — ${p.city}` : p.title,
+              }))}
             />
-            {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
+            {err("job_position_id") && <p className={errCls}>{err("job_position_id")}</p>}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="earliest_travel_date" className={labelCls}>Candidate's Earliest Possible Travel Date <span className="text-red-500">*</span></label>
+          <input
+            id="earliest_travel_date"
+            type="date"
+            value={form.earliest_travel_date}
+            onChange={(e) => set("earliest_travel_date", e.target.value)}
+            required
+            className="input-field max-w-xs"
+          />
+          {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
         </div>
 
         <div className="mt-4">

@@ -8,6 +8,7 @@ import { createCaseForApprovedApplication } from "@/server/services/caseLifecycl
 import { screenAndInvite } from "@/server/services/screening";
 import { updateCandidateStatusSchema } from "@/lib/validations";
 import { sendCandidateApprovedEmail } from "@/lib/email";
+import { generateReferralCommissionIfDue } from "@/lib/referralMilestones";
 
 import { log } from "@/lib/log";
 // PATCH /api/candidates/:id/status — role-gated lifecycle transition
@@ -127,7 +128,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       orderBy: { submitted_at: "desc" },
     });
     if (application) {
-      await createCaseForApprovedApplication(application.id, user!.userId);
+      const newCase = await createCaseForApprovedApplication(application.id, user!.userId);
+      // Referral commission trigger (2026-08-29) — this is the exact
+      // point a real application is accepted into the operational
+      // pipeline (a Case now exists). No-ops if the candidate wasn't
+      // referred, or if this milestone was already generated.
+      await generateReferralCommissionIfDue({ candidateId: id, milestone: "application_submitted", caseId: newCase.id, actorId: user!.userId });
     }
 
     const recipientEmail = candidate.user?.email ?? candidate.email;
