@@ -790,6 +790,32 @@ async function applyPdfPositionCatalog() {
   }
 }
 
+// Canada pricing fixup (2026-09-02) — production-only jobs, not in the
+// JOBS array above, so the main upsert loop never touches them. Sets
+// two_stage_pricing (50% documentation / 50% visa, no permit milestone —
+// see computeMilestoneSplit in lib/fees.ts) and, only where missing,
+// backfills service_fee_gbp to match the other two Canada programmes'
+// existing £3,100 total — confirmed with the business, not fabricated.
+// No-op on dev/staging, which don't have these jobs.
+const CANADA_JOB_TITLES = [
+  "Canada-Truck Driver-Montreal, Quebec (FRENCH SPEAKERS ONLY)",
+  "Canada-Industrial Warehouse & Logistics Support Worker-Quebec City, Quebec (FRENCH SPEAKERS ONLY)",
+  "Canada-Oil & Gas Manufacturing Support Worker-Fort McMurray, Alberta",
+];
+async function applyCanadaPricingFixup() {
+  for (const title of CANADA_JOB_TITLES) {
+    const job = await prisma.job.findFirst({ where: { title } });
+    if (!job) continue;
+    await prisma.job.update({
+      where: { id: job.id },
+      data: { two_stage_pricing: true, service_fee_gbp: job.service_fee_gbp ?? 3100 },
+    });
+    await syncJobMilestonePricing(job.id).catch((err) =>
+      console.error(`Failed to sync Stripe pricing for Canada job ${job.id} ("${title}").`, err)
+    );
+  }
+}
+
 async function main() {
   for (const t of DOCUMENT_REQUIREMENT_TYPES) {
     await prisma.documentRequirementType.upsert({
@@ -958,6 +984,7 @@ async function main() {
   }
 
   await applyPdfPositionCatalog();
+  await applyCanadaPricingFixup();
 
   console.log("Seed complete: regions, countries, sectors, document requirements, and work-permit programmes.");
 }

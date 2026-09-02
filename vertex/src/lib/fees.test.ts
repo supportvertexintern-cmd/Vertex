@@ -20,4 +20,22 @@ describe("computeMilestoneSplit", () => {
   it("matches the 2026 pricing revision's Bulgaria figure (450/450/900 of 1800 GBP)", () => {
     expect(computeMilestoneSplit(1800)).toEqual({ documentation: 450, permit: 450, visa: 900 });
   });
+
+  describe("twoStage (two_stage_pricing jobs, e.g. Canada)", () => {
+    it("splits 50/50 with permit always 0", () => {
+      expect(computeMilestoneSplit(3100, true)).toEqual({ documentation: 1550, permit: 0, visa: 1550 });
+    });
+
+    it("still sums exactly to the total for odd totals", () => {
+      for (const total of [1901, 999, 1, 3, 7, 12345]) {
+        const split = computeMilestoneSplit(total, true);
+        expect(split.documentation + split.permit + split.visa).toBe(total);
+        expect(split.permit).toBe(0);
+      }
+    });
+
+    it("defaults to the standard 25/25/50 split when twoStage is omitted", () => {
+      expect(computeMilestoneSplit(3100)).toEqual(computeMilestoneSplit(3100, false));
+    });
+  });
 });

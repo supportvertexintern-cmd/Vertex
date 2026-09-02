@@ -120,6 +120,7 @@ interface CaseData {
       city: string;
       service_fee_gbp: number | null;
       is_credit_service: boolean;
+      two_stage_pricing: boolean;
       financing_percent: number | null;
       installment_count: number | null;
     } | null;
@@ -194,6 +195,24 @@ const NO_CAPABILITIES: CaseDetailCapabilities = {
 interface Props {
   caseId: string;
   capabilities?: CaseDetailCapabilities;
+}
+
+// Milestone-type options for the Record/Send Link/Send Invoice pickers —
+// two_stage_pricing jobs (2026-09-02, first: Canada) skip "permit"
+// entirely and use 50%/50% labels instead of 25%/25%/50%, rather than
+// showing a milestone that doesn't apply to them.
+function milestoneTypeOptions(isTwoStage: boolean, withPercent: boolean) {
+  if (isTwoStage) {
+    return [
+      { value: "documentation", label: withPercent ? "Documentation (Stage 1 · 50%)" : "Documentation (Stage 1)" },
+      { value: "visa", label: withPercent ? "Visa (Stage 2 · 50%)" : "Visa (Stage 2)" },
+    ];
+  }
+  return [
+    { value: "documentation", label: withPercent ? "Documentation (Stage 1 · 25%)" : "Documentation (Stage 1)" },
+    { value: "permit", label: withPercent ? "Work Permit (Stage 2 · 25%)" : "Work Permit (Stage 2)" },
+    { value: "visa", label: withPercent ? "Visa (Stage 3 · 50%)" : "Visa (Stage 3)" },
+  ];
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -294,6 +313,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // documentation/permit/visa split.
   const jobServiceFee = data?.application.job?.service_fee_gbp;
   const isCreditServiceJob = !!data?.application.job?.is_credit_service;
+  const isTwoStageJob = !!data?.application.job?.two_stage_pricing;
   const jobFinancingPercent = data?.application.job?.financing_percent;
   const jobInstallmentCount = data?.application.job?.installment_count;
   useEffect(() => {
@@ -301,9 +321,9 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       setPayType("upfront");
       setPayAmount(String(computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp));
     } else if (jobServiceFee != null && payType !== "upfront") {
-      setPayAmount(String(computeMilestoneSplit(jobServiceFee)[payType]));
+      setPayAmount(String(computeMilestoneSplit(jobServiceFee, isTwoStageJob)[payType]));
     }
-  }, [payType, jobServiceFee, isCreditServiceJob, jobFinancingPercent, jobInstallmentCount]);
+  }, [payType, jobServiceFee, isCreditServiceJob, isTwoStageJob, jobFinancingPercent, jobInstallmentCount]);
 
   // Same forcing as the Record form above, for the Send Invoice block below
   // — the only real off-Stripe payment path for partner-sourced cases
@@ -1294,11 +1314,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                       value={payType}
                       onChange={(value) => setPayType(value as "documentation" | "permit" | "visa")}
                       className="w-auto"
-                      options={[
-                        { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
-                        { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
-                        { value: "visa", label: "Visa (Stage 3 · 50%)" },
-                      ]}
+                      options={milestoneTypeOptions(isTwoStageJob, true)}
                     />
                   )}
                   <input type="number" min="0" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} className="input-field text-sm w-28" placeholder="Amount" />
@@ -1336,11 +1352,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                       value={linkType}
                       onChange={(value) => setLinkType(value as "documentation" | "permit" | "visa")}
                       className="w-auto"
-                      options={[
-                        { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
-                        { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
-                        { value: "visa", label: "Visa (Stage 3 · 50%)" },
-                      ]}
+                      options={milestoneTypeOptions(isTwoStageJob, true)}
                     />
                     <SearchableSelect
                       value={linkRecipient}
@@ -1378,11 +1390,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                         value={invoiceType}
                         onChange={(value) => setInvoiceType(value as "documentation" | "permit" | "visa")}
                         className="w-auto"
-                        options={[
-                          { value: "documentation", label: "Documentation (Stage 1)" },
-                          { value: "permit", label: "Work Permit (Stage 2)" },
-                          { value: "visa", label: "Visa (Stage 3)" },
-                        ]}
+                        options={milestoneTypeOptions(isTwoStageJob, false)}
                       />
                     )}
                     <input
