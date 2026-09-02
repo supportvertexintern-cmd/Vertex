@@ -42,6 +42,16 @@ interface JobOption {
   sectors: JobSectorOption[];
 }
 
+// A position flattened out of whichever Job it belongs to (2026-09-02,
+// Country -> Sector -> Position) — a country/sector pair can span more
+// than one Job (e.g. Canada's 3 separate city-based jobs), so Position
+// options are aggregated across every Job in the selected country/sector
+// rather than scoped to a single pre-picked Opportunity. jobId carries
+// which Job to derive form.job_id from once a position is chosen.
+interface FlatPositionOption extends JobPositionOption {
+  jobId: string;
+}
+
 // Canonical sector order (2026-08-31) — matches the business's own
 // Positions by Country & Sector reference sheet naming exactly, so a
 // candidate sees the same sector vocabulary staff/partners use. A sector
@@ -200,10 +210,11 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   const [countries, setCountries] = useState<Option[]>([]);
   const [locationCountries, setLocationCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
-  // Sector is a client-side filter only (2026-08-31) — never submitted;
-  // the picked Job/programme itself still determines the country, exactly
-  // as before. Narrows the Opportunity picker down to that sector's
-  // programmes so a candidate isn't scanning all 20+ at once.
+  // Country and Sector are client-side filters only (2026-09-02, business
+  // request to lead with Country rather than Sector) — neither is
+  // submitted directly; job_id is derived once a Position is picked (see
+  // positionOptions below), exactly as job_position_id already was.
+  const [selectedCountry, setSelectedCountry] = useState("");
   const [sector, setSector] = useState("");
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeOption[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<{ country_id: string; document_type: string }[]>([]);
@@ -270,42 +281,56 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   // Section 1 is a single Job pick now rather than 3 country alternates.
   const selectedJob = useMemo(() => jobs.find((j) => j.id === form.job_id), [jobs, form.job_id]);
 
-  // Sector list, ordered per SECTOR_ORDER — only sectors with at least one
-  // active Job actually appear, rather than showing an empty dead end.
-  const sectorOptions = useMemo(() => {
-    const present = new Set(jobs.flatMap((j) => j.sectors.map((s) => s.sector)));
-    return SECTOR_ORDER.filter((s) => present.has(s));
-  }, [jobs]);
-  // A job can now belong to more than one sector (2026-09-02) — matches if
-  // ANY of its attached sectors is the one selected.
-  const jobsInSector = useMemo(
-    () => (sector ? jobs.filter((j) => j.sectors.some((s) => s.sector === sector)) : jobs),
-    [jobs, sector]
+  // Country list — every distinct destination among active Jobs, not the
+  // separate admin-managed Country list, so only countries with a real
+  // bookable programme ever appear (same reasoning as sectorOptions).
+  const countryOptions = useMemo(() => [...new Set(jobs.map((j) => j.country))].sort(), [jobs]);
+  const jobsInCountry = useMemo(
+    () => (selectedCountry ? jobs.filter((j) => j.country === selectedCountry) : []),
+    [jobs, selectedCountry]
   );
-  // Position options — the selected Job's own sector row matching the
-  // selected sector, then its positions. Requires both sector and job_id;
-  // empty otherwise.
-  const positionOptions = useMemo(() => {
-    if (!selectedJob) return [];
-    return selectedJob.sectors.find((s) => s.sector === sector)?.positions ?? [];
-  }, [selectedJob, sector]);
+  // Sector list, ordered per SECTOR_ORDER — scoped to the selected
+  // country's own Jobs, only sectors with at least one active Job
+  // actually appear.
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobsInCountry]);
+  // Position options — aggregated across every Job in the selected
+  // country whose sector matches the selected sector (a country/sector
+  // pair can span more than one Job, e.g. Canada's 3 city-based jobs), not
+  // scoped to a single pre-picked Opportunity. Requires both country and
+  // sector; empty otherwise.
+  const positionOptions = useMemo<FlatPositionOption[]>(() => {
+    if (!selectedCountry || !sector) return [];
+    return jobsInCountry.flatMap((j) =>
+      j.sectors.filter((s) => s.sector === sector).flatMap((s) => s.positions.map((p) => ({ ...p, jobId: j.id })))
+    );
+  }, [jobsInCountry, sector, selectedCountry]);
 
-  // Keeps the sector filter in sync with whatever Job ends up selected —
-  // covers both a preselected jobId (arriving via /apply?job=...) and a
-  // signed-in candidate's own initialProfile-driven prefill, neither of
-  // which goes through the sector picker's own onChange. Also
-  // auto-selects the Position when the resulting list has exactly one
-  // entry, preserving the old one-click behavior for a single-position
-  // job — otherwise leaves Position for the user to pick.
+  // Seeds Country/Sector from a preselected jobId (arriving via
+  // /apply?job=...) once jobs finish loading — only fires while nothing's
+  // been picked yet, so it never overrides the user's own later choices.
   useEffect(() => {
-    if (!selectedJob) return;
-    const matchingSector = selectedJob.sectors.find((s) => s.sector === sector) ?? selectedJob.sectors[0];
-    if (matchingSector && matchingSector.sector !== sector) setSector(matchingSector.sector);
-    if (matchingSector?.positions.length === 1 && !form.job_position_id) {
-      set("job_position_id", matchingSector.positions[0].id);
+    if (!jobId || selectedCountry) return;
+    const preselectedJob = jobs.find((j) => j.id === jobId);
+    if (!preselectedJob) return;
+    setSelectedCountry(preselectedJob.country);
+    if (preselectedJob.sectors[0]) setSector(preselectedJob.sectors[0].sector);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs]);
+
+  // Auto-selects Position (and derives job_id from it) whenever the
+  // current Country/Sector narrows to exactly one option — preserves the
+  // old one-click behavior for the common single-position case, whether
+  // that's from the preselection effect above or the user's own picks.
+  useEffect(() => {
+    if (positionOptions.length === 1 && !form.job_position_id) {
+      set("job_position_id", positionOptions[0].id);
+      set("job_id", positionOptions[0].jobId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedJob]);
+  }, [positionOptions]);
 
   const requiredForSelectedJob = useMemo(() => {
     if (!selectedJob) return new Set<string>();
@@ -451,10 +476,26 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section>
         <h2 className="font-bold text-slate-800 mb-1">Section 1 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Choose the sector you're applying under, then the specific opportunity, then the exact position — the
-          document checklist below adjusts to match its destination country.
+          Choose the country you're applying to, then the sector, then the exact position — the document checklist
+          below adjusts to match its destination country.
         </p>
         <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="selected_country" className={labelCls}>Country <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="selected_country"
+              value={selectedCountry}
+              onChange={(value) => {
+                setSelectedCountry(value);
+                setSector("");
+                set("job_position_id", "");
+                set("job_id", "");
+              }}
+              required
+              placeholder="Select a country…"
+              options={countryOptions.map((c) => ({ value: c, label: c }))}
+            />
+          </div>
           <div>
             <label htmlFor="sector" className={labelCls}>Sector <span className="text-red-500">*</span></label>
             <SearchableSelect
@@ -462,45 +503,28 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
               value={sector}
               onChange={(value) => {
                 setSector(value);
-                // A programme from the previous sector is no longer valid
-                // once the sector changes — clear it. Either way, whatever
-                // position was picked under the old sector is no longer
-                // valid either, so always clear that too.
-                if (form.job_id && !jobs.find((j) => j.id === form.job_id)?.sectors.some((s) => s.sector === value)) {
-                  set("job_id", "");
-                }
                 set("job_position_id", "");
+                set("job_id", "");
               }}
               required
-              placeholder="Select a sector…"
+              disabled={!selectedCountry}
+              placeholder={selectedCountry ? "Select a sector…" : "Select a country first…"}
               options={sectorOptions.map((s) => ({ value: s, label: s }))}
             />
-          </div>
-          <div>
-            <label htmlFor="job_id" className={labelCls}>Opportunity <span className="text-red-500">*</span></label>
-            <SearchableSelect
-              id="job_id"
-              value={form.job_id}
-              onChange={(value) => {
-                set("job_id", value);
-                set("job_position_id", "");
-              }}
-              required
-              disabled={!sector}
-              placeholder={sector ? "Select an opportunity…" : "Select a sector first…"}
-              options={jobsInSector.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
-            />
-            {err("job_id") && <p className={errCls}>{err("job_id")}</p>}
           </div>
           <div>
             <label htmlFor="job_position_id" className={labelCls}>Position <span className="text-red-500">*</span></label>
             <SearchableSelect
               id="job_position_id"
               value={form.job_position_id}
-              onChange={(value) => set("job_position_id", value)}
+              onChange={(value) => {
+                const pos = positionOptions.find((p) => p.id === value);
+                set("job_position_id", value);
+                set("job_id", pos?.jobId ?? "");
+              }}
               required
-              disabled={!form.job_id}
-              placeholder={form.job_id ? "Select a position…" : "Select an opportunity first…"}
+              disabled={!sector}
+              placeholder={sector ? "Select a position…" : "Select a sector first…"}
               options={positionOptions.map((p) => ({
                 value: p.id,
                 label: p.city ? `${p.title} — ${p.city}` : p.title,
