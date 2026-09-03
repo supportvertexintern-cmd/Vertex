@@ -27,6 +27,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             },
           },
           job: true,
+          job_position: { select: { job_sector: { select: { sector: true } } } },
           preferred_country_1: { select: { name: true } },
           preferred_sector: { select: { name: true } },
         },

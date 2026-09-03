@@ -387,6 +387,15 @@ export const verifyDocumentSchema = z.object({
 // at submission (Sections 3 + 6), so a partner can actually fix any of it
 // afterward, not just name/email/nationality/passport.
 export const updatePartnerCandidateDetailsSchema = z.object({
+  // Programme Information (2026-09-03) — lets a partner correct their own
+  // submission's Country/Sector/Position choice, same as staff can via
+  // ApplicationEditDetails/PATCH /api/candidates/:id/application. job_id
+  // is required whenever job_position_id is set (enforced in the route,
+  // not here — the route derives job_id from the position server-side to
+  // guard against a mismatched pair, same as POST /api/partner/candidates
+  // does at submission time).
+  job_id: z.string().cuid().optional(),
+  job_position_id: z.string().cuid().nullable().optional(),
   full_name: z.string().min(2).max(150).optional(),
   email: z.string().email().optional(),
   nationality: z.string().min(2).max(100).optional(),
@@ -423,6 +432,12 @@ export const updateApplicationDetailsSchema = z.object({
   // section... including Programme Information" must be editable, not
   // just Personal Information and Visa/Travel Readiness).
   job_id: z.string().cuid().optional(),
+  // job_position_id (2026-09-03) — added alongside the Sector -> Opportunity
+  // -> Position picker; explicit null (not just undefined/omitted) clears a
+  // stale position that no longer belongs to a newly-picked job_id, since
+  // "field omitted" already means "leave unchanged" for every other field
+  // in this schema.
+  job_position_id: z.string().cuid().nullable().optional(),
   earliest_travel_date: z.string().optional(),
   prior_eu_visa_applied: z.boolean().optional(),
   prior_eu_visa_applied_details: z.string().max(500).optional(),

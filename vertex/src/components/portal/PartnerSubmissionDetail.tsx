@@ -57,7 +57,8 @@ interface PartnerCandidateDetail {
     financing_percent: number | null;
     installment_count: number | null;
   } | null;
-  job_position: { title: string; city: string | null } | null;
+  job_position_id: string | null;
+  job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
   reviewer: { full_name: string } | null;
   bridged_candidate: { id: string; documents: { id: string; type: string; verification_status: string; uploaded_at: string }[] } | null;
   document_completeness: { complete: boolean; missingTypes: string[] } | null;
@@ -364,6 +365,8 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                   candidateId={data.bridged_candidate_id}
                   initial={{
                     job_id: data.job?.id ?? null,
+                    job_position_id: data.job_position_id,
+                    job_sector_name: data.job_position?.job_sector.sector ?? null,
                     earliest_travel_date: data.earliest_travel_date,
                     current_location_country_name: data.current_location_country?.name ?? data.current_location_country_name,
                     prior_eu_visa_applied: data.prior_eu_visa_applied,

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: {
       partner: { select: { id: true, name: true, contact_email: true, contact_name: true, contact_phone: true } },
       job: { select: { id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
-      job_position: { select: { title: true, city: true } },
+      job_position: { select: { title: true, city: true, job_sector: { select: { sector: true } } } },
       current_location_country: { select: { name: true } },
       reviewer: { select: { full_name: true } },
       bridged_candidate: {
