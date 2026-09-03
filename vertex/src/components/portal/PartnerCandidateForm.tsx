@@ -193,25 +193,52 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
   // not just a checked box, before Submit unlocks.
   const selectedJob = useMemo(() => jobs.find((j) => j.id === form.job_id), [jobs, form.job_id]);
 
-  // Country list — every distinct destination among the jobs visible to
-  // this form (standard + partner-only Credit Service), not the separate
-  // admin-managed Country list, so only countries with a real bookable
-  // programme ever appear.
-  const countryOptions = useMemo(() => [...new Set(jobs.map((j) => j.country))].sort(), [jobs]);
+  // Country/Programme list (2026-09-03) — a country with both a standard
+  // and a partner-only Credit Service Job now gets two distinct entries
+  // ("Italy" and "Italy (Credit Service)") so a partner picks which
+  // programme they're going for right at the first step, rather than
+  // discovering it only once positions are mixed together further down.
+  // Sector names themselves stay untouched (business preference) — the
+  // programme split happens here, at Country, instead. value encodes
+  // both country + programme so the two never collide.
+  const countryOptions = useMemo(() => {
+    const options: { value: string; label: string; countryName: string; isCreditService: boolean }[] = [];
+    for (const countryName of [...new Set(jobs.map((j) => j.country))].sort()) {
+      if (jobs.some((j) => j.country === countryName && !j.is_credit_service)) {
+        options.push({ value: countryName, label: countryName, countryName, isCreditService: false });
+      }
+      if (jobs.some((j) => j.country === countryName && j.is_credit_service)) {
+        options.push({
+          value: `${countryName}::credit`,
+          label: `${countryName} (Credit Service)`,
+          countryName,
+          isCreditService: true,
+        });
+      }
+    }
+    return options;
+  }, [jobs]);
+  const selectedCountryChoice = useMemo(
+    () => countryOptions.find((o) => o.value === selectedCountry) ?? null,
+    [countryOptions, selectedCountry]
+  );
+  // Jobs matching BOTH the chosen country AND programme, so Sector/Position
+  // never mix a standard and a Credit Service Job together.
   const jobsInCountry = useMemo(
-    () => (selectedCountry ? jobs.filter((j) => j.country === selectedCountry) : []),
-    [jobs, selectedCountry]
+    () =>
+      selectedCountryChoice
+        ? jobs.filter((j) => j.country === selectedCountryChoice.countryName && j.is_credit_service === selectedCountryChoice.isCreditService)
+        : [],
+    [jobs, selectedCountryChoice]
   );
   const sectorOptions = useMemo(() => {
     const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
     return SECTOR_ORDER.filter((s) => present.has(s));
   }, [jobsInCountry]);
   // Position options — aggregated across every Job in the selected
-  // country whose sector matches the selected sector. A country/sector can
-  // span both a standard and a partner-only Credit Service Job (they're
-  // two different pricing models, not interchangeable) — isCreditService
-  // rides along so the label below can flag it rather than silently
-  // merging them into one indistinguishable list.
+  // country/programme whose sector matches the selected sector. jobsInCountry
+  // is already scoped to one programme, so this can never mix a standard
+  // and a Credit Service Job's positions.
   const positionOptions = useMemo<FlatPositionOption[]>(() => {
     if (!selectedCountry || !sector) return [];
     return jobsInCountry.flatMap((j) =>
@@ -442,7 +469,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
               }}
               required
               placeholder="Select a country…"
-              options={countryOptions.map((c) => ({ value: c, label: c }))}
+              options={countryOptions.map((o) => ({ value: o.value, label: o.label }))}
             />
           </div>
           <div>
@@ -476,7 +503,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
               placeholder={sector ? "Select a position…" : "Select a sector first…"}
               options={positionOptions.map((p) => ({
                 value: p.id,
-                label: `${p.city ? `${p.title} — ${p.city}` : p.title}${p.isCreditService ? " (Credit Service)" : ""}`,
+                label: p.city ? `${p.title} — ${p.city}` : p.title,
               }))}
             />
             {err("job_position_id") && <p className={errCls}>{err("job_position_id")}</p>}
