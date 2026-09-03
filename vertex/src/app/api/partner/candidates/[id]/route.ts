@@ -21,7 +21,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const candidate = await prisma.partnerCandidate.findUnique({
     where: { id, status: { not: "draft" } },
     include: {
-      job: { select: { title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
+      job: { select: { id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
+      job_position: { select: { title: true, city: true, job_sector: { select: { sector: true } } } },
       current_location_country: { select: { name: true } },
       bridged_candidate: {
         select: {
@@ -76,6 +77,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     );
   }
 
+  // Programme Information (2026-09-03) — a partner correcting their own
+  // submission's Country/Sector/Position choice post-submission, same
+  // capability staff already have via ApplicationEditDetails. Validated
+  // the same way POST /api/partner/candidates does at submission time:
+  // job_id must exist, and job_position_id (if given) must actually
+  // belong to the EFFECTIVE job_id — never trusted from the client's own
+  // pairing. If job_id changes without an explicit job_position_id, the
+  // old position almost certainly no longer belongs to the new job, so
+  // it's cleared rather than left silently mismatched.
+  if (parsed.data.job_id) {
+    const job = await prisma.job.findUnique({ where: { id: parsed.data.job_id } });
+    if (!job) {
+      return NextResponse.json({ error: { code: "not_found", message: "Selected opportunity not found." } }, { status: 404 });
+    }
+  }
+  let jobPositionId = parsed.data.job_position_id;
+  if (jobPositionId) {
+    const jobPosition = await prisma.jobPosition.findUnique({ where: { id: jobPositionId }, include: { job_sector: true } });
+    const effectiveJobId = parsed.data.job_id ?? existing.job_id;
+    if (!jobPosition || jobPosition.job_sector.job_id !== effectiveJobId) {
+      return NextResponse.json(
+        { error: { code: "validation_error", message: "Selected position does not belong to this opportunity." } },
+        { status: 422 }
+      );
+    }
+  } else if (jobPositionId === undefined && parsed.data.job_id && parsed.data.job_id !== existing.job_id) {
+    jobPositionId = null;
+  }
+
   let currentLocationCountryId: string | undefined;
   if (parsed.data.current_location_country_name) {
     const match = await prisma.country.findFirst({ where: { name: { equals: parsed.data.current_location_country_name, mode: "insensitive" } } });
@@ -87,6 +117,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await db.partnerCandidate.update({
     where: { id },
     data: {
+      job_id: parsed.data.job_id,
+      job_position_id: jobPositionId,
       full_name: parsed.data.full_name,
       email: parsed.data.email,
       nationality: parsed.data.nationality,
@@ -147,6 +179,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await db.application.update({
         where: { id: application.id },
         data: {
+          job_id: parsed.data.job_id,
+          job_position_id: jobPositionId,
           earliest_travel_date: parsed.data.earliest_travel_date ? new Date(parsed.data.earliest_travel_date) : undefined,
           prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,
           prior_eu_visa_applied_details: parsed.data.prior_eu_visa_applied_details,

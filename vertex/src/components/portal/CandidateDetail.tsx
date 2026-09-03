@@ -32,8 +32,9 @@ interface ApplicationRow {
   application_status: string;
   submitted_at: string;
   job_id: string | null;
+  job_position_id: string | null;
   job: { title: string; country: string; city: string } | null;
-  job_position: { title: string; city: string | null } | null;
+  job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
   preferred_country_1: { id: string; name: string } | null;
   preferred_country_2: { id: string; name: string } | null;
   preferred_country_3: { id: string; name: string } | null;
@@ -468,6 +469,8 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               candidateId={data.id}
               initial={{
                 job_id: app.job_id,
+                job_position_id: app.job_position_id,
+                job_sector_name: app.job_position?.job_sector.sector ?? null,
                 earliest_travel_date: app.earliest_travel_date,
                 current_location_country_name: app.current_location_country?.name ?? app.current_location_country_name,
                 prior_eu_visa_applied: app.prior_eu_visa_applied,

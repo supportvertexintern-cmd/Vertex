@@ -114,6 +114,7 @@ interface CaseData {
       desired_role: string | null;
     };
     job_id: string | null;
+    job_position_id: string | null;
     job: {
       title: string;
       country: string;
@@ -124,6 +125,7 @@ interface CaseData {
       financing_percent: number | null;
       installment_count: number | null;
     } | null;
+    job_position: { job_sector: { sector: string } } | null;
     preferred_country_1: { name: string } | null;
     preferred_sector: { name: string } | null;
     current_location_country_name: string | null;
@@ -1030,6 +1032,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               candidateId={data.application.candidate.id}
               initial={{
                 job_id: data.application.job_id,
+                job_position_id: data.application.job_position_id,
+                job_sector_name: data.application.job_position?.job_sector.sector ?? null,
                 earliest_travel_date: data.application.earliest_travel_date,
                 current_location_country_name: data.application.current_location_country_name,
                 prior_eu_visa_applied: data.application.prior_eu_visa_applied,
