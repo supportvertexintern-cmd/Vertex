@@ -204,7 +204,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { date_of_birth, passport_expiry, consent_given, ...rest } = parsed.data;
 
-  const updated = await auditedPrisma(user!.userId).candidate.update({
+  const db = auditedPrisma(user!.userId);
+
+  const updated = await db.candidate.update({
     where: { id },
     data: {
       ...rest,
@@ -235,6 +237,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       marital_status: true,
     },
   });
+
+  // Keep the PartnerCandidate snapshot in sync too (2026-09-04) — a
+  // partner-sourced candidate's "Personal Information" card on
+  // PartnerSubmissionDetail.tsx displays PartnerCandidate's own columns,
+  // not this bridged Candidate record, so an edit here was silently
+  // invisible on that page despite genuinely persisting. Same precedent
+  // as PATCH /api/candidates/:id/application's own reverse-sync to
+  // PartnerCandidate. phone is deliberately excluded — partner-sourced
+  // candidates never collect one (2026-08-04 decision).
+  const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { bridged_candidate_id: id } });
+  if (partnerCandidate) {
+    await db.partnerCandidate.update({
+      where: { id: partnerCandidate.id },
+      data: {
+        full_name: parsed.data.full_name,
+        email: parsed.data.email,
+        nationality: parsed.data.nationality,
+        second_nationality: parsed.data.second_nationality,
+        gender: parsed.data.gender,
+        passport_number: parsed.data.passport_number,
+        date_of_birth: date_of_birth ? new Date(date_of_birth) : undefined,
+        passport_expiry: passport_expiry ? new Date(passport_expiry) : undefined,
+        current_occupation: parsed.data.current_occupation,
+        highest_education: parsed.data.highest_education,
+        home_address: parsed.data.home_address,
+        whatsapp_number: parsed.data.whatsapp_number,
+        marital_status: parsed.data.marital_status,
+      },
+    });
+  }
 
   return NextResponse.json({ data: updated });
 }
