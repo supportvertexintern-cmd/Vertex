@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import ImpersonationWarningBanner from "@/components/ImpersonationWarningBanner";
 import Footer from "@/components/Footer";
 import AIChatWidget from "@/components/AIChatWidget";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -47,6 +48,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={font.variable}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
         <SessionRefresh />
+        <ImpersonationWarningBanner />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
