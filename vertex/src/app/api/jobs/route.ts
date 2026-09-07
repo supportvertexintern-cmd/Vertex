@@ -37,7 +37,14 @@ export async function GET(req: NextRequest) {
   const sortBy = isJobManager ? (searchParams.get("sortBy") as "created_at" | "title" | "applications" | null) ?? undefined : undefined;
   const sortDir = isJobManager && searchParams.get("sortDir") === "asc" ? "asc" : "desc";
   const wantsPartnerAudience = searchParams.get("audience") === "partner";
-  const includePartnerOnly = wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role);
+  // Marketing/Admin's own management list (isJobManager) always sees
+  // partner-only jobs regardless of ?audience= — they're the ones who
+  // create and maintain every Job, Credit Service or not, so hiding a
+  // partner-only posting from their own list made it permanently
+  // unreachable to edit/manage or add sectors & positions to (2026-09-07).
+  // The audience=partner mechanism below is a separate, narrower gate for
+  // the actual application-form/partner-portal contexts.
+  const includePartnerOnly = isJobManager || (wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role));
 
   const result = await getPublicJobsList({
     page: Number(searchParams.get("page") || 1),
