@@ -28,8 +28,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const { searchParams } = req.nextUrl;
   const wantsPartnerAudience = searchParams.get("audience") === "partner";
-  const user = wantsPartnerAudience ? await getAuthUser(req) : null;
-  const includePartnerOnly = wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role);
+  const user = await getAuthUser(req);
+  const isJobManager = user ? !requireRole(user, [...JOB_MANAGER_ROLES]) : false;
+  // Marketing/Admin's own edit page (isJobManager) always sees a
+  // partner-only job's detail regardless of ?audience= — same fix as
+  // GET /api/jobs's list endpoint (2026-09-07): without this, opening a
+  // Credit Service job's edit page 404'd ("Failed to load job details"),
+  // since the edit page never sends audience=partner and "marketing"
+  // was never in PARTNER_JOB_VISIBILITY_ROLES to begin with.
+  const includePartnerOnly = isJobManager || (wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role));
 
   const job = await getPublicJobById(id, includePartnerOnly);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
