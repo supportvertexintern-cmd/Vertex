@@ -28,6 +28,7 @@ const PUBLIC_JOB_LIST_SELECT = {
   service_fee_gbp: true,
   partner_only: true,
   is_credit_service: true,
+  two_stage_pricing: true,
   financing_percent: true,
   installment_count: true,
   // Sector -> Opportunity -> Position (2026-09-02) — both application

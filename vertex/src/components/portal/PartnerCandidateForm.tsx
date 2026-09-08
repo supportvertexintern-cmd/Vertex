@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect";
 import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
-import { computeCreditServiceSchedule } from "@/lib/fees";
+import { computeCreditServiceSchedule, computeMilestoneSplit } from "@/lib/fees";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -42,6 +42,7 @@ interface JobOption {
   sectors: JobSectorOption[];
   service_fee_gbp: number | null;
   is_credit_service: boolean;
+  two_stage_pricing: boolean;
   financing_percent: number | null;
   installment_count: number | null;
 }
@@ -673,20 +674,43 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
           </>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
-                <div className="text-slate-500">On engagement — documentation stage</div>
+            {selectedJob?.two_stage_pricing ? (
+              <div className="grid grid-cols-2 gap-2 text-center text-xs mb-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="font-bold text-emerald-700 mb-1">
+                    First Payment · 50%
+                    {selectedJob.service_fee_gbp != null
+                      ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).documentation.toLocaleString()})`
+                      : ""}
+                  </div>
+                  <div className="text-slate-500">On engagement</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="font-bold text-emerald-700 mb-1">
+                    Final Payment · 50%
+                    {selectedJob.service_fee_gbp != null
+                      ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).visa.toLocaleString()})`
+                      : ""}
+                  </div>
+                  <div className="text-slate-500">After the visa is granted</div>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
-                <div className="text-slate-500">After the work permit is issued</div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
+                  <div className="text-slate-500">On engagement — documentation stage</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
+                  <div className="text-slate-500">After the work permit is issued</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
+                  <div className="text-slate-500">After the visa is granted</div>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
-                <div className="text-slate-500">After the visa is granted</div>
-              </div>
-            </div>
+            )}
             <p className="text-xs text-slate-500 mb-3">
               Air tickets and embassy fees are not included in any programme price and are payable separately.
               Accommodation is provided in every programme and may be deducted from salary by the employer.
