@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { updatePartnerCandidateDetailsSchema } from "@/lib/validations";
+import { deleteUploadedFile } from "@/lib/upload";
 
 // GET /api/partner/candidates/:id — a partner's own detail view of one
 // submission (SRS FR-5.1, 2026-07-31) — scoped to the caller's own
@@ -24,6 +25,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       job: { select: { id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
       job_position: { select: { title: true, city: true, job_sector: { select: { sector: true } } } },
       current_location_country: { select: { name: true } },
+      // Documents uploaded while this row was still a draft (2026-09-09) —
+      // reparented onto bridged_candidate's own documents once submitted,
+      // so this array is only ever populated pre-submission.
+      documents: { select: { id: true, type: true, label: true, uploaded_at: true } },
       bridged_candidate: {
         select: {
           id: true,
@@ -144,6 +149,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       available_for_embassy_appointment: parsed.data.available_for_embassy_appointment,
       willing_to_start_within_30_days: parsed.data.willing_to_start_within_30_days,
       preferred_contact_channel: parsed.data.preferred_contact_channel,
+      documents_available: parsed.data.documents_available,
+      payment_plan_acknowledged: parsed.data.payment_plan_acknowledged,
     },
   });
 
@@ -199,4 +206,42 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   return NextResponse.json({ data: updated });
+}
+
+// DELETE /api/partner/candidates/:id — a partner abandoning their own
+// unfinished draft (2026-09-09). Restricted to status "draft" — a real
+// submission can never be self-deleted by the partner, only rejected by
+// HR. The new Document.partner_candidate_id FK's onDelete: Cascade only
+// cleans up the DB rows once the PartnerCandidate itself is deleted; the
+// underlying R2 objects need an explicit deleteUploadedFile call first, or
+// an abandoned draft's files leak in the bucket forever.
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getAuthUser(req);
+  const guardRes = requireRole(user, ["partner"]);
+  if (guardRes) return guardRes;
+
+  const partner = await prisma.partner.findUnique({ where: { user_id: user!.userId } });
+  if (!partner) return NextResponse.json({ error: { code: "not_found", message: "Partner record not found." } }, { status: 404 });
+
+  const { id } = await params;
+
+  const existing = await prisma.partnerCandidate.findUnique({
+    where: { id },
+    include: { documents: { select: { storage_path: true } } },
+  });
+  if (!existing || existing.partner_id !== partner.id) {
+    return NextResponse.json({ error: { code: "not_found", message: "Submission not found." } }, { status: 404 });
+  }
+  if (existing.status !== "draft") {
+    return NextResponse.json({ error: { code: "invalid_state", message: "Only an unsubmitted draft can be deleted." } }, { status: 409 });
+  }
+
+  for (const doc of existing.documents) {
+    await deleteUploadedFile(doc.storage_path);
+  }
+
+  const db = auditedPrisma(user!.userId);
+  await db.partnerCandidate.delete({ where: { id } });
+
+  return NextResponse.json({ message: "Draft deleted." });
 }

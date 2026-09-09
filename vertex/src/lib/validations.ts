@@ -420,6 +420,10 @@ export const updatePartnerCandidateDetailsSchema = z.object({
   available_for_embassy_appointment: z.boolean().optional(),
   willing_to_start_within_30_days: z.boolean().optional(),
   preferred_contact_channel: z.enum(["email", "whatsapp"]).optional(),
+  // Draft-save support (2026-09-09) — lets in-place PATCH edits persist
+  // Section 4/5 progress too, not just personal/programme info.
+  documents_available: z.array(z.string().min(1).max(60)).optional(),
+  payment_plan_acknowledged: z.boolean().optional(),
 });
 
 // CRM Comments follow-up (2026-08-10) — staff correcting the Application-
@@ -1006,6 +1010,16 @@ export const submitPartnerCandidateSchema = z.object({
   // email, or WhatsApp collected, there's no candidate-facing channel for
   // Vertex to pick between; the partner is contacted instead, always.
   preferred_contact_channel: z.enum(["email", "whatsapp"]).optional(),
+});
+
+// Draft-save support (2026-09-09) — a partner can save an in-progress
+// submission with any subset of fields filled in. .partial() applies
+// cleanly since submitPartnerCandidateSchema has no top-level .refine().
+// payment_plan_acknowledged needs an explicit override: .partial() alone
+// would leave it as z.literal(true).optional(), which still rejects an
+// explicit false — a draft must tolerate the checkbox being unticked.
+export const savePartnerCandidateDraftSchema = submitPartnerCandidateSchema.partial().extend({
+  payment_plan_acknowledged: z.boolean().optional(),
 });
 
 // Phase 5: Employer/Client CRM (SRS FR-5.2) — the employer a vacancy is

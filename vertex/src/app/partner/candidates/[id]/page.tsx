@@ -375,6 +375,22 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       </PortalShell>
     );
   }
+  // This read-only detail view assumes a finished submission (full_name/
+  // passport/etc. all populated) — a draft's fields can be partially or
+  // entirely empty (2026-09-09) and is reached through the "My Candidates"
+  // list's resume-in-modal flow instead, never this page. Guard direct
+  // navigation (a stale link, browser back, etc.) rather than letting a
+  // null field below crash the render.
+  if (data.status === "draft") {
+    return (
+      <PortalShell roleLabel="Partner" navItems={PARTNER_NAV_ITEMS}>
+        <div className="card p-10 text-center text-midnight-900/50">
+          This submission is still a draft — resume it from your{" "}
+          <a href="/partner" className="text-gold-600 underline">candidate list</a>.
+        </div>
+      </PortalShell>
+    );
+  }
 
   return (
     <PortalShell roleLabel="Partner" navItems={PARTNER_NAV_ITEMS}>

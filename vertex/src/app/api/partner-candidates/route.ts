@@ -58,6 +58,10 @@ export async function GET(req: NextRequest) {
           ],
         }
       : {}),
+    // A draft is never reachable from HR/Operations' queue (2026-09-09) —
+    // unconditional, not just the no-filter default, so an explicit
+    // ?status=draft can't surface one either.
+    AND: [{ status: { not: "draft" } }],
   };
 
   const [rows, total] = await Promise.all([

@@ -376,7 +376,15 @@ enum VerificationStatus {
 
 model Document {
   id                  String                  @id @default(cuid())
-  candidate_id        String
+  // Nullable (2026-09-09) — a document uploaded while a PartnerCandidate is
+  // still a draft has no real Candidate yet, so it's filed under
+  // partner_candidate_id instead. Exactly one of the two is ever set,
+  // enforced in application code (POST /api/upload) rather than a DB
+  // constraint. candidate_id is populated (reparented from
+  // partner_candidate_id) once the draft is finalized into a real
+  // submission — see finalizeSubmission().
+  candidate_id        String?
+  partner_candidate_id String?
   type                String
   requirement_type    DocumentRequirementType @relation(fields: [type], references: [key], onDelete: Restrict)
   storage_path        String // private-bucket path; never a public URL (SRS FR-1.6)
@@ -396,7 +404,8 @@ model Document {
   scan_status         String                  @default("unscanned")
   scanned_at          DateTime?
 
-  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  candidate         Candidate?        @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  partner_candidate PartnerCandidate? @relation(fields: [partner_candidate_id], references: [id], onDelete: Cascade)
 
   // A staff-uploaded payment receipt (2026-07-31 — Stripe restricted to
   // self-applicants; partner/recruiter-sourced payments are recorded
@@ -405,6 +414,7 @@ model Document {
   case_payments CasePayment[] @relation("CasePaymentReceipt")
 
   @@index([candidate_id])
+  @@index([partner_candidate_id])
   @@index([type])
 }
 
@@ -1418,7 +1428,9 @@ model Partner {
 }
 
 enum PartnerCandidateStatus {
-  draft // started on the partner portal, not yet submitted (fields may be empty)
+  // Not yet submitted — a partner is still filling this in and can save
+  // partial progress (2026-09-09). Never visible to HR/Operations queues.
+  draft
   submitted
   under_review
   job_assigned
@@ -1437,7 +1449,12 @@ model PartnerCandidate {
   partner    Partner                @relation(fields: [partner_id], references: [id], onDelete: Cascade)
   status     PartnerCandidateStatus @default(submitted)
 
-  // Section 3 — Candidate Personal Information
+  // Section 3 — Candidate Personal Information. full_name/date_of_birth/
+  // nationality/passport_number/passport_expiry are nullable (2026-09-09,
+  // draft-save support) even though a real submission always has them —
+  // submitPartnerCandidateSchema re-enforces all of these as required at
+  // final-submission time, so this only relaxes what a draft tolerates,
+  // not what "submitted" means.
   full_name          String?
   date_of_birth      DateTime?
   nationality        String?
@@ -1465,8 +1482,10 @@ model PartnerCandidate {
   // employer relationship directly), so this is one required Job pick —
   // not the 3-country-alternates + sector pattern the internal Candidate
   // Information Form uses for a candidate exploring options in general.
+  // job_id/earliest_travel_date nullable (2026-09-09, draft-save support)
+  // — see the Section 3 comment above for the same reasoning.
   job_id                        String?
-  job                           Job?      @relation(fields: [job_id], references: [id], onDelete: Restrict)
+  job                           Job?         @relation(fields: [job_id], references: [id], onDelete: Restrict)
   // Same shape as Application.job_position_id — optional/SetNull even
   // though job_id itself is Restrict here.
   job_position_id               String?
@@ -1490,6 +1509,7 @@ model PartnerCandidate {
   // always set (free choice from the full world-country list, matching
   // Application's own pattern) — the FK only resolves when that name
   // happens to match one of Vertex's admin-managed Country rows.
+  // Nullable (2026-09-09, draft-save support) — see Section 3 comment above.
   current_location_country_name     String?
   current_location_country_id       String?
   current_location_country          Country?        @relation("PartnerCurrentLocation", fields: [current_location_country_id], references: [id], onDelete: SetNull)
@@ -1509,6 +1529,12 @@ model PartnerCandidate {
   rejection_reason     String?    @db.Text
   bridged_candidate_id String?    @unique
   bridged_candidate    Candidate? @relation(fields: [bridged_candidate_id], references: [id], onDelete: SetNull)
+
+  // Documents attached while this row is still a draft (2026-09-09) — no
+  // real Candidate exists yet to file them under. Re-parented onto
+  // bridged_candidate's Document rows (candidate_id set) at the moment a
+  // draft is finalized into a real submission — see finalizeSubmission().
+  documents Document[]
 
   submitted_at DateTime @default(now())
   updated_at   DateTime @updatedAt
