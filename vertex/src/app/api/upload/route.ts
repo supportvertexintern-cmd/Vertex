@@ -50,7 +50,68 @@ export async function POST(req: NextRequest) {
   const label = (formData.get("label") as string | null)?.trim() || null;
 
   const targetCandidateId = req.nextUrl.searchParams.get("candidate_id");
+  const targetPartnerCandidateId = req.nextUrl.searchParams.get("partner_candidate_id");
   const cifUploadToken = req.headers.get("X-Upload-Token");
+
+  // A partner attaching a real file to their own still-in-progress draft
+  // (2026-09-09) — no real Candidate exists yet to file it under (that
+  // only gets created at final submission), so the Document is filed
+  // directly against the PartnerCandidate row instead and reparented onto
+  // the real Candidate once the draft is finalized (see
+  // finalizeSubmission()). Handled as its own early branch, distinct from
+  // every other target-resolution path below, since none of those resolve
+  // to a Candidate at all.
+  if (targetPartnerCandidateId) {
+    const user = await getAuthUser(req);
+    const guardRes = requireAuth(user);
+    if (guardRes) return guardRes;
+    if (user!.role !== "partner") {
+      return NextResponse.json({ error: "Only the owning partner can upload to a draft." }, { status: 403 });
+    }
+    const partner = await prisma.partner.findUnique({ where: { user_id: user!.userId } });
+    const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { id: targetPartnerCandidateId } });
+    if (!partnerCandidate || !partner || partnerCandidate.partner_id !== partner.id) {
+      return NextResponse.json({ error: "Draft not found." }, { status: 404 });
+    }
+    if (partnerCandidate.status !== "draft") {
+      // Once submitted/bridged, uploads go through the normal
+      // candidate_id=bridged_candidate_id path instead — same as the
+      // existing "partner uploads on behalf of a candidate it just
+      // bridged" branch further down.
+      return NextResponse.json({ error: "This submission is no longer a draft — upload against its candidate_id instead." }, { status: 409 });
+    }
+
+    let storagePath: string;
+    try {
+      storagePath = await saveUploadedFile(file, fileType);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const db = auditedPrisma(user!.userId);
+
+    if (fileType !== "other") {
+      const existing = await prisma.document.findFirst({
+        where: { partner_candidate_id: partnerCandidate.id, type: fileType },
+      });
+      if (existing) {
+        await deleteUploadedFile(existing.storage_path);
+        await db.document.delete({ where: { id: existing.id } });
+      }
+    }
+
+    const document = await db.document.create({
+      data: {
+        partner_candidate_id: partnerCandidate.id,
+        type: fileType,
+        storage_path: storagePath,
+        label,
+      },
+    });
+
+    return NextResponse.json({ documentId: document.id, message: "File uploaded successfully." });
+  }
 
   let candidate: { id: string; lifecycle_status: string } | null;
   let actorId: string | null;

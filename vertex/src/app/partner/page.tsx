@@ -11,10 +11,11 @@ import FilterBar from "@/components/portal/FilterBar";
 import SortableTh from "@/components/SortableTh";
 import { usePagination } from "@/lib/usePagination";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
-import { Plus, X, WarningCircle, ChatCircleDots } from "@phosphor-icons/react";
+import { Plus, X, WarningCircle, ChatCircleDots, Trash } from "@phosphor-icons/react";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
+  { value: "draft", label: "Draft" },
   { value: "submitted", label: "Submitted" },
   { value: "under_review", label: "Under Review" },
   { value: "job_assigned", label: "Case Created" },
@@ -22,6 +23,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 const STATUS_STYLES: Record<string, string> = {
+  draft: "bg-slate-100 text-slate-600",
   submitted: "bg-blue-100 text-blue-700",
   under_review: "bg-yellow-100 text-yellow-800",
   job_assigned: "bg-emerald-100 text-emerald-800",
@@ -30,7 +32,9 @@ const STATUS_STYLES: Record<string, string> = {
 
 interface PartnerCandidateRow {
   id: string;
-  full_name: string;
+  // Nullable (2026-09-09) — a draft can be saved before a name is even
+  // typed in.
+  full_name: string | null;
   email: string | null;
   status: string;
   submitted_at: string;
@@ -48,8 +52,10 @@ export default function PartnerPortalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [resumeDraftId, setResumeDraftId] = useState<string | undefined>(undefined);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -81,7 +87,7 @@ export default function PartnerPortalPage() {
       if (status && c.status !== status) return false;
       if (!needle) return true;
       return (
-        c.full_name.toLowerCase().includes(needle) ||
+        (c.full_name ?? "").toLowerCase().includes(needle) ||
         (c.email ?? "").toLowerCase().includes(needle) ||
         (c.job?.title ?? "").toLowerCase().includes(needle)
       );
@@ -105,7 +111,13 @@ export default function PartnerPortalPage() {
           </p>
           <h1 className="section-title text-3xl md:text-4xl mb-2">My Candidates.</h1>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary text-xs">
+        <button
+          onClick={() => {
+            setResumeDraftId(undefined);
+            setShowForm(true);
+          }}
+          className="btn-primary text-xs"
+        >
           <Plus size={16} weight="bold" /> Submit Candidate
         </button>
       </div>
@@ -152,47 +164,93 @@ export default function PartnerPortalPage() {
                 <SortableTh label="Status" sortKey="status" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <th className="px-5 py-3 font-semibold">Attention</th>
                 <SortableTh label="Submitted" sortKey="submitted_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
+                <th className="px-5 py-3 font-semibold" />
               </tr>
             </thead>
             <tbody>
-              {paged.map((c) => (
-                <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
-                  <td className="px-5 py-4">
-                    <Link href={`/partner/candidates/${c.id}`} className="block">
-                      <div className="font-medium text-midnight-900 hover:text-gold-600">{c.full_name}</div>
-                      {c.email && <div className="text-xs text-midnight-900/45">{c.email}</div>}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-4 text-midnight-900/70">
-                    {c.job?.title ?? "—"}
-                    <div className="text-xs text-midnight-900/40">{c.job ? `${c.job.city}, ${c.job.country}` : ""}</div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[c.status] ?? "bg-slate-100 text-slate-700"}`}>
-                      {formatPartnerCandidateStatus(c.status)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {!c.has_rejected_document && !c.awaiting_partner_reply ? (
-                      <span className="text-xs text-midnight-900/35">—</span>
-                    ) : (
-                      <div className="flex flex-col gap-0.5">
-                        {c.has_rejected_document && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
-                            <WarningCircle size={13} weight="fill" /> Document rejected
-                          </span>
-                        )}
-                        {c.awaiting_partner_reply && (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
-                            <ChatCircleDots size={13} weight="fill" /> New message
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-midnight-900/60">{new Date(c.submitted_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {paged.map((c) => {
+                const isDraft = c.status === "draft";
+                const nameCell = (
+                  <>
+                    <div className="font-medium text-midnight-900 group-hover:text-gold-600">
+                      {c.full_name || <span className="italic text-midnight-900/40">Untitled draft</span>}
+                    </div>
+                    {c.email && <div className="text-xs text-midnight-900/45">{c.email}</div>}
+                  </>
+                );
+                return (
+                  <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
+                    <td className="px-5 py-4">
+                      {isDraft ? (
+                        <button
+                          type="button"
+                          className="block text-left group"
+                          onClick={() => {
+                            setResumeDraftId(c.id);
+                            setShowForm(true);
+                          }}
+                        >
+                          {nameCell}
+                        </button>
+                      ) : (
+                        <Link href={`/partner/candidates/${c.id}`} className="block group">
+                          {nameCell}
+                        </Link>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-midnight-900/70">
+                      {c.job?.title ?? "—"}
+                      <div className="text-xs text-midnight-900/40">{c.job ? `${c.job.city}, ${c.job.country}` : ""}</div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[c.status] ?? "bg-slate-100 text-slate-700"}`}>
+                        {formatPartnerCandidateStatus(c.status)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {!c.has_rejected_document && !c.awaiting_partner_reply ? (
+                        <span className="text-xs text-midnight-900/35">—</span>
+                      ) : (
+                        <div className="flex flex-col gap-0.5">
+                          {c.has_rejected_document && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                              <WarningCircle size={13} weight="fill" /> Document rejected
+                            </span>
+                          )}
+                          {c.awaiting_partner_reply && (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                              <ChatCircleDots size={13} weight="fill" /> New message
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-midnight-900/60">{new Date(c.submitted_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-4">
+                      {isDraft && (
+                        <button
+                          type="button"
+                          title="Delete draft"
+                          disabled={deletingId === c.id}
+                          onClick={async () => {
+                            if (!confirm("Delete this draft? This can't be undone.")) return;
+                            setDeletingId(c.id);
+                            try {
+                              await fetch(`/api/partner/candidates/${c.id}`, { method: "DELETE" });
+                              load();
+                            } finally {
+                              setDeletingId(null);
+                            }
+                          }}
+                          className="text-midnight-900/35 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <Trash size={16} weight="regular" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <div className="px-5">
@@ -204,14 +262,25 @@ export default function PartnerPortalPage() {
       {showForm && (
         <div className="fixed inset-0 z-[200] bg-midnight-950/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6 sm:p-8 relative">
-            <button type="button" onClick={() => setShowForm(false)} className="absolute top-4 right-4 text-midnight-900/40 hover:text-midnight-900">
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setResumeDraftId(undefined);
+                load();
+              }}
+              className="absolute top-4 right-4 text-midnight-900/40 hover:text-midnight-900"
+            >
               <X size={20} weight="bold" />
             </button>
-            <h2 className="text-xl font-black text-midnight-900 mb-1">Submit a Candidate</h2>
+            <h2 className="text-xl font-black text-midnight-900 mb-1">{resumeDraftId ? "Continue Draft" : "Submit a Candidate"}</h2>
             <p className="text-sm text-midnight-900/50 mb-6">Every detail is checked against the candidate's passport and supporting documents.</p>
             <PartnerCandidateForm
+              draftId={resumeDraftId}
+              onDraftSaved={load}
               onSubmitted={() => {
                 setShowForm(false);
+                setResumeDraftId(undefined);
                 load();
               }}
             />
