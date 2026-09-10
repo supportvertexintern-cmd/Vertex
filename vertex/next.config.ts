@@ -1,15 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'standalone',
-  // Baseline security headers (PII platform — SRS NFR-6). Deliberately
-  // not including Content-Security-Policy here: the site already loads
-  // Google Translate's external script + an inline config script, and a
-  // CSP added without carefully accounting for every existing embed
-  // (translate, chat/WhatsApp widgets) fails closed and silently breaks
-  // the page rather than degrading gracefully — needs its own dedicated
-  // pass with real testing, not a drive-by addition alongside these.
+  // output: 'standalone' is for self-hosted Node/cPanel only.
+  // Remove it for Vercel — Vercel manages its own output format.
+
   async headers() {
     return [
       {
