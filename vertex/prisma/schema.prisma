@@ -1,0 +1,1413 @@
+// Vertex International Recruitment — Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  candidate
+  regional_recruiter
+  country_supervisor
+  inhouse_supervisor
+  director
+  admin
+  // Solely responsible for posting/editing/closing job listings — not part
+  // of the three-tier operational hierarchy (Regional Supervisory
+  // Operational Workflow) and deliberately kept out of STAFF_ROLES so it
+  // doesn't incidentally inherit broader candidate/application access.
+  marketing
+  // An external agency/partner's own login (SRS FR-5.1), admin-provisioned
+  // — not internal staff, so deliberately kept out of STAFF_ROLES same as
+  // marketing. Submits candidates through its own portal; never enters the
+  // internal recruiter/screening/verification funnel.
+  partner
+  // Separation-of-duties roles (2026-07-31, per the Operational Workflow SOP)
+  // — reviews partner candidate submissions and creates the Case; screening
+  // for internally-sourced candidates already happens via the existing
+  // recruiter/supervisor pipeline, so this role only ever touches
+  // partner-sourced submissions. Deliberately kept out of STAFF_ROLES, same
+  // reasoning as marketing/partner — not part of the 3-tier hierarchy.
+  hr
+  // Owns case-stage movement, contracts, document handoff, and reminders
+  // once a Case exists (regardless of source — internal or partner) — two
+  // tiers with identical capabilities, operations_director being a senior/
+  // escalation title, mirroring country_supervisor/inhouse_supervisor's
+  // existing two-tier shape but without a distinct permission set.
+  operations_team
+  operations_director
+  // Owns milestone payment links/records and payments-due visibility, once
+  // a Case exists (regardless of source).
+  finance
+}
+
+enum ApplicationStatus {
+  submitted
+  under_review
+  interview
+  approved
+  rejected
+}
+
+enum JobStatus {
+  active
+  closed
+  draft
+}
+
+model User {
+  id             String   @id @default(cuid())
+  full_name      String
+  email          String   @unique
+  password_hash  String?
+  google_id      String?  @unique
+  phone          String?
+  country        String?
+  role           Role     @default(candidate)
+  email_verified Boolean  @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  // Agent-network structure (SRS FR-1.1, FR-1.3, FR-1.4)
+  supervisor_id       String?
+  supervisor          User?    @relation("Supervision", fields: [supervisor_id], references: [id], onDelete: SetNull)
+  reports             User[]   @relation("Supervision")
+  assigned_country_id String?
+  assigned_country    Country? @relation(fields: [assigned_country_id], references: [id], onDelete: SetNull)
+
+  candidate          Candidate?
+  partner            Partner?
+  payments           Payment[]
+  sourced_candidates Candidate[] @relation("RecruiterCandidates")
+  submitted_reports  Report[]    @relation("SubmittedReports")
+  campaigns_created  Campaign[]  @relation("CampaignCreator")
+
+  case_stage_events_owned     CaseStageEvent[]   @relation("CaseStageOwner")
+  case_ops_reviews            Case[]             @relation("CaseOpsReviewer")
+  cases_rejected              Case[]             @relation("CaseRejector")
+  case_payments_recorded      CasePayment[]      @relation("CasePaymentRecorder")
+  case_reminders_sent         CaseReminder[]     @relation("CaseReminderSender")
+  fee_policies_updated        FeePolicy[]        @relation("FeePolicyUpdater")
+  contracts_created           Contract[]         @relation("ContractCreator")
+  partner_candidates_reviewed PartnerCandidate[] @relation("PartnerCandidateReviewer")
+  recruiter_targets_received  RecruiterTarget[]  @relation("RecruiterTargetRecruiter")
+  recruiter_targets_set       RecruiterTarget[]  @relation("RecruiterTargetSetter")
+  recruiter_notes_received    RecruiterNote[]    @relation("RecruiterNoteRecipient")
+  recruiter_notes_authored    RecruiterNote[]    @relation("RecruiterNoteAuthor")
+  candidate_messages_sent     CandidateMessage[]
+
+  exceptions_raised       Exception[]                 @relation("ExceptionRaiser")
+  exceptions_decided      Exception[]                 @relation("ExceptionDecider")
+  exception_actions_owned ExceptionCorrectiveAction[] @relation("ExceptionActionOwner")
+  scorecards_received     StaffScorecard[]            @relation("ScorecardSubject")
+  scorecards_authored     StaffScorecard[]            @relation("ScorecardReviewer")
+
+  // In-House Supervisor multi-country assignment (2026-07) — supersedes
+  // the single assigned_country_id for that one role; regional_recruiter
+  // and country_supervisor keep using assigned_country_id unchanged.
+  inhouse_country_assignments InhouseCountryAssignment[]
+
+  staff_kpi_targets_received StaffKpiTarget[] @relation("StaffKpiTargetRecipient")
+  staff_kpi_targets_set      StaffKpiTarget[] @relation("StaffKpiTargetSetter")
+
+  @@index([email])
+  @@index([supervisor_id])
+  @@index([assigned_country_id])
+}
+
+model Region {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  countries Country[]
+
+  campaign_targets CampaignTarget[]
+}
+
+// The Country reference-data model doubles as the "preferred programme
+// destination" a candidate selects on the Candidate Information Form —
+// admin populates this with the European programme countries Vertex
+// actually places into (Poland, Belarus, Italy, etc.), not a general
+// world-country list.
+model Country {
+  id        String @id @default(cuid())
+  name      String @unique
+  region_id String
+  region    Region @relation(fields: [region_id], references: [id], onDelete: Restrict)
+
+  users                      User[]
+  candidates                 Candidate[]
+  reports                    Report[]
+  campaign_targets           CampaignTarget[]
+  fee_policies               FeePolicy[]
+  document_requirements      CountryDocumentRequirement[]
+  preferred_by_1             Application[]                @relation("PreferredCountry1")
+  preferred_by_2             Application[]                @relation("PreferredCountry2")
+  preferred_by_3             Application[]                @relation("PreferredCountry3")
+  current_located_by         Application[]                @relation("CurrentLocationCountry")
+  partner_current_located_by PartnerCandidate[]           @relation("PartnerCurrentLocation")
+  exceptions                 Exception[]
+  inhouse_assignments        InhouseCountryAssignment[]
+
+  @@index([region_id])
+}
+
+// Admin-managed "type of work" taxonomy (Candidate Information Form §1,
+// "Preferred Type of Work") — e.g. Warehouse, Agriculture, Hotel, Driving.
+model Sector {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  created_at   DateTime      @default(now())
+  applications Application[]
+}
+
+// Which documents a given destination country actually requires (form §3:
+// "Required for: Poland" etc.) — admin-configurable rather than a
+// hardcoded per-country list, so a new programme country's requirements
+// don't need a code change.
+model CountryDocumentRequirement {
+  id               String                  @id @default(cuid())
+  country_id       String
+  country          Country                 @relation(fields: [country_id], references: [id], onDelete: Cascade)
+  document_type    String
+  requirement_type DocumentRequirementType @relation(fields: [document_type], references: [key], onDelete: Cascade)
+  created_at       DateTime                @default(now())
+
+  @@unique([country_id, document_type])
+  @@index([country_id])
+}
+
+// Admin-managed document requirement taxonomy (replaces the old fixed
+// DocumentType enum) — lets admin add a brand-new requirement type from
+// the UI and have it immediately usable across the Candidate Information
+// Form / Agency form checklist, per-country requirements, and uploads,
+// with no code change or deploy. `key` is the stable identifier stored on
+// Document.type/CountryDocumentRequirement.document_type/documents_available
+// arrays; `is_universal` marks the fixed cv/passport/passport_photo set
+// required for every programme regardless of destination.
+model DocumentRequirementType {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  label        String
+  is_universal Boolean  @default(false)
+  sort_order   Int      @default(0)
+  created_at   DateTime @default(now())
+
+  documents            Document[]
+  country_requirements CountryDocumentRequirement[]
+
+  @@index([is_universal])
+}
+
+enum CandidateSource {
+  self_registered
+  recruiter_sourced
+  partner_sourced
+}
+
+// Mandatory on both the Partner and Direct Candidate Application Forms
+// (2026-08-18), but nullable on both models it lives on (Candidate,
+// PartnerCandidate) so existing pre-2026-08-18 records don't need a
+// backfill — the DB stays permissive, the forms enforce the requirement.
+enum Gender {
+  male
+  female
+}
+
+enum CandidateLifecycleStatus {
+  identified
+  screened
+  guided_to_apply
+  submitted
+  reported
+  verified
+  approved
+  // Terminal side-branch (2026-08-06), not a point on the linear
+  // identified→approved track — mirrors PartnerCandidateStatus's own
+  // rejected value. HR-only, for a self-submitted candidate that fails
+  // screening outright or whose submitted documents don't hold up.
+  rejected
+}
+
+model Candidate {
+  id                 String    @id @default(cuid())
+  user_id            String?   @unique // nullable: a recruiter-sourced lead may not have an account yet (SRS FR-2.1)
+  passport_number    String?
+  passport_expiry    DateTime? // every programme requires >= 6 months validity (Candidate Information Form §2)
+  date_of_birth      DateTime?
+  nationality        String?
+  second_nationality String?
+  gender             Gender?
+  current_occupation String?
+  highest_education  String?
+  home_address       String?   @db.Text
+  whatsapp_number    String?
+  marital_status     String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  // Pre-registration identity (SRS FR-2.1, FR-2.8) — only meaningful when
+  // user_id is null. Once a User is linked, that record's full_name/
+  // phone/email become authoritative instead.
+  full_name String?
+  phone     String?
+  email     String?
+
+  // Target role/position (SRS FR-2.8 candidate-list data point). Free text
+  // for now — no formal job/case-matching model exists yet (Phase 4).
+  desired_role String?
+
+  // Agent-network attribution (SRS FR-1.4, FR-2.3). country_name is always
+  // set to whatever current-location country the candidate picked from the
+  // full world list; country_id/country only resolves when that name
+  // matches a real, admin-managed Country row (see Application's parallel
+  // current_location_country_name for the full rationale).
+  source           CandidateSource          @default(self_registered)
+  recruiter_id     String?
+  recruiter        User?                    @relation("RecruiterCandidates", fields: [recruiter_id], references: [id], onDelete: SetNull)
+  country_name     String?
+  country_id       String?
+  country          Country?                 @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  lifecycle_status CandidateLifecycleStatus @default(identified)
+
+  // Partner CRM attribution (SRS FR-5.1) — set only when this Candidate is
+  // bridged from a partner's own PartnerCandidate submission (job-
+  // assignment step, not built yet — see PartnerCandidate below), never
+  // editable afterward via a general edit form.
+  partner_id String?
+  partner    Partner? @relation(fields: [partner_id], references: [id], onDelete: SetNull)
+
+  // Screening gate (SRS FR-2.5) + verification-return workflow (FR-2.7)
+  consent_given Boolean   @default(false)
+  consent_at    DateTime?
+  return_reason String?   @db.Text
+
+  // The screening gate's pass/fail outcome, persisted — "screening result"
+  // is its own standard report-content field, distinct from status
+  // (Regional Supervisory Operational Workflow p.7), not just a live gate
+  // check that vanishes the moment the request completes. Null until the
+  // gate has actually been evaluated once.
+  screening_result       Boolean?
+  screening_evaluated_at DateTime?
+
+  user                     User?              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  applications             Application[]
+  documents                Document[]
+  messages                 CandidateMessage[]
+  // Set once this Candidate was bridged from a partner's own submission
+  // (future job-assignment step, not exercised yet) rather than created
+  // directly.
+  partner_candidate_origin PartnerCandidate?
+  exceptions               Exception[]
+
+  @@index([user_id])
+  @@index([recruiter_id])
+  @@index([country_id])
+  @@index([partner_id])
+  @@index([lifecycle_status])
+  @@index([created_at])
+  // Matches the most common staff list query shape (scope by
+  // recruiter/country, then filter by status) at 40-country/800-recruiter
+  // scale — a single-column index on each still works, but a composite
+  // lets Postgres satisfy both predicates from one index scan instead of
+  // combining two bitmap scans.
+  @@index([recruiter_id, lifecycle_status])
+  @@index([country_id, lifecycle_status])
+}
+
+// police_clearance already covers the Candidate Information Form's
+// "Criminal Record Certificate" — no separate type needed for it.
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+}
+
+model Document {
+  id                  String                  @id @default(cuid())
+  candidate_id        String
+  type                String
+  requirement_type    DocumentRequirementType @relation(fields: [type], references: [key], onDelete: Restrict)
+  storage_path        String // private-bucket path; never a public URL (SRS FR-1.6)
+  verification_status VerificationStatus      @default(pending)
+  verified_by         String?
+  verified_at         DateTime?
+  uploaded_at         DateTime                @default(now())
+  // A free-text reference for a supporting document that isn't one of the
+  // fixed required types (2026-08-05) — always type "other", which is the
+  // one type upload.ts lets accumulate multiple rows for per candidate
+  // (every other type still supersedes on re-upload) since a generic
+  // "Other Document" label can't otherwise tell two of them apart.
+  label               String?
+
+  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+
+  // A staff-uploaded payment receipt (2026-07-31 — Stripe restricted to
+  // self-applicants; partner/recruiter-sourced payments are recorded
+  // manually with a receipt file instead) uses this same generic
+  // Document pipeline, just referenced back from CasePayment.
+  case_payments CasePayment[] @relation("CasePaymentReceipt")
+
+  @@index([candidate_id])
+  @@index([type])
+}
+
+// One continuous thread per candidate (2026-07-13, confirmed with the
+// business) — not split per-Application or per-Case, so the same
+// conversation carries through whether the candidate is still applying
+// or already has a case open. Sender is always either the candidate's
+// own linked User or their assigned recruiter (Candidate.recruiter_id at
+// the time of sending); scoped to just those two participants, not a
+// general staff-visible channel like RecruiterNote.
+model CandidateMessage {
+  id           String    @id @default(cuid())
+  candidate_id String
+  candidate    Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  sender_id    String
+  sender       User      @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+  body         String    @db.Text
+  created_at   DateTime  @default(now())
+  // Sender-editable after sending (CRM Comments follow-up, 2026-08-12) —
+  // updated_at !== created_at is how the UI shows an "(edited)" marker,
+  // not a separate boolean flag.
+  updated_at   DateTime  @default(now()) @updatedAt
+
+  @@index([candidate_id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  entity_type String
+  entity_id   String
+  action      String // create | update | delete | verify | approve
+  actor_id    String?
+  before      Json?
+  after       Json?
+  created_at  DateTime @default(now())
+
+  @@index([entity_type, entity_id])
+  @@index([actor_id])
+  @@index([created_at])
+}
+
+// ── Phase 3: Control, Reporting & Governance ────────────────────────────
+
+enum ReportCycle {
+  daily
+  weekly
+  monthly
+}
+
+enum ScopeLevel {
+  recruiter
+  country
+  // An In-House Supervisor's own portfolio-level report (Supervisory
+  // Reporting Framework §5), consolidated from their assigned countries'
+  // country-scope reports — addressed to Management/Director, the top of
+  // the reporting line. Added alongside the framework's daily/weekly/
+  // monthly upward-reporting templates for this tier (2026-07-21).
+  inhouse
+}
+
+enum ReportStatus {
+  draft
+  submitted
+  verified
+  consolidated
+  returned
+  // Added for the Supervisory Reporting Framework's fuller status
+  // vocabulary (§8.2) — the top of the reporting line (Management/
+  // Director reviewing an In-House portfolio report) uses these instead
+  // of "verified"/"consolidated", which are recruiter/country-tier terms.
+  approved
+  escalated
+  closed
+}
+
+// A recruiter's daily/weekly submission (scope_level: recruiter) rolls up
+// via parent_report_id into their supervisor's country-level report
+// (scope_level: country) — the escalation path (SRS FR-3.7) made concrete
+// as data, not just a permission chain. `content` snapshots the candidate
+// list / KPI summary at submission time (SRS FR-3.4) — a deliberate,
+// disclosed duplication of data computable from Candidate/Application,
+// since a report is a point-in-time record, not a live view: it must not
+// silently change after submission just because the underlying candidates
+// move on to new statuses.
+model Report {
+  id               String       @id @default(cuid())
+  type             ReportCycle
+  scope_level      ScopeLevel
+  country_id       String?
+  country          Country?     @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  submitted_by     String
+  submitter        User         @relation("SubmittedReports", fields: [submitted_by], references: [id], onDelete: Cascade)
+  period_start     DateTime
+  period_end       DateTime
+  status           ReportStatus @default(draft)
+  content          Json
+  return_reason    String?      @db.Text
+  parent_report_id String?
+  parent_report    Report?      @relation("ReportRollup", fields: [parent_report_id], references: [id], onDelete: SetNull)
+  child_reports    Report[]     @relation("ReportRollup")
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  @@index([submitted_by])
+  @@index([country_id])
+  @@index([status])
+  @@index([type, period_start])
+  // Serves the daily-compliance check on every Country Supervisor/
+  // In-House overview page load ("has each recruiter submitted a daily
+  // report covering today") — country-scoped, filtered by type, then a
+  // period_end range; at 40-country/800-recruiter scale this runs on
+  // every dashboard load, not just occasionally.
+  @@index([country_id, type, period_end])
+}
+
+// ── Supervisory Reporting Framework §6: Exception, Escalation and
+// Corrective Action Report ──────────────────────────────────────────────
+// Deliberately a standalone model, not a Report.type value — unlike the
+// daily/weekly/monthly cycle reports, an exception is raised ad hoc at any
+// time by any tier and moves independently up the same escalation line
+// (Regional Recruiter → Country Supervisor → In-House Supervisor →
+// Management), tracked by its own reference number and decision workflow.
+enum ExceptionCategory {
+  candidate_eligibility_screening
+  documentation_data_integrity
+  crm_system_issue
+  target_capacity_performance
+  compliance_legal_ethical_risk
+  candidate_welfare_conduct
+  operational_timeline_dependency
+  other
+}
+
+enum EscalationLevel {
+  regional
+  country
+  inhouse
+  management
+}
+
+enum ExceptionStatus {
+  open
+  decided
+  closed
+}
+
+enum ExceptionDecision {
+  approved
+  modified
+  rejected
+  escalated
+}
+
+model Exception {
+  id        String            @id @default(cuid())
+  // "EXC-000123" — sequential, human-referenceable (framework §6's own
+  // "Exception Reference: EXC-___" field), generated at creation time.
+  reference String            @unique
+  category  ExceptionCategory
+
+  raised_by     String
+  raiser        User   @relation("ExceptionRaiser", fields: [raised_by], references: [id], onDelete: Cascade)
+  // Snapshot at raise time — a promotion/role change afterward shouldn't
+  // rewrite history of what tier actually raised this.
+  role_at_raise Role
+
+  country_id     String?
+  country        Country?   @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  // The framework's own form has a single combined "Campaign/Candidate CRM
+  // Ref." blank — modeled as an optional structured link to the specific
+  // candidate when there is one, plus free text for anything else (a
+  // campaign name, or a reference that doesn't fit a clean FK).
+  candidate_id   String?
+  candidate      Candidate? @relation(fields: [candidate_id], references: [id], onDelete: SetNull)
+  reference_note String?    @db.Text
+
+  issue_statement    String   @db.Text
+  immediate_impact   String   @db.Text
+  actions_taken      String?  @db.Text
+  root_cause         String?  @db.Text
+  options_considered String?  @db.Text
+  recommendation     String?  @db.Text
+  decision_required  String   @db.Text
+  decision_deadline  DateTime
+
+  escalation_level EscalationLevel @default(regional)
+  status           ExceptionStatus @default(open)
+
+  decision       ExceptionDecision?
+  decision_notes String?            @db.Text
+  decided_by     String?
+  decider        User?              @relation("ExceptionDecider", fields: [decided_by], references: [id], onDelete: SetNull)
+  decided_at     DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  corrective_actions ExceptionCorrectiveAction[]
+
+  @@index([raised_by])
+  @@index([country_id])
+  @@index([status])
+  @@index([escalation_level])
+}
+
+enum CorrectiveActionStatus {
+  open
+  in_progress
+  done
+}
+
+model ExceptionCorrectiveAction {
+  id              String                 @id @default(cuid())
+  exception_id    String
+  exception       Exception              @relation(fields: [exception_id], references: [id], onDelete: Cascade)
+  action          String                 @db.Text
+  owner_id        String?
+  owner           User?                  @relation("ExceptionActionOwner", fields: [owner_id], references: [id], onDelete: SetNull)
+  due_date        DateTime?
+  success_measure String?                @db.Text
+  status          CorrectiveActionStatus @default(open)
+  evidence        String?                @db.Text
+  created_at      DateTime               @default(now())
+  updated_at      DateTime               @updatedAt
+
+  @@index([exception_id])
+  @@index([owner_id])
+}
+
+// ── Supervisory Reporting Framework §7: Supervisory Performance
+// Scorecard ───────────────────────────────────────────────────────────
+// A monthly, evidence-based review of a staff member's own performance —
+// distinct from candidate-pipeline reporting (Report model above).
+// Authored by the direct supervisor (Country Supervisor rates a Regional
+// Recruiter; In-House rates a Country Supervisor; Director rates an
+// In-House Supervisor), never self-submitted, matching the framework's
+// three-column table (Regional Recruiter / Country Supervisor / In-House
+// Supervisor) and its uniform 20/20/15/15/15/10/5 area weighting.
+enum ScorecardStatus {
+  draft
+  finalized
+}
+
+model StaffScorecard {
+  id           String   @id @default(cuid())
+  staff_id     String
+  staff        User     @relation("ScorecardSubject", fields: [staff_id], references: [id], onDelete: Cascade)
+  reviewer_id  String
+  reviewer     User     @relation("ScorecardReviewer", fields: [reviewer_id], references: [id], onDelete: Cascade)
+  // First-of-month marker for the review period (e.g. 2026-07-01).
+  period_month DateTime
+
+  status               ScorecardStatus @default(draft)
+  overall_score        Float?
+  // "Exceptional / Strong / Effective / Improvement Required /
+  // Unsatisfactory" (framework §7) — derived from overall_score at
+  // finalization time, stored so a later weight/threshold change doesn't
+  // silently rewrite a past review's category.
+  performance_category String?
+  // "Recognition / Maintain / Coaching / Improvement Plan / Formal
+  // Review" (framework §7).
+  required_action      String?
+  review_date          DateTime?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  areas StaffScorecardArea[]
+
+  @@unique([staff_id, period_month])
+  @@index([reviewer_id])
+  @@index([staff_id])
+}
+
+model StaffScorecardArea {
+  id           String         @id @default(cuid())
+  scorecard_id String
+  scorecard    StaffScorecard @relation(fields: [scorecard_id], references: [id], onDelete: Cascade)
+  // target_achievement | quality_accuracy | reporting_timeliness |
+  // compliance_data_discipline | supervision_collaboration |
+  // issue_resolution_escalation | professional_conduct
+  area_key     String
+  weight       Float
+  rating       Int?
+  evidence     String?        @db.Text
+
+  @@unique([scorecard_id, area_key])
+}
+
+enum CampaignStatus {
+  draft
+  active
+  closed
+}
+
+// Criteria/requirements are free-form per campaign (roles, quotas,
+// eligibility rules) — modeled as Json rather than a rigid schema since
+// the SRS doesn't specify a fixed shape and campaigns vary widely by
+// destination market (SRS FR-3.3).
+model Campaign {
+  id         String         @id @default(cuid())
+  name       String
+  criteria   Json
+  status     CampaignStatus @default(draft)
+  created_by String
+  creator    User           @relation("CampaignCreator", fields: [created_by], references: [id], onDelete: Cascade)
+  start_date DateTime
+  end_date   DateTime // a campaign has a bounded timeline (SRS FR-3.3), not an open-ended one
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+
+  targets CampaignTarget[]
+
+  @@index([status])
+  @@index([created_by])
+}
+
+// Redefined (2026-07-13, confirmed with the business): a campaign target
+// is either how many candidates a country/campaign should get to
+// "verified" (Country Supervisor's own ceiling — see candidateLifecycle.ts),
+// or what fraction of those verified candidates should go all the way
+// through to "approved" — not a raw sign-up/funnel count anymore.
+enum CampaignMetric {
+  verified_candidates
+  conversion_rate
+}
+
+// A target cascades to exactly one country, one region, or neither
+// (campaign-wide) — never more than one scope per row, so "actuals"
+// aggregation always has an unambiguous target to compare against.
+model CampaignTarget {
+  id           String         @id @default(cuid())
+  campaign_id  String
+  campaign     Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  metric       CampaignMetric
+  country_id   String?
+  country      Country?       @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  region_id    String?
+  region       Region?        @relation(fields: [region_id], references: [id], onDelete: SetNull)
+  target_value Float
+  created_at   DateTime       @default(now())
+
+  recruiter_targets RecruiterTarget[]
+
+  @@index([campaign_id])
+  @@index([country_id])
+  @@index([region_id])
+}
+
+// A Country Supervisor's personal allocation of a country-scoped
+// CampaignTarget across their own recruiters — the campaign target is
+// the team-wide number In-House set; this is how much of it a specific
+// recruiter is on the hook for. Deliberately tied to one CampaignTarget
+// row (not a freestanding number) so a recruiter's target always traces
+// back to a real, currently-active campaign goal, not an orphaned figure.
+model RecruiterTarget {
+  id                 String         @id @default(cuid())
+  campaign_target_id String
+  campaign_target    CampaignTarget @relation(fields: [campaign_target_id], references: [id], onDelete: Cascade)
+  recruiter_id       String
+  recruiter          User           @relation("RecruiterTargetRecruiter", fields: [recruiter_id], references: [id], onDelete: Cascade)
+  target_value       Float
+  set_by             String
+  setter             User           @relation("RecruiterTargetSetter", fields: [set_by], references: [id], onDelete: SetNull)
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+
+  @@unique([campaign_target_id, recruiter_id])
+  @@index([recruiter_id])
+}
+
+// An In-House Supervisor's assignment to one of (potentially several)
+// countries — replaces the single-country assumption regional_recruiter/
+// country_supervisor still use via User.assigned_country_id. A join
+// table rather than a scalar array FK since Prisma relations require it,
+// and because it's scoped to exactly one role rather than every staff tier.
+model InhouseCountryAssignment {
+  id                    String   @id @default(cuid())
+  inhouse_supervisor_id String
+  inhouse_supervisor    User     @relation(fields: [inhouse_supervisor_id], references: [id], onDelete: Cascade)
+  country_id            String
+  country               Country  @relation(fields: [country_id], references: [id], onDelete: Cascade)
+  created_at            DateTime @default(now())
+
+  @@unique([inhouse_supervisor_id, country_id])
+  @@index([inhouse_supervisor_id])
+  @@index([country_id])
+}
+
+// A supervisor's personal target for a direct report, keyed to the exact
+// KPI-row label the recipient's own report already uses for that cycle
+// (REPORT_KPI_LABELS in reportTemplates.ts) rather than a generic
+// campaign metric — so the target set here is literally the same row
+// the recipient later fills in as "target" on their own report. One
+// shared model covers all 3 supervisory relationships (country
+// supervisor -> recruiter, in-house -> country supervisor,
+// director/management -> in-house); ownership/authorship rules are
+// enforced at the API layer based on the recipient's role, not here.
+// Deliberately separate from, and additive to, RecruiterTarget/
+// CampaignTarget (org-wide campaign allocation — a different concern).
+model StaffKpiTarget {
+  id           String      @id @default(cuid())
+  staff_id     String
+  staff        User        @relation("StaffKpiTargetRecipient", fields: [staff_id], references: [id], onDelete: Cascade)
+  cycle        ReportCycle
+  kpi_label    String
+  target_value Float
+  set_by       String
+  setter       User        @relation("StaffKpiTargetSetter", fields: [set_by], references: [id], onDelete: SetNull)
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  @@unique([staff_id, cycle, kpi_label])
+  @@index([staff_id])
+}
+
+// A Country Supervisor's one-way note to a specific recruiter under them
+// (the "communicate with that particular recruiter" capability) — kept
+// deliberately lightweight rather than a full messaging thread, since
+// report return_reason already carries per-report feedback; this is for
+// anything else a supervisor wants to flag outside a specific report.
+model RecruiterNote {
+  id           String   @id @default(cuid())
+  recruiter_id String
+  recruiter    User     @relation("RecruiterNoteRecipient", fields: [recruiter_id], references: [id], onDelete: Cascade)
+  author_id    String
+  author       User     @relation("RecruiterNoteAuthor", fields: [author_id], references: [id], onDelete: Cascade)
+  message      String   @db.Text
+  created_at   DateTime @default(now())
+
+  @@index([recruiter_id])
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  title           String
+  country         String
+  city            String
+  category        String?
+  salary_range    String?
+  job_description String    @db.Text
+  requirements    String    @db.Text
+  status          JobStatus @default(active)
+  application_fee Float?    @default(0)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  // Vertex's own work-permit programme pricing (Service & Pricing List),
+  // one row per opportunity — deliberately NOT keyed by country, since a
+  // single country (e.g. Czech Republic) can have several programmes at
+  // different price points. Every programme follows the same fixed 25% /
+  // 25% / 50% (documentation / permit / visa) split of service_fee_gbp, so
+  // only the total is stored; the stage amounts are derived on render.
+  visa_type          String?
+  duration_permit    String?
+  processing_time    String?
+  service_fee_gbp    Float?
+  visa_success_rates String? @db.Text
+  // The Service & Pricing List's own categorization (Premium/Skilled/
+  // Standard/Entry) — 2026 pricing revision. Display-only, no business
+  // logic keys off it.
+  tier               String?
+
+  // Which employer/client this vacancy is actually for (SRS FR-5.2) —
+  // optional since not every posting is linked to an on-file client yet.
+  employer_client_id String?
+  employer_client    EmployerClient? @relation(fields: [employer_client_id], references: [id], onDelete: SetNull)
+
+  applications       Application[]
+  payments           Payment[]
+  milestone_prices   JobMilestonePrice[]
+  partner_candidates PartnerCandidate[]
+
+  @@index([status])
+  @@index([country])
+  @@index([employer_client_id])
+}
+
+// Pre-provisioned Stripe Product + one-off Price per (Job × milestone), so
+// a payment link only ever has to reference an existing Price rather than
+// computing one inline — mirrors exactly how the Stripe dashboard itself
+// creates a product (Name, Description, one-off Price marked Default).
+// One row per opportunity per milestone (3 per Job with a real
+// service_fee_gbp), kept in sync by syncJobMilestonePricing whenever a Job
+// is created or its fee-relevant fields change.
+model JobMilestonePrice {
+  id                String               @id @default(cuid())
+  job_id            String
+  job               Job                  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  type              MilestonePaymentType
+  amount_gbp        Float
+  stripe_product_id String
+  stripe_price_id   String
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
+
+  @@unique([job_id, type])
+}
+
+enum ContactChannel {
+  email
+  whatsapp
+  phone
+}
+
+// A candidate's submission of the Candidate Information Form — currently a
+// general programme-interest application, not an application to a specific
+// job listing, since jobs aren't listed on the platform yet (job_id is
+// nullable for exactly this reason; it becomes meaningful once real job
+// matching exists).
+model Application {
+  id                 String            @id @default(cuid())
+  candidate_id       String
+  job_id             String?
+  application_status ApplicationStatus @default(submitted)
+  cover_letter       String?           @db.Text
+  internal_notes     String?           @db.Text
+  interview_date     DateTime?
+  submitted_at       DateTime          @default(now())
+  updated_at         DateTime          @updatedAt
+
+  // Section 1 — Programme Selection. Up to 3 alternatives are requested
+  // because vacancy/embassy capacity varies by country (form's own words).
+  preferred_country_1_id        String?
+  preferred_country_1           Country?  @relation("PreferredCountry1", fields: [preferred_country_1_id], references: [id], onDelete: SetNull)
+  preferred_country_2_id        String?
+  preferred_country_2           Country?  @relation("PreferredCountry2", fields: [preferred_country_2_id], references: [id], onDelete: SetNull)
+  preferred_country_3_id        String?
+  preferred_country_3           Country?  @relation("PreferredCountry3", fields: [preferred_country_3_id], references: [id], onDelete: SetNull)
+  preferred_sector_id           String?
+  preferred_sector              Sector?   @relation(fields: [preferred_sector_id], references: [id], onDelete: SetNull)
+  earliest_travel_date          DateTime?
+  // Yes/No + an optional free-text detail ("where/when"), not one combined
+  // free-text field (2026-08-06, business-requested field standardization)
+  // — prior_eu_visa_applied was String? @db.Text, renamed here to hold
+  // just the detail half.
+  prior_eu_visa_applied         Boolean?
+  prior_eu_visa_applied_details String?   @db.Text
+
+  // Section 3 — Document Checklist: self-reported "can you provide this?"
+  // at submission time, not the documents themselves (those are uploaded
+  // later, from the candidate's own dashboard, once an account exists).
+  documents_available String[]
+
+  // Section 5 — Visa & Travel Readiness. The candidate picks their current
+  // country of residence from a full world-country list (not just Vertex's
+  // operational Country rows) — current_location_country_name is always
+  // set to whatever they picked; current_location_country_id/relation is
+  // only set when that name matches a real, admin-managed Country row
+  // (case-insensitive), which is also what round-robin recruiter
+  // assignment keys off (matched against User.assigned_country_id). A
+  // self-service submission whose country doesn't resolve to a Country row
+  // with an available recruiter never reaches this table at all — it's
+  // routed to the public-intake email bridge instead (see
+  // /api/apply/options's recruiterCountryNames + ApplicationForm.tsx).
+  current_location_country_name     String?
+  current_location_country_id       String?
+  current_location_country          Country?        @relation("CurrentLocationCountry", fields: [current_location_country_id], references: [id], onDelete: SetNull)
+  // Yes/No + an optional free-text detail (2026-08-06, business-requested
+  // field standardization) — was String? @db.Text. Originally modeled as a
+  // pure Yes/No with no detail column, corrected once real production data
+  // showed free-text answers ("Ireland visa", "Candidate has an
+  // Opportunity Card Visa") that a bare boolean would have silently
+  // dropped during the migration — same split as prior_eu_visa_applied/
+  // prior_visa_refusals below, added retroactively for that reason.
+  holds_schengen_visa               Boolean?
+  holds_schengen_visa_details       String?         @db.Text
+  // Yes/No + an optional free-text detail ("country & year"), same split
+  // as prior_eu_visa_applied above.
+  prior_visa_refusals               Boolean?
+  prior_visa_refusals_details       String?         @db.Text
+  available_for_embassy_appointment Boolean         @default(false)
+  willing_to_start_within_30_days   Boolean         @default(false)
+  preferred_contact_channel         ContactChannel?
+
+  // Section 4 — Payment Plan Acknowledgement (the candidate's "I understand" tick)
+  payment_plan_acknowledged Boolean @default(false)
+
+  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  job       Job?      @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  case      Case?
+
+  @@index([candidate_id])
+  @@index([job_id])
+  @@index([current_location_country_id])
+  @@index([application_status])
+  @@index([submitted_at])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  user_id        String
+  job_id         String
+  amount         Float
+  currency       String        @default("USD")
+  payment_method String // "stripe" or "paypal"
+  payment_status PaymentStatus @default(pending)
+  transaction_id String?       @unique
+  created_at     DateTime      @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([job_id])
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+// ── Phase 4: Extended Mobility Lifecycle ────────────────────────────────
+
+// Replaces the original SRS-derived 11 stages (2026-07-31) — that model
+// interleaved 2 payment-named checkpoints with the other real activity
+// stages, inconsistent with the real 3-part milestone plan (documentation/
+// permit/visa). These 11 are the literal stage titles from the business's
+// own Operational Workflow SOP (§3), used verbatim so CASE_STAGE_LABELS in
+// caseStages.ts matches what staff actually see in that document.
+enum CaseStage {
+  registration_document_submission // "Candidate Registration & Document Submission"
+  document_preparation_legalization // "Document Preparation, Translation & Legalization"
+  permit_application_submission // "Work Permit Application Submission"
+  permit_processing_followup // "Work Permit Processing & Government Follow-up"
+  permit_authorization_approved // "Work Permit & Work Authorization Approval"
+  original_documents_dispatch // "Dispatch of Original Documents"
+  partner_receives_permit // "Partner Receives Work Permit"
+  visa_interview_preparation // "Embassy Appointment & Visa Interview Preparation"
+  visa_interview_decision // "Embassy Interview & Visa Decision"
+  pre_departure_arrangements // "Pre-Departure & Flight Arrangements"
+  departure_arrival_support // "Departure & Arrival Support"
+}
+
+// CRM Comments item 3 (2026-08-10) — a lightweight Operations/Director
+// second-look at a case's documentation, distinct from HR's own
+// approve/reject that opens the Case in the first place. Gates stage
+// advancement (see /api/cases/[id]/stage), not case creation — "is the
+// paperwork actually right before the full operational process begins,"
+// not a second parallel create/reject power.
+enum CaseOpsReviewStatus {
+  pending
+  confirmed
+  rejected
+}
+
+// A real terminal state for the Case itself (2026-08-16) — distinct from
+// CaseOpsReviewStatus above, which only ever gated documentation/stage
+// progress and left the case open either way. Operations/Director can
+// close a case entirely if a genuine problem surfaces after HR already
+// created it — see PATCH /api/cases/[id]/reject. "active" covers every
+// case regardless of current_stage; there's no separate "completed"
+// status yet (reaching the final stage doesn't auto-close a case today).
+enum CaseStatus {
+  active
+  rejected
+}
+
+model Case {
+  id             String      @id @default(cuid())
+  application_id String      @unique
+  application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  current_stage  CaseStage   @default(registration_document_submission)
+  // Expected completion of the CURRENT stage — surfaced as an in-app urgency
+  // indicator (FR-4.4: "deadlines and reminders"), not a push-notification trigger.
+  stage_deadline DateTime?
+  created_at     DateTime    @default(now())
+  updated_at     DateTime    @updatedAt
+
+  ops_review_status  CaseOpsReviewStatus @default(pending)
+  ops_reviewed_by_id String?
+  ops_reviewed_by    User?               @relation("CaseOpsReviewer", fields: [ops_reviewed_by_id], references: [id], onDelete: SetNull)
+  ops_reviewed_at    DateTime?
+  ops_review_notes   String?             @db.Text
+
+  status           CaseStatus @default(active)
+  rejected_at      DateTime?
+  rejected_by_id   String?
+  rejected_by      User?      @relation("CaseRejector", fields: [rejected_by_id], references: [id], onDelete: SetNull)
+  rejection_reason String?    @db.Text
+
+  stage_events        CaseStageEvent[]
+  contract            Contract?
+  payments            CasePayment[]
+  retention_follow_up RetentionFollowUp?
+  reminders           CaseReminder[]
+
+  @@index([current_stage])
+  @@index([ops_review_status])
+  @@index([status])
+}
+
+model CaseStageEvent {
+  id           String    @id @default(cuid())
+  case_id      String
+  case         Case      @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  stage        CaseStage
+  owner_id     String?
+  owner        User?     @relation("CaseStageOwner", fields: [owner_id], references: [id], onDelete: SetNull)
+  entered_at   DateTime  @default(now())
+  completed_at DateTime?
+  notes        String?   @db.Text
+
+  @@index([case_id])
+  @@index([stage])
+}
+
+// Manual, staff-triggered nudge to a partner/candidate about a document or
+// payment delay (SOP-driven, 2026-07-31) — deliberately not an automated
+// scheduler, matching this codebase's standing precedent of deferring
+// background-job-dependent reminder features. Its own row creation is
+// already the audit record (see the case activity-log viewer), so this
+// model is intentionally left out of audit.ts's AUDITED_MODELS.
+enum CaseReminderChannel {
+  document
+  payment
+}
+
+model CaseReminder {
+  id        String              @id @default(cuid())
+  case_id   String
+  case      Case                @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  channel   CaseReminderChannel
+  recipient String
+  message   String?             @db.Text
+  sent_by   String
+  sender    User                @relation("CaseReminderSender", fields: [sent_by], references: [id], onDelete: Cascade)
+  sent_at   DateTime            @default(now())
+
+  @@index([case_id])
+}
+
+model RetentionFollowUp {
+  id           String    @id @default(cuid())
+  case_id      String    @unique
+  case         Case      @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  due_at       DateTime // +90 days from travel_settlement completion
+  completed_at DateTime?
+  notes        String?   @db.Text
+}
+
+// Matches the Candidate Information Form's 3-stage payment plan exactly:
+// documentation (Stage 1 · 20%, on engagement), permit (Stage 2 · 40%,
+// after the work permit is issued), visa (Stage 3 · 40%, after the visa
+// is granted).
+enum MilestonePaymentType {
+  documentation
+  permit
+  visa
+}
+
+// status defaults "collected" so every existing/manually-recorded row's
+// semantics are undisturbed — only a new Stripe Payment Link-generated row
+// starts "pending" (recorded_by is still who generated the link, not who
+// collected it) until the webhook flips it over.
+enum CasePaymentStatus {
+  pending
+  collected
+}
+
+model CasePayment {
+  id                         String               @id @default(cuid())
+  case_id                    String
+  case                       Case                 @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  type                       MilestonePaymentType
+  amount                     Float
+  currency                   String               @default("USD")
+  receipt_reference          String? // a free-text invoice/receipt number
+  // A real uploaded receipt file (2026-07-31) — additive to
+  // receipt_reference, not a replacement: either, both, or neither may be
+  // set on a given payment. Only realistic path for partner/recruiter-
+  // sourced candidates, whose payments are never collected via Stripe.
+  receipt_document_id        String?
+  receipt_document           Document?            @relation("CasePaymentReceipt", fields: [receipt_document_id], references: [id], onDelete: SetNull)
+  recorded_by                String
+  recorder                   User                 @relation("CasePaymentRecorder", fields: [recorded_by], references: [id], onDelete: Cascade)
+  recorded_at                DateTime             @default(now())
+  status                     CasePaymentStatus    @default(collected)
+  stripe_payment_link_id     String?
+  stripe_payment_link_url    String? // persisted since a Stripe Payment Link's URL can't be reconstructed from its id alone
+  stripe_checkout_session_id String?
+  sent_to_email              String?
+
+  @@index([case_id])
+}
+
+// A paid $50 advisory-consultation booking from the public /consultation
+// landing page (2026-08-06) — deliberately its own table, not folded into
+// Payment (hard-requires an authenticated user_id + job_id, neither of
+// which exists here) or CasePayment (tied to a Case). Created directly by
+// the Stripe webhook on checkout.session.completed — there's no "pending"
+// state to model since a row only ever comes into being once Stripe
+// confirms the charge.
+model ConsultationBooking {
+  id                         String   @id @default(cuid())
+  full_name                  String?
+  email                      String
+  phone                      String?
+  amount                     Float
+  currency                   String   @default("USD")
+  status                     String   @default("paid")
+  stripe_checkout_session_id String   @unique
+  stripe_payment_intent_id   String?
+  created_at                 DateTime @default(now())
+
+  @@index([created_at])
+}
+
+// Admin-configurable milestone-payment policy (SRS FR-4.5) — defaults
+// disabled so no leadership sign-off gates the code shipping; an admin
+// enables/configures amounts (globally or per destination country) whenever
+// the business decides. Case-payment recording reads this policy at
+// runtime rather than a hardcoded rule.
+model FeePolicy {
+  id                   String   @id @default(cuid())
+  country_id           String? // null = global default; a country-specific row overrides it
+  country              Country? @relation(fields: [country_id], references: [id], onDelete: SetNull)
+  enabled              Boolean  @default(false)
+  documentation_amount Float?
+  permit_amount        Float?
+  visa_amount          Float?
+  currency             String   @default("USD")
+  updated_by           String
+  updater              User     @relation("FeePolicyUpdater", fields: [updated_by], references: [id], onDelete: Cascade)
+  updated_at           DateTime @updatedAt
+
+  @@index([country_id])
+}
+
+enum ContractStatus {
+  draft
+  sent
+  signed
+}
+
+// Contract generation + signature capture (FR-4.3). Signature is a real,
+// legally-recognized "simple electronic signature" (typed full-name
+// attestation + authenticated session + timestamp + IP) — deliberate
+// groundwork ahead of Phase 5's e-signature vendor integration (per the
+// platform recommendation, DocuSign/Dropbox Sign is an "integrate", not a
+// build, and explicitly scoped to Phase 5), not a placeholder.
+model Contract {
+  id             String         @id @default(cuid())
+  case_id        String         @unique
+  case           Case           @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  content        String         @db.Text // generated contract body (merged from candidate/job/case data)
+  status         ContractStatus @default(draft)
+  signed_by_name String?
+  signed_at      DateTime?
+  signed_ip      String?
+  created_by     String
+  creator        User           @relation("ContractCreator", fields: [created_by], references: [id], onDelete: Cascade)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+}
+
+// ── Phase 5: Partner CRM (SRS FR-5.1, FR-5.2) ───────────────────────────
+// Partners get their own admin-provisioned login and submit candidates
+// themselves through their own portal (PartnerCandidate, below) — they do
+// their own screening/verification/documents, so these candidates never
+// enter Vertex's internal recruiter/screening/verification funnel
+// (Candidate/CandidateLifecycleStatus). See docs/PLATFORM_ARCHITECTURE.md
+// for the confirmed-deferred FR-5.3-5.9 integrations this phase excludes.
+
+enum PartnerType {
+  travel_agency
+  visa_consultancy
+  manpower_supplier
+  other
+}
+
+enum PartnerStatus {
+  pending
+  active
+  suspended
+}
+
+enum MouStatus {
+  none
+  sent
+  signed
+}
+
+// A recruitment/travel agency or manpower supplier that sources candidate
+// leads (Agency Application Form). country_of_operation is free text, not
+// a Country FK — an agency can be based anywhere, not just Vertex's
+// current programme-destination reference list.
+model Partner {
+  id                           String        @id @default(cuid())
+  name                         String
+  partner_type                 PartnerType
+  country_of_operation         String
+  business_registration_number String?
+  contact_name                 String
+  contact_email                String
+  contact_phone                String
+  status                       PartnerStatus @default(pending)
+  mou_status                   MouStatus     @default(none)
+  mou_signed_at                DateTime?
+  notes                        String?       @db.Text
+  created_at                   DateTime      @default(now())
+  updated_at                   DateTime      @updatedAt
+
+  // The partner's own login (SRS FR-5.1) — nullable until admin
+  // provisions one, same shape as Candidate.user_id.
+  user_id String? @unique
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  candidates         Candidate[]
+  partner_candidates PartnerCandidate[]
+
+  @@index([status])
+}
+
+enum PartnerCandidateStatus {
+  submitted
+  under_review
+  job_assigned
+  rejected
+}
+
+// A candidate a partner submits through its own portal — deliberately
+// separate from Candidate/Application (not the same funnel): the partner
+// has already screened/verified them, so none of Vertex's internal
+// CandidateLifecycleStatus stages apply. Mirrors the Agency Application
+// Form's Sections 2-6 (Section 1, Agency Information, is already captured
+// on the Partner record above, not per-submission).
+model PartnerCandidate {
+  id         String                 @id @default(cuid())
+  partner_id String
+  partner    Partner                @relation(fields: [partner_id], references: [id], onDelete: Cascade)
+  status     PartnerCandidateStatus @default(submitted)
+
+  // Section 3 — Candidate Personal Information
+  full_name          String
+  date_of_birth      DateTime
+  nationality        String
+  second_nationality String?
+  gender             Gender?
+  passport_number    String
+  passport_expiry    DateTime
+  current_occupation String?
+  highest_education  String?
+  home_address       String?  @db.Text
+  // Deliberately not collected on the submission form (phone: 2026-08-04;
+  // email/whatsapp_number: 2026-08-15) — partners want to keep the
+  // candidate's direct contact details private from Vertex, and Vertex
+  // never contacts a partner-sourced candidate directly anyway (the
+  // partner is the sole point of contact). Stay optional rather than
+  // removed outright since pre-2026-08-15 submissions still have real
+  // email/whatsapp data in them.
+  phone              String?
+  whatsapp_number    String?
+  email              String?
+  marital_status     String?
+
+  // Section 2 — Programme Selection. A partner already knows the specific
+  // opportunity their candidate is going for (they're representing the
+  // employer relationship directly), so this is one required Job pick —
+  // not the 3-country-alternates + sector pattern the internal Candidate
+  // Information Form uses for a candidate exploring options in general.
+  job_id                        String
+  job                           Job      @relation(fields: [job_id], references: [id], onDelete: Restrict)
+  earliest_travel_date          DateTime
+  // Yes/No + an optional free-text detail (2026-08-06), matching
+  // Application's identical field — was String? @db.Text. Converted after
+  // /api/partner/candidates's bridge into a real Application row started
+  // 500ing on this field's now-Boolean column there; brought in line here
+  // too rather than parsing free text at the bridge site.
+  prior_eu_visa_applied         Boolean?
+  prior_eu_visa_applied_details String?  @db.Text
+
+  // Section 4 — Document Checklist (self-reported, same list as the CIF's)
+  documents_available String[]
+
+  // Section 5 — Payment Plan Acknowledgement
+  payment_plan_acknowledged Boolean @default(false)
+
+  // Section 6 — Visa & Travel Readiness. current_location_country_name is
+  // always set (free choice from the full world-country list, matching
+  // Application's own pattern) — the FK only resolves when that name
+  // happens to match one of Vertex's admin-managed Country rows.
+  current_location_country_name     String
+  current_location_country_id       String?
+  current_location_country          Country?        @relation("PartnerCurrentLocation", fields: [current_location_country_id], references: [id], onDelete: SetNull)
+  holds_schengen_visa               Boolean?
+  holds_schengen_visa_details       String?         @db.Text
+  prior_visa_refusals               Boolean?
+  prior_visa_refusals_details       String?         @db.Text
+  available_for_embassy_appointment Boolean         @default(false)
+  willing_to_start_within_30_days   Boolean         @default(false)
+  preferred_contact_channel         ContactChannel?
+
+  // Vertex-side review/assignment (SRS FR-5.1) — reviewed_by/status are
+  // exercised by the HR review flow (create-case / reject); rejection_reason
+  // is written by the reject action.
+  reviewed_by          String?
+  reviewer             User?      @relation("PartnerCandidateReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  rejection_reason     String?    @db.Text
+  bridged_candidate_id String?    @unique
+  bridged_candidate    Candidate? @relation(fields: [bridged_candidate_id], references: [id], onDelete: SetNull)
+
+  submitted_at DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([partner_id])
+  @@index([status])
+  @@index([job_id])
+}
+
+enum EmployerClientStatus {
+  active
+  inactive
+}
+
+// The employer a vacancy is actually for (SRS FR-5.2) — distinct from
+// Partner (which sources candidates, not jobs).
+model EmployerClient {
+  id            String               @id @default(cuid())
+  name          String
+  country       String
+  industry      String?
+  contact_name  String
+  contact_email String
+  contact_phone String
+  status        EmployerClientStatus @default(active)
+  notes         String?              @db.Text
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @updatedAt
+
+  jobs Job[]
+
+  @@index([status])
+}
+
+model SystemSetting {
+  key         String   @id
+  value       String   @db.Text
+  description String?  @db.Text
+  updated_at  DateTime @default(now()) @updatedAt
+}
+
+model KnowledgeArticle {
+  id         String   @id @default(cuid())
+  title      String
+  category   String   @default("General")
+  content    String   @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model EmailTemplate {
+  event      String   @id // e.g., "job_applied", "payment_receipt", "status_update"
+  subject    String
+  body_html  String   @db.Text
+  updated_at DateTime @default(now()) @updatedAt
+}

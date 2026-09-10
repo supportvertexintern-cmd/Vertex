@@ -1,0 +1,65 @@
+name: vertex_app
+description: "Vertex International Recruitment & Mobility Platform"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ─── Core UI ────────────────────────────────────────────────
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1                 # Outfit font
+  phosphor_flutter: ^2.1.0             # Same icons as web
+
+  # ─── Navigation & State ─────────────────────────────────────
+  go_router: ^14.6.2
+  provider: ^6.1.2
+
+  # ─── Networking ─────────────────────────────────────────────
+  dio: ^5.7.0
+  web_socket_channel: ^3.0.2           # Real-time chat
+  connectivity_plus: ^6.1.0
+
+  # ─── Local Storage ──────────────────────────────────────────
+  shared_preferences: ^2.3.3
+  sqflite: ^2.4.1                      # Local message cache
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # ─── Authentication ─────────────────────────────────────────
+  local_auth: ^2.3.0                   # Biometric login
+  jwt_decoder: ^2.0.1
+
+  # ─── Firebase (Push notifications) ─────────────────────────
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
+
+  # ─── Device Features ────────────────────────────────────────
+  image_picker: ^1.1.2
+  camera: ^0.11.0+2
+  geolocator: ^13.0.2                  # GPS
+  permission_handler: ^11.3.1
+
+  # ─── UI Helpers ─────────────────────────────────────────────
+  cached_network_image: ^3.4.1
+  flutter_svg: ^2.0.14
+  intl: ^0.20.1
+  url_launcher: ^6.3.1
+  package_info_plus: ^8.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    # Add this folder even if it's empty — create it manually if needed

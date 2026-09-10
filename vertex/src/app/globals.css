@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@theme {
+  /* ===== Vertex Midnight design tokens ===== */
+
+  /* Midnight emerald — brand green, deepened to near-black */
+  --color-midnight-950: #03120d;
+  --color-midnight-900: #062119;
+  --color-midnight-800: #0a3326;
+  --color-midnight-700: #104f36;
+  --color-midnight-600: #17694a;
+  --color-midnight-500: #1ca36a;
+
+  /* Ivory — warm paper for light surfaces */
+  --color-ivory-50: #fbf9f4;
+  --color-ivory-100: #f5f1e8;
+  --color-ivory-200: #eae3d3;
+
+  /* Refined gold — used sparingly for accents */
+  --color-gold-300: #e6cd85;
+  --color-gold-400: #d4af5c;
+  --color-gold-500: #c8a24b;
+  --color-gold-600: #a98634;
+
+  /* Legacy aliases kept for existing pages */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #1ca36a;
+  --color-primary-600: #104f36;
+  --color-primary-700: #0a3326;
+  --color-primary-800: #062119;
+  --color-primary-900: #03120d;
+
+  --font-sans: "Outfit", system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    @apply bg-ivory-50 text-midnight-900 antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  ::selection {
+    background: var(--color-gold-400);
+    color: var(--color-midnight-950);
+  }
+}
+
+@layer components {
+  /* ===== Buttons ===== */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-midnight-700 hover:bg-midnight-800 text-ivory-50 font-semibold text-sm uppercase tracking-[0.12em] px-7 py-3.5 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-midnight-600 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent hover:bg-midnight-900/5 text-midnight-800 font-semibold text-sm uppercase tracking-[0.12em] px-7 py-3.5 rounded-full border border-midnight-900/25 hover:border-midnight-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-midnight-600 focus:ring-offset-2;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 bg-gold-400 hover:bg-gold-300 text-midnight-950 font-semibold text-sm uppercase tracking-[0.12em] px-7 py-3.5 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2;
+  }
+
+  /* Ghost button for dark surfaces */
+  .btn-ghost-dark {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent hover:bg-white/5 text-ivory-50 font-semibold text-sm uppercase tracking-[0.12em] px-7 py-3.5 rounded-full border border-white/25 hover:border-gold-400/70 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/40;
+  }
+
+  /* ===== Forms (used across apply / auth / contact / admin) ===== */
+  .input-field {
+    @apply block w-full rounded-lg border border-midnight-900/15 bg-white px-4 py-3 text-midnight-900 placeholder-midnight-900/35 text-sm focus:outline-none focus:ring-2 focus:ring-midnight-600/40 focus:border-midnight-600 transition-colors duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-midnight-900/10 hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* ===== Editorial type ===== */
+  .eyebrow {
+    @apply inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-600;
+  }
+
+  .eyebrow-dark {
+    @apply inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-300;
+  }
+
+  .eyebrow-rule {
+    @apply inline-block w-10 h-px bg-current opacity-60;
+  }
+
+  .section-title {
+    @apply text-4xl md:text-5xl font-semibold tracking-tight text-midnight-900 leading-[1.05];
+  }
+
+  .section-title-dark {
+    @apply text-4xl md:text-5xl font-semibold tracking-tight text-ivory-50 leading-[1.05];
+  }
+
+  .section-subtitle {
+    @apply text-lg text-midnight-900/60 mt-4 max-w-2xl font-light leading-relaxed;
+  }
+
+  /* ===== Badges (dashboard / admin depend on these) ===== */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-pending { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800; }
+  .badge-submitted { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800; }
+  .badge-under_review { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800; }
+  .badge-interview { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800; }
+  .badge-shortlisted { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800; }
+  .badge-approved { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800; }
+  .badge-rejected { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800; }
+  .badge-hired { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800; }
+  .badge-active { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800; }
+  .badge-closed { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600; }
+  .badge-draft { @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700; }
+
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  /* ===== Marquee (homepage sector strip) ===== */
+  .animate-marquee {
+    animation: marquee 40s linear infinite;
+  }
+
+  .marquee-mask {
+    -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+  }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* Hide Google Translate Banner and Iframe styling */
+body {
+  top: 0 !important;
+}
+.skiptranslate iframe {
+  display: none !important;
+}
+#goog-gt-tt {
+  display: none !important;
+}
+.skiptranslate font {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}

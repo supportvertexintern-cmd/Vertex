@@ -1,0 +1,44 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { auditedPrisma } from "@/lib/audit";
+import { resetPasswordSchema } from "@/lib/validations";
+import { verifyEmailToken } from "@/lib/jwt";
+import { hashPassword } from "@/lib/auth";
+
+// POST /api/auth/reset-password — consumes the emailed
+// sendPasswordResetEmail link (2026-08-05). No authenticated session
+// required — the token itself (24h-expiring, single-purpose) is the
+// access grant, same pattern as verify-email.
+export async function POST(req: NextRequest) {
+  let body: unknown;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  const parsed = resetPasswordSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
+  }
+
+  let payload: ReturnType<typeof verifyEmailToken>;
+  try {
+    payload = verifyEmailToken(parsed.data.token);
+  } catch {
+    return NextResponse.json({ error: "This reset link is invalid or has expired. Request a new one." }, { status: 400 });
+  }
+
+  if (payload.type !== "password_reset") {
+    return NextResponse.json({ error: "Invalid token type." }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  if (!user) {
+    return NextResponse.json({ error: "Account not found." }, { status: 404 });
+  }
+
+  const password_hash = await hashPassword(parsed.data.password);
+  await auditedPrisma(user.id).user.update({
+    where: { id: user.id },
+    data: { password_hash },
+  });
+
+  return NextResponse.json({ message: "Password reset successfully. You can now log in." });
+}
