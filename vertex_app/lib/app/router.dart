@@ -20,7 +20,7 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     final startupRoute = state.matchedLocation == '/splash' || state.matchedLocation == '/loading';
     final publicRoute = startupRoute || state.matchedLocation == '/home' || state.matchedLocation == '/login';
     if (!auth.isAuthenticated) return publicRoute ? null : '/home';
-    if (startupRoute || state.matchedLocation == '/login') return auth.role!.portalHome;
+    if (state.matchedLocation == '/login') return auth.role!.portalHome;
     return null;
   },
   routes: [

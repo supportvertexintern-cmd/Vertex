@@ -30,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (!mounted) return;
     }
     if (!mounted) return;
-    context.go('/loading');
+    context.go('/home');
   }
 
   @override
