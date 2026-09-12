@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/colors.dart';
 import '../../core/auth/report_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -17,12 +18,7 @@ class ReportsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 72,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

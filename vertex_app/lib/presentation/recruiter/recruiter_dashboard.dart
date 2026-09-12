@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 class MyCandidatesScreen extends StatefulWidget {
   const MyCandidatesScreen({super.key});
@@ -32,12 +33,7 @@ class _MyCandidatesScreenState extends State<MyCandidatesScreen> {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 76,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

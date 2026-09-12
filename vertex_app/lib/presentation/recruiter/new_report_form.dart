@@ -7,6 +7,7 @@ import '../../app/theme/colors.dart';
 import '../../core/auth/candidate_store.dart';
 import '../../core/auth/report_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 class NewReportForm extends StatefulWidget {
   const NewReportForm({super.key});
@@ -151,12 +152,7 @@ class _NewReportFormState extends State<NewReportForm> {
           style: TextStyle(
               color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
         ),
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         actions: [
           TextButton(
             onPressed: () => context.pop(),

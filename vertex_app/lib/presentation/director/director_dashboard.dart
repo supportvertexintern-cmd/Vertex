@@ -6,6 +6,7 @@ import '../../core/auth/candidate_store.dart';
 import '../../core/auth/case_store.dart';
 import '../../core/auth/exception_store.dart';
 import '../../core/auth/report_store.dart';
+import '../shared/vertex_app_bar_leading.dart';
 import 'director_drawer.dart';
 
 class DirectorDashboard extends StatelessWidget {
@@ -24,12 +25,7 @@ class DirectorDashboard extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 76,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -193,12 +189,7 @@ class DirectorSectionScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 76,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
       ),
       body: ListView(

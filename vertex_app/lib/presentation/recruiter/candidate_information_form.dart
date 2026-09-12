@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/colors.dart';
 import '../../core/auth/candidate_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 // =============================================================================
 // Data models & static lists
@@ -282,12 +283,7 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
             fontWeight: FontWeight.w700,
           ),
         ),
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         actions: [
           TextButton(
             onPressed: () => context.pop(),

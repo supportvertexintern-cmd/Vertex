@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/colors.dart';
 import '../../core/auth/case_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 class CaseInformationForm extends StatefulWidget {
   const CaseInformationForm({super.key});
@@ -108,12 +109,7 @@ class _CaseInformationFormState extends State<CaseInformationForm> {
           'New case',
           style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
         ),
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         actions: [
           TextButton(
             onPressed: () => context.pop(),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
 import '../../core/auth/case_store.dart';
+import '../shared/vertex_app_bar_leading.dart';
 import 'operations_drawer.dart';
 
 class OperationsDashboard extends StatelessWidget {
@@ -21,7 +22,7 @@ class OperationsDashboard extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 76,
-        leading: Builder(builder: (ctx) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(ctx).openDrawer())),
+        leading: const VertexAppBarLeading(),
         title: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('MOBILITY LIFECYCLE', style: TextStyle(color: VertexColors.gold300, fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 1.2)), SizedBox(height: 4), Text('Cases', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))]),
       ),
       body: ListView(
@@ -71,5 +72,5 @@ class OperationsSectionScreen extends StatelessWidget {
   final String title;
 
   @override
-  Widget build(BuildContext context) => Scaffold(backgroundColor: VertexColors.ivory50, drawer: OperationsDrawer(activeRoute: '/operations/${title.toLowerCase().replaceAll(' ', '-')}'), appBar: AppBar(backgroundColor: VertexColors.midnight950, toolbarHeight: 76, leading: Builder(builder: (ctx) => IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Scaffold.of(ctx).openDrawer())), title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))), body: ListView(padding: const EdgeInsets.fromLTRB(18, 22, 18, 32), children: [Text('$title.', style: const TextStyle(color: VertexColors.midnight900, fontSize: 28, fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text('$title workflows for the Operations workspace will appear here.', style: const TextStyle(color: VertexColors.gray600, fontSize: 13, height: 1.45))]));
+  Widget build(BuildContext context) => Scaffold(backgroundColor: VertexColors.ivory50, drawer: OperationsDrawer(activeRoute: '/operations/${title.toLowerCase().replaceAll(' ', '-')}'), appBar: AppBar(backgroundColor: VertexColors.midnight950, toolbarHeight: 76, leading: const VertexAppBarLeading(), title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))), body: ListView(padding: const EdgeInsets.fromLTRB(18, 22, 18, 32), children: [Text('$title.', style: const TextStyle(color: VertexColors.midnight900, fontSize: 28, fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text('$title workflows for the Operations workspace will appear here.', style: const TextStyle(color: VertexColors.gray600, fontSize: 13, height: 1.45))]));
 }

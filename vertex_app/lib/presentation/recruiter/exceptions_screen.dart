@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/colors.dart';
 import '../../core/auth/exception_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 
 class ExceptionsScreen extends StatefulWidget {
   const ExceptionsScreen({super.key});
@@ -170,12 +171,7 @@ class _ExceptionsScreenState extends State<ExceptionsScreen> {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 76,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

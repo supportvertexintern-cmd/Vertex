@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme/colors.dart';
+import 'vertex_app_bar_leading.dart';
 
 class RecruiterDrawer extends StatelessWidget {
   const RecruiterDrawer({super.key, this.activeRoute = '/recruiter'});
@@ -42,19 +43,7 @@ class RecruiterDrawer extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: VertexColors.gold500.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.person_outline,
-                color: VertexColors.gold400,
-                size: 22,
-              ),
-            ),
+            const VertexCircleLeading(icon: Icons.person_outline),
             const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,10 +87,11 @@ class RecruiterDrawer extends StatelessWidget {
         tileColor: active
             ? VertexColors.gold500.withValues(alpha: 0.15)
             : Colors.transparent,
-        leading: Icon(
-          icon,
-          color: active ? VertexColors.gold400 : Colors.white54,
-          size: 21,
+        leading: VertexCircleLeading(
+          icon: icon,
+          active: active,
+          size: 32,
+          iconSize: 16,
         ),
         title: Text(
           label,

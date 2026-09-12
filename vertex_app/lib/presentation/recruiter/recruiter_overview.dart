@@ -6,6 +6,7 @@ import '../../app/theme/colors.dart';
 import '../../core/auth/auth_manager.dart';
 import '../../core/auth/candidate_store.dart';
 import '../shared/recruiter_drawer.dart';
+import '../shared/vertex_app_bar_leading.dart';
 import 'widgets/metric_card.dart';
 import 'widgets/workspace_link.dart';
 
@@ -27,12 +28,7 @@ class RecruiterOverview extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: VertexColors.midnight950,
         toolbarHeight: 72,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
+        leading: const VertexAppBarLeading(),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
