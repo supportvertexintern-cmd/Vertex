@@ -2,15 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app/app.dart';
-import 'core/utils/auth_manager.dart';
+import 'core/auth/auth_manager.dart';
+import 'core/auth/candidate_store.dart';
+import 'core/auth/case_store.dart';
+import 'core/auth/report_store.dart';
+import 'core/auth/exception_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final authManager = AuthManager()..hydrate();
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: authManager,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authManager),
+        ChangeNotifierProvider(create: (_) => CandidateStore()),
+        ChangeNotifierProvider(create: (_) => CaseStore()),
+        ChangeNotifierProvider(create: (_) => ReportStore()),
+        ChangeNotifierProvider(create: (_) => ExceptionStore()),
+      ],
       child: const VertexApp(),
     ),
   );

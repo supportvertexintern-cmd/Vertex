@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
-import '../../core/utils/auth_manager.dart';
+import '../../core/auth/auth_manager.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

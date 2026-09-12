@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
-import '../../core/utils/auth_manager.dart';
+import '../../core/auth/auth_manager.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
-import '../../core/utils/auth_manager.dart';
+import '../../core/auth/auth_manager.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final password = TextEditingController();
   bool obscurePassword = true;
   bool isSubmitting = false;
+  String? errorMessage;
 
   @override
   void dispose() {
@@ -28,13 +29,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    setState(() => isSubmitting = true);
-    await context.read<AuthManager>().signIn(
+    setState(() {
+      isSubmitting = true;
+      errorMessage = null;
+    });
+    final role = await context.read<AuthManager>().signIn(
           email: email.text,
           password: password.text,
         );
     if (!mounted) return;
-    context.go(context.read<AuthManager>().role!.portalHome);
+    if (role == null) {
+      setState(() {
+        isSubmitting = false;
+        errorMessage = 'Use an authorized Vertex staff email and password.';
+      });
+      return;
+    }
+    context.go(role.portalHome);
   }
 
   @override
@@ -114,6 +125,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+                        if (errorMessage != null) ...[
+                          const SizedBox(height: 14),
+                          Text(errorMessage!, style: const TextStyle(color: VertexColors.error, fontSize: 12)),
+                        ],
                         const SizedBox(height: 22),
                         SizedBox(
                           height: 50,
@@ -139,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const Text("Don't have an account? ", style: TextStyle(color: Color(0xFF89918F), fontSize: 12)),
                               GestureDetector(
                                 onTap: () {},
-                                child: const Text('Submit an Application', style: TextStyle(color: VertexColors.gold500, fontSize: 12, fontWeight: FontWeight.w700)),
+                                child: const Text('Contact your administrator', style: TextStyle(color: VertexColors.gold500, fontSize: 12, fontWeight: FontWeight.w700)),
                               ),
                             ],
                           ),
