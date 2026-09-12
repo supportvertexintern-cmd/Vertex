@@ -18,6 +18,8 @@ import '../presentation/shared/placeholder_screen.dart';
 import '../presentation/splash/splash_screen.dart';
 import '../presentation/supervisor/supervisor_dashboard.dart';
 import '../presentation/director/director_dashboard.dart';
+import '../presentation/hr/hr_dashboard.dart';
+import '../presentation/operations/operations_dashboard.dart';
 
 GoRouter createRouter(AuthManager auth) => GoRouter(
   initialLocation: '/splash',
@@ -43,6 +45,11 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     GoRoute(path: '/recruiter/reports/new', builder: (_, state) => const NewReportForm()),
     GoRoute(path: '/recruiter/exceptions', builder: (_, state) => const ExceptionsScreen()),
     GoRoute(path: '/supervisor', builder: (_, state) => const SupervisorDashboard()),
+    GoRoute(path: '/supervisor/recruiters', builder: (_, state) => const SupervisorSectionScreen(title: 'Recruiters')),
+    GoRoute(path: '/supervisor/candidates', builder: (_, state) => const SupervisorSectionScreen(title: 'Candidates')),
+    GoRoute(path: '/supervisor/cases', builder: (_, state) => const SupervisorSectionScreen(title: 'Cases')),
+    GoRoute(path: '/supervisor/reports', builder: (_, state) => const SupervisorSectionScreen(title: 'Reports')),
+    GoRoute(path: '/supervisor/exceptions', builder: (_, state) => const SupervisorSectionScreen(title: 'Exceptions')),
     GoRoute(path: '/management', builder: (_, state) => const DirectorDashboard()),
     GoRoute(path: '/management/campaigns', builder: (_, state) => const DirectorSectionScreen(title: 'Campaigns')),
     GoRoute(path: '/management/partners', builder: (_, state) => const DirectorSectionScreen(title: 'Partners')),
@@ -53,8 +60,16 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     GoRoute(path: '/management/exceptions', builder: (_, state) => const DirectorSectionScreen(title: 'Exceptions')),
     GoRoute(path: '/management/staff-scorecards', builder: (_, state) => const DirectorSectionScreen(title: 'Staff Scorecards')),
     GoRoute(path: '/management/backup', builder: (_, state) => const DirectorSectionScreen(title: 'Backup')),
+    GoRoute(path: '/hr', builder: (_, state) => const HrDashboard()),
+    GoRoute(path: '/hr/self-applications', builder: (_, state) => const HrSectionScreen(title: 'Self Applications')),
+    GoRoute(path: '/hr/cases', builder: (_, state) => const HrSectionScreen(title: 'Cases')),
+    GoRoute(path: '/hr/backup', builder: (_, state) => const HrSectionScreen(title: 'Backup')),
+    GoRoute(path: '/operations', builder: (_, state) => const OperationsDashboard()),
+    GoRoute(path: '/operations/partner-submissions', builder: (_, state) => const OperationsSectionScreen(title: 'Partner Submissions')),
+    GoRoute(path: '/operations/consultations', builder: (_, state) => const OperationsSectionScreen(title: 'Consultations')),
+    GoRoute(path: '/operations/backup', builder: (_, state) => const OperationsSectionScreen(title: 'Backup')),
     GoRoute(path: '/chat', builder: (_, state) => const ChatListScreen()),
-    for (final route in const {'/inhouse': 'In-House', '/hr': 'HR', '/operations': 'Operations', '/finance': 'Finance', '/marketing': 'Marketing', '/admin': 'Admin', '/partner': 'Partner'}.entries)
+    for (final route in const {'/inhouse': 'In-House', '/finance': 'Finance', '/marketing': 'Marketing', '/admin': 'Admin', '/partner': 'Partner'}.entries)
       GoRoute(path: route.key, builder: (_, state) => PlaceholderScreen(title: route.value)),
   ],
 );

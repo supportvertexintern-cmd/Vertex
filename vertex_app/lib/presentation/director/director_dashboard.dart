@@ -115,7 +115,23 @@ class DirectorDashboard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: VertexColors.ivory200)),
-        child: Row(children: [Icon(icon, color: color, size: 22), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: VertexColors.midnight900, fontSize: 14, fontWeight: FontWeight.w700)), const SizedBox(height: 4), Text(detail, style: const TextStyle(color: VertexColors.gray600, fontSize: 12, height: 1.35))])), Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800)]),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: VertexColors.midnight900, fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(detail, style: const TextStyle(color: VertexColors.gray600, fontSize: 12, height: 1.35)),
+                ],
+              ),
+            ),
+            Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800)),
+          ],
+        ),
       );
 
   Widget _caseFlow(List<CaseRecord> cases) {
@@ -129,7 +145,30 @@ class DirectorDashboard extends StatelessWidget {
     );
   }
 
-  Widget _flowRow(String label, int value, Color color) => Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(children: [SizedBox(width: 72, child: Text(label, style: const TextStyle(color: VertexColors.gray600, fontSize: 12))), Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: value == 0 ? 0 : 1, minHeight: 9, backgroundColor: VertexColors.ivory100, color: color))), const SizedBox(width: 10), SizedBox(width: 24, child: Text('$value', textAlign: TextAlign.right, style: const TextStyle(color: VertexColors.midnight900, fontSize: 12, fontWeight: FontWeight.w700))]));
+  Widget _flowRow(String label, int value, Color color) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            SizedBox(width: 72, child: Text(label, style: const TextStyle(color: VertexColors.gray600, fontSize: 12))),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: value == 0 ? 0 : 1,
+                  minHeight: 9,
+                  backgroundColor: VertexColors.ivory100,
+                  color: color,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 24,
+              child: Text('$value', textAlign: TextAlign.right, style: const TextStyle(color: VertexColors.midnight900, fontSize: 12, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
 
   Widget _sectionTitle(String text) => Text(text.toUpperCase(), style: const TextStyle(color: VertexColors.gray600, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.4));
 }
