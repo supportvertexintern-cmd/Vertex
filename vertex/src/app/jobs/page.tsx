@@ -5,7 +5,7 @@ import JobsCategoryFilter from "@/components/JobsCategoryFilter";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 import { getAuthUser } from "@/lib/api-auth";
-import { computeCreditServiceSchedule } from "@/lib/fees";
+import { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -29,8 +29,7 @@ interface Job {
   service_fee_gbp: number | null;
   partner_only: boolean;
   is_credit_service: boolean;
-  financing_percent: number | null;
-  installment_count: number | null;
+  payment_stages: PaymentStageOption[];
   _count: { applications: number };
 }
 
@@ -177,27 +176,21 @@ export default async function JobsPage({
                     {job.job_description || "Click to view full description and requirements for this role."}
                   </p>
 
-                  {job.service_fee_gbp != null && job.is_credit_service && job.financing_percent != null && job.installment_count != null ? (
+                  {job.service_fee_gbp != null && job.payment_stages.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2 mb-6">
                       {(() => {
-                        const s = computeCreditServiceSchedule(job.service_fee_gbp, job.financing_percent, job.installment_count);
+                        const resolved = resolvePaymentStages(job.service_fee_gbp, job.payment_stages);
+                        const first = resolved[0];
+                        const summary =
+                          job.is_credit_service && resolved.length > 1
+                            ? `${first.label} £${first.amount.toLocaleString()} · ${resolved.length - 1} more stage${resolved.length - 1 === 1 ? "" : "s"}`
+                            : `Service fee: ${job.service_fee_gbp!.toLocaleString()} GBP`;
                         return (
                           <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/10 text-gold-700 border border-gold-500/30 px-3 py-1 text-xs font-semibold">
-                            Upfront £{s.upfrontGbp.toLocaleString()} · {s.installmentCount}× £{s.installmentAmountGbp.toLocaleString()}
+                            {summary}
                           </span>
                         );
                       })()}
-                      {job.duration_permit && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-midnight-900/5 text-midnight-900/60 px-3 py-1 text-xs font-medium">
-                          {job.duration_permit}
-                        </span>
-                      )}
-                    </div>
-                  ) : job.service_fee_gbp != null ? (
-                    <div className="flex flex-wrap items-center gap-2 mb-6">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/10 text-gold-700 border border-gold-500/30 px-3 py-1 text-xs font-semibold">
-                        Service fee: {job.service_fee_gbp.toLocaleString()} GBP
-                      </span>
                       {job.duration_permit && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-midnight-900/5 text-midnight-900/60 px-3 py-1 text-xs font-medium">
                           {job.duration_permit}

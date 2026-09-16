@@ -1,7 +1,42 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, type CaseStage } from "@prisma/client";
 import { syncJobMilestonePricing } from "../src/server/services/stripeProvisioning";
+import { ensurePaymentReceiptDocumentTypes } from "../src/server/services/paymentReceiptTypes";
 
 const prisma = new PrismaClient();
+
+// Reproduces the 3 payment-plan shapes this seed's Jobs use (2026-09-16,
+// flexible per-Job payment stages) — same formulas as
+// scripts/backfill-job-payment-stages.ts, kept idempotent by skipping any
+// Job that already has payment_stages (so a reseed never duplicates rows
+// or clobbers stages an admin edited by hand on a dev database).
+async function ensurePaymentStages(jobId: string, stagesData: { order: number; label: string; percent: number; trigger_stage: CaseStage }[]) {
+  const existingCount = await prisma.jobPaymentStage.count({ where: { job_id: jobId } });
+  if (existingCount > 0) return;
+  await prisma.jobPaymentStage.createMany({ data: stagesData.map((s) => ({ ...s, job_id: jobId })) });
+  await ensurePaymentReceiptDocumentTypes(jobId);
+}
+
+const STANDARD_PAYMENT_STAGES: { order: number; label: string; percent: number; trigger_stage: CaseStage }[] = [
+  { order: 1, label: "Documentation", percent: 25, trigger_stage: "registration_document_submission" },
+  { order: 2, label: "Work Permit", percent: 25, trigger_stage: "permit_authorization_approved" },
+  { order: 3, label: "Visa", percent: 50, trigger_stage: "visa_interview_decision" },
+];
+
+const TWO_STAGE_PAYMENT_STAGES: { order: number; label: string; percent: number; trigger_stage: CaseStage }[] = [
+  { order: 1, label: "Documentation", percent: 50, trigger_stage: "registration_document_submission" },
+  { order: 2, label: "Visa", percent: 50, trigger_stage: "visa_interview_decision" },
+];
+
+function creditPaymentStages(financingPercent: number, installmentCount: number): { order: number; label: string; percent: number; trigger_stage: CaseStage }[] {
+  const stages: { order: number; label: string; percent: number; trigger_stage: CaseStage }[] = [
+    { order: 1, label: "Upfront", percent: 100 - financingPercent, trigger_stage: "registration_document_submission" },
+  ];
+  const perInstallment = financingPercent / installmentCount;
+  for (let i = 0; i < installmentCount; i++) {
+    stages.push({ order: i + 2, label: `Installment ${i + 1} of ${installmentCount}`, percent: perInstallment, trigger_stage: "departure_arrival_support" });
+  }
+  return stages;
+}
 
 // Baseline reference data matching the regions already described on the
 // public site (About page hubs: European Command, Middle East & Gulf
@@ -791,12 +826,13 @@ async function applyPdfPositionCatalog() {
 }
 
 // Canada pricing fixup (2026-09-02) — production-only jobs, not in the
-// JOBS array above, so the main upsert loop never touches them. Sets
-// two_stage_pricing (50% documentation / 50% visa, no permit milestone —
-// see computeMilestoneSplit in lib/fees.ts) and, only where missing,
-// backfills service_fee_gbp to match the other two Canada programmes'
-// existing £3,100 total — confirmed with the business, not fabricated.
-// No-op on dev/staging, which don't have these jobs.
+// JOBS array above, so the main upsert loop never touches them. Gives
+// each a 2-stage payment plan (50% Documentation / 50% Visa, no Work
+// Permit milestone — reproduces the old two_stage_pricing shape now that
+// it's expressed as JobPaymentStage rows, 2026-09-16) and, only where
+// missing, backfills service_fee_gbp to match the other two Canada
+// programmes' existing £3,100 total — confirmed with the business, not
+// fabricated. No-op on dev/staging, which don't have these jobs.
 const CANADA_JOB_TITLES = [
   "Canada-Truck Driver-Montreal, Quebec (FRENCH SPEAKERS ONLY)",
   "Canada-Industrial Warehouse & Logistics Support Worker-Quebec City, Quebec (FRENCH SPEAKERS ONLY)",
@@ -808,8 +844,9 @@ async function applyCanadaPricingFixup() {
     if (!job) continue;
     await prisma.job.update({
       where: { id: job.id },
-      data: { two_stage_pricing: true, service_fee_gbp: job.service_fee_gbp ?? 3100 },
+      data: { service_fee_gbp: job.service_fee_gbp ?? 3100 },
     });
+    await ensurePaymentStages(job.id, TWO_STAGE_PAYMENT_STAGES);
     await syncJobMilestonePricing(job.id).catch((err) =>
       console.error(`Failed to sync Stripe pricing for Canada job ${job.id} ("${title}").`, err)
     );
@@ -940,6 +977,7 @@ async function main() {
       });
       jobId = created.id;
     }
+    await ensurePaymentStages(jobId, STANDARD_PAYMENT_STAGES);
     // Best-effort, same try/catch-and-log pattern as every other call site
     // — a Stripe outage/misconfiguration (still just placeholder keys as
     // of this 2026 pricing revision) must never block the seed itself.
@@ -964,8 +1002,6 @@ async function main() {
       processing_time: j.processing_time,
       service_fee_gbp: j.service_fee_gbp,
       is_credit_service: true,
-      financing_percent: j.financing_percent,
-      installment_count: j.installment_count,
       partner_only: true,
     };
     let jobId: string;
@@ -976,10 +1012,14 @@ async function main() {
       const created = await prisma.job.create({ data: { title: j.title, application_fee: 0, ...data } });
       jobId = created.id;
     }
-    // No syncJobMilestonePricing call here — is_credit_service jobs are
-    // skipped inside that function itself (see stripeProvisioning.ts) since
-    // JobMilestonePrice/MilestonePaymentType can't represent a variable
-    // N-installment schedule; calling it would just be a wasted round-trip.
+    await ensurePaymentStages(jobId, creditPaymentStages(j.financing_percent, j.installment_count));
+    // syncJobMilestonePricing now provisions Stripe pricing for every
+    // payment stage regardless of shape (2026-09-16) — the old skip here
+    // (JobMilestonePrice/MilestonePaymentType couldn't represent a
+    // variable N-installment schedule) no longer applies.
+    await syncJobMilestonePricing(jobId).catch((err) =>
+      console.error(`Failed to sync Stripe pricing for job ${jobId} ("${j.title}").`, err)
+    );
     await backfillDefaultSectorAndPosition(jobId, j.category);
   }
 

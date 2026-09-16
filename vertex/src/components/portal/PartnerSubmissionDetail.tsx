@@ -11,7 +11,7 @@ import ApplicationEditDetails from "./ApplicationEditDetails";
 import CandidateDocumentUpload from "./CandidateDocumentUpload";
 import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
-import { computeCreditServiceSchedule } from "@/lib/fees";
+import { summarizePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { CheckCircle, WarningCircle, Trash } from "@phosphor-icons/react";
 
 interface PartnerCandidateDetail {
@@ -55,8 +55,7 @@ interface PartnerCandidateDetail {
     city: string;
     service_fee_gbp: number | null;
     is_credit_service: boolean;
-    financing_percent: number | null;
-    installment_count: number | null;
+    payment_stages: PaymentStageOption[];
   } | null;
   job_position_id: string | null;
   job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
@@ -304,16 +303,11 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                 label="Position"
                 value={data.job_position ? (data.job_position.city ? `${data.job_position.title} — ${data.job_position.city}` : data.job_position.title) : null}
               />
-              {data.job?.is_credit_service && data.job.service_fee_gbp != null && data.job.financing_percent != null && data.job.installment_count != null ? (
-                (() => {
-                  const s = computeCreditServiceSchedule(data.job.service_fee_gbp, data.job.financing_percent, data.job.installment_count);
-                  return (
-                    <Field
-                      label="Credit Service Terms"
-                      value={`£${data.job.service_fee_gbp.toLocaleString()} total · £${s.upfrontGbp.toLocaleString()} upfront · ${s.installmentCount}× £${s.installmentAmountGbp.toLocaleString()}`}
-                    />
-                  );
-                })()
+              {data.job?.service_fee_gbp != null && data.job.payment_stages.length > 0 ? (
+                <Field
+                  label={data.job.is_credit_service ? "Credit Service Terms" : "Service Fee"}
+                  value={summarizePaymentStages(data.job.service_fee_gbp, data.job.payment_stages)}
+                />
               ) : (
                 <Field label="Service Fee" value={data.job?.service_fee_gbp != null ? `£${data.job.service_fee_gbp.toLocaleString()}` : null} />
               )}

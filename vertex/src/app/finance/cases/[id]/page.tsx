@@ -30,6 +30,7 @@ export default function FinanceCaseDetailPage({ params }: { params: Promise<{ id
           manageOpsReview: false,
           rejectCase: false,
           editApplication: false,
+          undoPayments: true,
         }}
       />
     </PortalShell>

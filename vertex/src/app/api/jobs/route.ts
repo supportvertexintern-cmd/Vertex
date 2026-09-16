@@ -6,6 +6,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
 import { log } from "@/lib/log";
+import { ensurePaymentReceiptDocumentTypes } from "@/server/services/paymentReceiptTypes";
 export const dynamic = "force-dynamic";
 
 // Job postings are Marketing's sole responsibility — a role deliberately
@@ -71,19 +72,32 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
   const parsed = createJobSchema
-    .refine((data) => !data.is_credit_service || (data.financing_percent != null && data.installment_count != null), {
-      message: "financing_percent and installment_count are required when is_credit_service is true",
-      path: ["financing_percent"],
+    .refine((data) => !data.service_fee_gbp || (data.payment_stages && data.payment_stages.length > 0), {
+      message: "At least one payment stage is required when a service fee is set",
+      path: ["payment_stages"],
+    })
+    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100, {
+      message: "Payment stage percentages must sum to exactly 100",
+      path: ["payment_stages"],
     })
     .safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }
 
-  const job = await prisma.job.create({ data: parsed.data });
+  const { payment_stages, ...jobData } = parsed.data;
+  const job = await prisma.job.create({
+    data: {
+      ...jobData,
+      payment_stages: payment_stages ? { create: payment_stages } : undefined,
+    },
+  });
 
-  // Provisions the 3 Stripe Products/Prices for this opportunity — never
-  // blocks Job creation on a Stripe outage/misconfiguration.
+  // Provisions Stripe pricing + receipt-upload document types for every
+  // payment stage — never blocks Job creation on either one failing.
+  if (payment_stages) {
+    ensurePaymentReceiptDocumentTypes(job.id).catch((err) => log.error("api.failed_to_provision_receipt_document_types_for_job", { message: `Failed to provision receipt document types for job ${job.id}.`, err }));
+  }
   syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_provision_stripe_pricing_for_job", { message: `Failed to provision Stripe pricing for job ${job.id}.`, err }));
 
   return NextResponse.json(job, { status: 201 });

@@ -16,16 +16,11 @@ interface PaymentDueRow {
   partnerName: string | null;
   source: string;
   programmeTitle: string;
-  type: "documentation" | "permit" | "visa";
+  job_payment_stage_id: string;
+  label: string;
   amountDue: number;
   currentStage: CaseStageKey;
 }
-
-const TYPE_LABELS: Record<string, string> = {
-  documentation: "Documentation (Stage 1 · 25%)",
-  permit: "Work Permit (Stage 2 · 25%)",
-  visa: "Visa (Stage 3 · 50%)",
-};
 
 // Application type = Candidate.source (2026-08-18).
 const SOURCE_OPTIONS = [
@@ -102,8 +97,7 @@ export default function FinancePaymentsDuePage() {
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Payments Due.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Every milestone that's reached its stage but hasn't been collected yet (SRS FR-4.5) — documentation is due
-        the moment a case opens, permit once it's approved, visa once the interview decision comes through.
+        Every payment stage that's reached its trigger point but hasn't been collected yet (SRS FR-4.5).
       </p>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
@@ -143,11 +137,11 @@ export default function FinancePaymentsDuePage() {
             </thead>
             <tbody>
               {visibleRows.map((r, i) => (
-                <tr key={`${r.case_id}-${r.type}-${i}`} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
+                <tr key={`${r.case_id}-${r.job_payment_stage_id}-${i}`} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
                   <td className="px-5 py-4 font-medium text-midnight-900">{r.candidateName}</td>
                   <td className="px-5 py-4 text-midnight-900/70">{r.partnerName ?? "—"}</td>
                   <td className="px-5 py-4 text-midnight-900/70">{r.programmeTitle}</td>
-                  <td className="px-5 py-4 text-midnight-900/70">{TYPE_LABELS[r.type]}</td>
+                  <td className="px-5 py-4 text-midnight-900/70">{r.label}</td>
                   <td className="px-5 py-4 text-midnight-900 font-semibold">£{r.amountDue.toLocaleString()}</td>
                   <td className="px-5 py-4 text-xs text-midnight-900/50">{CASE_STAGE_LABELS[r.currentStage]}</td>
                   <td className="px-5 py-4 text-right">

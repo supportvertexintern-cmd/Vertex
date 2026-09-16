@@ -868,9 +868,10 @@ model Job {
   // Vertex's own work-permit programme pricing (Service & Pricing List),
   // one row per opportunity — deliberately NOT keyed by country, since a
   // single country (e.g. Czech Republic) can have several programmes at
-  // different price points. Every programme follows the same fixed 25% /
-  // 25% / 50% (documentation / permit / visa) split of service_fee_gbp, so
-  // only the total is stored; the stage amounts are derived on render.
+  // different price points. service_fee_gbp is the total; how it's split
+  // into installments (any number, each tied to whatever Case stage it's
+  // due at) is entirely defined by this Job's own payment_stages
+  // (JobPaymentStage, below) — no fixed shape is assumed here anymore.
   visa_type          String?
   duration_permit    String?
   processing_time    String?
@@ -881,25 +882,15 @@ model Job {
   // logic keys off it.
   tier               String?
 
-  // True 2-stage 50%/50% split — documentation + visa only, no separate
-  // "work permit" milestone (2026-09-02, first used by Canada's 3
-  // programmes). An alternative to the standard 25/25/50 three-stage
-  // split, independent of is_credit_service — still a direct one-off
-  // payment per stage, not an installment/financing schedule. See
-  // computeMilestoneSplit in lib/fees.ts.
-  two_stage_pricing Boolean @default(false)
-
-  // Credit Service Programme pricing model (European Credit Service
-  // Programme, Edition 2026) — an alternative to the standard 25/25/50
-  // milestone split. service_fee_gbp remains the shared "total fee" field
-  // for both models; financing_percent sets the upfront/financed split
-  // (100% = no upfront; 70% = 30% upfront/70% financed; 90% = 10%
-  // upfront/90% financed); installment_count is stored explicitly since
-  // it isn't derivable from financing_percent (varies 3/9/12 per
-  // opportunity). See computeCreditServiceSchedule in lib/fees.ts.
+  // Display/grouping flag only (2026-09-16) — no longer drives any payment
+  // math (see JobPaymentStage below for that); still used to group/label a
+  // country's Credit Service variant separately from its standard
+  // programme in the partner form's country picker, and for the "Credit
+  // Service Programme" badge shown elsewhere. The old two_stage_pricing/
+  // financing_percent/installment_count fields that used to drive the
+  // fixed-shape payment formulas are gone — every Job's fee schedule now
+  // comes from its own payment_stages, of any shape.
   is_credit_service Boolean @default(false)
-  financing_percent Int?
-  installment_count Int?
 
   // Restricts visibility to Partners only (their own portal, and staff
   // submitting a candidate on a partner's behalf) — never shown on the
@@ -915,7 +906,7 @@ model Job {
 
   applications       Application[]
   payments           Payment[]
-  milestone_prices   JobMilestonePrice[]
+  payment_stages     JobPaymentStage[]
   partner_candidates PartnerCandidate[]
   // One programme can span several sectors (2026-09-02), each with its own
   // set of specific positions (e.g. Italy's Agriculture Programme could
@@ -973,25 +964,47 @@ model JobPosition {
   @@index([job_sector_id])
 }
 
-// Pre-provisioned Stripe Product + one-off Price per (Job × milestone), so
-// a payment link only ever has to reference an existing Price rather than
-// computing one inline — mirrors exactly how the Stripe dashboard itself
-// creates a product (Name, Description, one-off Price marked Default).
-// One row per opportunity per milestone (3 per Job with a real
-// service_fee_gbp), kept in sync by syncJobMilestonePricing whenever a Job
-// is created or its fee-relevant fields change.
-model JobMilestonePrice {
-  id                String               @id @default(cuid())
-  job_id            String
-  job               Job                  @relation(fields: [job_id], references: [id], onDelete: Cascade)
-  type              MilestonePaymentType
-  amount_gbp        Float
-  stripe_product_id String
-  stripe_price_id   String
-  created_at        DateTime             @default(now())
-  updated_at        DateTime             @updatedAt
+// Replaces the old fixed-shape pricing (computeMilestoneSplit's 25/25/50,
+// two_stage_pricing's 50/0/50, and computeCreditServiceSchedule's
+// upfront+N-equal-installments) with an arbitrary, per-Job list of
+// installments (2026-09-16) — each with its own percentage of
+// service_fee_gbp and its own trigger point in the Case lifecycle, so an
+// opportunity's payment plan is no longer limited to one of a few
+// hardcoded shapes. "Due at application" is expressed as
+// registration_document_submission, matching the exact behavior the old
+// "documentation" milestone already had (due once the Case is created —
+// every Case starts at this stage). Several stages may share the same
+// trigger_stage (e.g. N monthly credit-repayment installments all
+// nominally due once the case reaches its final stage) — order
+// disambiguates their sequence; Finance still works through same-stage
+// stages one at a time, same manual cadence as today.
+model JobPaymentStage {
+  id              String    @id @default(cuid())
+  job_id          String
+  job             Job       @relation(fields: [job_id], references: [id], onDelete: Cascade)
+  order           Int
+  label           String
+  percent         Float
+  trigger_stage   CaseStage
+  // Pre-provisioned Stripe Product/Price for this one stage, mirroring
+  // JobMilestonePrice's old role but one row per stage rather than one row
+  // per fixed enum value (no 3-stage cap). synced_amount_gbp is the amount
+  // stripe_price_id was actually created for — compared against a fresh
+  // computePaymentStageAmounts result on every sync to decide whether a
+  // new Stripe Price is needed (Prices are immutable; a changed fee gets a
+  // new Price on the same existing Product, not a new Product).
+  stripe_product_id  String?
+  stripe_price_id    String?
+  synced_amount_gbp  Float?
 
-  @@unique([job_id, type])
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  case_payments CasePayment[]
+
+  @@unique([job_id, order])
+  @@index([job_id])
+  @@index([trigger_stage])
 }
 
 enum ContactChannel {
@@ -1250,22 +1263,6 @@ model RetentionFollowUp {
   notes        String?   @db.Text
 }
 
-// Matches the Candidate Information Form's 3-stage payment plan exactly:
-// documentation (Stage 1 · 20%, on engagement), permit (Stage 2 · 40%,
-// after the work permit is issued), visa (Stage 3 · 40%, after the visa
-// is granted).
-enum MilestonePaymentType {
-  documentation
-  permit
-  visa
-  // A Credit Service Programme's single upfront/initial payment (2026-08-29)
-  // — always one fixed, well-defined amount (never variable-N), so it fits
-  // this enum's existing one-row-per-type shape. The ongoing per-installment
-  // repayments after this one aren't represented here — that needs a
-  // separate schedule model, not built yet.
-  upfront
-}
-
 // status defaults "collected" so every existing/manually-recorded row's
 // semantics are undisturbed — only a new Stripe Payment Link-generated row
 // starts "pending" (recorded_by is still who generated the link, not who
@@ -1278,8 +1275,9 @@ enum CasePaymentStatus {
 model CasePayment {
   id                         String               @id @default(cuid())
   case_id                    String
-  case                       Case                 @relation(fields: [case_id], references: [id], onDelete: Cascade)
-  type                       MilestonePaymentType
+  case                       Case             @relation(fields: [case_id], references: [id], onDelete: Cascade)
+  job_payment_stage_id       String
+  job_payment_stage          JobPaymentStage  @relation(fields: [job_payment_stage_id], references: [id], onDelete: Restrict)
   amount                     Float
   currency                   String               @default("USD")
   receipt_reference          String? // a free-text invoice/receipt number

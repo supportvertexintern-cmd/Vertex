@@ -2,6 +2,24 @@ import { z } from "zod";
 import { MARITAL_STATUS_VALUES } from "@/lib/maritalStatus";
 import { GENDER_VALUES } from "@/lib/gender";
 
+// The 11 CaseStage enum values, in order — shared by advanceCaseStageSchema
+// (which stage a Case is moving to) and createJobSchema's payment_stages
+// (which stage a payment installment is due at), since both need the same
+// exact literal union.
+const CASE_STAGES = [
+  "registration_document_submission",
+  "document_preparation_legalization",
+  "permit_application_submission",
+  "permit_processing_followup",
+  "permit_authorization_approved",
+  "original_documents_dispatch",
+  "partner_receives_permit",
+  "visa_interview_preparation",
+  "visa_interview_decision",
+  "pre_departure_arrangements",
+  "departure_arrival_support",
+] as const;
+
 // Treats an empty string as "not provided" before validating an optional
 // field's format — otherwise z.string().email().optional() rejects "" from
 // an untouched form input, since .optional() only short-circuits undefined.
@@ -121,16 +139,31 @@ export const createJobSchema = z.object({
   processing_time: z.string().nullish(),
   service_fee_gbp: z.number().positive().nullish(),
   visa_success_rates: z.string().nullish(),
-  // Credit Service Programme pricing model (2026-08-29) — see
-  // Job.is_credit_service in schema.prisma for the full rationale.
-  // financing_percent/installment_count being required only when
-  // is_credit_service is true is enforced by createJobSchema's own
-  // .refine() at the POST route's call site, not here — keeping this base
-  // schema a plain ZodObject so PUT's existing createJobSchema.partial()
-  // usage keeps working (.partial() isn't available after .refine()).
+  // Display/grouping flag only (2026-09-16) — see Job.is_credit_service in
+  // schema.prisma. No longer drives payment math; that's payment_stages
+  // below now, for every Job regardless of this flag's value.
   is_credit_service: z.boolean().default(false),
-  financing_percent: z.number().int().min(1).max(100).nullish(),
-  installment_count: z.number().int().positive().nullish(),
+  // Flexible per-Job payment schedule (2026-09-16, replacing the old fixed
+  // 25/25/50 / two-stage / upfront+installments shapes) — any number of
+  // stages, each an arbitrary percent of service_fee_gbp due once the Case
+  // reaches trigger_stage. Optional at the base-schema level (a plain
+  // employer posting with no service_fee_gbp has none), but POST /api/jobs
+  // and PUT /api/jobs/:id both validate that when stages ARE given, their
+  // percentages sum to exactly 100 — that check needs the full array
+  // (impossible to express as a single field's own .refine()), so it lives
+  // at the route call site, same pattern already used for
+  // is_credit_service's own financing_percent/installment_count
+  // requirement before this change.
+  payment_stages: z
+    .array(
+      z.object({
+        order: z.number().int().positive(),
+        label: z.string().min(1).max(100),
+        percent: z.number().positive().max(100),
+        trigger_stage: z.enum(CASE_STAGES),
+      })
+    )
+    .optional(),
   partner_only: z.boolean().default(false),
 });
 
@@ -799,20 +832,6 @@ export const contactFormSchema = z.object({
 
 // ── Phase 4: Extended Mobility Lifecycle ────────────────────────────────
 
-const CASE_STAGES = [
-  "registration_document_submission",
-  "document_preparation_legalization",
-  "permit_application_submission",
-  "permit_processing_followup",
-  "permit_authorization_approved",
-  "original_documents_dispatch",
-  "partner_receives_permit",
-  "visa_interview_preparation",
-  "visa_interview_decision",
-  "pre_departure_arrangements",
-  "departure_arrival_support",
-] as const;
-
 export const advanceCaseStageSchema = z.object({
   stage: z.enum(CASE_STAGES),
   notes: z.string().max(2000).optional(),
@@ -853,11 +872,12 @@ export const signContractSchema = z.object({
   signed_by_name: z.string().min(2).max(200),
 });
 
-// The 3-stage plan from the Candidate Information Form: documentation
-// (Stage 1 · 25%, on engagement), permit (Stage 2 · 25%, after the work
-// permit is issued), visa (Stage 3 · 50%, after the visa is granted).
+// Which of the Job's own payment_stages this record is for (2026-09-16,
+// flexible per-Job payment stages — any number of stages, any shape, not
+// the old fixed documentation/permit/visa/upfront set). Validated
+// server-side to actually belong to the Case's own Job.
 export const recordCasePaymentSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa", "upfront"]),
+  job_payment_stage_id: z.string().cuid(),
   amount: z.number().positive(),
   currency: z.string().length(3).default("USD"),
   receipt_reference: z.string().max(200).optional(),
@@ -869,9 +889,9 @@ export const recordCasePaymentSchema = z.object({
 });
 
 // A director/admin generating a Stripe Payment Link for one of a case's
-// 3 milestones, sent to whichever party is financially responsible.
+// payment stages, sent to whichever party is financially responsible.
 export const generateCasePaymentLinkSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  job_payment_stage_id: z.string().cuid(),
   recipient: z.enum(["candidate", "partner"]),
 });
 
@@ -883,7 +903,7 @@ export const generateCasePaymentLinkSchema = z.object({
 // uploaded via the existing /api/upload pipeline first — this just
 // records the amount/recipient and attaches that upload to the email.
 export const sendCaseInvoiceSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa", "upfront"]),
+  job_payment_stage_id: z.string().cuid(),
   amount: z.number().positive(),
   recipient: z.enum(["candidate", "partner"]),
   invoice_document_id: z.string().cuid("Attach the invoice file first."),

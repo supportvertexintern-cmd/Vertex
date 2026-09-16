@@ -8,9 +8,9 @@ import CandidateMessages from "@/components/CandidateMessages";
 import SearchableSelect from "@/components/SearchableSelect";
 import YesNoDetailField from "@/components/YesNoDetailField";
 import SupportingDocumentUpload from "@/components/portal/SupportingDocumentUpload";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
-import { computeCreditServiceSchedule } from "@/lib/fees";
+import { summarizePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -137,8 +137,7 @@ interface PartnerCandidateDetail {
     city: string;
     service_fee_gbp: number | null;
     is_credit_service: boolean;
-    financing_percent: number | null;
-    installment_count: number | null;
+    payment_stages: PaymentStageOption[];
   } | null;
   job_position: {
     title: string;
@@ -335,7 +334,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
     fetch("/api/apply/options")
       .then((r) => r.json())
       .then((res) => {
-        const types = (res.documentTypes ?? []).filter((t: { key: string }) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key));
+        const types = (res.documentTypes ?? []).filter((t: { key: string }) => !isNonProgrammeTypeKey(t.key));
         setDocTypes(types);
         setUploadType((prev) => prev || types[0]?.key || "");
       })
@@ -522,15 +521,12 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
                   label="Position"
                   value={data.job_position ? (data.job_position.city ? `${data.job_position.title} — ${data.job_position.city}` : data.job_position.title) : null}
                 />
-                {data.job?.is_credit_service && data.job.service_fee_gbp != null && data.job.financing_percent != null && data.job.installment_count != null && (() => {
-                  const s = computeCreditServiceSchedule(data.job.service_fee_gbp, data.job.financing_percent, data.job.installment_count);
-                  return (
-                    <Field
-                      label="Credit Service Terms"
-                      value={`£${data.job.service_fee_gbp.toLocaleString()} total · £${s.upfrontGbp.toLocaleString()} upfront · ${s.installmentCount}× £${s.installmentAmountGbp.toLocaleString()}`}
-                    />
-                  );
-                })()}
+                {data.job?.service_fee_gbp != null && data.job.payment_stages.length > 0 && (
+                  <Field
+                    label={data.job.is_credit_service ? "Credit Service Terms" : "Service Fee"}
+                    value={summarizePaymentStages(data.job.service_fee_gbp, data.job.payment_stages)}
+                  />
+                )}
                 <Field label="Earliest Travel Date" value={new Date(data.earliest_travel_date).toLocaleDateString()} />
                 <Field label="Current Location" value={data.current_location_country?.name ?? data.current_location_country_name} />
               </div>

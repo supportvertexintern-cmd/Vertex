@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
-import { computeCreditServiceSchedule, computeMilestoneSplit } from "@/lib/fees";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
+import PaymentStagesPreview, { type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -42,9 +42,7 @@ interface JobOption {
   sectors: JobSectorOption[];
   service_fee_gbp: number | null;
   is_credit_service: boolean;
-  two_stage_pricing: boolean;
-  financing_percent: number | null;
-  installment_count: number | null;
+  payment_stages: PaymentStageOption[];
 }
 
 // A position flattened out of whichever Job it belongs to (2026-09-02,
@@ -266,7 +264,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
   // than hardcoded, same list as the Candidate Information Form's since
   // Vertex's document requirements don't differ by intake path.
   const documentChecklist = useMemo(
-    () => documentTypes.filter((t) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key)),
+    () => documentTypes.filter((t) => !isNonProgrammeTypeKey(t.key)),
     [documentTypes]
   );
   const requiredForByType = useMemo(() => {
@@ -365,12 +363,6 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
     return [...new Set([...universal, ...extras])];
   }, [selectedJob, documentTypes, countries, documentRequirements, documentChecklist]);
   const missingRequiredDocs = requiredTypesForSelectedJob.filter((key) => !(documentFiles[key] instanceof File) && !uploadedDocs[key]);
-  const creditSchedule = useMemo(() => {
-    if (!selectedJob?.is_credit_service || selectedJob.service_fee_gbp == null || selectedJob.financing_percent == null || selectedJob.installment_count == null) {
-      return null;
-    }
-    return computeCreditServiceSchedule(selectedJob.service_fee_gbp, selectedJob.financing_percent, selectedJob.installment_count);
-  }, [selectedJob]);
 
   const set = <K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -867,96 +859,27 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
 
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-3">Section 5 — Payment Plan Acknowledgement</h2>
-        {creditSchedule && selectedJob ? (
+        {selectedJob?.service_fee_gbp != null && selectedJob.payment_stages.length > 0 && (
           <>
-            <div className="grid grid-cols-2 gap-2 text-center text-xs mb-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="font-bold text-emerald-700 mb-1">Upfront · {selectedJob.financing_percent != null ? 100 - selectedJob.financing_percent : "—"}%</div>
-                <div className="text-slate-500">£{creditSchedule.upfrontGbp.toLocaleString()} on engagement</div>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <div className="font-bold text-emerald-700 mb-1">Financed · {selectedJob.financing_percent}%</div>
-                <div className="text-slate-500">
-                  {creditSchedule.installmentCount} installment{creditSchedule.installmentCount === 1 ? "" : "s"} of £
-                  {creditSchedule.installmentAmountGbp.toLocaleString()}
-                  {creditSchedule.installmentAmountGbp !== creditSchedule.finalInstallmentAmountGbp
-                    ? ` (last: £${creditSchedule.finalInstallmentAmountGbp.toLocaleString()})`
-                    : ""}{" "}
-                  after employment starts
-                </div>
-              </div>
-            </div>
+            <PaymentStagesPreview totalGbp={selectedJob.service_fee_gbp} stages={selectedJob.payment_stages} className="mb-4" />
             <p className="text-xs text-slate-500 mb-3">
-              Total Credit Service Fee: £{selectedJob.service_fee_gbp?.toLocaleString()}. International airfare is not
-              included unless a different arrangement is confirmed in writing; the consular fee is per embassy
-              requirements and payable separately where required.
+              Total {selectedJob.is_credit_service ? "Credit Service Fee" : "Service Fee"}: £{selectedJob.service_fee_gbp.toLocaleString()}.{" "}
+              {selectedJob.is_credit_service
+                ? "International airfare is not included unless a different arrangement is confirmed in writing; the consular fee is per embassy requirements and payable separately where required."
+                : "Air tickets and embassy fees are not included in any programme price and are payable separately. Accommodation is provided in every programme and may be deducted from salary by the employer."}
             </p>
-            <label className="flex items-start gap-2 text-sm text-slate-700 font-medium">
-              <input
-                type="checkbox"
-                checked={form.payment_plan_acknowledged}
-                onChange={(e) => set("payment_plan_acknowledged", e.target.checked)}
-                required
-                className="w-4 h-4 mt-0.5"
-              />
-              We understand the Credit Service payment plan above. <span className="text-red-500">*</span>
-            </label>
-          </>
-        ) : (
-          <>
-            {selectedJob?.two_stage_pricing ? (
-              <div className="grid grid-cols-2 gap-2 text-center text-xs mb-4">
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="font-bold text-emerald-700 mb-1">
-                    First Payment · 50%
-                    {selectedJob.service_fee_gbp != null
-                      ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).documentation.toLocaleString()})`
-                      : ""}
-                  </div>
-                  <div className="text-slate-500">On engagement</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="font-bold text-emerald-700 mb-1">
-                    Final Payment · 50%
-                    {selectedJob.service_fee_gbp != null
-                      ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).visa.toLocaleString()})`
-                      : ""}
-                  </div>
-                  <div className="text-slate-500">After the visa is granted</div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
-                  <div className="text-slate-500">On engagement — documentation stage</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
-                  <div className="text-slate-500">After the work permit is issued</div>
-                </div>
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
-                  <div className="text-slate-500">After the visa is granted</div>
-                </div>
-              </div>
-            )}
-            <p className="text-xs text-slate-500 mb-3">
-              Air tickets and embassy fees are not included in any programme price and are payable separately.
-              Accommodation is provided in every programme and may be deducted from salary by the employer.
-            </p>
-            <label className="flex items-start gap-2 text-sm text-slate-700 font-medium">
-              <input
-                type="checkbox"
-                checked={form.payment_plan_acknowledged}
-                onChange={(e) => set("payment_plan_acknowledged", e.target.checked)}
-                required
-                className="w-4 h-4 mt-0.5"
-              />
-              We understand the payment plan above. <span className="text-red-500">*</span>
-            </label>
           </>
         )}
+        <label className="flex items-start gap-2 text-sm text-slate-700 font-medium">
+          <input
+            type="checkbox"
+            checked={form.payment_plan_acknowledged}
+            onChange={(e) => set("payment_plan_acknowledged", e.target.checked)}
+            required
+            className="w-4 h-4 mt-0.5"
+          />
+          We understand the payment plan above. <span className="text-red-500">*</span>
+        </label>
         {err("payment_plan_acknowledged") && <p className={errCls}>{err("payment_plan_acknowledged")}</p>}
       </section>
 

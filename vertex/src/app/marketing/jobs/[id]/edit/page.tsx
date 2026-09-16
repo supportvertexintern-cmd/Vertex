@@ -6,6 +6,7 @@ import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
 import SearchableSelect from "@/components/SearchableSelect";
+import PaymentStageBuilder, { type PaymentStageDraft } from "@/components/portal/PaymentStageBuilder";
 import { Plus, Trash, PencilSimple, Check, X } from "@phosphor-icons/react";
 
 interface EmployerClient {
@@ -51,10 +52,9 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
     service_fee_gbp: "",
     visa_success_rates: "",
     is_credit_service: false,
-    financing_percent: "",
-    installment_count: "",
     partner_only: false,
   });
+  const [paymentStages, setPaymentStages] = useState<PaymentStageDraft[]>([]);
 
   // Sectors & Positions (2026-09-02) — a live-saving sub-resource of this
   // Job, independent of the main "Save Changes" button above (each add/
@@ -107,10 +107,18 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           service_fee_gbp: data.service_fee_gbp != null ? String(data.service_fee_gbp) : "",
           visa_success_rates: data.visa_success_rates || "",
           is_credit_service: data.is_credit_service ?? false,
-          financing_percent: data.financing_percent != null ? String(data.financing_percent) : "",
-          installment_count: data.installment_count != null ? String(data.installment_count) : "",
           partner_only: data.partner_only ?? false,
         });
+        setPaymentStages(
+          (data.payment_stages ?? [])
+            .sort((a: { order: number }, b: { order: number }) => a.order - b.order)
+            .map((s: { order: number; label: string; percent: number; trigger_stage: string }) => ({
+              order: s.order,
+              label: s.label,
+              percent: String(s.percent),
+              trigger_stage: s.trigger_stage,
+            }))
+        );
         setSectors(data.sectors ?? []);
         setFetching(false);
       })
@@ -120,11 +128,18 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
       });
   }, [jobId]);
 
+  const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (formData.service_fee_gbp && (paymentStages.length === 0 || Math.round(stagesTotal) !== 100)) {
+      setError("Payment stages must sum to exactly 100% when a service fee is set.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch(`/api/jobs/${jobId}`, {
         method: "PUT",
@@ -142,8 +157,9 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           processing_time: formData.processing_time || null,
           visa_success_rates: formData.visa_success_rates || null,
           service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : null,
-          financing_percent: formData.financing_percent ? Number(formData.financing_percent) : null,
-          installment_count: formData.installment_count ? Number(formData.installment_count) : null,
+          payment_stages: formData.service_fee_gbp
+            ? paymentStages.map((s) => ({ order: s.order, label: s.label, percent: Number(s.percent), trigger_stage: s.trigger_stage }))
+            : undefined,
         }),
       });
 
@@ -382,7 +398,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
 
               <div className="col-span-1 md:col-span-2 border-t border-midnight-900/10 pt-6 mt-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-midnight-900/40 mb-4">
-                  Credit Service Programme <span className="font-normal normal-case">(Optional — an alternative to the standard 25/25/50 split above)</span>
+                  Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must sum to 100%)</span>
                 </p>
               </div>
 
@@ -395,22 +411,13 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
                   className="w-4 h-4"
                 />
                 <label htmlFor="is_credit_service" className="text-sm font-medium text-midnight-900/70">
-                  This is a Credit Service Programme (installment financing, not the standard 25/25/50 split)
+                  Display as a Credit Service Programme (grouping/badge only — doesn't affect the payment math below)
                 </label>
               </div>
 
-              {formData.is_credit_service && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Financing %</label>
-                    <input type="number" min="1" max="100" step="1" name="financing_percent" value={formData.financing_percent} onChange={handleChange} className="input-field w-full" placeholder="e.g. 70" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Installment Count</label>
-                    <input type="number" min="1" step="1" name="installment_count" value={formData.installment_count} onChange={handleChange} className="input-field w-full" placeholder="e.g. 3" />
-                  </div>
-                </>
-              )}
+              <div className="col-span-1 md:col-span-2">
+                <PaymentStageBuilder stages={paymentStages} onChange={setPaymentStages} />
+              </div>
 
               <div className="col-span-1 md:col-span-2 flex items-center gap-2">
                 <input

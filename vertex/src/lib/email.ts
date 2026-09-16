@@ -2,7 +2,6 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import { signEmailToken, signCandidateInviteToken, signAccountSetupToken } from "./jwt";
-import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import { prisma } from "./prisma";
 
@@ -769,38 +768,34 @@ export async function sendCaseReminderEmail(
 
 // Sent to whichever party is financially responsible (the candidate or
 // their sourcing partner) when a director/admin generates a Stripe Payment
-// Link for one of a case's 3 milestones (POST /api/cases/:id/payments/link).
+// Link for one of a case's payment stages (POST /api/cases/:id/payments/link).
 // Best-effort — the CasePayment row and the link URL itself already exist
 // regardless of whether this send succeeds, so staff can always share the
 // URL manually from CaseDetail's own copy button.
-// Stage position/percentage/plain-English timing, matching the wording
-// already used in CaseDetail.tsx's own milestone-type dropdown, so a
-// recipient sees the exact same framing staff do.
 // Exclusively used by the Stripe Payment Link flow below, which is
-// restricted to self-registered candidates (2026-07-31) — a self-
-// registered candidate can never be assigned a partner_only Job, so
-// "upfront" (Credit Service Programme, 2026-08-29) never reaches this
-// path. Narrowed to the 3-stage type rather than the full
-// MilestonePaymentType enum for exactly that reason.
-type StripeMilestoneType = "documentation" | "permit" | "visa";
+// restricted to self-registered candidates (2026-07-31).
+//
+// Generalized (2026-09-16, flexible per-Job payment stages) from a
+// hardcoded 3-value documentation/permit/visa shape to whatever stages the
+// Job actually defines — each stage already carries its own human label
+// and trigger stage, so there's no fixed lookup table left to maintain.
+interface MilestonePlanStage {
+  id: string;
+  label: string;
+  percent: number;
+  amount: number;
+  triggerStageLabel: string;
+}
 
-const MILESTONE_STAGE_INFO: Record<StripeMilestoneType, { position: string; percent: string; timing: string }> = {
-  documentation: { position: "Stage 1 of 3", percent: "25%", timing: "On engagement, before documentation begins" },
-  permit: { position: "Stage 2 of 3", percent: "25%", timing: "After the work permit is issued" },
-  visa: { position: "Stage 3 of 3", percent: "50%", timing: "After the visa is granted" },
-};
-
-function milestonePlanRow(type: StripeMilestoneType, amount: number, isCurrent: boolean) {
-  const info = MILESTONE_STAGE_INFO[type];
-  const label = MILESTONE_DESCRIPTIONS[type];
+function milestonePlanRow(stage: MilestonePlanStage, position: string, isCurrent: boolean) {
   return `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid ${BRAND.ivory100};vertical-align:top;">
-        <div style="font-size:13px;font-weight:700;color:${isCurrent ? BRAND.gold600 : BRAND.midnight900};">${label} <span style="font-weight:500;color:rgba(6,33,25,0.4);">· ${info.position} · ${info.percent}</span></div>
-        <div style="font-size:12px;color:rgba(6,33,25,0.5);margin-top:2px;">${info.timing}</div>
+        <div style="font-size:13px;font-weight:700;color:${isCurrent ? BRAND.gold600 : BRAND.midnight900};">${stage.label} <span style="font-weight:500;color:rgba(6,33,25,0.4);">· ${position} · ${Math.round(stage.percent)}%</span></div>
+        <div style="font-size:12px;color:rgba(6,33,25,0.5);margin-top:2px;">Due from: ${stage.triggerStageLabel}</div>
       </td>
       <td style="padding:10px 0;border-bottom:1px solid ${BRAND.ivory100};vertical-align:top;text-align:right;white-space:nowrap;">
-        <div style="font-size:14px;font-weight:700;color:${BRAND.midnight900};">${amount.toLocaleString()} GBP</div>
+        <div style="font-size:14px;font-weight:700;color:${BRAND.midnight900};">${stage.amount.toLocaleString()} GBP</div>
         ${isCurrent ? `<div style="font-size:11px;font-weight:700;color:${BRAND.gold600};text-transform:uppercase;letter-spacing:0.05em;">Due now</div>` : `<div style="font-size:11px;color:rgba(6,33,25,0.35);">Upcoming</div>`}
       </td>
     </tr>
@@ -817,18 +812,14 @@ export async function sendMilestonePaymentLinkEmail(
   candidateName: string,
   programmeTitle: string,
   paymentUrl: string,
-  type: StripeMilestoneType,
-  fullPlan: { documentation: number; permit: number; visa: number }
+  currentStageId: string,
+  allStages: MilestonePlanStage[] // full ordered plan, already filtered to amount > 0
 ) {
-  const milestoneLabel = MILESTONE_DESCRIPTIONS[type];
-  const amountGbp = fullPlan[type];
-  // two_stage_pricing jobs (2026-09-02) always have permit: 0 in fullPlan
-  // — filtered out here rather than showing a real recipient a "Second
-  // Payment — 0 GBP" row for a milestone that doesn't apply to them.
-  const planRows = (["documentation", "permit", "visa"] as const)
-    .filter((t) => fullPlan[t] > 0)
-    .map((t) => milestonePlanRow(t, fullPlan[t], t === type))
-    .join("");
+  const currentIndex = allStages.findIndex((s) => s.id === currentStageId);
+  const current = allStages[currentIndex];
+  const milestoneLabel = current.label;
+  const amountGbp = current.amount;
+  const planRows = allStages.map((s, i) => milestonePlanRow(s, `Stage ${i + 1} of ${allStages.length}`, i === currentIndex)).join("");
 
   const html = emailLayout({
     eyebrow: "Payment Due",

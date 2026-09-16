@@ -7,7 +7,8 @@ import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 import { sendMilestonePaymentLinkEmail } from "@/lib/email";
-import { computeMilestoneSplit } from "@/lib/fees";
+import { computePaymentStageAmounts } from "@/lib/fees";
+import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 
 import { log } from "@/lib/log";
 // POST /api/cases/:id/payments/link — Finance generates a real Stripe
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: {
       application: {
         include: {
-          job: true,
+          job: { include: { payment_stages: { orderBy: { order: "asc" } } } },
           candidate: {
             include: {
               user: { select: { email: true, full_name: true } },
@@ -85,12 +86,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const jobMilestonePrice = await prisma.jobMilestonePrice.findUnique({
-    where: { job_id_type: { job_id: jobId, type: parsed.data.type } },
-  });
-  if (!jobMilestonePrice) {
+  const jobStages = caseRecord.application.job?.payment_stages ?? [];
+  const jobPaymentStage = jobStages.find((s: (typeof jobStages)[number]) => s.id === parsed.data.job_payment_stage_id);
+  if (!jobPaymentStage) {
+    return NextResponse.json({ error: "Payment stage not found for this case's opportunity." }, { status: 404 });
+  }
+  if (!jobPaymentStage.stripe_price_id || jobPaymentStage.synced_amount_gbp == null) {
     return NextResponse.json(
-      { error: "Stripe pricing hasn't been provisioned for this opportunity/milestone yet. Try 'Retry Stripe Pricing' on the opportunity's edit page first." },
+      { error: "Stripe pricing hasn't been provisioned for this payment stage yet. Try 'Retry Stripe Pricing' on the opportunity's edit page first." },
       { status: 422 }
     );
   }
@@ -114,8 +117,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let paymentLink;
   try {
     paymentLink = await stripe.paymentLinks.create({
-      line_items: [{ price: jobMilestonePrice.stripe_price_id, quantity: 1 }],
-      metadata: { case_id: id, type: parsed.data.type },
+      line_items: [{ price: jobPaymentStage.stripe_price_id, quantity: 1 }],
+      metadata: { case_id: id, job_payment_stage_id: jobPaymentStage.id },
     });
   } catch (err) {
     log.error("api.failed_to_create_stripe_payment_link_for", { message: `Failed to create Stripe payment link for case ${id}.`, err });
@@ -128,8 +131,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const payment = await auditedPrisma(user!.userId).casePayment.create({
     data: {
       case_id: id,
-      type: parsed.data.type,
-      amount: jobMilestonePrice.amount_gbp,
+      job_payment_stage_id: jobPaymentStage.id,
+      amount: jobPaymentStage.synced_amount_gbp,
       currency: "GBP",
       recorded_by: user!.userId,
       status: "pending",
@@ -141,15 +144,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const candidateName = candidate.user?.full_name ?? candidate.full_name ?? "the candidate";
   const programmeTitle = caseRecord.application.job?.title ?? "";
-  const fullPlan = computeMilestoneSplit(
-    caseRecord.application.job?.service_fee_gbp ?? 0,
-    caseRecord.application.job?.two_stage_pricing
-  );
+  const allStages = caseRecord.application.job?.payment_stages ?? [];
+  const amounts = computePaymentStageAmounts(caseRecord.application.job?.service_fee_gbp ?? 0, allStages.map((s: (typeof allStages)[number]) => s.percent));
+  const planStages = allStages
+    .map((s: (typeof allStages)[number], i: number) => ({
+      id: s.id,
+      label: s.label,
+      percent: s.percent,
+      amount: amounts[i],
+      triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage as CaseStageKey],
+    }))
+    .filter((s: { amount: number }) => s.amount > 0);
 
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendMilestonePaymentLinkEmail(recipientEmail, recipientName, candidateName, programmeTitle, paymentLink.url, parsed.data.type, fullPlan).catch((err) => log.error("email.send_failed", { err }));
+  await sendMilestonePaymentLinkEmail(recipientEmail, recipientName, candidateName, programmeTitle, paymentLink.url, jobPaymentStage.id, planStages).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: { payment, url: paymentLink.url } }, { status: 201 });
 }
