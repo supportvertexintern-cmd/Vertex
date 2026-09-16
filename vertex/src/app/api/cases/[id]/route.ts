@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               documents: { orderBy: { uploaded_at: "desc" } },
             },
           },
-          job: true,
+          job: { include: { payment_stages: { orderBy: { order: "asc" } } } },
           job_position: { select: { job_sector: { select: { sector: true } } } },
           preferred_country_1: { select: { name: true } },
           preferred_sector: { select: { name: true } },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Role } from "@prisma/client";
+import type { Role, Prisma } from "@prisma/client";
 import { limitByIp } from "@/lib/rate-limit";
 import { isNotFound, prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations";
@@ -7,12 +7,13 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { getPublicJobById } from "@/server/services/publicJobs";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
 import { log } from "@/lib/log";
+import { ensurePaymentReceiptDocumentTypes } from "@/server/services/paymentReceiptTypes";
 export const dynamic = "force-dynamic";
 
 // Editing any of these silently leaves Stripe pricing stale otherwise —
 // re-sync whenever the update payload touches one of them, not just on
 // creation.
-const FEE_RELEVANT_FIELDS = ["service_fee_gbp", "country", "visa_type", "duration_permit"] as const;
+const FEE_RELEVANT_FIELDS = ["service_fee_gbp", "country", "visa_type", "duration_permit", "payment_stages"] as const;
 
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
@@ -53,19 +54,41 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const parsed = createJobSchema.partial().safeParse(body);
+  const parsed = createJobSchema
+    .partial()
+    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100, {
+      message: "Payment stage percentages must sum to exactly 100",
+      path: ["payment_stages"],
+    })
+    .safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }
 
+  const { payment_stages, ...jobData } = parsed.data;
+  // A full replace (delete + recreate), not a merge — Marketing's stage
+  // builder always submits the complete, current set of stages, and
+  // `[job_id, order]` uniqueness makes a partial upsert-by-order fragile
+  // once stages are reordered/removed. CasePayment's onDelete: Restrict
+  // means a stage with real payment history can't actually be deleted —
+  // the transaction fails loudly instead of silently orphaning history.
   let job;
   try {
-    job = await prisma.job.update({ where: { id }, data: parsed.data });
+    job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    if (payment_stages) {
+      await tx.jobPaymentStage.deleteMany({ where: { job_id: id } });
+      await tx.jobPaymentStage.createMany({ data: payment_stages.map((s) => ({ ...s, job_id: id })) });
+    }
+    return tx.job.update({ where: { id }, data: jobData });
+  });
   } catch (err) {
     if (isNotFound(err)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     throw err;
   }
 
+  if (payment_stages) {
+    ensurePaymentReceiptDocumentTypes(job.id).catch((err) => console.error(`Failed to provision receipt document types for job ${job.id}.`, err));
+  }
   if (FEE_RELEVANT_FIELDS.some((field) => field in parsed.data)) {
     syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_re_sync_stripe_pricing_for", { message: `Failed to re-sync Stripe pricing for job ${job.id}.`, err }));
   }

@@ -28,9 +28,7 @@ const PUBLIC_JOB_LIST_SELECT = {
   service_fee_gbp: true,
   partner_only: true,
   is_credit_service: true,
-  two_stage_pricing: true,
-  financing_percent: true,
-  installment_count: true,
+  payment_stages: { orderBy: { order: "asc" as const } },
   // Sector -> Opportunity -> Position (2026-09-02) — both application
   // forms already eagerly fetch this full list once and filter
   // client-side, so the nested sectors/positions ride along here rather
@@ -126,7 +124,7 @@ const PUBLIC_JOB_DETAIL_SELECT = {
   requirements: true,
   processing_time: true,
   visa_success_rates: true,
-  sectors: { include: { positions: true } },
+  payment_stages: { orderBy: { order: "asc" } },
 } as const;
 
 // Public = active or closed (closed jobs stay reachable from old links and

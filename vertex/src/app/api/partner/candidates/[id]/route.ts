@@ -22,7 +22,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const candidate = await prisma.partnerCandidate.findUnique({
     where: { id, status: { not: "draft" } },
     include: {
-      job: { select: { id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true, financing_percent: true, installment_count: true } },
+      job: {
+        select: {
+          id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true,
+          payment_stages: { orderBy: { order: "asc" } },
+        },
+      },
       job_position: { select: { title: true, city: true, job_sector: { select: { sector: true } } } },
       current_location_country: { select: { name: true } },
       // Documents uploaded while this row was still a draft (2026-09-09) —

@@ -4,7 +4,7 @@ import type { auditedPrisma } from "@/lib/audit";
 import { z } from "zod";
 import type { submitPartnerCandidateSchema } from "@/lib/validations";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 
 type SubmitData = z.infer<typeof submitPartnerCandidateSchema>;
 
@@ -100,7 +100,7 @@ export async function finalizeSubmission({
   const jobCountry = await prisma.country.findFirst({ where: { name: { equals: job.country, mode: "insensitive" } } });
   const requiredByCountry = await getRequiredDocumentTypesForCountryIds([jobCountry?.id ?? null]);
   const requiredTypes = (requiredByCountry.get(jobCountry?.id ?? null) ?? requiredByCountry.get(null) ?? []).filter(
-    (t) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t)
+    (t) => !isNonProgrammeTypeKey(t)
   );
   const missingTypes = requiredTypes.filter((t) => !data.documents_available.includes(t));
   if (missingTypes.length > 0) {

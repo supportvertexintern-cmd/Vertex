@@ -27,6 +27,7 @@ export default function ManagementCaseDetailPage({ params }: { params: Promise<{
           manageOpsReview: true,
           rejectCase: true,
           editApplication: true,
+          undoPayments: false,
         }}
       />
     </PortalShell>

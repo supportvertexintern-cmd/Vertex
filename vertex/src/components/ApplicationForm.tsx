@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
-import { computeMilestoneSplit } from "@/lib/fees";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import PaymentStagesPreview, { type PaymentStageOption } from "@/components/PaymentStagesPreview";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -42,7 +42,7 @@ interface JobOption {
   category: string | null;
   sectors: JobSectorOption[];
   service_fee_gbp: number | null;
-  two_stage_pricing: boolean;
+  payment_stages: PaymentStageOption[];
 }
 
 // A position flattened out of whichever Job it belongs to (2026-09-02,
@@ -276,7 +276,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   // Admin-managed (DocumentRequirementType) rather than hardcoded, so a
   // type/requirement admin adds shows up here immediately.
   const documentChecklist = useMemo(
-    () => documentTypes.filter((t) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key)),
+    () => documentTypes.filter((t) => !isNonProgrammeTypeKey(t.key)),
     [documentTypes]
   );
   // "Required for" hints scoped to the selected Job's own destination
@@ -767,42 +767,8 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-3">Section 4 — Payment Plan Acknowledgement</h2>
         <ServiceFeeNotice variant="plain" />
-        {selectedJob?.two_stage_pricing ? (
-          <div className="grid grid-cols-2 gap-2 text-center text-xs mb-4">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="font-bold text-emerald-700 mb-1">
-                First Payment · 50%
-                {selectedJob.service_fee_gbp != null
-                  ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).documentation.toLocaleString()})`
-                  : ""}
-              </div>
-              <div className="text-slate-500">On engagement</div>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="font-bold text-emerald-700 mb-1">
-                Final Payment · 50%
-                {selectedJob.service_fee_gbp != null
-                  ? ` (£${computeMilestoneSplit(selectedJob.service_fee_gbp, true).visa.toLocaleString()})`
-                  : ""}
-              </div>
-              <div className="text-slate-500">After the visa is granted</div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
-              <div className="text-slate-500">On engagement — documentation stage</div>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
-              <div className="text-slate-500">After the work permit is issued</div>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-              <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
-              <div className="text-slate-500">After the visa is granted</div>
-            </div>
-          </div>
+        {selectedJob?.service_fee_gbp != null && selectedJob.payment_stages.length > 0 && (
+          <PaymentStagesPreview totalGbp={selectedJob.service_fee_gbp} stages={selectedJob.payment_stages} className="mb-4" />
         )}
         <p className="text-xs text-slate-500 mb-3">
           Air tickets and embassy fees are not included in any programme price and are payable separately.

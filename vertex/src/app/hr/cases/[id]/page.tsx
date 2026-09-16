@@ -38,6 +38,7 @@ export default function HrCaseDetailPage({ params }: { params: Promise<{ id: str
           manageOpsReview: false,
           rejectCase: true,
           editApplication: true,
+          undoPayments: false,
         }}
       />
     </PortalShell>

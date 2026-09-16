@@ -9,8 +9,9 @@ import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CaseStageProgress from "./CaseStageProgress";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseStages";
-import { CASE_UPLOAD_EXCLUDED_KEYS, PAYMENT_RECEIPT_TYPE_KEYS, paymentReceiptTypeKey } from "@/lib/documentTypes";
-import { computeMilestoneSplit, computeCreditServiceSchedule } from "@/lib/fees";
+import { isCaseUploadExcludedKey, isPaymentReceiptTypeKey, paymentReceiptTypeKey } from "@/lib/documentTypes";
+import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
+import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import { UploadSimple } from "@phosphor-icons/react";
 
 interface Document {
@@ -40,7 +41,7 @@ interface Contract {
 
 interface Payment {
   id: string;
-  type: string;
+  job_payment_stage_id: string;
   amount: number;
   currency: string;
   receipt_reference: string | null;
@@ -124,9 +125,7 @@ interface CaseData {
       city: string;
       service_fee_gbp: number | null;
       is_credit_service: boolean;
-      two_stage_pricing: boolean;
-      financing_percent: number | null;
-      installment_count: number | null;
+      payment_stages: PaymentStageOption[];
     } | null;
     job_position: { job_sector: { sector: string } } | null;
     preferred_country_1: { name: string } | null;
@@ -182,6 +181,12 @@ export interface CaseDetailCapabilities {
   // reachable without navigating back to the original application once
   // a case already exists.
   editApplication: boolean;
+  // Deleting a payment record entirely (2026-09-16) — deliberately
+  // narrower than managePayments (which Director/Admin also get, same as
+  // every other payment action): undoing a mistaken "Record"/"Mark as
+  // Paid" is Finance's own role only, no Director/Admin override, per
+  // explicit business direction.
+  undoPayments: boolean;
 }
 
 const NO_CAPABILITIES: CaseDetailCapabilities = {
@@ -195,29 +200,12 @@ const NO_CAPABILITIES: CaseDetailCapabilities = {
   manageOpsReview: false,
   rejectCase: false,
   editApplication: false,
+  undoPayments: false,
 };
 
 interface Props {
   caseId: string;
   capabilities?: CaseDetailCapabilities;
-}
-
-// Milestone-type options for the Record/Send Link/Send Invoice pickers —
-// two_stage_pricing jobs (2026-09-02, first: Canada) skip "permit"
-// entirely and use 50%/50% labels instead of 25%/25%/50%, rather than
-// showing a milestone that doesn't apply to them.
-function milestoneTypeOptions(isTwoStage: boolean, withPercent: boolean) {
-  if (isTwoStage) {
-    return [
-      { value: "documentation", label: withPercent ? "Documentation (Stage 1 · 50%)" : "Documentation (Stage 1)" },
-      { value: "visa", label: withPercent ? "Visa (Stage 2 · 50%)" : "Visa (Stage 2)" },
-    ];
-  }
-  return [
-    { value: "documentation", label: withPercent ? "Documentation (Stage 1 · 25%)" : "Documentation (Stage 1)" },
-    { value: "permit", label: withPercent ? "Work Permit (Stage 2 · 25%)" : "Work Permit (Stage 2)" },
-    { value: "visa", label: withPercent ? "Visa (Stage 3 · 50%)" : "Visa (Stage 3)" },
-  ];
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -257,13 +245,13 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [contractContent, setContractContent] = useState("");
   const [signName, setSignName] = useState("");
 
-  const [payType, setPayType] = useState<"documentation" | "permit" | "visa" | "upfront">("documentation");
+  const [payStageId, setPayStageId] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payReceipt, setPayReceipt] = useState("");
   const [payReceiptDocumentId, setPayReceiptDocumentId] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
-  const [linkType, setLinkType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [linkStageId, setLinkStageId] = useState("");
   const [linkRecipient, setLinkRecipient] = useState<"candidate" | "partner">("candidate");
   const [generatingLink, setGeneratingLink] = useState(false);
   const [checkingPaymentId, setCheckingPaymentId] = useState("");
@@ -273,7 +261,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // available regardless of candidate.source, unlike Send Payment Link
   // above (self-applicants only). Defaults recipient to "partner" when
   // one exists, since that's the common case this was built for.
-  const [invoiceType, setInvoiceType] = useState<"documentation" | "permit" | "visa" | "upfront">("documentation");
+  const [invoiceStageId, setInvoiceStageId] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceRecipient, setInvoiceRecipient] = useState<"candidate" | "partner">("candidate");
   const [invoiceReference, setInvoiceReference] = useState("");
@@ -298,6 +286,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // already has one, in either status.
   const [replacingReceiptFor, setReplacingReceiptFor] = useState("");
   const [deletingReceiptFor, setDeletingReceiptFor] = useState("");
+  const [deletingPaymentFor, setDeletingPaymentFor] = useState("");
 
   const [reminderChannel, setReminderChannel] = useState<"document" | "payment">("document");
   const [reminderRecipient, setReminderRecipient] = useState<"candidate" | "partner">("candidate");
@@ -306,52 +295,57 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [reminderError, setReminderError] = useState("");
   const [reminderSent, setReminderSent] = useState(false);
 
-  // Prefills the amount from the case's own Job.service_fee_gbp (via the
-  // shared computeMilestoneSplit — same 20/40/40 split the public job
-  // page shows) whenever the milestone type changes, but stays a plain
-  // editable input (this app's established "auto-fill but stay editable"
-  // convention) — falls back to fully-manual entry for a general-
-  // programme application with no specific Job. Credit Service Programme
-  // Jobs (2026-08-29) use a different schedule entirely — payType is
-  // forced to "upfront" (the only payment this pass supports recording;
-  // see computeCreditServiceSchedule) rather than left on the meaningless
-  // documentation/permit/visa split.
+  // Every Job's payment plan (any number of stages, any shape) resolves
+  // the same way now (2026-09-16, flexible per-Job payment stages) —
+  // amounts computed once here and reused by the list above, the
+  // Record/Send Link/Send Invoice pickers below, and the due/not-due
+  // filtering, rather than each recomputing its own slice of the old
+  // fixed-type split.
   const jobServiceFee = data?.application.job?.service_fee_gbp;
   const isCreditServiceJob = !!data?.application.job?.is_credit_service;
-  const isTwoStageJob = !!data?.application.job?.two_stage_pricing;
-  const jobFinancingPercent = data?.application.job?.financing_percent;
-  const jobInstallmentCount = data?.application.job?.installment_count;
-  useEffect(() => {
-    if (isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null) {
-      setPayType("upfront");
-      setPayAmount(String(computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp));
-    } else if (jobServiceFee != null && payType !== "upfront") {
-      setPayAmount(String(computeMilestoneSplit(jobServiceFee, isTwoStageJob)[payType]));
-    }
-  }, [payType, jobServiceFee, isCreditServiceJob, isTwoStageJob, jobFinancingPercent, jobInstallmentCount]);
+  const jobPaymentStages = data?.application.job?.payment_stages ?? [];
+  const resolvedStages = jobServiceFee != null ? resolvePaymentStages(jobServiceFee, jobPaymentStages) : [];
+  const stageById = new Map(jobPaymentStages.map((s) => [s.id, s]));
+  const resolvedStageById = new Map(resolvedStages.map((s) => [s.id, s]));
+  const paymentByStageId = new Map((data?.payments ?? []).map((p) => [p.job_payment_stage_id, p]));
 
-  // Same forcing as the Record form above, for the Send Invoice block below
-  // — the only real off-Stripe payment path for partner-sourced cases
-  // (which is what every Credit Service Programme case is), so it needs
-  // the same "upfront" treatment, not the meaningless 3-stage split.
-  useEffect(() => {
-    if (isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null) {
-      setInvoiceType("upfront");
-      setInvoiceAmount(String(computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp));
-    }
-  }, [isCreditServiceJob, jobServiceFee, jobFinancingPercent, jobInstallmentCount]);
+  // A stage is offered for a NEW payment (Record/Send Link/Send Invoice)
+  // only once the case has actually reached its trigger stage AND it has
+  // no payment record yet at all (pending or collected) — once one
+  // exists, Mark as Paid/Check Status/receipt controls on that row are
+  // the only further action, not a second Record/Link/Invoice for the
+  // same stage.
+  const dueUnrecordedStages = data
+    ? resolvedStages.filter((s) => {
+        const stage = stageById.get(s.id);
+        if (!stage) return false;
+        return isMilestoneDue(stage.trigger_stage as CaseStageKey, data.current_stage) && !paymentByStageId.has(s.id);
+      })
+    : [];
+  const stagePickerOptions = dueUnrecordedStages.map((s) => ({ value: s.id, label: `${s.label} (${Math.round(s.percent)}% · £${s.amount.toLocaleString()})` }));
 
-  // A 100%-financed programme's upfront amount is genuinely £0 (Albania,
-  // e.g.) — there's no money changing hands to record a CasePayment for
-  // (the schema requires amount.positive(), and there's nothing for a
-  // receipt to prove receipt of), so the Record/Send Invoice controls are
-  // replaced with a plain informational note in that case rather than a
-  // control that can never actually submit.
-  const creditUpfrontGbp =
-    isCreditServiceJob && jobServiceFee != null && jobFinancingPercent != null && jobInstallmentCount != null
-      ? computeCreditServiceSchedule(jobServiceFee, jobFinancingPercent, jobInstallmentCount).upfrontGbp
-      : null;
-  const hasNoUpfrontDue = creditUpfrontGbp === 0;
+  // Prefills the amount from the selected stage's own resolved amount, but
+  // stays a plain editable input (this app's established "auto-fill but
+  // stay editable" convention).
+  useEffect(() => {
+    if (!payStageId && dueUnrecordedStages[0]) setPayStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, payStageId]);
+  useEffect(() => {
+    const stage = resolvedStageById.get(payStageId);
+    if (stage) setPayAmount(String(stage.amount));
+  }, [payStageId, resolvedStageById]);
+
+  useEffect(() => {
+    if (!linkStageId && dueUnrecordedStages[0]) setLinkStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, linkStageId]);
+
+  useEffect(() => {
+    if (!invoiceStageId && dueUnrecordedStages[0]) setInvoiceStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, invoiceStageId]);
+  useEffect(() => {
+    const stage = resolvedStageById.get(invoiceStageId);
+    if (stage) setInvoiceAmount(String(stage.amount));
+  }, [invoiceStageId, resolvedStageById]);
 
   const [docTypes, setDocTypes] = useState<{ key: string; label: string }[]>([]);
   const [uploadType, setUploadType] = useState("");
@@ -372,7 +366,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     fetch("/api/admin/document-types")
       .then((r) => r.json())
       .then((res) => {
-        const types = (res.data ?? []).filter((t: { key: string }) => !(CASE_UPLOAD_EXCLUDED_KEYS as readonly string[]).includes(t.key));
+        const types = (res.data ?? []).filter((t: { key: string }) => !isCaseUploadExcludedKey(t.key));
         setDocTypes(types);
         setUploadType((prev) => prev || types[0]?.key || "");
       })
@@ -474,12 +468,12 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   const recordPayment = async () => {
     const amount = Number(payAmount);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0 || !payStageId) return;
     const res = await fetch(`/api/cases/${caseId}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: payType,
+        job_payment_stage_id: payStageId,
         amount,
         receipt_reference: payReceipt || undefined,
         receipt_document_id: payReceiptDocumentId || undefined,
@@ -487,7 +481,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     });
     const json = await res.json();
     if (!res.ok) { alert(json.error ?? "Failed to record payment."); return; }
-    setPayAmount(""); setPayReceipt(""); setPayReceiptDocumentId(null);
+    setPayStageId(""); setPayAmount(""); setPayReceipt(""); setPayReceiptDocumentId(null);
     load();
   };
 
@@ -501,7 +495,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(payType)}&candidate_id=${data.application.candidate.id}`, {
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(payStageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -524,7 +518,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       const res = await fetch(`/api/cases/${caseId}/payments/link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: linkType, recipient: linkRecipient }),
+        body: JSON.stringify({ job_payment_stage_id: linkStageId, recipient: linkRecipient }),
       });
       const json = await res.json();
       if (!res.ok) { setLinkError(json.error?.message ?? "Failed to generate payment link."); return; }
@@ -563,7 +557,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(invoiceType)}&candidate_id=${data.application.candidate.id}`, {
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(invoiceStageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -583,7 +577,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // isn't available.
   const sendInvoice = async () => {
     const amount = Number(invoiceAmount);
-    if (!amount || amount <= 0 || !invoiceDocumentId) return;
+    if (!amount || amount <= 0 || !invoiceDocumentId || !invoiceStageId) return;
     setSendingInvoice(true);
     setInvoiceError("");
     try {
@@ -591,7 +585,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: invoiceType,
+          job_payment_stage_id: invoiceStageId,
           amount,
           recipient: invoiceRecipient,
           invoice_document_id: invoiceDocumentId,
@@ -600,6 +594,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       });
       const json = await res.json();
       if (!res.ok) { setInvoiceError(json.error?.message ?? "Failed to send invoice."); return; }
+      setInvoiceStageId("");
       setInvoiceAmount("");
       setInvoiceReference("");
       setInvoiceDocumentId(null);
@@ -618,8 +613,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const milestoneType = (data.payments.find((p) => p.id === paymentId)?.type ?? "documentation") as "documentation" | "permit" | "visa";
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(milestoneType)}&candidate_id=${data.application.candidate.id}`, {
+      const stageId = data.payments.find((p) => p.id === paymentId)?.job_payment_stage_id ?? "";
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(stageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -666,8 +661,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const milestoneType = (data.payments.find((p) => p.id === paymentId)?.type ?? "documentation") as "documentation" | "permit" | "visa";
-      const uploadRes = await fetch(`/api/upload?type=${paymentReceiptTypeKey(milestoneType)}&candidate_id=${data.application.candidate.id}`, {
+      const stageId = data.payments.find((p) => p.id === paymentId)?.job_payment_stage_id ?? "";
+      const uploadRes = await fetch(`/api/upload?type=${paymentReceiptTypeKey(stageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -700,6 +695,24 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       load();
     } finally {
       setDeletingReceiptFor("");
+    }
+  };
+
+  // Undoes a payment record entirely (2026-09-16) — for when "Record" or
+  // "Mark as Paid" was clicked in error and no money actually changed
+  // hands, not just clearing its attached receipt (deletePaymentReceipt
+  // above). Frees the stage back up in the Record/Send Link/Send Invoice
+  // pickers immediately on reload.
+  const deletePayment = async (paymentId: string) => {
+    if (!confirm("Remove this payment record entirely? This cannot be undone — only do this if it was recorded in error and no money actually changed hands.")) return;
+    setDeletingPaymentFor(paymentId);
+    try {
+      const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to remove payment."); return; }
+      load();
+    } finally {
+      setDeletingPaymentFor("");
     }
   };
 
@@ -1079,7 +1092,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               them (2026-08-19). */}
           {(() => {
             const nonPaymentDocs = data.application.candidate.documents.filter(
-              (d) => !(PAYMENT_RECEIPT_TYPE_KEYS as readonly string[]).includes(d.type) && d.type !== "other"
+              (d) => !isPaymentReceiptTypeKey(d.type) && d.type !== "other"
             );
             if (nonPaymentDocs.length === 0) return <p className="text-sm text-midnight-900/40">No documents uploaded yet.</p>;
             return nonPaymentDocs.map((d) => (
@@ -1188,13 +1201,16 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
           <p className="text-xs text-midnight-900/45">Milestone payments are not enabled for this destination. In-House can enable this under Fee Policy.</p>
         ) : (
           <>
+            {jobServiceFee != null && jobPaymentStages.length > 0 && (
+              <PaymentStagesPreview totalGbp={jobServiceFee} stages={jobPaymentStages} className="mb-4" />
+            )}
             <div className="space-y-2 mb-4">
               {data.payments.length === 0 && <p className="text-sm text-midnight-900/40">No payments recorded yet.</p>}
               {data.payments.map((p) => (
                 <div key={p.id} className="flex flex-col gap-1 text-sm border-b border-midnight-900/5 pb-2">
                   <div className="flex items-center justify-between">
-                    <span className="capitalize text-midnight-900">
-                      {p.type}: {p.currency} {p.amount.toLocaleString()}
+                    <span className="text-midnight-900">
+                      {stageById.get(p.job_payment_stage_id)?.label ?? "Payment"}: {p.currency} {p.amount.toLocaleString()}
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${p.status === "collected" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                         {p.status}
                       </span>
@@ -1262,6 +1278,17 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                         </>
                       )}
                       · {p.recorder.full_name}
+                      {capabilities.undoPayments && (
+                        <button
+                          type="button"
+                          onClick={() => deletePayment(p.id)}
+                          disabled={deletingPaymentFor === p.id}
+                          className="text-red-600 hover:underline disabled:opacity-50"
+                          title="Remove this payment record entirely — use if it was recorded/marked paid by mistake"
+                        >
+                          {deletingPaymentFor === p.id ? "Removing…" : "Undo"}
+                        </button>
+                      )}
                     </span>
                   </div>
                   {p.status === "pending" && p.stripe_payment_link_url && (
@@ -1317,28 +1344,24 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 </div>
               ))}
             </div>
-            {capabilities.managePayments && hasNoUpfrontDue && (
+            {capabilities.managePayments && dueUnrecordedStages.length === 0 && (
               <div className="pt-3 border-t border-midnight-900/10">
                 <p className="text-sm text-midnight-900/60">
-                  This Credit Service Programme is 100% financed — there&rsquo;s no upfront payment due, so nothing to
-                  record here. Ongoing installment repayments aren&rsquo;t tracked in the system yet; handle them
-                  manually until that&rsquo;s built.
+                  {jobPaymentStages.length === 0
+                    ? "This case's opportunity has no payment stages configured."
+                    : "Nothing due right now — every payment stage this case has reached already has a record."}
                 </p>
               </div>
             )}
-            {capabilities.managePayments && !hasNoUpfrontDue && (
+            {capabilities.managePayments && dueUnrecordedStages.length > 0 && (
               <>
                 <div className="flex items-center gap-2 pt-3 border-t border-midnight-900/10">
-                  {isCreditServiceJob ? (
-                    <span className="input-field text-sm w-auto bg-midnight-900/5 text-midnight-900/70 font-medium">Upfront Payment</span>
-                  ) : (
-                    <SearchableSelect
-                      value={payType}
-                      onChange={(value) => setPayType(value as "documentation" | "permit" | "visa")}
-                      className="w-auto"
-                      options={milestoneTypeOptions(isTwoStageJob, true)}
-                    />
-                  )}
+                  <SearchableSelect
+                    value={payStageId}
+                    onChange={setPayStageId}
+                    className="w-auto"
+                    options={stagePickerOptions}
+                  />
                   <input type="number" min="0" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} className="input-field text-sm w-28" placeholder="Amount" />
                   <input value={payReceipt} onChange={(e) => setPayReceipt(e.target.value)} className="input-field text-sm" placeholder="Receipt reference" />
                   <label className="text-[11px] text-midnight-900/50 flex items-center gap-1.5 cursor-pointer">
@@ -1354,15 +1377,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     {uploadingReceipt && "Uploading…"}
                     {!uploadingReceipt && payReceiptDocumentId && "✓ Receipt attached"}
                   </label>
-                  <button onClick={recordPayment} disabled={!payAmount} className="btn-primary text-xs disabled:opacity-40">Record</button>
+                  <button onClick={recordPayment} disabled={!payAmount || !payStageId} className="btn-primary text-xs disabled:opacity-40">Record</button>
                 </div>
-                {isCreditServiceJob && (
-                  <p className="text-[11px] text-midnight-900/45 pt-1.5">
-                    Ongoing installment repayments for this Credit Service Programme aren&rsquo;t tracked in the
-                    system yet — record the upfront payment above, and handle installments manually until that&rsquo;s
-                    built.
-                  </p>
-                )}
 
                 {/* Stripe restricted to self-applicants (2026-07-31) —
                     partner/recruiter-sourced payments never go through
@@ -1371,10 +1387,10 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 {data.application.candidate.source === "self_registered" && (
                   <div className="flex items-center gap-2 pt-3 mt-3 border-t border-midnight-900/10">
                     <SearchableSelect
-                      value={linkType}
-                      onChange={(value) => setLinkType(value as "documentation" | "permit" | "visa")}
+                      value={linkStageId}
+                      onChange={setLinkStageId}
                       className="w-auto"
-                      options={milestoneTypeOptions(isTwoStageJob, true)}
+                      options={stagePickerOptions}
                     />
                     <SearchableSelect
                       value={linkRecipient}
@@ -1384,7 +1400,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     />
                     <button
                       onClick={generatePaymentLink}
-                      disabled={generatingLink || !data.application.job}
+                      disabled={generatingLink || !data.application.job || !linkStageId}
                       title={!data.application.job ? "This case has no linked opportunity — no Stripe pricing to link to. Use Record instead." : undefined}
                       className="btn-primary text-xs disabled:opacity-40"
                     >
@@ -1405,16 +1421,12 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 <div className="pt-3 mt-3 border-t border-midnight-900/10">
                   <div className="text-xs font-semibold text-midnight-900/70 mb-2">Send Invoice</div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    {isCreditServiceJob ? (
-                      <span className="input-field text-sm w-auto bg-midnight-900/5 text-midnight-900/70 font-medium">Upfront Payment</span>
-                    ) : (
-                      <SearchableSelect
-                        value={invoiceType}
-                        onChange={(value) => setInvoiceType(value as "documentation" | "permit" | "visa")}
-                        className="w-auto"
-                        options={milestoneTypeOptions(isTwoStageJob, false)}
-                      />
-                    )}
+                    <SearchableSelect
+                      value={invoiceStageId}
+                      onChange={setInvoiceStageId}
+                      className="w-auto"
+                      options={stagePickerOptions}
+                    />
                     <input
                       type="number"
                       min="0"
@@ -1460,7 +1472,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     )}
                     <button
                       onClick={sendInvoice}
-                      disabled={sendingInvoice || !invoiceAmount || !invoiceDocumentId}
+                      disabled={sendingInvoice || !invoiceAmount || !invoiceDocumentId || !invoiceStageId}
                       className="btn-primary text-[11px] px-3 py-1.5 disabled:opacity-40 ml-auto"
                       title={!invoiceDocumentId ? "Attach the invoice file first" : undefined}
                     >
