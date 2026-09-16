@@ -9,6 +9,7 @@ import CandidateMessages from "@/components/CandidateMessages";
 import CandidateEditDetails from "./CandidateEditDetails";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CandidateDocumentUpload from "./CandidateDocumentUpload";
+import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { computeCreditServiceSchedule } from "@/lib/fees";
 import { CheckCircle, WarningCircle, Trash } from "@phosphor-icons/react";
@@ -60,7 +61,10 @@ interface PartnerCandidateDetail {
   job_position_id: string | null;
   job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
   reviewer: { full_name: string } | null;
-  bridged_candidate: { id: string; documents: { id: string; type: string; verification_status: string; uploaded_at: string }[] } | null;
+  bridged_candidate: {
+    id: string;
+    documents: { id: string; type: string; label: string | null; verification_status: string; uploaded_at: string }[];
+  } | null;
   document_completeness: { complete: boolean; missingTypes: string[] } | null;
   required_document_types: string[];
 }
@@ -212,7 +216,10 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   }
 
   const uploadedByType = new Map((data.bridged_candidate?.documents ?? []).map((d) => [d.type, d]));
-  const extraDocs = (data.bridged_candidate?.documents ?? []).filter((d) => !data.required_document_types.includes(d.type));
+  const otherDocs = (data.bridged_candidate?.documents ?? []).filter((d) => d.type === "other");
+  const extraDocs = (data.bridged_candidate?.documents ?? []).filter(
+    (d) => !data.required_document_types.includes(d.type) && d.type !== "other"
+  );
 
   return (
     <div>
@@ -453,6 +460,14 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Lets HR/Operations/Director attach a document that isn't one
+                of this destination's required types (2026-09-14) — previously
+                this page only offered Replace/Upload for the fixed required-
+                type list above, with no way to add anything outside it. */}
+            {canEditAndUpload && data.bridged_candidate_id && (
+              <SupportingDocumentUpload candidateId={data.bridged_candidate_id} documents={otherDocs} onUploaded={load} />
             )}
           </div>
 

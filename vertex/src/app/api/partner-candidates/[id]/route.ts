@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       bridged_candidate: {
         select: {
           id: true,
-          documents: { select: { id: true, type: true, verification_status: true, uploaded_at: true } },
+          documents: { select: { id: true, type: true, label: true, verification_status: true, uploaded_at: true } },
         },
       },
     },

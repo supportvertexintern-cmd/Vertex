@@ -9,15 +9,14 @@ import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
-import DeadlineCell from "@/components/portal/DeadlineCell";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
 import { ArrowRight } from "@phosphor-icons/react";
 
 interface CaseRow {
   id: string;
   current_stage: CaseStageKey;
-  stage_deadline: string | null;
   created_at: string;
+  updated_at: string;
   ops_review_status: "pending" | "confirmed" | "rejected";
   contract: { status: string } | null;
   retention_follow_up: { due_at: string; completed_at: string | null } | null;
@@ -169,10 +168,10 @@ export default function FinanceCasesPage() {
                 <th className="px-5 py-3 font-semibold">Country</th>
                 <th className="px-5 py-3 font-semibold">Partner</th>
                 <SortableTh label="Created" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
+                <th className="px-5 py-3 font-semibold">Updated</th>
                 <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <th className="px-5 py-3 font-semibold">Documentation</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Deadline</th>
                 <th className="px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
@@ -194,6 +193,7 @@ export default function FinanceCasesPage() {
                     <td className="px-5 py-4 text-midnight-900/70">{country}</td>
                     <td className="px-5 py-4 text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
                     <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleDateString()}</td>
                     <td className="px-5 py-4 text-midnight-900/70 whitespace-nowrap">
                       Stage {CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of {CASE_STAGE_ORDER.length}: {CASE_STAGE_LABELS[c.current_stage]}
                     </td>
@@ -202,9 +202,6 @@ export default function FinanceCasesPage() {
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${paymentStatus.className}`}>
                         {paymentStatus.label}
                       </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <DeadlineCell deadline={c.stage_deadline} />
                     </td>
                     <td className="px-5 py-4 text-right">
                       <Link

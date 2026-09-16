@@ -131,14 +131,19 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          employer_client_id: formData.employer_client_id || undefined,
-          visa_type: formData.visa_type || undefined,
-          duration_permit: formData.duration_permit || undefined,
-          processing_time: formData.processing_time || undefined,
-          visa_success_rates: formData.visa_success_rates || undefined,
-          service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : undefined,
-          financing_percent: formData.financing_percent ? Number(formData.financing_percent) : undefined,
-          installment_count: formData.installment_count ? Number(formData.installment_count) : undefined,
+          // null (not undefined) for a blank field — JSON.stringify drops
+          // undefined keys entirely, which meant clearing one of these
+          // fields never reached the server and the old value silently
+          // stuck around (2026-09-14 fix; see createJobSchema's matching
+          // .nullish() change).
+          employer_client_id: formData.employer_client_id || null,
+          visa_type: formData.visa_type || null,
+          duration_permit: formData.duration_permit || null,
+          processing_time: formData.processing_time || null,
+          visa_success_rates: formData.visa_success_rates || null,
+          service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : null,
+          financing_percent: formData.financing_percent ? Number(formData.financing_percent) : null,
+          installment_count: formData.installment_count ? Number(formData.installment_count) : null,
         }),
       });
 

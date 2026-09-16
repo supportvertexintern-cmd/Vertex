@@ -1169,9 +1169,6 @@ model Case {
   application_id String      @unique
   application    Application @relation(fields: [application_id], references: [id], onDelete: Cascade)
   current_stage  CaseStage   @default(registration_document_submission)
-  // Expected completion of the CURRENT stage — surfaced as an in-app urgency
-  // indicator (FR-4.4: "deadlines and reminders"), not a push-notification trigger.
-  stage_deadline DateTime?
   created_at     DateTime    @default(now())
   updated_at     DateTime    @updatedAt
 
@@ -1206,6 +1203,11 @@ model CaseStageEvent {
   stage        CaseStage
   owner_id     String?
   owner        User?     @relation("CaseStageOwner", fields: [owner_id], references: [id], onDelete: SetNull)
+  // Staff-entered effective date of this stage transition (2026-09-15,
+  // replacing the old forward-looking Case.stage_deadline) — e.g.
+  // backdating to when a permit was actually issued, not necessarily the
+  // day someone got around to updating the CRM. Defaults to now() when
+  // Operations doesn't enter one explicitly.
   entered_at   DateTime  @default(now())
   completed_at DateTime?
   notes        String?   @db.Text
@@ -1543,6 +1545,9 @@ model PartnerCandidate {
   @@index([status])
   @@index([job_id])
   @@index([job_position_id])
+  // Platform-wide duplicate-passport check (2026-09-14) — see
+  // finalizeSubmission() in partnerCandidateSubmission.ts.
+  @@index([passport_number])
 }
 
 enum EmployerClientStatus {

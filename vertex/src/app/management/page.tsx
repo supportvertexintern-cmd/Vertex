@@ -174,7 +174,13 @@ export default function ManagementPortalPage() {
 
       <div className="flex items-center justify-between mt-10 mb-3">
         <h2 className="text-sm font-semibold text-midnight-900/50 uppercase tracking-wider">All candidates — approve or return</h2>
-        <a href="/api/candidates/export" download className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-600 hover:underline">
+        {/* Points at the admin backup export (2026-09-14, was /api/candidates/export)
+            — that route's field set was missing partner attribution and the real
+            matched programme/Job title that this very list displays; candidates-csv
+            already has both, and /management is director/admin-only, already within
+            candidates-csv's own role list, so this is a strict widening of fields,
+            not access. */}
+        <a href="/api/admin/backup/candidates-csv" download className="inline-flex items-center gap-1.5 text-xs font-semibold text-gold-600 hover:underline">
           <DownloadSimple size={14} weight="bold" /> Export CSV
         </a>
       </div>

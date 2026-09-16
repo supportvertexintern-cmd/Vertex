@@ -40,9 +40,14 @@ export async function POST(req: NextRequest) {
   const nationality = parsed.data.nationality!;
   const passportNumber = parsed.data.passport_number!;
 
+  // Distinct "closed" vs "doesn't exist" message (2026-09-15) — see
+  // /api/applications's identical split for the full rationale.
   const job = await prisma.job.findUnique({ where: { id: parsed.data.job_id } });
-  if (!job || job.status !== "active") {
-    return NextResponse.json({ error: "Opportunity not found or no longer active." }, { status: 404 });
+  if (!job) {
+    return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
+  }
+  if (job.status !== "active") {
+    return NextResponse.json({ error: "Applications for this programme are closed." }, { status: 404 });
   }
 
   // The email itself is the entire point of this endpoint — unlike other

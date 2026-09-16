@@ -202,10 +202,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Section 1 is a single required Job pick (2026-07-31, replacing the old
-  // 3-country-alternates + sector cluster).
+  // 3-country-alternates + sector cluster). A closed programme is already
+  // excluded from every job picker, but a client with a stale/pre-loaded
+  // job list (open before it was closed) or a direct ?job= link could
+  // still attempt this — distinct message from "doesn't exist at all"
+  // (2026-09-15), matching the wording shown elsewhere on the site
+  // (/jobs/[id]'s own "No longer accepting applications" state).
   const job = await prisma.job.findUnique({ where: { id: parsed.data.job_id } });
-  if (!job || job.status !== "active") {
-    return NextResponse.json({ error: "Job not found or no longer active." }, { status: 404 });
+  if (!job) {
+    return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
+  }
+  if (job.status !== "active") {
+    return NextResponse.json({ error: "Applications for this programme are closed." }, { status: 404 });
   }
 
   // Sector -> Opportunity -> Position (2026-09-02) — a server-side

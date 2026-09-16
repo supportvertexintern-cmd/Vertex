@@ -45,6 +45,10 @@ async function getJobs(searchParams: { page?: string; country?: string; category
       category: searchParams.category || undefined,
       q: searchParams.q || undefined,
       includePartnerOnly,
+      // A closed programme stays visible here (marked closed, no Apply —
+      // see job.status === "active" gating below) rather than vanishing;
+      // "public" still excludes drafts. See publicJobs.ts.
+      status: "public",
     });
   } catch {
     return { jobs: [], total: 0, pages: 1 };

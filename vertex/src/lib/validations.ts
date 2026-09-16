@@ -106,16 +106,21 @@ export const createJobSchema = z.object({
   job_description: z.string().min(50, "Job description must be at least 50 characters"),
   requirements: z.string().min(20, "Requirements must be at least 20 characters"),
   status: z.enum(["active", "closed", "draft"]).default("active"),
-  employer_client_id: z.string().cuid().optional(),
+  // .nullish() (not .optional()) on these five (2026-09-14) — the edit
+  // form always submits the full object, and an intentionally-cleared
+  // field sends an explicit null so PUT can actually null the column out.
+  // .optional() alone can't distinguish "cleared" from "untouched" once
+  // JSON.stringify drops the undefined key entirely; see PUT /api/jobs/:id.
+  employer_client_id: z.string().cuid().nullish(),
   // Work-permit programme / pricing fields (Service & Pricing List) — all
   // optional since a plain employer job posting (SRS FR-5.2) has none of
   // these. service_fee_gbp is the total; the 20/40/40 stage split is
   // derived at render time, not stored (see prisma/seed.ts).
-  visa_type: z.string().optional(),
-  duration_permit: z.string().optional(),
-  processing_time: z.string().optional(),
-  service_fee_gbp: z.number().positive().optional(),
-  visa_success_rates: z.string().optional(),
+  visa_type: z.string().nullish(),
+  duration_permit: z.string().nullish(),
+  processing_time: z.string().nullish(),
+  service_fee_gbp: z.number().positive().nullish(),
+  visa_success_rates: z.string().nullish(),
   // Credit Service Programme pricing model (2026-08-29) — see
   // Job.is_credit_service in schema.prisma for the full rationale.
   // financing_percent/installment_count being required only when
@@ -124,8 +129,8 @@ export const createJobSchema = z.object({
   // schema a plain ZodObject so PUT's existing createJobSchema.partial()
   // usage keeps working (.partial() isn't available after .refine()).
   is_credit_service: z.boolean().default(false),
-  financing_percent: z.number().int().min(1).max(100).optional(),
-  installment_count: z.number().int().positive().optional(),
+  financing_percent: z.number().int().min(1).max(100).nullish(),
+  installment_count: z.number().int().positive().nullish(),
   partner_only: z.boolean().default(false),
 });
 
@@ -811,9 +816,14 @@ const CASE_STAGES = [
 export const advanceCaseStageSchema = z.object({
   stage: z.enum(CASE_STAGES),
   notes: z.string().max(2000).optional(),
-  // Staff-entered expected completion of the stage being entered (FR-4.4)
-  // — never system-computed from an assumed SLA, since none is specified.
-  stage_deadline: z.string().optional(),
+  // The effective date this stage transition actually took place
+  // (2026-09-15) — becomes the new CaseStageEvent's entered_at, so
+  // Operations can backdate/postdate to match reality (e.g. when a permit
+  // was really issued) rather than whatever day they got to updating the
+  // CRM. Defaults to now() server-side when omitted. Replaces the old
+  // forward-looking stage_deadline field, which this codebase confirmed
+  // wasn't actually how Operations used this input.
+  stage_date: z.string().optional(),
 });
 
 // CRM Comments item 3 (2026-08-10) — Operations/Director's documentation

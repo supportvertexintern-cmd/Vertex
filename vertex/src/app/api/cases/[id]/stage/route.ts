@@ -80,15 +80,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       stage: parsed.data.stage,
       owner_id: user!.userId,
       notes: parsed.data.notes,
+      // Staff-entered effective date (2026-09-15) — falls back to the
+      // schema's own @default(now()) when omitted.
+      entered_at: parsed.data.stage_date ? new Date(parsed.data.stage_date) : undefined,
     },
   });
 
   await db.case.update({
     where: { id },
-    data: {
-      current_stage: parsed.data.stage,
-      stage_deadline: parsed.data.stage_deadline ? new Date(parsed.data.stage_deadline) : null,
-    },
+    data: { current_stage: parsed.data.stage },
   });
 
   // Referral commission trigger (2026-08-29) — work_permit_approved/
