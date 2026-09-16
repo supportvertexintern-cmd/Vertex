@@ -27,6 +27,8 @@ const STATUS_OPTIONS = [
 interface CaseRow {
   id: string;
   current_stage: CaseStageKey;
+  created_at: string;
+  updated_at: string;
   ops_review_status: "pending" | "confirmed" | "rejected";
   status: "active" | "rejected";
   application: {
@@ -120,6 +122,8 @@ export default function PartnerCasesPage() {
                 <SortableTh label="Stage" sortKey="stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <SortableTh label="Status" sortKey="status" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <th className="px-5 py-3 font-semibold">Documentation</th>
+                <th className="px-5 py-3 font-semibold">Created</th>
+                <th className="px-5 py-3 font-semibold">Updated</th>
                 <th className="px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
@@ -139,6 +143,8 @@ export default function PartnerCasesPage() {
                     )}
                   </td>
                   <td className="px-5 py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleDateString()}</td>
                   <td className="px-5 py-4 text-right">
                     <Link href={`/partner/cases/${c.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline">
                       View <ArrowRight size={11} weight="bold" />

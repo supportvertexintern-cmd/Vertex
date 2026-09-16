@@ -40,8 +40,41 @@ export async function finalizeSubmission({
     // countries — the raw name is preserved either way.
     prisma.country.findFirst({ where: { name: { equals: data.current_location_country_name, mode: "insensitive" } } }),
   ]);
-  if (!job || job.status !== "active") {
-    return { ok: false, status: 404, code: "not_found", message: "Opportunity not found or no longer active." };
+  // Distinct "closed" vs "doesn't exist" message (2026-09-15) — a closed
+  // job is already excluded from the partner form's own job picker, but a
+  // stale/pre-loaded picker (open before the job was closed) or an
+  // in-progress draft saved against it beforehand could still reach this
+  // check at final submission.
+  if (!job) {
+    return { ok: false, status: 404, code: "not_found", message: "Opportunity not found." };
+  }
+  if (job.status !== "active") {
+    return { ok: false, status: 404, code: "programme_closed", message: "Applications for this programme are closed." };
+  }
+
+  // Duplicate-passport block (2026-09-14) — platform-wide, not scoped to
+  // this partner: a passport number already on file from ANY partner's
+  // still-live submission blocks a second one. Deliberately excludes
+  // "draft" (never actually submitted) and "rejected" (an explicitly
+  // supported resubmission-after-correction path elsewhere in this
+  // codebase — rejection is never a dead end) — neither counts as an
+  // existing submission to collide with. The id-not-equal exclusion
+  // matters for the finalize-a-draft path, so a draft's own row (which
+  // already holds this same passport number) doesn't block itself.
+  const duplicate = await prisma.partnerCandidate.findFirst({
+    where: {
+      passport_number: data.passport_number,
+      status: { notIn: ["draft", "rejected"] },
+      ...(existingPartnerCandidateId ? { id: { not: existingPartnerCandidateId } } : {}),
+    },
+  });
+  if (duplicate) {
+    return {
+      ok: false,
+      status: 422,
+      code: "duplicate_passport",
+      message: "A submission with this passport number is already on file. If you believe this is an error, contact Vertex.",
+    };
   }
 
   // Sector -> Opportunity -> Position (2026-09-02) — same server-side

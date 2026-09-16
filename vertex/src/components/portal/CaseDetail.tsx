@@ -5,6 +5,7 @@ import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import SearchableSelect from "@/components/SearchableSelect";
 import CandidateEditDetails from "./CandidateEditDetails";
+import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CaseStageProgress from "./CaseStageProgress";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseStages";
@@ -15,6 +16,7 @@ import { UploadSimple } from "@phosphor-icons/react";
 interface Document {
   id: string;
   type: string;
+  label: string | null;
   verification_status: string;
   uploaded_at: string;
 }
@@ -62,7 +64,8 @@ interface ActivityEntry {
 interface CaseData {
   id: string;
   current_stage: CaseStageKey;
-  stage_deadline: string | null;
+  created_at: string;
+  updated_at: string;
   stage_events: StageEvent[];
   contract: Contract | null;
   payments: Payment[];
@@ -241,7 +244,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   const [nextStage, setNextStage] = useState("");
   const [stageNotes, setStageNotes] = useState("");
-  const [stageDeadline, setStageDeadline] = useState("");
+  const [stageDate, setStageDate] = useState("");
 
   const [opsReviewNotes, setOpsReviewNotes] = useState("");
   const [showOpsRejectForm, setShowOpsRejectForm] = useState(false);
@@ -410,11 +413,11 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     const res = await fetch(`/api/cases/${caseId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_deadline: stageDeadline || undefined }),
+      body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_date: stageDate || undefined }),
     });
     const json = await res.json();
     if (!res.ok) { alert(json.error ?? "Failed to update stage."); return; }
-    setNextStage(""); setStageNotes(""); setStageDeadline("");
+    setNextStage(""); setStageNotes(""); setStageDate("");
     load();
   };
 
@@ -798,6 +801,9 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               {data.application.candidate.recruiter && <> · {data.application.candidate.recruiter.full_name}</>}
               {data.application.candidate.partner && <> · Partner: {data.application.candidate.partner.name}</>}
             </p>
+            <p className="text-xs text-midnight-900/35 mt-1">
+              Created {new Date(data.created_at).toLocaleDateString()} · Updated {new Date(data.updated_at).toLocaleDateString()}
+            </p>
           </div>
           {capabilities.rejectCase && data.status !== "rejected" && (
             <div>
@@ -843,7 +849,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 placeholder="Set stage…"
                 options={CASE_STAGE_ORDER.filter((s) => s !== data.current_stage).map((s) => ({ value: s, label: CASE_STAGE_LABELS[s] }))}
               />
-              <input type="date" value={stageDeadline} onChange={(e) => setStageDeadline(e.target.value)} className="input-field text-sm" placeholder="Deadline (optional)" />
+              <input type="date" value={stageDate} onChange={(e) => setStageDate(e.target.value)} className="input-field text-sm" placeholder="Date (optional)" />
               <input value={stageNotes} onChange={(e) => setStageNotes(e.target.value)} className="input-field text-sm" placeholder="Notes (optional)" />
             </div>
             <button onClick={advanceStage} disabled={!nextStage} className="btn-primary mt-3 text-xs disabled:opacity-40">Update Stage</button>
@@ -856,9 +862,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             <div key={e.id} className="text-sm border-l-2 border-midnight-900/10 pl-3">
               <div className="text-midnight-900/70 font-medium">{CASE_STAGE_LABELS[e.stage]}</div>
               <div className="text-midnight-900/45 text-xs mt-0.5">
-                {new Date(e.entered_at).toLocaleDateString()}
+                {e.owner ? <>Confirmed by {e.owner.full_name} on {new Date(e.entered_at).toLocaleDateString()}</> : new Date(e.entered_at).toLocaleDateString()}
                 {e.completed_at && <> → {new Date(e.completed_at).toLocaleDateString()}</>}
-                {e.owner && <> · {e.owner.full_name}</>}
               </div>
               {e.notes && <div className="text-midnight-900/60 text-xs mt-0.5">{e.notes}</div>}
             </div>
@@ -1074,7 +1079,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               them (2026-08-19). */}
           {(() => {
             const nonPaymentDocs = data.application.candidate.documents.filter(
-              (d) => !(PAYMENT_RECEIPT_TYPE_KEYS as readonly string[]).includes(d.type)
+              (d) => !(PAYMENT_RECEIPT_TYPE_KEYS as readonly string[]).includes(d.type) && d.type !== "other"
             );
             if (nonPaymentDocs.length === 0) return <p className="text-sm text-midnight-900/40">No documents uploaded yet.</p>;
             return nonPaymentDocs.map((d) => (
@@ -1096,6 +1101,19 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} className="text-sm" />
             <button onClick={uploadDocument} disabled={!uploadFile} className="btn-primary text-xs disabled:opacity-40">Upload</button>
           </div>
+        )}
+
+        {/* "other" is deliberately excluded from the category picker above
+            (CASE_UPLOAD_EXCLUDED_KEYS) since it needs a free-text label to
+            tell multiple "other" uploads apart — same dedicated control
+            already used on the pre-Case candidate/partner-submission review
+            pages (2026-09-14). */}
+        {capabilities.manageDocuments && (
+          <SupportingDocumentUpload
+            candidateId={data.application.candidate.id}
+            documents={data.application.candidate.documents.filter((d) => d.type === "other")}
+            onUploaded={load}
+          />
         )}
       </div>
 

@@ -39,7 +39,13 @@ export async function GET(req: NextRequest) {
       notes: true,
       created_at: true,
       user: { select: { email: true } },
-      _count: { select: { candidates: true, partner_candidates: true } },
+      // candidates only (2026-09-14 fix) — every partner submission
+      // creates exactly one Candidate row AND one linked PartnerCandidate
+      // row for the SAME submission; summing both double-counted every
+      // single one. Matches management/partners/page.tsx and
+      // computePartnerPerformance (kpi.ts), which both already use
+      // _count.candidates alone.
+      _count: { select: { candidates: true } },
     },
     orderBy: { created_at: "desc" },
   });
@@ -63,7 +69,7 @@ export async function GET(req: NextRequest) {
     p.mou_status,
     p.mou_signed_at ? p.mou_signed_at.toISOString().slice(0, 10) : "",
     p.notes ?? "",
-    p._count.candidates + p._count.partner_candidates,
+    p._count.candidates,
     p.created_at.toISOString().slice(0, 10),
   ]);
 
