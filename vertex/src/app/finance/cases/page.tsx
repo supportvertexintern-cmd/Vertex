@@ -20,7 +20,7 @@ interface CaseRow {
   ops_review_status: "pending" | "confirmed" | "rejected";
   contract: { status: string } | null;
   retention_follow_up: { due_at: string; completed_at: string | null } | null;
-  payments: { type: string; status: string; sent_to_email: string | null }[];
+  payments: { status: string; sent_to_email: string | null }[];
   application: {
     candidate: {
       full_name: string | null;

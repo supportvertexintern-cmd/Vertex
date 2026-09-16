@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
         retention_follow_up: { select: { due_at: true, completed_at: true } },
         // CRM Comments item 9/13 (2026-08-10) — Finance's Created Cases
         // list derives a Status column from these, no schema change needed.
-        payments: { select: { type: true, status: true, sent_to_email: true } },
+        payments: { select: { status: true, sent_to_email: true } },
       },
       orderBy,
       skip: (page - 1) * pageSize,
