@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -304,10 +304,24 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const jobServiceFee = data?.application.job?.service_fee_gbp;
   const isCreditServiceJob = !!data?.application.job?.is_credit_service;
   const jobPaymentStages = data?.application.job?.payment_stages ?? [];
-  const resolvedStages = jobServiceFee != null ? resolvePaymentStages(jobServiceFee, jobPaymentStages) : [];
-  const stageById = new Map(jobPaymentStages.map((s) => [s.id, s]));
-  const resolvedStageById = new Map(resolvedStages.map((s) => [s.id, s]));
-  const paymentByStageId = new Map((data?.payments ?? []).map((p) => [p.job_payment_stage_id, p]));
+  // Memoized so these stay referentially stable across re-renders that
+  // don't actually change the underlying data (e.g. typing into the
+  // amount field below) — without this, the auto-fill effects further
+  // down (which depend on resolvedStageById) fired on every keystroke and
+  // silently overwrote Finance's own edited amount back to the stage
+  // default (2026-09-17 fix — the whole reason this amount field is
+  // editable at all is that a partner's actual agreed rate sometimes
+  // differs slightly from the marketed one).
+  const resolvedStages = useMemo(
+    () => (jobServiceFee != null ? resolvePaymentStages(jobServiceFee, jobPaymentStages) : []),
+    [jobServiceFee, jobPaymentStages]
+  );
+  const stageById = useMemo(() => new Map(jobPaymentStages.map((s) => [s.id, s])), [jobPaymentStages]);
+  const resolvedStageById = useMemo(() => new Map(resolvedStages.map((s) => [s.id, s])), [resolvedStages]);
+  const paymentByStageId = useMemo(
+    () => new Map((data?.payments ?? []).map((p) => [p.job_payment_stage_id, p])),
+    [data?.payments]
+  );
 
   // A stage is offered for a NEW payment (Record/Send Link/Send Invoice)
   // only once the case has actually reached its trigger stage AND it has
@@ -315,14 +329,21 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // exists, Mark as Paid/Check Status/receipt controls on that row are
   // the only further action, not a second Record/Link/Invoice for the
   // same stage.
-  const dueUnrecordedStages = data
-    ? resolvedStages.filter((s) => {
-        const stage = stageById.get(s.id);
-        if (!stage) return false;
-        return isMilestoneDue(stage.trigger_stage as CaseStageKey, data.current_stage) && !paymentByStageId.has(s.id);
-      })
-    : [];
-  const stagePickerOptions = dueUnrecordedStages.map((s) => ({ value: s.id, label: `${s.label} (${Math.round(s.percent)}% · £${s.amount.toLocaleString()})` }));
+  const dueUnrecordedStages = useMemo(
+    () =>
+      data
+        ? resolvedStages.filter((s) => {
+            const stage = stageById.get(s.id);
+            if (!stage) return false;
+            return isMilestoneDue(stage.trigger_stage as CaseStageKey, data.current_stage) && !paymentByStageId.has(s.id);
+          })
+        : [],
+    [data, resolvedStages, stageById, paymentByStageId]
+  );
+  const stagePickerOptions = useMemo(
+    () => dueUnrecordedStages.map((s) => ({ value: s.id, label: `${s.label} (${Math.round(s.percent)}% · £${s.amount.toLocaleString()})` })),
+    [dueUnrecordedStages]
+  );
 
   // Prefills the amount from the selected stage's own resolved amount, but
   // stays a plain editable input (this app's established "auto-fill but
