@@ -134,14 +134,16 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
       });
   }, [jobId]);
 
-  const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
-  const paymentStagesChanged = JSON.stringify(paymentStages) !== JSON.stringify(initialPaymentStages.current);
+const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
+  const stagesTotalIsValid = Math.abs(stagesTotal - 100) < 0.01;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (formData.service_fee_gbp && (paymentStages.length === 0 || Math.round(stagesTotal) !== 100)) {
+    const paymentStagesChanged = JSON.stringify(paymentStages) !== JSON.stringify(initialPaymentStages.current);
+
+    if (formData.service_fee_gbp && paymentStagesChanged && !stagesTotalIsValid) {
       setError("Payment stages must sum to exactly 100% when a service fee is set.");
       return;
     }
@@ -423,7 +425,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
                   className="w-4 h-4"
                 />
                 <label htmlFor="is_credit_service" className="text-sm font-medium text-midnight-900/70">
-                  Display as a Credit Service Programme (grouping/badge only — doesn't affect the payment math below)
+                  Display as a Credit Service Programme (grouping/badge only — doesn&apos;t affect the payment math below)
                 </label>
               </div>
 
