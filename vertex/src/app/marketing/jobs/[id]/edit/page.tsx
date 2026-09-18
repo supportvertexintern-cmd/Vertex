@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
@@ -55,6 +55,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
     partner_only: false,
   });
   const [paymentStages, setPaymentStages] = useState<PaymentStageDraft[]>([]);
+  const initialPaymentStages = useRef<PaymentStageDraft[]>([]);
 
   // Sectors & Positions (2026-09-02) — a live-saving sub-resource of this
   // Job, independent of the main "Save Changes" button above (each add/
@@ -109,16 +110,21 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           is_credit_service: data.is_credit_service ?? false,
           partner_only: data.partner_only ?? false,
         });
-        setPaymentStages(
+        const loadedPaymentStages =
           (data.payment_stages ?? [])
             .sort((a: { order: number }, b: { order: number }) => a.order - b.order)
-            .map((s: { order: number; label: string; percent: number; trigger_stage: string }) => ({
-              order: s.order,
+            .map((s: { order: number; label: string; percent: number; trigger_stage: string }, index: number) => ({
+              // A few older rows were saved with a zero-based order. The
+              // current API correctly requires a positive order, so repair
+              // that legacy shape as it is loaded rather than preventing an
+              // unrelated edit (such as closing the posting).
+              order: index + 1,
               label: s.label,
               percent: String(s.percent),
               trigger_stage: s.trigger_stage,
-            }))
-        );
+            }));
+        setPaymentStages(loadedPaymentStages);
+        initialPaymentStages.current = loadedPaymentStages;
         setSectors(data.sectors ?? []);
         setFetching(false);
       })
@@ -129,6 +135,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
   }, [jobId]);
 
   const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
+  const paymentStagesChanged = JSON.stringify(paymentStages) !== JSON.stringify(initialPaymentStages.current);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,8 +165,13 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
           visa_success_rates: formData.visa_success_rates || null,
           service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : null,
           payment_stages: formData.service_fee_gbp
-            ? paymentStages.map((s) => ({ order: s.order, label: s.label, percent: Number(s.percent), trigger_stage: s.trigger_stage }))
-            : undefined,
+            ? (paymentStagesChanged
+              ? paymentStages.map((s, index) => ({ order: index + 1, label: s.label, percent: Number(s.percent), trigger_stage: s.trigger_stage }))
+              : undefined)
+            // Clearing a fee must also remove its payment plan. Sending an
+            // explicit empty array lets the API distinguish this from an
+            // edit that simply leaves payment stages untouched.
+            : [],
         }),
       });
 

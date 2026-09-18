@@ -17,6 +17,17 @@ const FEE_RELEVANT_FIELDS = ["service_fee_gbp", "country", "visa_type", "duratio
 
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
+// The createJobSchema fields carrying a length minimum that rows predating
+// that minimum (or inserted out-of-band, bypassing POST /api/jobs) may
+// legally violate — e.g. job_czech_dev's 41-char description vs the 50-char
+// floor. The edit form always PUTs the complete object, so an untouched
+// field would re-trigger its own minimum on every save; UNLESS this array
+// has it, a one-character change elsewhere (even closing the posting) would
+// 422 on stale content the user isn't editing. Stripping an unchanged field
+// from the payload before validation is safe because the update below is a
+// Prisma merge, not a replace — omitted fields simply don't get touched.
+const MIN_LENGTH_FIELDS = ["title", "country", "city", "job_description", "requirements"] as const;
+
 // Same role set as src/app/api/jobs/route.ts's PARTNER_JOB_VISIBILITY_ROLES
 // — see that file for the full rationale.
 const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team", "operations_director", "admin"];
@@ -54,13 +65,40 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
+  const existing = await prisma.job.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+
+  // Lenient on unchanged short content (2026-09-18): the edit form submits
+  // the full object, so validate only the fields that actually differ from
+  // what's on file — a legacy/short description that's merely being carried
+  // through unchanged must not block an unrelated edit (closing the post,
+  // retweaking a fee). Fields still just skip revalidation; the merge-based
+  // update below leaves them alone.
+  const bodyRecord =
+    typeof body === "object" && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : null;
+  let payload: unknown = body;
+  if (bodyRecord) {
+    for (const field of MIN_LENGTH_FIELDS) {
+      if (typeof bodyRecord[field] === "string" && bodyRecord[field] === existing[field]) {
+        delete bodyRecord[field];
+      }
+    }
+    payload = bodyRecord;
+  }
+
   const parsed = createJobSchema
     .partial()
-    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100, {
+    .refine((data) => {
+      if (!data.payment_stages) return true;
+      // An explicit empty plan accompanies service_fee_gbp: null when
+      // Marketing removes a fee from an existing posting.
+      if (data.payment_stages.length === 0 && data.service_fee_gbp === null) return true;
+      return Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100;
+    }, {
       message: "Payment stage percentages must sum to exactly 100",
       path: ["payment_stages"],
     })
-    .safeParse(body);
+    .safeParse(payload);
   if (!parsed.success) {
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }
