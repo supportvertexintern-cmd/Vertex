@@ -129,7 +129,11 @@ export const createJobSchema = z.object({
   // field sends an explicit null so PUT can actually null the column out.
   // .optional() alone can't distinguish "cleared" from "untouched" once
   // JSON.stringify drops the undefined key entirely; see PUT /api/jobs/:id.
-  employer_client_id: z.string().cuid().nullish(),
+  // Not z.string().cuid(): seeded EmployerClient rows (e.g. "emp_polish_agro")
+  // use hand-written ids that fail the cuid format, and PUT /api/jobs/:id
+  // always carries this field — a strict cuid check silently 422d every edit
+  // of such jobs. Referential integrity is still enforced by the FK.
+  employer_client_id: z.string().min(1).max(100).nullish(),
   // Work-permit programme / pricing fields (Service & Pricing List) — all
   // optional since a plain employer job posting (SRS FR-5.2) has none of
   // these. service_fee_gbp is the total; the 20/40/40 stage split is
