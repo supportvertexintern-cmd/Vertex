@@ -57,6 +57,15 @@ export default function CreateJobPage() {
 
   const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
 
+  // Turn the server's field-level validation details (zod flatten) into a
+  // readable error string — otherwise "Validation failed" alone gives no
+  // clue which field is wrong (e.g. description under 50 chars).
+  const formatJobError = (data: { error?: string; details?: Record<string, string[]> }): string => {
+    if (!data.details) return data.error || "Failed to create job.";
+    const fieldLines = Object.entries(data.details).map(([field, messages]) => `- ${field}: ${messages.join(", ")}`);
+    return `${data.error || "Validation failed"}\n${fieldLines.join("\n")}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -89,7 +98,7 @@ export default function CreateJobPage() {
         router.push("/marketing/jobs");
       } else {
         const data = await res.json();
-        setError(data.error || "Failed to create job.");
+        setError(formatJobError(data));
       }
     } catch {
       setError("An unexpected error occurred.");
@@ -118,9 +127,9 @@ export default function CreateJobPage() {
       </div>
 
       <div className="card p-6 md:p-8 max-w-3xl">
-        {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm">{error}</div>}
+        {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm whitespace-pre-line">{error}</div>}
 
-        <form method="post" onSubmit={handleSubmit} className="space-y-6">
+        <form method="post" onSubmit={handleSubmit} noValidate className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="col-span-1 md:col-span-2">
               <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Job Title</label>
@@ -208,7 +217,7 @@ export default function CreateJobPage() {
                 className="w-4 h-4"
               />
               <label htmlFor="is_credit_service" className="text-sm font-medium text-midnight-900/70">
-                Display as a Credit Service Programme (grouping/badge only — doesn't affect the payment math below)
+                Display as a Credit Service Programme (grouping/badge only — doesn&apos;t affect the payment math below)
               </label>
             </div>
 

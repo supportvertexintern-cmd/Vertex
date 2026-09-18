@@ -26,7 +26,12 @@ interface Props {
 // validates and persists as JobPaymentStage rows.
 export default function PaymentStageBuilder({ stages, onChange }: Props) {
   const total = stages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
-  const isValid = stages.length > 0 && Math.round(total) === 100;
+  // Tolerance mirrors the edit form's save guard (Math.abs(total - 100) < 0.01)
+  // so the indicator always matches what a save would actually accept. The
+  // raw total is rounded for display only — e.g. three 33.33333333333333%
+  // stages sum to 99.99999999999999 in floating point.
+  const isValid = stages.length > 0 && Math.abs(total - 100) < 0.01;
+  const displayedTotal = Math.round(total * 100) / 100;
 
   const addStage = () => {
     onChange([...stages, { order: stages.length + 1, label: "", percent: "", trigger_stage: CASE_STAGE_ORDER[0] }]);
@@ -49,10 +54,7 @@ export default function PaymentStageBuilder({ stages, onChange }: Props) {
             className="input-field col-span-4 text-sm"
           />
           <input
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
+            inputMode="decimal"
             value={stage.percent}
             onChange={(e) => updateStage(i, { percent: e.target.value })}
             placeholder="%"
@@ -86,7 +88,7 @@ export default function PaymentStageBuilder({ stages, onChange }: Props) {
       </button>
 
       <div className={`text-xs font-semibold ${isValid ? "text-emerald-600" : "text-red-500"}`}>
-        Total: {total}% {isValid ? "✓" : "— stages must sum to exactly 100%"}
+        Total: {displayedTotal}% {isValid ? "✓" : "— stages must sum to exactly 100%"}
       </div>
     </div>
   );
