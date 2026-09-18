@@ -181,7 +181,14 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
         router.push("/marketing/jobs");
       } else {
         const data = await res.json();
-        setError(data.error || "Failed to edit job.");
+        const fieldDetails = typeof data.details === "object" && data.details !== null ? data.details : undefined;
+        setError(
+          fieldDetails
+            ? `${data.error || "Validation failed"}\n${Object.entries(fieldDetails as Record<string, string[]>)
+                .map(([field, messages]) => `- ${field}: ${messages.join(", ")}`)
+                .join("\n")}`
+            : data.error || "Failed to edit job."
+        );
       }
     } catch {
       setError("An unexpected error occurred.");
@@ -326,9 +333,9 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
         <p className="text-midnight-900/50">Loading job details…</p>
       ) : (
         <div className="card p-6 md:p-8 max-w-3xl">
-          {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm">{error}</div>}
+          {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm whitespace-pre-line">{error}</div>}
 
-          <form method="post" onSubmit={handleSubmit} className="space-y-6">
+          <form method="post" onSubmit={handleSubmit} noValidate className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Job Title</label>
@@ -393,7 +400,17 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
 
               <div>
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Service Fee (GBP)</label>
-                <input type="number" min="0" step="1" name="service_fee_gbp" value={formData.service_fee_gbp} onChange={handleChange} className="input-field w-full" placeholder="e.g. 1400" />
+                <input
+  type="number"
+  min="0"
+  step="any"
+  name="service_fee_gbp"
+  value={formData.service_fee_gbp}
+  onChange={handleChange}
+  className="input-field w-full"
+  placeholder="e.g. 1400 or 11.11111111111111"
+/>
+
                 <button
                   type="button"
                   onClick={retryStripeSync}
