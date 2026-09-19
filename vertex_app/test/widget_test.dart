@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:vertex_app/app/app.dart';
-import 'package:vertex_app/core/utils/auth_manager.dart';
+import 'package:vertex_app/core/auth/auth_manager.dart';
 
 void main() {
   testWidgets('Vertex opens on the splash screen', (tester) async {

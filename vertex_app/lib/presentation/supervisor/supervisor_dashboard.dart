@@ -6,6 +6,7 @@ import '../../core/auth/candidate_store.dart';
 import '../../core/auth/case_store.dart';
 import '../../core/auth/exception_store.dart';
 import '../../core/auth/report_store.dart';
+import '../../core/auth/supervisor_store.dart';
 import '../shared/vertex_app_bar_leading.dart';
 import 'supervisor_drawer.dart';
 
@@ -17,6 +18,7 @@ class SupervisorDashboard extends StatelessWidget {
     final cases = context.watch<CaseStore>().records;
     final reports = context.watch<ReportStore>().reports;
     final exceptions = context.watch<ExceptionStore>().openExceptions;
+    final recruiters = context.watch<SupervisorStore>().recruiters;
 
     return Scaffold(
       backgroundColor: VertexColors.ivory50,
@@ -39,7 +41,7 @@ class SupervisorDashboard extends StatelessWidget {
           const Text('Your country recruiter team, candidate pipeline, and progress against target this month.', style: TextStyle(color: VertexColors.gray600, fontSize: 13, height: 1.45)),
           const SizedBox(height: 22),
           _metrics([
-            _Metric(Icons.supervisor_account_outlined, 'Recruiters', '0'),
+            _Metric(Icons.supervisor_account_outlined, 'Recruiters', '${recruiters.length}'),
             _Metric(Icons.people_alt_outlined, 'Candidates in country', '${candidates.length}'),
             _Metric(Icons.pending_actions_outlined, 'Awaiting verification', '${reports.where((r) => r.status == ReportStatus.submitted).length}'),
             _Metric(Icons.description_outlined, 'Reports awaiting review', '${reports.length}'),

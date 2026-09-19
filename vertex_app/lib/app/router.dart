@@ -16,7 +16,11 @@ import '../presentation/recruiter/new_report_form.dart';
 import '../presentation/recruiter/exceptions_screen.dart';
 import '../presentation/shared/placeholder_screen.dart';
 import '../presentation/splash/splash_screen.dart';
+import '../presentation/supervisor/supervisor_candidate_detail_screen.dart';
+import '../presentation/supervisor/supervisor_candidates_screen.dart';
 import '../presentation/supervisor/supervisor_dashboard.dart';
+import '../presentation/supervisor/supervisor_recruiter_detail_screen.dart';
+import '../presentation/supervisor/supervisor_recruiters_screen.dart';
 import '../presentation/director/director_dashboard.dart';
 import '../presentation/hr/hr_dashboard.dart';
 import '../presentation/operations/operations_dashboard.dart';
@@ -45,8 +49,22 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     GoRoute(path: '/recruiter/reports/new', builder: (_, state) => const NewReportForm()),
     GoRoute(path: '/recruiter/exceptions', builder: (_, state) => const ExceptionsScreen()),
     GoRoute(path: '/supervisor', builder: (_, state) => const SupervisorDashboard()),
-    GoRoute(path: '/supervisor/recruiters', builder: (_, state) => const SupervisorSectionScreen(title: 'Recruiters')),
-    GoRoute(path: '/supervisor/candidates', builder: (_, state) => const SupervisorSectionScreen(title: 'Candidates')),
+    GoRoute(path: '/supervisor/recruiters', builder: (_, state) => const SupervisorRecruitersScreen(), routes: [
+      GoRoute(
+        path: ':id',
+        builder: (_, state) => SupervisorRecruiterDetailScreen(
+          recruiterId: state.pathParameters['id']!,
+        ),
+      ),
+    ]),
+    GoRoute(path: '/supervisor/candidates', builder: (_, state) => const SupervisorCandidatesScreen(), routes: [
+      GoRoute(
+        path: ':id',
+        builder: (_, state) => SupervisorCandidateDetailScreen(
+          candidateId: state.pathParameters['id']!,
+        ),
+      ),
+    ]),
     GoRoute(path: '/supervisor/cases', builder: (_, state) => const SupervisorSectionScreen(title: 'Cases')),
     GoRoute(path: '/supervisor/reports', builder: (_, state) => const SupervisorSectionScreen(title: 'Reports')),
     GoRoute(path: '/supervisor/exceptions', builder: (_, state) => const SupervisorSectionScreen(title: 'Exceptions')),

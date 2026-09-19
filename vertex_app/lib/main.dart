@@ -7,6 +7,7 @@ import 'core/auth/candidate_store.dart';
 import 'core/auth/case_store.dart';
 import 'core/auth/report_store.dart';
 import 'core/auth/exception_store.dart';
+import 'core/auth/supervisor_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => CaseStore()),
         ChangeNotifierProvider(create: (_) => ReportStore()),
         ChangeNotifierProvider(create: (_) => ExceptionStore()),
+        ChangeNotifierProvider(create: (_) => SupervisorStore()),
       ],
       child: const VertexApp(),
     ),
