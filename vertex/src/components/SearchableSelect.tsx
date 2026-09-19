@@ -191,7 +191,7 @@ export default function SearchableSelect({
             <div
               ref={panelRef}
               style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
-              className="z-50 bg-white border border-midnight-900/15 rounded-lg shadow-xl overflow-hidden"
+              className="z-[999] bg-white border border-midnight-900/15 rounded-lg shadow-xl overflow-hidden"
             >
               <div className="flex items-center gap-2 px-3 py-2 border-b border-midnight-900/10">
                 <MagnifyingGlass size={14} weight="regular" className="text-midnight-900/30 shrink-0" />
