@@ -71,7 +71,7 @@ class _SupervisorRecruiterDetailScreenState
   }
 
   void _verifyReport(ReportRow report) {
-    _store.verifyReport(widget.recruiterId, report.id);
+    _store.verifyReport(report.id);
     _snack('Report verified.');
   }
 
@@ -81,7 +81,7 @@ class _SupervisorRecruiterDetailScreenState
       builder: (_) => const _ReturnReportDialog(),
     );
     if (reason == null || !mounted) return;
-    _store.returnReport(widget.recruiterId, report.id, reason);
+    _store.returnReport(report.id, reason);
     _snack('Report returned to recruiter.');
   }
 

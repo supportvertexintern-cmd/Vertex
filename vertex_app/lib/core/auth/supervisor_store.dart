@@ -83,6 +83,9 @@ class ReportRow {
     this.status = 'submitted',
     this.notes,
     this.returnReason,
+    this.submitterName = '',
+    this.scopeLevel = 'recruiter',
+    this.childReports = const [],
   });
 
   final String id;
@@ -92,6 +95,47 @@ class ReportRow {
   String status;
   final String? notes;
   String? returnReason;
+  final String submitterName;
+  final String scopeLevel;
+  final List<ChildReport> childReports;
+}
+
+class ChildReport {
+  const ChildReport({
+    required this.id,
+    required this.submitterName,
+    required this.status,
+  });
+
+  final String id;
+  final String submitterName;
+  final String status;
+}
+
+class RosterEntry {
+  RosterEntry({
+    required this.id,
+    required this.fullName,
+    this.reportId,
+    this.status,
+  });
+
+  final String id;
+  final String fullName;
+  final String? reportId;
+  final String? status;
+}
+
+class ConsolidationPreview {
+  ConsolidationPreview({
+    required this.roster,
+    required this.verifiedReportIds,
+    required this.alreadyConsolidated,
+  });
+
+  final List<RosterEntry> roster;
+  final List<String> verifiedReportIds;
+  final bool alreadyConsolidated;
 }
 
 class NoteRow {
@@ -244,6 +288,7 @@ Map<String, RecruiterDetail> _seedDetails() {
           periodEnd: now,
           status: 'submitted',
           notes: 'Sourced 2 new candidates this week.',
+          submitterName: 'Nairobi City Lead',
         ),
         ReportRow(
           id: 'r2',
@@ -252,6 +297,7 @@ Map<String, RecruiterDetail> _seedDetails() {
           periodEnd: now.subtract(const Duration(days: 2)),
           status: 'verified',
           notes: 'On schedule — embassy appointments confirmed.',
+          submitterName: 'Nairobi City Lead',
         ),
       ],
       kpiTargets: nairobiKpis,
@@ -280,6 +326,7 @@ Map<String, RecruiterDetail> _seedDetails() {
           periodEnd: now.subtract(const Duration(days: 14)),
           status: 'returned',
           returnReason: 'Missing KPI actuals for screening pass rate.',
+          submitterName: 'Mombasa Coastal Agent',
         ),
       ],
       kpiTargets: _defaultKpis(),
@@ -438,6 +485,36 @@ class SupervisorStore extends ChangeNotifier {
     ];
   }();
 
+  final List<ReportRow> countryReports = () {
+    final now = DateTime.now();
+    return [
+      ReportRow(
+        id: 'c2',
+        type: 'Weekly consolidated',
+        periodStart: now.subtract(const Duration(days: 14)),
+        periodEnd: now.subtract(const Duration(days: 7)),
+        status: 'returned',
+        returnReason: 'Please include applicant flow KPIs against campaign targets.',
+        notes: 'Weekly consolidation for Nairobi and Mombasa forward-deployment pipelines.',
+        submitterName: 'Country Supervisor',
+        scopeLevel: 'country',
+      ),
+      ReportRow(
+        id: 'c1',
+        type: 'Monthly country performance',
+        periodStart: now.subtract(const Duration(days: 30)),
+        periodEnd: now.subtract(const Duration(days: 1)),
+        status: 'verified',
+        notes: 'Strong quarter for engineering placements; embassy processing times stable.',
+        submitterName: 'Country Supervisor',
+        scopeLevel: 'country',
+        childReports: const [
+          ChildReport(id: 'r2', submitterName: 'Nairobi City Lead', status: 'verified'),
+        ],
+      ),
+    ];
+  }();
+
   List<SupervisorCandidate> get pendingCandidates =>
       candidates.where((c) => c.status == 'Pending Verification').toList();
 
@@ -463,6 +540,76 @@ class SupervisorStore extends ChangeNotifier {
   }
 
   RecruiterDetail? detailFor(String recruiterId) => _details[recruiterId];
+
+  List<ReportRow> get recruiterSubmissions {
+    final out = <ReportRow>[];
+    for (final detail in _details.values) {
+      for (final report in detail.reports) {
+        out.add(ReportRow(
+          id: report.id,
+          type: report.type,
+          periodStart: report.periodStart,
+          periodEnd: report.periodEnd,
+          status: report.status,
+          notes: report.notes,
+          returnReason: report.returnReason,
+          submitterName: report.submitterName,
+          scopeLevel: 'recruiter',
+        ));
+      }
+    }
+    out.sort((a, b) => b.periodStart.compareTo(a.periodStart));
+    return out;
+  }
+
+  ReportRow? reportById(String id) {
+    for (final report in countryReports) {
+      if (report.id == id) return report;
+    }
+    for (final detail in _details.values) {
+      for (final report in detail.reports) {
+        if (report.id == id) return report;
+      }
+    }
+    return null;
+  }
+
+  ConsolidationPreview previewForPeriod(DateTime start, DateTime end) {
+    final roster = <RosterEntry>[];
+    final verifiedIds = <String>[];
+    for (final recruiter in recruiters) {
+      var matched = false;
+      final detail = _details[recruiter.id];
+      if (detail != null) {
+        for (final report in detail.reports) {
+          if (_reportsOverlap(report.periodStart, report.periodEnd, start, end)) {
+            matched = true;
+            roster.add(RosterEntry(
+              id: recruiter.id,
+              fullName: recruiter.name,
+              reportId: report.id,
+              status: report.status,
+            ));
+            if (report.status == 'verified') verifiedIds.add(report.id);
+            break;
+          }
+        }
+      }
+      if (!matched) {
+        roster.add(RosterEntry(id: recruiter.id, fullName: recruiter.name));
+      }
+    }
+    final alreadyConsolidated = countryReports.any(
+      (r) =>
+          (r.status == 'submitted' || r.status == 'verified') &&
+          _reportsOverlap(r.periodStart, r.periodEnd, start, end),
+    );
+    return ConsolidationPreview(
+      roster: roster,
+      verifiedReportIds: verifiedIds,
+      alreadyConsolidated: alreadyConsolidated,
+    );
+  }
 
   void updateCampaignTarget(String recruiterId, String targetId, int value) {
     final detail = _details[recruiterId];
@@ -491,24 +638,70 @@ class SupervisorStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void verifyReport(String recruiterId, String reportId) {
-    final detail = _details[recruiterId];
-    if (detail == null) return;
-    for (final report in detail.reports) {
-      if (report.id == reportId) report.status = 'verified';
+  void verifyReport(String reportId) {
+    for (final detail in _details.values) {
+      for (final report in detail.reports) {
+        if (report.id == reportId) {
+          report.status = 'verified';
+          notifyListeners();
+          return;
+        }
+      }
     }
+  }
+
+  void returnReport(String reportId, String reason) {
+    for (final detail in _details.values) {
+      for (final report in detail.reports) {
+        if (report.id == reportId) {
+          report.status = 'returned';
+          report.returnReason = reason;
+          notifyListeners();
+          return;
+        }
+      }
+    }
+  }
+
+  void resubmitCountryReport(String reportId, String newNotes) {
+    final index = countryReports.indexWhere((r) => r.id == reportId);
+    if (index < 0) return;
+    final report = countryReports[index];
+    countryReports[index] = ReportRow(
+      id: report.id,
+      type: report.type,
+      periodStart: report.periodStart,
+      periodEnd: report.periodEnd,
+      status: 'submitted',
+      notes: newNotes,
+      submitterName: report.submitterName,
+      scopeLevel: report.scopeLevel,
+      childReports: report.childReports,
+    );
     notifyListeners();
   }
 
-  void returnReport(String recruiterId, String reportId, String reason) {
-    final detail = _details[recruiterId];
-    if (detail == null) return;
-    for (final report in detail.reports) {
-      if (report.id == reportId) {
-        report.status = 'returned';
-        report.returnReason = reason;
-      }
-    }
+  void submitCountryReport({
+    required String type,
+    required DateTime periodStart,
+    required DateTime periodEnd,
+    required String notes,
+    required List<ChildReport> childReports,
+  }) {
+    countryReports.insert(
+      0,
+      ReportRow(
+        id: 'cr${DateTime.now().millisecondsSinceEpoch}',
+        type: type,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        status: 'submitted',
+        notes: notes,
+        submitterName: 'Country Supervisor',
+        scopeLevel: 'country',
+        childReports: childReports,
+      ),
+    );
     notifyListeners();
   }
 
@@ -540,4 +733,7 @@ class SupervisorStore extends ChangeNotifier {
     );
     notifyListeners();
   }
+
+  bool _reportsOverlap(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) =>
+      !(aEnd.isBefore(bStart) || aStart.isAfter(bEnd));
 }

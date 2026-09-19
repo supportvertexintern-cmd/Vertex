@@ -18,7 +18,13 @@ import '../presentation/shared/placeholder_screen.dart';
 import '../presentation/splash/splash_screen.dart';
 import '../presentation/supervisor/supervisor_candidate_detail_screen.dart';
 import '../presentation/supervisor/supervisor_candidates_screen.dart';
+import '../presentation/supervisor/supervisor_case_detail_screen.dart';
+import '../presentation/supervisor/supervisor_cases_screen.dart';
 import '../presentation/supervisor/supervisor_dashboard.dart';
+import '../presentation/supervisor/new_country_report_screen.dart';
+import '../presentation/supervisor/supervisor_exceptions_screen.dart';
+import '../presentation/supervisor/supervisor_report_detail_screen.dart';
+import '../presentation/supervisor/supervisor_reports_screen.dart';
 import '../presentation/supervisor/supervisor_recruiter_detail_screen.dart';
 import '../presentation/supervisor/supervisor_recruiters_screen.dart';
 import '../presentation/director/director_dashboard.dart';
@@ -65,9 +71,27 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
         ),
       ),
     ]),
-    GoRoute(path: '/supervisor/cases', builder: (_, state) => const SupervisorSectionScreen(title: 'Cases')),
-    GoRoute(path: '/supervisor/reports', builder: (_, state) => const SupervisorSectionScreen(title: 'Reports')),
-    GoRoute(path: '/supervisor/exceptions', builder: (_, state) => const SupervisorSectionScreen(title: 'Exceptions')),
+    GoRoute(path: '/supervisor/cases', builder: (_, state) => const SupervisorCasesScreen(), routes: [
+      GoRoute(
+        path: ':id',
+        builder: (_, state) => SupervisorCaseDetailScreen(
+          caseId: state.pathParameters['id']!,
+        ),
+      ),
+    ]),
+    GoRoute(path: '/supervisor/reports', builder: (_, state) => const SupervisorReportsScreen(), routes: [
+      GoRoute(
+        path: 'new',
+        builder: (_, state) => const NewCountryReportScreen(),
+      ),
+      GoRoute(
+        path: ':id',
+        builder: (_, state) => SupervisorReportDetailScreen(
+          reportId: state.pathParameters['id']!,
+        ),
+      ),
+    ]),
+    GoRoute(path: '/supervisor/exceptions', builder: (_, state) => const SupervisorExceptionsScreen()),
     GoRoute(path: '/management', builder: (_, state) => const DirectorDashboard()),
     GoRoute(path: '/management/campaigns', builder: (_, state) => const DirectorSectionScreen(title: 'Campaigns')),
     GoRoute(path: '/management/partners', builder: (_, state) => const DirectorSectionScreen(title: 'Partners')),
