@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import ImpersonationWarningBanner from "@/components/ImpersonationWarningBanner";
 import Footer from "@/components/Footer";
 import AIChatWidget from "@/components/AIChatWidget";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -14,7 +13,6 @@ const font = Outfit({
   variable: "--font-sans",
   display: "swap",
 });
-
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vertex-omega-kohl.vercel.app";
 
 export const metadata: Metadata = {
@@ -48,7 +46,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" className={font.variable}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
         <SessionRefresh />
-        <ImpersonationWarningBanner />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
