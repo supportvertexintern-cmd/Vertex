@@ -17,11 +17,11 @@ export default function ImpersonationWarningBanner() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-center gap-2 text-center">
         <Warning size={18} weight="fill" className="shrink-0" />
         <p>
-          <strong className="font-semibold">Fraud warning:</strong> the website{" "}
+          {/* <strong className="font-semibold">Fraud warning:</strong> the website{" "}
           <strong className="font-semibold">vertex-recruite.co.uk</strong> is impersonating Vertex International
           Recruitment Ltd. and is <strong className="font-semibold">not affiliated with us in any way</strong>. If
           you were contacted through that site, do not share personal information or make any payment — contact us
-          directly to verify.
+          directly to verify. */}
         </p>
       </div>
     </div>
