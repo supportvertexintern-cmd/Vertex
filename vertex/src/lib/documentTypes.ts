@@ -19,14 +19,30 @@
 // JobPaymentStage is created (see POST/PUT /api/jobs). "payment_receipt"
 // (no suffix) is kept recognized for backward compatibility with
 // payments recorded before this change.
+//
+// The old fixed keys (payment_receipt_documentation, payment_receipt_permit,
+// payment_receipt_visa, payment_receipt_upfront) may still exist in older
+// databases (e.g. Production) and must be excluded from the checklist and
+// staff upload picker just like the new per‑stage keys.
 export const PAYMENT_RECEIPT_TYPE_PREFIX = "payment_receipt_stage_";
+
+export const LEGACY_PAYMENT_RECEIPT_KEYS = [
+  "payment_receipt_documentation",
+  "payment_receipt_permit",
+  "payment_receipt_visa",
+  "payment_receipt_upfront",
+] as const;
 
 export function paymentReceiptTypeKey(jobPaymentStageId: string): string {
   return `${PAYMENT_RECEIPT_TYPE_PREFIX}${jobPaymentStageId}`;
 }
 
 export function isPaymentReceiptTypeKey(key: string): boolean {
-  return key === "payment_receipt" || key.startsWith(PAYMENT_RECEIPT_TYPE_PREFIX);
+  return (
+    key === "payment_receipt" ||
+    key.startsWith(PAYMENT_RECEIPT_TYPE_PREFIX) ||
+    (LEGACY_PAYMENT_RECEIPT_KEYS as readonly string[]).includes(key)
+  );
 }
 
 // Types outside the CIF/Agency self-report + per-country-requirement
@@ -37,10 +53,10 @@ export function isPaymentReceiptTypeKey(key: string): boolean {
 // issued_visa (2026-07-31) are Operations delivering a government-issued
 // document back onto the case, never something a candidate/partner
 // self-reports having in advance. The payment-receipt keys (2026-07-31,
-// split 2026-08-19, generalized 2026-09-16) are the same shape:
-// staff-uploaded only, never a candidate/partner self-report item. Never
-// shown in the CIF/Agency checklist or admin's per-country requirement
-// toggle, regardless of what admin adds there.
+// split 2026-08-19, generalized 2026-09-16, legacy keys added 2026-09-21)
+// are the same shape: staff-uploaded only, never a candidate/partner
+// self-report item. Never shown in the CIF/Agency checklist or admin's
+// per-country requirement toggle, regardless of what admin adds there.
 export const NON_PROGRAMME_TYPE_KEYS = [
   "cv",
   "transcript",
@@ -54,7 +70,10 @@ export const NON_PROGRAMME_TYPE_KEYS = [
 ] as const;
 
 export function isNonProgrammeTypeKey(key: string): boolean {
-  return (NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(key) || isPaymentReceiptTypeKey(key);
+  return (
+    (NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(key) ||
+    isPaymentReceiptTypeKey(key)
+  );
 }
 
 // CaseDetail's staff upload picker excludes cv/passport (already uploaded
@@ -63,7 +82,12 @@ export function isNonProgrammeTypeKey(key: string): boolean {
 // Milestone Payments card's own controls, which correctly tie the
 // upload to one specific CasePayment, never this generic picker.
 export function isCaseUploadExcludedKey(key: string): boolean {
-  return key === "cv" || key === "passport" || key === "other" || isPaymentReceiptTypeKey(key);
+  return (
+    key === "cv" ||
+    key === "passport" ||
+    key === "other" ||
+    isPaymentReceiptTypeKey(key)
+  );
 }
 
 export function documentTypeLabel(type: string): string {
