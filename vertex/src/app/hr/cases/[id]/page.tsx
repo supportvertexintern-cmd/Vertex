@@ -39,6 +39,9 @@ export default function HrCaseDetailPage({ params }: { params: Promise<{ id: str
           rejectCase: true,
           editApplication: true,
           undoPayments: false,
+          // NEW — HR-only (2026-09-25). Overturns a rejection HR itself
+          // made by mistake and reassigns the case to one or more roles.
+          overturnRejection: true,
         }}
       />
     </PortalShell>
