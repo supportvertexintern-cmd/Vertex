@@ -31,6 +31,7 @@ export default function OperationsCaseDetailPage({ params }: { params: Promise<{
           rejectCase: true,
           editApplication: true,
           undoPayments: false,
+          overturnRejection: false,
         }}
       />
     </PortalShell>
