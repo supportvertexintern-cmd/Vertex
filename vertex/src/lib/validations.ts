@@ -868,6 +868,11 @@ export const caseRejectSchema = z.object({
   reason: z.string().min(1, "A reason is required.").max(2000),
 });
 
+// Overturn a rejection and change case status (2026-09-25) — see PATCH /api/cases/[id]/overturn.
+export const overturnRejectionSchema = z.object({
+  status: z.enum(["active", "rejected"]),
+});
+
 export const createContractSchema = z.object({
   content: z.string().min(20).max(20000),
 });

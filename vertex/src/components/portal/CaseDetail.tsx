@@ -14,6 +14,13 @@ import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } f
 import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import { UploadSimple } from "@phosphor-icons/react";
 
+// Mirrors the Prisma `CaseStatus` enum — the statuses a case can be
+// set to after a rejection is overturned (2026-09-25).
+const CASE_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "rejected", label: "Rejected" },
+];
+
 interface Document {
   id: string;
   type: string;
@@ -187,6 +194,11 @@ export interface CaseDetailCapabilities {
   // Paid" is Finance's own role only, no Director/Admin override, per
   // explicit business direction.
   undoPayments: boolean;
+  // NEW — Overturn a rejection and hand the case to one or more roles
+  // (2026-09-25). Kept separate from `rejectCase` so Operations/Director
+  // (who also hold rejectCase) don't automatically gain the ability to
+  // undo HR's own rejection — HR alone gets this per business direction.
+  overturnRejection: boolean;
 }
 
 const NO_CAPABILITIES: CaseDetailCapabilities = {
@@ -201,6 +213,7 @@ const NO_CAPABILITIES: CaseDetailCapabilities = {
   rejectCase: false,
   editApplication: false,
   undoPayments: false,
+  overturnRejection: false,
 };
 
 interface Props {
@@ -241,6 +254,17 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [showCaseRejectForm, setShowCaseRejectForm] = useState(false);
   const [caseRejectReason, setCaseRejectReason] = useState("");
   const [submittingCaseReject, setSubmittingCaseReject] = useState(false);
+
+  // Overturn-rejection flow (2026-09-25, HR-only) — frontend-only: flips
+  // the case back to active and records the new status. The
+  // rejection record itself (rejected_by/reason/at) is left intact for the
+  // audit trail; only the local `status` is restored optimistically.
+  const [showOverturnForm, setShowOverturnForm] = useState(false);
+  const [overturnStatus, setOverturnStatus] = useState("");
+  const [submittingOverturn, setSubmittingOverturn] = useState(false);
+  // Persisted for the session so the "status changed to" banner survives the
+  // status flip (which would otherwise hide the rejected banner entirely).
+  const [overturnedTo, setOverturnedTo] = useState("");
 
   const [contractContent, setContractContent] = useState("");
   const [signName, setSignName] = useState("");
@@ -471,6 +495,26 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       load();
     } finally {
       setSubmittingCaseReject(false);
+    }
+  };
+
+  const overturnRejection = async () => {
+    if (!overturnStatus) return;
+    setSubmittingOverturn(true);
+    try {
+      const res = await fetch(`/api/cases/${caseId}/overturn`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: overturnStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      setOverturnedTo(overturnStatus);
+      setShowOverturnForm(false);
+      setOverturnStatus("");
+      load();
+    } finally {
+      setSubmittingOverturn(false);
     }
   };
 
@@ -814,6 +858,67 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             Case rejected{data.rejected_by && <> by {data.rejected_by.full_name}</>}{data.rejected_at && <> on {new Date(data.rejected_at).toLocaleDateString()}</>}
           </p>
           {data.rejection_reason && <p className="text-sm mt-1">{data.rejection_reason}</p>}
+
+          {/* Overturn Rejection (2026-09-25) — HR-only. Lets HR undo a
+              rejection it made by mistake and change the case status. */}
+          {capabilities.overturnRejection && (
+            showOverturnForm ? (
+              <div className="mt-3 pt-3 border-t border-red-200 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-red-700/80">
+                  Case Status
+                </p>
+                <select
+                  value={overturnStatus}
+                  onChange={(e) => setOverturnStatus(e.target.value)}
+                  className="w-full text-xs border border-red-300 rounded px-2 py-1.5 bg-white text-red-900"
+                >
+                  <option value="">Select status...</option>
+                  {CASE_STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    disabled={submittingOverturn || !overturnStatus}
+                    onClick={overturnRejection}
+                    className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50"
+                  >
+                    {submittingOverturn ? "Overturning…" : "Confirm Overturn"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowOverturnForm(false); setOverturnStatus(""); }}
+                    className="text-xs text-midnight-900/50 hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowOverturnForm(true)}
+                className="mt-3 text-xs font-semibold text-emerald-700 hover:underline"
+              >
+                I want to revert
+              </button>
+            )
+          )}
+        </div>
+      )}
+
+      {/* Shown after an overturn (session-local) so the new status is
+          still visible now that the red rejected banner has gone. */}
+      {overturnedTo && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-4">
+          <p className="text-sm font-semibold">Rejection overturned</p>
+          <p className="text-sm mt-1">
+            Status changed to:{" "}
+            {CASE_STATUS_OPTIONS.find((s) => s.value === overturnedTo)?.label ?? overturnedTo}
+          </p>
         </div>
       )}
 
