@@ -121,6 +121,12 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>({});
   const [deleting, setDeleting] = useState(false);
 
+  // Overturn-rejection flow (2026-09-28, HR-only) — similar to CaseDetail
+  const [showOverturnForm, setShowOverturnForm] = useState(false);
+  const [overturnStatus, setOverturnStatus] = useState("");
+  const [submittingOverturn, setSubmittingOverturn] = useState(false);
+  const [overturnedTo, setOverturnedTo] = useState("");
+
   const load = () => {
     fetch(`/api/partner-candidates/${id}`)
       .then((r) => r.json())
@@ -207,6 +213,26 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
     }
   };
 
+  const overturnRejection = async () => {
+    if (!overturnStatus) return;
+    setSubmittingOverturn(true);
+    try {
+      const res = await fetch(`/api/partner-candidates/${id}/overturn`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: overturnStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      setOverturnedTo(overturnStatus);
+      setShowOverturnForm(false);
+      setOverturnStatus("");
+      load();
+    } finally {
+      setSubmittingOverturn(false);
+    }
+  };
+
   if (loading) {
     return <p className="text-midnight-900/50">Loading…</p>;
   }
@@ -275,6 +301,38 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
       {data.status === "rejected" && data.rejection_reason && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm mb-6">
           <strong>Rejected:</strong> {data.rejection_reason}
+          {canAct && (
+            <div className="mt-3">
+              {showOverturnForm ? (
+                <div className="space-y-3">
+                  <select
+                    value={overturnStatus}
+                    onChange={(e) => setOverturnStatus(e.target.value)}
+                    className="input-field text-sm w-full"
+                  >
+                    <option value="">Select status...</option>
+                    <option value="submitted">Submitted</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button onClick={overturnRejection} disabled={submittingOverturn || !overturnStatus} className="btn-primary text-xs disabled:opacity-50">
+                      {submittingOverturn ? "Overturning…" : "Confirm Overturn"}
+                    </button>
+                    <button onClick={() => { setShowOverturnForm(false); setOverturnStatus(""); }} className="btn-secondary text-xs">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowOverturnForm(true)} className="text-xs font-semibold text-gold-600 hover:underline mt-2">
+                  Overturn Rejection
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {overturnedTo && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-4 text-sm mb-6">
+          Status changed to <strong>Submitted</strong>.
         </div>
       )}
 
