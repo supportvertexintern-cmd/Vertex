@@ -170,7 +170,7 @@ export default function OperationsPartnerSubmissionsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.submitted_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[row.status] ?? "bg-slate-100 text-slate-700"}`}>
                       {formatPartnerCandidateStatus(row.status)}

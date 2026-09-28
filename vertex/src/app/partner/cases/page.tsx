@@ -143,8 +143,8 @@ export default function PartnerCasesPage() {
                     )}
                   </td>
                   <td className="px-5 py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-5 py-4 text-right">
                     <Link href={`/partner/cases/${c.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline">
                       View <ArrowRight size={11} weight="bold" />

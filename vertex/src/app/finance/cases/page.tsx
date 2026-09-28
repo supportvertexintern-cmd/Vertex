@@ -17,6 +17,7 @@ interface CaseRow {
   current_stage: CaseStageKey;
   created_at: string;
   updated_at: string;
+  status: "active" | "rejected";
   ops_review_status: "pending" | "confirmed" | "rejected";
   contract: { status: string } | null;
   retention_follow_up: { due_at: string; completed_at: string | null } | null;
@@ -172,6 +173,7 @@ export default function FinanceCasesPage() {
                 <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <th className="px-5 py-3 font-semibold">Documentation</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-3 font-semibold">Payment</th>
                 <th className="px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
@@ -192,12 +194,19 @@ export default function FinanceCasesPage() {
                     </td>
                     <td className="px-5 py-4 text-midnight-900/70">{country}</td>
                     <td className="px-5 py-4 text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-5 py-4 text-midnight-900/70 whitespace-nowrap">
                       Stage {CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of {CASE_STAGE_ORDER.length}: {CASE_STAGE_LABELS[c.current_stage]}
                     </td>
                     <td className="px-5 py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
+                    <td className="px-5 py-4">
+                      {c.status === "rejected" ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Active</span>
+                      )}
+                    </td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${paymentStatus.className}`}>
                         {paymentStatus.label}

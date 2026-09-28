@@ -225,7 +225,7 @@ export default function PartnerPortalPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-midnight-900/60">{new Date(c.submitted_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-4 text-midnight-900/60">{new Date(c.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-5 py-4">
                       {isDraft && (
                         <button
