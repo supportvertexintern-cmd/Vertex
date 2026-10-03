@@ -1,4 +1,4 @@
-import { computePaymentStageAmounts } from "@/lib/fees";
+import { computePaymentStageAmounts, computePaymentPlanBalance } from "@/lib/fees";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 
 export interface PaymentStageOption {
@@ -39,11 +39,16 @@ export function resolvePaymentStages(totalGbp: number, stages: PaymentStageOptio
 
 // Single-line text summary — for a context that needs plain text/a Field
 // value rather than its own layout (e.g. PartnerSubmissionDetail's
-// "Opportunity" summary grid).
+// "Opportunity" summary grid). A financed plan's uncovered balance is
+// stated explicitly so the sub-100% sum never reads as a discounted fee.
 export function summarizePaymentStages(totalGbp: number, stages: PaymentStageOption[]): string {
   const resolved = resolvePaymentStages(totalGbp, stages);
   const parts = resolved.map((s) => `${s.label} £${s.amount.toLocaleString()}`);
-  return `£${totalGbp.toLocaleString()} total · ${parts.join(" · ")}`;
+  const balance = computePaymentPlanBalance(totalGbp, stages.map((s) => s.percent));
+  const balancePart = balance.hasBalance
+    ? ` · financed balance £${balance.balanceAmount.toLocaleString()} paid separately`
+    : "";
+  return `£${totalGbp.toLocaleString()} total · ${parts.join(" · ")}${balancePart}`;
 }
 
 interface PaymentStagesPreviewProps {
@@ -67,6 +72,11 @@ export default function PaymentStagesPreview({ totalGbp, stages, variant = "grid
   const resolved = resolvePaymentStages(totalGbp, stages);
   if (resolved.length === 0) return null;
 
+  // A plan whose stages cover less than the full fee — the uncovered
+  // balance is still owed (paid separately, e.g. financed) and must be
+  // stated wherever the stages are shown (2026-10-04).
+  const balance = computePaymentPlanBalance(totalGbp, stages.map((s) => s.percent));
+
   if (variant === "dark") {
     return (
       <div className={`space-y-2.5 ${className ?? ""}`}>
@@ -81,20 +91,45 @@ export default function PaymentStagesPreview({ totalGbp, stages, variant = "grid
             <div className="font-semibold text-ivory-50 whitespace-nowrap">{s.amount.toLocaleString()} GBP</div>
           </div>
         ))}
+        {balance.hasBalance && (
+          <div className="flex items-center justify-between gap-3 bg-gold-500/10 border border-gold-500/30 rounded-lg px-3.5 py-2.5">
+            <div>
+              <div className="text-xs font-semibold text-gold-300">Financed balance · {balance.balancePercent}%</div>
+              <div className="text-ivory-50/45 text-xs mt-0.5">
+                Not collected through the platform — payable separately as agreed (full service fee still applies)
+              </div>
+            </div>
+            <div className="font-semibold text-ivory-50 whitespace-nowrap">{balance.balanceAmount.toLocaleString()} GBP</div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={`grid gap-2 text-center text-xs ${className ?? ""}`} style={{ gridTemplateColumns: `repeat(${Math.min(resolved.length, 4)}, minmax(0, 1fr))` }}>
-      {resolved.map((s) => (
-        <div key={s.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-          <div className="font-bold text-emerald-700 mb-1">
-            {s.label} · {Math.round(s.percent)}% (£{s.amount.toLocaleString()})
+    <div className={className ?? ""}>
+      <div
+        className="grid gap-2 text-center text-xs"
+        style={{ gridTemplateColumns: `repeat(${Math.min(resolved.length, 4)}, minmax(0, 1fr))` }}
+      >
+        {resolved.map((s) => (
+          <div key={s.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+            <div className="font-bold text-emerald-700 mb-1">
+              {s.label} · {Math.round(s.percent)}% (£{s.amount.toLocaleString()})
+            </div>
+            <div className="text-slate-500">Due from: {s.triggerStageLabel}</div>
           </div>
-          <div className="text-slate-500">Due from: {s.triggerStageLabel}</div>
+        ))}
+      </div>
+      {balance.hasBalance && (
+        <div className="mt-3 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 text-xs text-amber-900 leading-relaxed">
+          <span className="font-bold">
+            Financed balance: £{balance.balanceAmount.toLocaleString()} ({balance.balancePercent}% of the fee)
+          </span>{" "}
+          — not collected through the platform. The full service fee still applies; this balance is payable separately
+          as agreed in the service agreement.
         </div>
-      ))}
+      )}
     </div>
   );
 }

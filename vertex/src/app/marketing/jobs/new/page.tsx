@@ -70,8 +70,8 @@ export default function CreateJobPage() {
     e.preventDefault();
     setError("");
 
-    if (formData.service_fee_gbp && (paymentStages.length === 0 || Math.round(stagesTotal) !== 100)) {
-      setError("Payment stages must sum to exactly 100% when a service fee is set.");
+    if (formData.service_fee_gbp && (paymentStages.length === 0 || Math.round(stagesTotal) > 100)) {
+      setError("Payment stages must not exceed 100% when a service fee is set.");
       return;
     }
 
@@ -204,7 +204,7 @@ export default function CreateJobPage() {
 
             <div className="col-span-1 md:col-span-2 border-t border-midnight-900/10 pt-6 mt-2">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-midnight-900/40 mb-4">
-                Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must sum to 100%)</span>
+                Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must not exceed 100%)</span>
               </p>
             </div>
 

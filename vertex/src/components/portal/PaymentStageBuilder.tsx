@@ -26,12 +26,17 @@ interface Props {
 // validates and persists as JobPaymentStage rows.
 export default function PaymentStageBuilder({ stages, onChange }: Props) {
   const total = stages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
-  // Tolerance mirrors the edit form's save guard (Math.abs(total - 100) < 0.01)
-  // so the indicator always matches what a save would actually accept. The
-  // raw total is rounded for display only — e.g. three 33.33333333333333%
+  // Tolerance mirrors the edit form's save guard (stagesTotal <= 100.01)
+  // so the indicator always matches what a save would actually accept.
+  // Financed/credit programmes may total less than 100% (the balance is
+  // repaid out-of-band), so anything at or under 100% is valid (2026-10-04);
+  // the raw total is rounded for display only — e.g. three 33.33333333333333%
   // stages sum to 99.99999999999999 in floating point.
-  const isValid = stages.length > 0 && Math.abs(total - 100) < 0.01;
+  const isValid = stages.length > 0 && total <= 100.01;
   const displayedTotal = Math.round(total * 100) / 100;
+  // Same float-noise tolerance as computePaymentPlanBalance (< 0.02): only a
+  // genuinely sub-100% plan surfaces a financed balance (2026-10-04).
+  const balancePercent = total < 99.98 ? Math.round((100 - total) * 100) / 100 : 0;
 
   const addStage = () => {
     onChange([...stages, { order: stages.length + 1, label: "", percent: "", trigger_stage: CASE_STAGE_ORDER[0] }]);
@@ -88,8 +93,14 @@ export default function PaymentStageBuilder({ stages, onChange }: Props) {
       </button>
 
       <div className={`text-xs font-semibold ${isValid ? "text-emerald-600" : "text-red-500"}`}>
-        Total: {displayedTotal}% {isValid ? "✓" : "— stages must sum to exactly 100%"}
+        Total: {displayedTotal}% {isValid ? "✓" : "— stages must not exceed 100%"}
       </div>
+      {balancePercent > 0 && (
+        <p className="text-[11px] text-gold-600">
+          Financed balance: {balancePercent}% — shown to applicants as payable separately; the full service fee still
+          applies.
+        </p>
+      )}
     </div>
   );
 }

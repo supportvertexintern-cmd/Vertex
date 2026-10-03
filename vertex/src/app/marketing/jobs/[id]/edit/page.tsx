@@ -135,7 +135,10 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
   }, [jobId]);
 
 const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
-  const stagesTotalIsValid = Math.abs(stagesTotal - 100) < 0.01;
+  // Financed/credit programmes may list stages totalling less than 100% (the
+  // balance is repaid out-of-band), so "valid" is any non-over-100 plan —
+  // tolerance mirrors PaymentStageBuilder's indicator.
+  const stagesTotalIsValid = stagesTotal <= 100.01;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +147,7 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
     const paymentStagesChanged = JSON.stringify(paymentStages) !== JSON.stringify(initialPaymentStages.current);
 
     if (formData.service_fee_gbp && paymentStagesChanged && !stagesTotalIsValid) {
-      setError("Payment stages must sum to exactly 100% when a service fee is set.");
+      setError("Payment stages must not exceed 100% when a service fee is set.");
       return;
     }
 
@@ -429,7 +432,7 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
 
               <div className="col-span-1 md:col-span-2 border-t border-midnight-900/10 pt-6 mt-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-midnight-900/40 mb-4">
-                  Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must sum to 100%)</span>
+                  Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must not exceed 100%)</span>
                 </p>
               </div>
 
