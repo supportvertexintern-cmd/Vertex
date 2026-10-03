@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       ? { partner: { name: sortDir } }
       : sortBy === "status"
       ? { status: sortDir }
-      : { submitted_at: sortDir };
+      : { updated_at: sortDir };
 
   const where: Prisma.PartnerCandidateWhereInput = {
     // Drafts (unsubmitted, possibly half-empty) aren't part of this app's

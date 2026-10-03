@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
 
+  console.log("Draft payload:", body);
+
   const parsed = savePartnerCandidateDraftSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(

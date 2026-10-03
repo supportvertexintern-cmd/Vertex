@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, Target, Users, FileText, Warning, Briefcase, UserCircleGear } from "@phosphor-icons/react";
+import { Gauge, Target, Users, FileText, Warning, Briefcase, UserCircleGear, XCircle } from "@phosphor-icons/react";
 
 // In-House Supervisor's own dedicated portal (previously shared
 // /management with Director/admin) — scoped entirely to their one
@@ -13,6 +13,7 @@ export const INHOUSE_NAV_ITEMS: PortalNavItem[] = [
   { href: "/inhouse/candidates", label: "Candidates", icon: Users },
   { href: "/inhouse/supervisors", label: "Country Supervisors", icon: UserCircleGear },
   { href: "/inhouse/cases", label: "Cases", icon: Briefcase },
+  { href: "/inhouse/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   { href: "/inhouse/reports", label: "Reports", icon: FileText },
   { href: "/inhouse/exceptions", label: "Exceptions", icon: Warning },
 ];

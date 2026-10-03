@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
@@ -109,6 +109,8 @@ interface Props {
  */
 export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const backUrl = searchParams.get("back") || backHref;
   const [data, setData] = useState<PartnerCandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -207,7 +209,7 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
         alert(body.error?.message ?? "Failed to delete.");
         return;
       }
-      router.push(backHref ?? "/hr");
+      router.push(backUrl ?? "/hr");
     } finally {
       setDeleting(false);
     }
@@ -248,14 +250,12 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
 
   return (
     <div>
-      {backHref && (
-        // router.back() (not a fixed Link) so returning here lands on the
-        // list's exact previous page/filters, not a reset to page 1 (CRM
-        // Comments follow-up, 2026-08-12) — falls back to the bare list
-        // path if there's no history to go back to (e.g. a direct link).
+      {backUrl && (
+        // Navigate to the back URL (from query param) which includes page/filters
+        // Falls back to router.back() if no back URL provided
         <button
           type="button"
-          onClick={() => (window.history.length > 1 ? router.back() : router.push(backHref))}
+          onClick={() => backUrl ? router.push(backUrl) : (window.history.length > 1 ? router.back() : router.push("/hr"))}
           className="text-xs text-midnight-900/45 hover:text-gold-600 mb-2 inline-block"
         >
           ← Back to submissions

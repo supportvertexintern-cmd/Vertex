@@ -429,7 +429,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
     setDraftJustSaved(false);
     setMessage("");
     setFieldErrors({});
-    const payload = { ...cleanForm(form), partner_id: partnerId || undefined };
+    const payload = { ...cleanForm(form), ...(partnerId ? { partner_id: partnerId } : {}) };
     const res = await fetch(draftId ? `/api/partner/candidates/${draftId}` : "/api/partner/candidates/draft", {
       method: draftId ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -475,7 +475,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
 
     const body = {
       ...form,
-      partner_id: partnerId || undefined,
+      ...(partnerId ? { partner_id: partnerId } : {}),
       job_position_id: form.job_position_id || undefined,
       prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
       holds_schengen_visa: form.holds_schengen_visa ?? undefined,

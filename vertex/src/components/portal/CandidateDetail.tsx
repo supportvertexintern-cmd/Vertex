@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import CandidateMessages from "@/components/CandidateMessages";
@@ -147,6 +147,8 @@ interface Props {
  */
 export default function CandidateDetail({ candidateId, backHref, canVerify = false, canApprove = false, canVerifyDocuments = false, hrMode = false }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const backUrl = searchParams.get("back") || backHref;
   const [data, setData] = useState<CandidateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -186,7 +188,7 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
         alert(body.error?.message ?? "Failed to delete.");
         return;
       }
-      router.push(backHref);
+      router.push(backUrl);
     } finally {
       setDeleting(false);
     }
@@ -275,7 +277,7 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               path if there's no history to go back to (e.g. a direct link). */}
           <button
             type="button"
-            onClick={() => (window.history.length > 1 ? router.back() : router.push(backHref))}
+            onClick={() => backUrl ? router.push(backUrl) : (window.history.length > 1 ? router.back() : router.push(backHref))}
             className="text-xs text-midnight-900/45 hover:text-gold-600 mb-2 inline-block"
           >
             ← Back to candidates

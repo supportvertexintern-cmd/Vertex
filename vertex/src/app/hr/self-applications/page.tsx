@@ -70,6 +70,7 @@ export default function HrSelfApplicationsPage() {
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "created_at"));
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (urlState.get("sortDir") === "asc" ? "asc" : "desc"));
   const isFirstRun = useRef(true);
+  const hasInitializedFromUrl = useRef(false);
 
   const handleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -110,18 +111,33 @@ export default function HrSelfApplicationsPage() {
   }, [q, status]);
 
   useEffect(() => {
+    if (!hasInitializedFromUrl.current) {
+      hasInitializedFromUrl.current = true;
+      return;
+    }
     urlState.set({ page, q, status, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, q, status, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
-    isFirstRun.current = false;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, status, page, sortBy, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Build the current URL with all state for back navigation
+  const currentUrl = (() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (sortBy !== "created_at") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    const qs = params.toString();
+    return qs ? `/hr/self-applications?${qs}` : "/hr/self-applications";
+  })();
 
   return (
     <PortalShell roleLabel="Human Resources" navItems={HR_NAV_ITEMS}>
@@ -194,7 +210,7 @@ export default function HrSelfApplicationsPage() {
                 return (
                   <tr key={row.id} className="border-b border-midnight-900/5 last:border-0">
                     <td className="px-5 py-4">
-                      <Link href={`/hr/self-applications/${row.id}`} className="block">
+                      <Link href={`/hr/self-applications/${row.id}?back=${encodeURIComponent(currentUrl)}`} className="block">
                         <div className="font-medium text-midnight-900 hover:text-gold-600">{name}</div>
                         <div className="text-xs text-midnight-900/45">{contact}</div>
                       </Link>
