@@ -10,6 +10,7 @@ import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
+import ExpandableStageText from "@/components/portal/ExpandableStageText";
 import { ArrowRight } from "@phosphor-icons/react";
 import { useUrlListState } from "@/lib/useUrlListState";
 
@@ -172,7 +173,7 @@ export default function FinanceCasesPage() {
   })();
 
   return (
-    <PortalShell roleLabel="Finance" navItems={FINANCE_NAV_ITEMS}>
+    <PortalShell roleLabel="Finance" navItems={FINANCE_NAV_ITEMS} wideContent>
       <p className="eyebrow mb-3">
         <span className="eyebrow-rule" />
         Mobility Lifecycle
@@ -203,20 +204,20 @@ export default function FinanceCasesPage() {
           {q || stage || partnerId || sourceFilter ? "No cases match your filters." : "No active cases yet."}
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="card overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-midnight-900/10 text-left text-midnight-900/40 text-xs uppercase tracking-wider">
-                <th className="px-5 py-3 font-semibold">Candidate</th>
-                <th className="px-5 py-3 font-semibold">Country</th>
-                <th className="px-5 py-3 font-semibold">Partner</th>
-                <SortableTh label="Created" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-3 font-semibold">Updated</th>
-                <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-3 font-semibold">Documentation</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Payment</th>
-                <th className="px-5 py-3 font-semibold"></th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Candidate</th>
+                <th className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Country</th>
+                <th className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Partner</th>
+                <SortableTh label="Created" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden 2xl:table-cell" />
+                <th className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Updated</th>
+                <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="w-[30%] md:w-[24%] xl:w-[18%] 2xl:w-[16%] px-2 sm:px-3 lg:px-5" />
+                <th className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Documentation</th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Status</th>
+                <th className="hidden lg:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Payment</th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
             <tbody>
@@ -226,7 +227,7 @@ export default function FinanceCasesPage() {
                 const paymentStatus = paymentStatusLabel(c.payments ?? []);
                 return (
                   <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
-                    <td className="px-5 py-4">
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word">
                       <Link href={`/finance/cases/${c.id}?returnTo=${encodeURIComponent(currentUrl)}`} className="font-medium text-midnight-900 hover:underline">
                         {name}
                       </Link>
@@ -234,27 +235,27 @@ export default function FinanceCasesPage() {
                         {c.application.job ? c.application.job.title : c.application.preferred_sector?.name ?? "General Programme"}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-midnight-900/70">{country}</td>
-                    <td className="px-5 py-4 text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-5 py-4 text-midnight-900/70 whitespace-nowrap">
-                      Stage {CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of {CASE_STAGE_ORDER.length}: {CASE_STAGE_LABELS[c.current_stage]}
+                    <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{country}</td>
+                    <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.updated_at).toLocaleDateString()}</td>
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-midnight-900/70 wrap-break-word">
+                      <ExpandableStageText text={`Stage ${CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of ${CASE_STAGE_ORDER.length}: ${CASE_STAGE_LABELS[c.current_stage]}`} />
                     </td>
-                    <td className="px-5 py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
-                    <td className="px-5 py-4">
+                    <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4">
                       {c.status === "rejected" ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Active</span>
                       )}
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="hidden lg:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${paymentStatus.className}`}>
                         {paymentStatus.label}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-right">
                       <Link
                         href={`/finance/cases/${c.id}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline"
