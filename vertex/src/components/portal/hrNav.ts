@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Airplane, TrayArrowDown, Globe, DownloadSimple } from "@phosphor-icons/react";
+import { Airplane, TrayArrowDown, Globe, DownloadSimple, XCircle } from "@phosphor-icons/react";
 
 // HR's portal (2026-07-31, per the Operational Workflow SOP) — reviews
 // partner-submitted candidates and creates the Case that hands them to
@@ -14,6 +14,7 @@ import { Airplane, TrayArrowDown, Globe, DownloadSimple } from "@phosphor-icons/
 export const HR_NAV_ITEMS: PortalNavItem[] = [
   { href: "/hr", label: "Partner Submissions", icon: TrayArrowDown },
   { href: "/hr/self-applications", label: "Self Applications", icon: Globe },
+  { href: "/hr/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   // Cases (2026-08-16) — a direct list of every case HR has handed off,
   // so finding one (e.g. to reject a mistaken case) doesn't mean digging
   // back through the Candidates/Partner Submissions queues that created

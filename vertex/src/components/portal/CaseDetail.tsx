@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import SearchableSelect from "@/components/SearchableSelect";
@@ -12,7 +13,7 @@ import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseSt
 import { isCaseUploadExcludedKey, isPaymentReceiptTypeKey, paymentReceiptTypeKey } from "@/lib/documentTypes";
 import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { isMilestoneDue } from "@/server/services/paymentSchedule";
-import { UploadSimple } from "@phosphor-icons/react";
+import { ArrowLeft, UploadSimple } from "@phosphor-icons/react";
 
 // Mirrors the Prisma `CaseStatus` enum — the statuses a case can be
 // set to after a rejection is overturned (2026-09-25).
@@ -237,6 +238,12 @@ function yesNoWithDetail(value: boolean | null | undefined, detail?: string | nu
 }
 
 export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedReturnTo = searchParams.get("returnTo");
+  const backHref = pathname.slice(0, pathname.lastIndexOf("/")) || "/";
+  const returnTo = requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//") ? requestedReturnTo : null;
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -852,6 +859,13 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   return (
     <div className="space-y-6">
+      <button
+        type="button"
+        onClick={() => (returnTo ? router.replace(returnTo) : window.history.length > 1 ? router.back() : router.push(backHref))}
+        className="inline-flex items-center gap-1.5 text-xs text-midnight-900/45 hover:text-gold-600"
+      >
+        <ArrowLeft size={14} weight="bold" /> Back to cases
+      </button>
       {data.status === "rejected" && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
           <p className="text-sm font-semibold">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { OPERATIONS_NAV_ITEMS } from "@/components/portal/operationsNav";
@@ -11,6 +11,7 @@ import FilterBar from "@/components/portal/FilterBar";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
 import { ArrowRight } from "@phosphor-icons/react";
+import { useUrlListState } from "@/lib/useUrlListState";
 
 interface CaseRow {
   id: string;
@@ -69,18 +70,20 @@ const SOURCE_OPTIONS = [
 // or partner-sourced), scoped unrestricted (2026-07-31, per the
 // Operational Workflow SOP's confirmed global-access decision).
 export default function OperationsCasesPage() {
+  const { get, getNumber, set: setUrlState } = useUrlListState();
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [stage, setStage] = useState("");
-  const [partnerId, setPartnerId] = useState("");
-  const [source, setSource] = useState("");
-  const [caseStatus, setCaseStatus] = useState("active");
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState("updated_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState(() => get("q"));
+  const [stage, setStage] = useState(() => get("stage"));
+  const [partnerId, setPartnerId] = useState(() => get("partner_id"));
+  const [source, setSource] = useState(() => get("source"));
+  const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
+  const [page, setPage] = useState(() => getNumber("page", 1));
+  const [sortBy, setSortBy] = useState(() => get("sortBy") || "updated_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (get("sortDir") === "asc" ? "asc" : "desc"));
+  const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false);
 
   const handleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -95,8 +98,32 @@ export default function OperationsCasesPage() {
   }, []);
 
   useEffect(() => {
+    if (!hasInitializedFromUrl) return;
     setPage(1);
-  }, [q, stage, partnerId, source, caseStatus]);
+  }, [q, stage, partnerId, source, caseStatus, hasInitializedFromUrl]);
+
+  useEffect(() => {
+    if (!hasInitializedFromUrl) {
+      setHasInitializedFromUrl(true);
+      return;
+    }
+    // Only update URL if values have changed from what's in the URL
+    const currentParams = new URLSearchParams();
+    if (page > 1) currentParams.set("page", String(page));
+    if (q) currentParams.set("q", q);
+    if (stage) currentParams.set("stage", stage);
+    if (partnerId) currentParams.set("partner_id", partnerId);
+    if (source) currentParams.set("source", source);
+    if (caseStatus !== "active") currentParams.set("status", caseStatus);
+    if (sortBy !== "updated_at") currentParams.set("sortBy", sortBy);
+    if (sortDir !== "desc") currentParams.set("sortDir", sortDir);
+    
+    const currentUrl = currentParams.toString();
+    if (currentUrl !== window.location.search.slice(1)) {
+      setUrlState({ page, q, stage, partner_id: partnerId, source, status: caseStatus, sortBy, sortDir });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, q, stage, partnerId, source, caseStatus, sortBy, sortDir, hasInitializedFromUrl]);
 
   useEffect(() => {
     setLoading(true);
@@ -118,6 +145,21 @@ export default function OperationsCasesPage() {
   }, [q, stage, partnerId, source, caseStatus, page, sortBy, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Build the current URL with all state for back navigation
+  const currentUrl = (() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (q) params.set("q", q);
+    if (stage) params.set("stage", stage);
+    if (partnerId) params.set("partner_id", partnerId);
+    if (source) params.set("source", source);
+    if (caseStatus !== "active") params.set("status", caseStatus);
+    if (sortBy !== "updated_at") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    const qs = params.toString();
+    return qs ? `/operations?${qs}` : "/operations";
+  })();
 
   return (
     <PortalShell roleLabel="Operations" navItems={OPERATIONS_NAV_ITEMS}>
@@ -174,7 +216,7 @@ export default function OperationsCasesPage() {
                 return (
                   <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
                     <td className="px-5 py-4">
-                      <Link href={`/operations/${c.id}`} className="font-medium text-midnight-900 hover:underline">
+                      <Link href={`/operations/${c.id}?returnTo=${encodeURIComponent(currentUrl)}`} className="font-medium text-midnight-900 hover:underline">
                         {name}
                       </Link>
                       <div className="text-xs text-midnight-900/40">

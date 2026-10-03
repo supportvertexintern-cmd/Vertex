@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { HandCoins, Airplane, CalendarCheck } from "@phosphor-icons/react";
+import { HandCoins, Airplane, CalendarCheck, XCircle } from "@phosphor-icons/react";
 
 // Finance's portal (2026-07-31, per the Operational Workflow SOP) — owns
 // issuing payment links and recording milestone payments across every
@@ -8,5 +8,6 @@ import { HandCoins, Airplane, CalendarCheck } from "@phosphor-icons/react";
 export const FINANCE_NAV_ITEMS: PortalNavItem[] = [
   { href: "/finance", label: "Payments Due", icon: HandCoins },
   { href: "/finance/cases", label: "Cases", icon: Airplane },
+  { href: "/finance/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   { href: "/finance/consultations", label: "Consultations", icon: CalendarCheck },
 ];

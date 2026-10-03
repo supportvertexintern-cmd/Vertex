@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { MANAGEMENT_NAV_ITEMS } from "@/components/portal/managementNav";
@@ -10,6 +11,7 @@ import FilterBar from "@/components/portal/FilterBar";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
 import { ArrowRight } from "@phosphor-icons/react";
+import { useUrlListState } from "@/lib/useUrlListState";
 
 interface CaseRow {
   id: string;
@@ -63,16 +65,21 @@ const SOURCE_OPTIONS = [
 ];
 
 export default function ManagementCasesPage() {
+  const { get, getNumber, set: setUrlState } = useUrlListState();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const returnTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [stage, setStage] = useState("");
-  const [partnerId, setPartnerId] = useState("");
-  const [source, setSource] = useState("");
-  const [caseStatus, setCaseStatus] = useState("active");
-  const [page, setPage] = useState(1);
+  const [q, setQ] = useState(() => get("q"));
+  const [stage, setStage] = useState(() => get("stage"));
+  const [partnerId, setPartnerId] = useState(() => get("partner_id"));
+  const [source, setSource] = useState(() => get("source"));
+  const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
+  const [page, setPage] = useState(() => getNumber("page", 1));
+  const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/partners")
@@ -82,8 +89,30 @@ export default function ManagementCasesPage() {
   }, []);
 
   useEffect(() => {
+    if (!hasInitializedFromUrl) return;
     setPage(1);
-  }, [q, stage, partnerId, source, caseStatus]);
+  }, [q, stage, partnerId, source, caseStatus, hasInitializedFromUrl]);
+
+  useEffect(() => {
+    if (!hasInitializedFromUrl) {
+      setHasInitializedFromUrl(true);
+      return;
+    }
+    // Only update URL if values have changed from what's in the URL
+    const currentParams = new URLSearchParams();
+    if (page > 1) currentParams.set("page", String(page));
+    if (q) currentParams.set("q", q);
+    if (stage) currentParams.set("stage", stage);
+    if (partnerId) currentParams.set("partner_id", partnerId);
+    if (source) currentParams.set("source", source);
+    if (caseStatus !== "active") currentParams.set("status", caseStatus);
+    
+    const currentUrl = currentParams.toString();
+    if (currentUrl !== window.location.search.slice(1)) {
+      setUrlState({ page, q, stage, partner_id: partnerId, source, status: caseStatus });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, q, stage, partnerId, source, caseStatus, hasInitializedFromUrl]);
 
   useEffect(() => {
     setLoading(true);
@@ -160,7 +189,7 @@ export default function ManagementCasesPage() {
                 return (
                   <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
                     <td className="px-5 py-4">
-                      <Link href={`/management/cases/${c.id}`} className="font-medium text-midnight-900 hover:underline">
+                      <Link href={`/management/cases/${c.id}?returnTo=${encodeURIComponent(returnTo)}`} className="font-medium text-midnight-900 hover:underline">
                         {name}
                       </Link>
                       <div className="text-xs text-midnight-900/40">
@@ -185,7 +214,7 @@ export default function ManagementCasesPage() {
                     </td>
                     <td className="px-5 py-4 text-right">
                       <Link
-                        href={`/management/cases/${c.id}`}
+                        href={`/management/cases/${c.id}?returnTo=${encodeURIComponent(returnTo)}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline"
                       >
                         View <ArrowRight size={11} weight="bold" />
