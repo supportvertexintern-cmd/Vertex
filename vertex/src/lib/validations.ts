@@ -153,7 +153,9 @@ export const createJobSchema = z.object({
   // reaches trigger_stage. Optional at the base-schema level (a plain
   // employer posting with no service_fee_gbp has none), but POST /api/jobs
   // and PUT /api/jobs/:id both validate that when stages ARE given, their
-  // percentages sum to exactly 100 — that check needs the full array
+  // percentages total AT MOST 100 — financed/credit programmes list only
+  // the stages actually collected through the platform, so they may total
+  // less than 100% (2026-10-04). That check needs the full array
   // (impossible to express as a single field's own .refine()), so it lives
   // at the route call site, same pattern already used for
   // is_credit_service's own financing_percent/installment_count

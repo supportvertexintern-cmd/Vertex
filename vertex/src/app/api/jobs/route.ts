@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
       message: "At least one payment stage is required when a service fee is set",
       path: ["payment_stages"],
     })
-    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100, {
-      message: "Payment stage percentages must sum to exactly 100",
+    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) <= 100, {
+      message: "Payment stage percentages must not exceed 100",
       path: ["payment_stages"],
     })
     .safeParse(body);

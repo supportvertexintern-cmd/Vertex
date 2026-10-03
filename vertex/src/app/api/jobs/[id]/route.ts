@@ -93,9 +93,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // An explicit empty plan accompanies service_fee_gbp: null when
       // Marketing removes a fee from an existing posting.
       if (data.payment_stages.length === 0 && data.service_fee_gbp === null) return true;
-      return Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) === 100;
+      // Otherwise an empty plan with a fee still in place is rejected, and
+      // a plan may total AT MOST 100% — financed/credit programmes list
+      // only the stages the candidate actually pays through the platform,
+      // with the balance repaid separately, so the percentages don't have
+      // to add up to 100 anymore (2026-10-04).
+      if (data.payment_stages.length === 0) return false;
+      return Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) <= 100;
     }, {
-      message: "Payment stage percentages must sum to exactly 100",
+      message: "Payment stage percentages must not exceed 100",
       path: ["payment_stages"],
     })
     .safeParse(payload);
