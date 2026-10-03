@@ -5,6 +5,7 @@ import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { FINANCE_NAV_ITEMS } from "@/components/portal/financeNav";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
+import ExpandableStageText from "@/components/portal/ExpandableStageText";
 import SortableTh from "@/components/SortableTh";
 import SearchableSelect from "@/components/SearchableSelect";
 import FilterBar from "@/components/portal/FilterBar";
@@ -90,7 +91,7 @@ export default function FinancePaymentsDuePage() {
   }, [rows, q, partnerFilter, sourceFilter, sortBy, sortDir]);
 
   return (
-    <PortalShell roleLabel="Finance" navItems={FINANCE_NAV_ITEMS}>
+    <PortalShell roleLabel="Finance" navItems={FINANCE_NAV_ITEMS} wideContent>
       <p className="eyebrow mb-3">
         <span className="eyebrow-rule" />
         Milestone Payments
@@ -122,29 +123,29 @@ export default function FinancePaymentsDuePage() {
       ) : visibleRows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">No payments due match your filters.</div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="card overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-midnight-900/10 text-left text-midnight-900/40 text-xs uppercase tracking-wider">
-                <SortableTh label="Candidate" sortKey="candidateName" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <SortableTh label="Partner" sortKey="partnerName" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <SortableTh label="Programme" sortKey="programmeTitle" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-3 font-semibold">Milestone</th>
-                <SortableTh label="Amount Due" sortKey="amountDue" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-3 font-semibold">Current Stage</th>
-                <th className="px-5 py-3 font-semibold"></th>
+                <SortableTh label="Candidate" sortKey="candidateName" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="px-2 sm:px-3 lg:px-5" />
+                <SortableTh label="Partner" sortKey="partnerName" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden xl:table-cell" />
+                <SortableTh label="Programme" sortKey="programmeTitle" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Milestone</th>
+                <SortableTh label="Amount Due" sortKey="amountDue" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="px-2 sm:px-3 lg:px-5" />
+                <th className="w-[24%] md:w-[22%] xl:w-[20%] px-2 sm:px-3 lg:px-5 py-3 font-semibold">Current Stage</th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
             <tbody>
               {visibleRows.map((r, i) => (
                 <tr key={`${r.case_id}-${r.job_payment_stage_id}-${i}`} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
-                  <td className="px-5 py-4 font-medium text-midnight-900">{r.candidateName}</td>
-                  <td className="px-5 py-4 text-midnight-900/70">{r.partnerName ?? "—"}</td>
-                  <td className="px-5 py-4 text-midnight-900/70">{r.programmeTitle}</td>
-                  <td className="px-5 py-4 text-midnight-900/70">{r.label}</td>
-                  <td className="px-5 py-4 text-midnight-900 font-semibold">£{r.amountDue.toLocaleString()}</td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50">{CASE_STAGE_LABELS[r.currentStage]}</td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word font-medium text-midnight-900">{r.candidateName}</td>
+                  <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{r.partnerName ?? "—"}</td>
+                  <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{r.programmeTitle}</td>
+                  <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{r.label}</td>
+                  <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word font-semibold text-midnight-900">£{r.amountDue.toLocaleString()}</td>
+                  <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50 wrap-break-word"><ExpandableStageText text={CASE_STAGE_LABELS[r.currentStage]} /></td>
+                  <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-right">
                     <Link
                       href={`/finance/cases/${r.case_id}`}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline"

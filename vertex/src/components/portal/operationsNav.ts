@@ -10,7 +10,6 @@ import { Airplane, TrayArrowDown, CalendarCheck, DownloadSimple, XCircle } from 
 export const OPERATIONS_NAV_ITEMS: PortalNavItem[] = [
   { href: "/operations", label: "Cases", icon: Airplane },
   { href: "/operations/partner-candidates", label: "Partner Submissions", icon: TrayArrowDown },
-  { href: "/operations/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   { href: "/operations/consultations", label: "Consultations", icon: CalendarCheck },
-  { href: "/operations/backup", label: "Backup", icon: DownloadSimple },
-];
+ { href: "/operations/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
+  { href: "/operations/backup", label: "Backup", icon: DownloadSimple },];

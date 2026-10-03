@@ -12,14 +12,15 @@ import { Airplane, TrayArrowDown, Globe, DownloadSimple, XCircle } from "@phosph
 // roles are ever involved for this source). A recruiter-sourced candidate
 // never appears in either queue — that pipeline is unchanged.
 export const HR_NAV_ITEMS: PortalNavItem[] = [
+ 
   { href: "/hr", label: "Partner Submissions", icon: TrayArrowDown },
   { href: "/hr/self-applications", label: "Self Applications", icon: Globe },
-  { href: "/hr/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   // Cases (2026-08-16) — a direct list of every case HR has handed off,
   // so finding one (e.g. to reject a mistaken case) doesn't mean digging
   // back through the Candidates/Partner Submissions queues that created
   // it. Read-only browsing + Reject Case only, same capabilities as the
   // existing /hr/cases/[id] detail view.
   { href: "/hr/cases", label: "Cases", icon: Airplane },
+  { href: "/hr/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   { href: "/hr/backup", label: "Backup", icon: DownloadSimple },
 ];
