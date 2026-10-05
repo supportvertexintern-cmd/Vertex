@@ -1,25 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  CaretDown,
-  CaretRight,
-  Database,
-  DownloadSimple,
-  Funnel,
-  Plus,
-  SlidersHorizontal,
-  Trash,
-  X,
-} from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Database, DownloadSimple, Plus, SlidersHorizontal, X } from "@phosphor-icons/react";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
-// Backup / Data Export builder (2026-10-05) — replaces the fixed
-// Candidates/Partners CSV card. Everything listed here (tables, columns,
-// statuses, relationships) comes live from GET /api/backup/catalog, which
-// reads the Prisma schema and the caller's role allowlist, so new tables
-// appear automatically. Shared across Admin Settings, HR, Operations,
-// Finance and Management/Director backup pages.
+// Backup / Data Export (2026-10-05) — replaces the fixed Candidates/Partners
+// CSV card. Deliberately general-first: pick Full backup or tick a few
+// modules, optionally a status and date range, and download. Columns,
+// related tables and specific records sit behind each module's collapsed
+// "Customize" panel. Every table/column/status/relationship comes live from
+// GET /api/backup/catalog (Prisma schema + the caller's role allowlist), so
+// new tables appear automatically. Shared across Admin Settings, HR,
+// Operations, Finance and Management/Director backup pages.
 
 type CatalogField = {
   name: string;
@@ -49,26 +41,43 @@ type SectionState = {
   title: string;
   root: NodeState;
   dateField: string;
-  start: string;
-  end: string;
   enums: Record<string, string[]>;
   records: PickedRecord[];
-  open: boolean;
 };
+// One row in the "choose what to export" checklist — a ready-made module,
+// or a single table added via "Add another table".
+type ModuleState = {
+  key: string;
+  label: string;
+  description: string;
+  statusField?: string; // drives the row's one simple Status dropdown, on sections[0]
+  statusLabel?: string;
+  checked: boolean;
+  customizing: boolean;
+  removable: boolean;
+  sections: SectionState[];
+};
+type SectionSpec = { title: string; model: string; enums?: Record<string, string[]>; relations?: string[] };
 
 const MAX_DEPTH = 4;
 
-// Ready-made modules matching how staff describe their data. Each adds one
-// or more pre-configured sections (still fully editable afterwards); any
-// table/relationship the viewer's role can't export is silently dropped.
-const PRESETS: {
+// Ready-made modules matching how staff describe their data. Each bundles
+// one or more pre-configured sections; any table/relationship the viewer's
+// role can't export is silently dropped, and a module with nothing left
+// isn't shown.
+const MODULES: {
   key: string;
   label: string;
-  sections: { title: string; model: string; enums?: Record<string, string[]>; relations?: string[] }[];
+  description: string;
+  statusField?: string;
+  statusLabel?: string;
+  sections: SectionSpec[];
 }[] = [
   {
     key: "partner-submissions",
     label: "Partnership Submissions",
+    description: "Candidates submitted by partners, with the partner, programme and documents.",
+    statusField: "status",
     sections: [
       {
         title: "Partnership Submissions",
@@ -80,6 +89,7 @@ const PRESETS: {
   {
     key: "rejected",
     label: "Rejected Submissions",
+    description: "Rejected partner submissions, rejected candidates and rejected cases.",
     sections: [
       {
         title: "Rejected Partner Submissions",
@@ -104,6 +114,8 @@ const PRESETS: {
   {
     key: "cases",
     label: "Case Information",
+    description: "Cases with their candidate, programme, stage history, contract and payments.",
+    statusField: "status",
     sections: [
       {
         title: "Case Information",
@@ -127,6 +139,8 @@ const PRESETS: {
   {
     key: "candidates",
     label: "Candidates",
+    description: "Candidate profiles with their applications, documents and messages.",
+    statusField: "lifecycle_status",
     sections: [
       {
         title: "Candidates",
@@ -138,18 +152,24 @@ const PRESETS: {
   {
     key: "users",
     label: "User Information",
+    description: "Staff and user accounts (passwords are never included).",
+    statusField: "role",
+    statusLabel: "Role",
     sections: [{ title: "User Information", model: "User", relations: ["assigned_country", "supervisor"] }],
   },
   {
     key: "documents",
     label: "Documents",
-    sections: [
-      { title: "Documents", model: "Document", relations: ["candidate", "partner_candidate", "requirement_type"] },
-    ],
+    description: "Uploaded document records and who they belong to.",
+    statusField: "verification_status",
+    statusLabel: "Verification",
+    sections: [{ title: "Documents", model: "Document", relations: ["candidate", "partner_candidate", "requirement_type"] }],
   },
   {
     key: "payments",
     label: "Payments",
+    description: "Case payments and consultation bookings.",
+    statusField: "status",
     sections: [
       {
         title: "Case Payments",
@@ -168,74 +188,100 @@ function humanizeValue(v: string) {
   return v.replace(/_/g, " ");
 }
 
+function buildSection(tables: Map<string, CatalogTable>, spec: SectionSpec): SectionState | null {
+  const table = tables.get(spec.model);
+  if (!table) return null;
+  const section: SectionState = {
+    id: newId(),
+    title: spec.title,
+    root: { model: spec.model, fields: null, relations: {} },
+    dateField: table.defaultDateField ?? "",
+    enums: {},
+    records: [],
+  };
+  for (const [field, values] of Object.entries(spec.enums ?? {})) {
+    if (table.fields.some((f) => f.name === field)) section.enums[field] = values;
+  }
+  for (const path of spec.relations ?? []) {
+    let node = section.root;
+    for (const relName of path.split(".")) {
+      const rel = tables.get(node.model)?.relations.find((r) => r.name === relName);
+      if (!rel) break;
+      node.relations[relName] ??= { model: rel.model, fields: null, relations: {} };
+      node = node.relations[relName];
+    }
+  }
+  return section;
+}
+
 export default function BackupExport() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loadError, setLoadError] = useState("");
   const [mode, setMode] = useState<"full" | "custom">("full");
-  const [sections, setSections] = useState<SectionState[]>([]);
+  const [modules, setModules] = useState<ModuleState[]>([]);
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [addingTable, setAddingTable] = useState(false);
+  const [showAllTables, setShowAllTables] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [lastExport, setLastExport] = useState("");
+
+  const tables = useMemo(() => new Map((catalog?.tables ?? []).map((t) => [t.name, t])), [catalog]);
 
   useEffect(() => {
     fetch("/api/backup/catalog")
       .then(async (res) => {
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Failed to load");
-        setCatalog(await res.json());
+        const data: Catalog = await res.json();
+        const byName = new Map(data.tables.map((t) => [t.name, t]));
+        setCatalog(data);
+        setModules(
+          MODULES.map((m) => ({
+            key: m.key,
+            label: m.label,
+            description: m.description,
+            statusField: m.statusField,
+            statusLabel: m.statusLabel,
+            checked: false,
+            customizing: false,
+            removable: false,
+            sections: m.sections.map((s) => buildSection(byName, s)).filter((s): s is SectionState => !!s),
+          })).filter((m) => m.sections.length > 0)
+        );
       })
       .catch((e: Error) => setLoadError(e.message || "Failed to load export options."));
   }, []);
 
-  const tables = useMemo(() => new Map((catalog?.tables ?? []).map((t) => [t.name, t])), [catalog]);
+  const updateModule = (key: string, patch: Partial<ModuleState>) =>
+    setModules((prev) => prev.map((m) => (m.key === key ? { ...m, ...patch } : m)));
 
-  const newSection = (model: string, title?: string): SectionState => {
-    const table = tables.get(model)!;
-    return {
-      id: newId(),
-      title: title ?? table.label,
-      root: { model, fields: null, relations: {} },
-      dateField: table.defaultDateField ?? "",
-      start: "",
-      end: "",
-      enums: {},
-      records: [],
-      open: true,
-    };
+  const addTable = (model: string) => {
+    const table = tables.get(model);
+    const section = table ? buildSection(tables, { title: table.label, model }) : null;
+    if (!table || !section) return;
+    setModules((prev) => [
+      ...prev,
+      {
+        key: section.id,
+        label: table.label,
+        description: catalog?.categories.find((c) => c.key === table.category)?.label ?? "",
+        checked: true,
+        customizing: false,
+        removable: true,
+        sections: [section],
+      },
+    ]);
+    setAddingTable(false);
   };
 
-  const addPreset = (preset: (typeof PRESETS)[number]) => {
-    const added: SectionState[] = [];
-    for (const spec of preset.sections) {
-      const table = tables.get(spec.model);
-      if (!table) continue;
-      const section = newSection(spec.model, spec.title);
-      for (const [field, values] of Object.entries(spec.enums ?? {})) {
-        if (table.fields.some((f) => f.name === field)) section.enums[field] = values;
-      }
-      for (const path of spec.relations ?? []) {
-        let node = section.root;
-        for (const relName of path.split(".")) {
-          const rel = tables.get(node.model)?.relations.find((r) => r.name === relName);
-          if (!rel) break;
-          node.relations[relName] ??= { model: rel.model, fields: null, relations: {} };
-          node = node.relations[relName];
-        }
-      }
-      added.push(section);
-    }
-    setSections((prev) => [...prev.map((s) => ({ ...s, open: false })), ...added]);
-  };
-
-  const availablePresets = PRESETS.filter((p) => p.sections.some((s) => tables.has(s.model)));
-
-  const updateSection = (id: string, patch: Partial<SectionState>) =>
-    setSections((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const selected = modules.filter((m) => m.checked);
 
   const download = async () => {
     setError("");
     setLastExport("");
-    if (mode === "custom" && sections.length === 0) {
-      setError("Add at least one table or module to export.");
+    if (mode === "custom" && selected.length === 0) {
+      setError("Tick at least one item to export.");
       return;
     }
     const body =
@@ -243,15 +289,19 @@ export default function BackupExport() {
         ? { mode: "full" }
         : {
             mode: "custom",
-            sections: sections.map((s) => ({
-              title: s.title.trim() || tables.get(s.root.model)?.label || s.root.model,
-              root: serializeNode(s.root),
-              filters: {
-                ...(s.start || s.end ? { dateField: s.dateField, start: s.start || undefined, end: s.end || undefined } : {}),
-                enums: s.enums,
-                ...(s.records.length ? { ids: s.records.map((r) => r.id) } : {}),
-              },
-            })),
+            sections: selected.flatMap((m) =>
+              m.sections.map((s) => ({
+                title: s.title.trim() || m.label,
+                root: serializeNode(s.root),
+                filters: {
+                  ...((start || end) && s.dateField
+                    ? { dateField: s.dateField, start: start || undefined, end: end || undefined }
+                    : {}),
+                  enums: s.enums,
+                  ...(s.records.length ? { ids: s.records.map((r) => r.id) } : {}),
+                },
+              }))
+            ),
           };
 
     setExporting(true);
@@ -286,147 +336,274 @@ export default function BackupExport() {
     }
   };
 
-  if (loadError) {
+  if (loadError || !catalog) {
     return (
       <div className="card p-6">
         <h2 className="font-semibold text-midnight-900 mb-2">Backup &amp; Data Export</h2>
-        <p className="text-sm text-red-600">{loadError}</p>
-      </div>
-    );
-  }
-  if (!catalog) {
-    return (
-      <div className="card p-6">
-        <h2 className="font-semibold text-midnight-900 mb-2">Backup &amp; Data Export</h2>
-        <p className="text-sm text-midnight-900/50">Loading export options…</p>
+        <p className={`text-sm ${loadError ? "text-red-600" : "text-midnight-900/50"}`}>
+          {loadError || "Loading export options…"}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="card p-6 space-y-6">
+    <div className="card p-6 space-y-8">
       <div>
         <h2 className="font-semibold text-midnight-900 mb-1">Backup &amp; Data Export</h2>
-        <p className="text-sm text-midnight-900/50">
-          Downloads a ZIP with one CSV per table. Columns ending in <code>_id</code> link rows across files, and{" "}
-          <code>relationships.csv</code> inside the ZIP explains every link. Only tables your role can access are listed.
-        </p>
+        <p className="text-sm text-midnight-900/50">Download your data as a ZIP of spreadsheet (CSV) files.</p>
       </div>
 
-      {/* Mode */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3" role="radiogroup" aria-label="Export type">
-        <ModeCard
-          active={mode === "full"}
-          onClick={() => setMode("full")}
-          icon={<Database size={20} />}
-          title="Full backup"
-          text="Every table available to you — all columns, all records, no filters. Use this as a complete copy outside the CRM."
-        />
-        <ModeCard
-          active={mode === "custom"}
-          onClick={() => setMode("custom")}
-          icon={<SlidersHorizontal size={20} />}
-          title="Custom export"
-          text="Choose the tables, columns, related tables, date range, status and specific records. Not a complete backup."
-        />
-      </div>
+      <section>
+        <StepHeading n={1}>What do you need?</StepHeading>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3" role="radiogroup" aria-label="Export type">
+          <ModeCard
+            active={mode === "full"}
+            onClick={() => setMode("full")}
+            icon={<Database size={20} />}
+            title="Full backup"
+            text="Everything you have access to, nothing left out."
+          />
+          <ModeCard
+            active={mode === "custom"}
+            onClick={() => setMode("custom")}
+            icon={<SlidersHorizontal size={20} />}
+            title="Choose what to export"
+            text="Only the data you pick. This is not a complete backup."
+          />
+        </div>
+      </section>
 
       {mode === "full" ? (
-        <div className="space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-midnight-900/50">Included in the full backup</p>
-          {catalog.categories.map((c) => (
-            <div key={c.key}>
-              <p className="text-sm font-medium text-midnight-900 mb-1.5">{c.label}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {c.models.map((m) => (
-                  <span key={m} className="text-xs px-2 py-1 rounded-md bg-ivory-100 border border-midnight-900/10 text-midnight-900/70">
-                    {tables.get(m)?.label ?? m}
-                  </span>
-                ))}
+        <section>
+          <p className="text-sm text-midnight-900/70">
+            Includes all <strong>{catalog.tables.length} tables</strong> available to you (
+            {catalog.categories.map((c) => c.label).join(", ")}), with every record and every column.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAllTables(!showAllTables)}
+            className="mt-2 inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
+            aria-expanded={showAllTables}
+          >
+            {showAllTables ? <CaretDown size={12} /> : <CaretRight size={12} />} See all tables
+          </button>
+          {showAllTables && (
+            <div className="mt-3 space-y-3">
+              {catalog.categories.map((c) => (
+                <div key={c.key}>
+                  <p className="text-xs font-medium text-midnight-900/60 mb-0.5">{c.label}</p>
+                  <p className="text-xs text-midnight-900/70">{c.models.map((m) => tables.get(m)?.label ?? m).join(" · ")}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
+          <section>
+            <StepHeading n={2}>Choose what to export</StepHeading>
+            <ul className="divide-y divide-midnight-900/10 rounded-xl border border-midnight-900/15">
+              {modules.map((m) => (
+                <ModuleRow
+                  key={m.key}
+                  module={m}
+                  tables={tables}
+                  onChange={(patch) => updateModule(m.key, patch)}
+                  onRemove={() => setModules((prev) => prev.filter((x) => x.key !== m.key))}
+                />
+              ))}
+            </ul>
+            {addingTable ? (
+              <div className="mt-3 flex items-center gap-2 max-w-md">
+                <select
+                  autoFocus
+                  aria-label="Add another table"
+                  className="input-field"
+                  value=""
+                  onChange={(e) => e.target.value && addTable(e.target.value)}
+                >
+                  <option value="">Choose a table…</option>
+                  {catalog.categories.map((c) => (
+                    <optgroup key={c.key} label={c.label}>
+                      {c.models.map((name) => (
+                        <option key={name} value={name}>
+                          {tables.get(name)?.label ?? name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setAddingTable(false)}
+                  className="text-xs text-midnight-900/50 hover:text-midnight-900"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAddingTable(true)}
+                className="mt-3 inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
+              >
+                <Plus size={12} /> Add another table
+              </button>
+            )}
+          </section>
+
+          <section>
+            <StepHeading n={3}>Date range (optional)</StepHeading>
+            <div className="grid grid-cols-2 gap-3 max-w-md">
+              <div>
+                <label htmlFor="backup-from" className="block text-xs font-medium text-midnight-900/60 mb-1">
+                  From
+                </label>
+                <input id="backup-from" type="date" value={start} onChange={(e) => setStart(e.target.value)} className="input-field" />
+              </div>
+              <div>
+                <label htmlFor="backup-to" className="block text-xs font-medium text-midnight-900/60 mb-1">
+                  To
+                </label>
+                <input id="backup-to" type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="input-field" />
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-5">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-midnight-900/50 mb-2">Quick modules</p>
-            <div className="flex flex-wrap gap-2">
-              {availablePresets.map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() => addPreset(p)}
-                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-midnight-900/15 hover:border-midnight-700 hover:bg-ivory-100 text-midnight-900"
-                >
-                  <Plus size={12} /> {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
+            <p className="text-xs text-midnight-900/45 mt-2">Based on when each record was created. Leave blank for all dates.</p>
+          </section>
+        </>
+      )}
 
-          <div>
-            <label htmlFor="backup-add-table" className="block text-xs font-medium uppercase tracking-wide text-midnight-900/50 mb-2">
-              Or add any table
-            </label>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-5 border-t border-midnight-900/10">
+        <button
+          onClick={download}
+          disabled={exporting || (mode === "custom" && selected.length === 0)}
+          className="btn-primary py-2.5 px-6 text-xs inline-flex items-center gap-2 disabled:opacity-50"
+        >
+          <DownloadSimple size={16} />
+          {exporting ? "Preparing…" : mode === "full" ? "Download full backup" : "Download export"}
+        </button>
+        {mode === "custom" && (
+          <span className="text-xs text-midnight-900/50">
+            {selected.length === 0
+              ? "Tick at least one item above"
+              : `${selected.length} selected · ${start || end ? `${start || "start"} to ${end || "today"}` : "all dates"}`}
+          </span>
+        )}
+        {lastExport && <span className="text-xs text-midnight-600">Downloaded {lastExport}</span>}
+        {error && <span className="text-xs text-red-600">{error}</span>}
+      </div>
+    </div>
+  );
+}
+
+function StepHeading({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <h3 className="flex items-center gap-2 text-sm font-semibold text-midnight-900 mb-3">
+      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-midnight-800 text-ivory-50 text-[11px]">
+        {n}
+      </span>
+      {children}
+    </h3>
+  );
+}
+
+function ModuleRow({
+  module: m,
+  tables,
+  onChange,
+  onRemove,
+}: {
+  module: ModuleState;
+  tables: Map<string, CatalogTable>;
+  onChange: (patch: Partial<ModuleState>) => void;
+  onRemove: () => void;
+}) {
+  const primary = m.sections[0];
+  const statusField = m.statusField
+    ? tables.get(primary.root.model)?.fields.find((f) => f.name === m.statusField && f.enumValues?.length)
+    : undefined;
+  const statusValues = statusField ? primary.enums[statusField.name] ?? [] : [];
+  const updateSection = (id: string, patch: Partial<SectionState>) =>
+    onChange({ sections: m.sections.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const inputId = `backup-module-${m.key}`;
+
+  return (
+    <li className="p-4">
+      <div className="flex flex-wrap items-start gap-3">
+        <input
+          id={inputId}
+          type="checkbox"
+          checked={m.checked}
+          onChange={(e) => onChange({ checked: e.target.checked })}
+          className="mt-0.5 h-4 w-4 accent-midnight-700"
+        />
+        <label htmlFor={inputId} className="flex-1 min-w-[12rem] cursor-pointer">
+          <span className="block text-sm font-medium text-midnight-900">{m.label}</span>
+          <span className="block text-xs text-midnight-900/50">{m.description}</span>
+        </label>
+        {m.checked && statusField && (
+          <label className="flex items-center gap-2 text-xs text-midnight-900/60">
+            {m.statusLabel ?? "Status"}
             <select
-              id="backup-add-table"
-              className="input-field max-w-md"
-              value=""
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const section = newSection(e.target.value);
-                setSections((prev) => [...prev.map((s) => ({ ...s, open: false })), section]);
-              }}
+              value={statusValues.length === 1 ? statusValues[0] : statusValues.length > 1 ? "__multiple" : ""}
+              onChange={(e) =>
+                updateSection(primary.id, {
+                  enums: { ...primary.enums, [statusField.name]: e.target.value ? [e.target.value] : [] },
+                })
+              }
+              className="input-field py-1.5 text-xs w-auto capitalize"
             >
-              <option value="">Choose a table…</option>
-              {catalog.categories.map((c) => (
-                <optgroup key={c.key} label={c.label}>
-                  {c.models.map((m) => (
-                    <option key={m} value={m}>
-                      {tables.get(m)?.label ?? m}
-                    </option>
-                  ))}
-                </optgroup>
+              <option value="">All</option>
+              {statusValues.length > 1 && (
+                <option value="__multiple" disabled>
+                  {statusValues.length} selected
+                </option>
+              )}
+              {statusField.enumValues!.map((v) => (
+                <option key={v} value={v}>
+                  {humanizeValue(v)}
+                </option>
               ))}
             </select>
-          </div>
+          </label>
+        )}
+        {m.removable && (
+          <button type="button" onClick={onRemove} className="p-1 text-midnight-900/40 hover:text-red-600" aria-label={`Remove ${m.label}`}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
 
-          {sections.length === 0 ? (
-            <p className="text-sm text-midnight-900/50 border border-dashed border-midnight-900/15 rounded-xl p-6 text-center">
-              Nothing selected yet — add a quick module or a table above.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {sections.map((s) => (
-                <SectionCard
-                  key={s.id}
-                  section={s}
-                  tables={tables}
-                  onChange={(patch) => updateSection(s.id, patch)}
-                  onRemove={() => setSections((prev) => prev.filter((x) => x.id !== s.id))}
-                />
+      {m.checked && (
+        <div className="ml-7 mt-2">
+          <button
+            type="button"
+            onClick={() => onChange({ customizing: !m.customizing })}
+            className="inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
+            aria-expanded={m.customizing}
+          >
+            {m.customizing ? <CaretDown size={12} /> : <CaretRight size={12} />}
+            Customize
+          </button>
+          {m.customizing && (
+            <div className="mt-3 space-y-4">
+              {m.sections.map((s) => (
+                <div key={s.id} className="rounded-lg border border-midnight-900/10 bg-ivory-50 p-4">
+                  {m.sections.length > 1 && <p className="text-xs font-semibold text-midnight-900 mb-3">{s.title}</p>}
+                  <SectionDetails
+                    section={s}
+                    tables={tables}
+                    hideEnum={s === primary ? statusField?.name : undefined}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                  />
+                </div>
               ))}
             </div>
           )}
         </div>
       )}
-
-      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-midnight-900/10">
-        <button onClick={download} disabled={exporting} className="btn-primary py-2.5 px-6 text-xs inline-flex items-center gap-2 mt-4">
-          <DownloadSimple size={16} />
-          {exporting ? "Preparing export…" : mode === "full" ? "Download full backup" : "Download custom export"}
-        </button>
-        {mode === "custom" && sections.length > 0 && (
-          <span className="text-xs text-midnight-900/50 mt-4">
-            {sections.length} section{sections.length === 1 ? "" : "s"}, {countTables(sections)} table
-            {countTables(sections) === 1 ? "" : "s"}
-          </span>
-        )}
-        {lastExport && <span className="text-xs text-midnight-600 mt-4">Downloaded {lastExport}</span>}
-        {error && <span className="text-xs text-red-600 mt-4">{error}</span>}
-      </div>
-    </div>
+    </li>
   );
 }
 
@@ -437,11 +614,6 @@ function serializeNode(node: NodeState): { model: string; fields?: string[]; rel
     ...(node.fields ? { fields: node.fields } : {}),
     ...(relations.length ? { relations: Object.fromEntries(relations.map(([k, v]) => [k, serializeNode(v)])) } : {}),
   };
-}
-
-function countTables(sections: SectionState[]): number {
-  const walk = (n: NodeState): number => 1 + Object.values(n.relations).reduce((sum, c) => sum + walk(c), 0);
-  return sections.reduce((sum, s) => sum + walk(s.root), 0);
 }
 
 function ModeCard({
@@ -475,130 +647,80 @@ function ModeCard({
   );
 }
 
-function SectionCard({
+// The advanced panel behind "Customize", in order of how often it's needed:
+// specific records, other status/category filters (beyond the row's own
+// Status dropdown), then columns and related tables. Dates are set once
+// for the whole export in step 3.
+function SectionDetails({
   section,
   tables,
+  hideEnum,
   onChange,
-  onRemove,
 }: {
   section: SectionState;
   tables: Map<string, CatalogTable>;
+  hideEnum?: string;
   onChange: (patch: Partial<SectionState>) => void;
-  onRemove: () => void;
 }) {
   const table = tables.get(section.root.model)!;
-  const enumFields = table.fields.filter((f) => f.type === "enum" && f.enumValues?.length);
-  const dateFields = table.fields.filter((f) => f.type === "DateTime" && !f.isList);
-  const activeFilters =
-    (section.start || section.end ? 1 : 0) +
-    Object.values(section.enums).filter((v) => v.length).length +
-    (section.records.length ? 1 : 0);
-  const related = Object.keys(section.root.relations).length;
+  const enumFields = table.fields.filter((f) => f.type === "enum" && f.enumValues?.length && f.name !== hideEnum);
+  const [showFilters, setShowFilters] = useState(false);
 
   return (
-    <div className="rounded-xl border border-midnight-900/15">
-      <div className="flex items-center gap-2 p-3">
-        <button
-          type="button"
-          onClick={() => onChange({ open: !section.open })}
-          className="p-1 text-midnight-900/60 hover:text-midnight-900"
-          aria-label={section.open ? "Collapse section" : "Expand section"}
-        >
-          {section.open ? <CaretDown size={16} /> : <CaretRight size={16} />}
-        </button>
-        <input
-          value={section.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          className="flex-1 min-w-0 bg-transparent font-medium text-sm text-midnight-900 focus:outline-none focus:ring-1 focus:ring-midnight-700 rounded px-1"
-          aria-label="Section title"
-        />
-        <span className="hidden sm:inline text-xs text-midnight-900/50 whitespace-nowrap">
-          {table.label}
-          {related ? ` + ${related} related` : ""}
-          {activeFilters ? ` · ${activeFilters} filter${activeFilters === 1 ? "" : "s"}` : " · all records"}
-        </span>
-        <button type="button" onClick={onRemove} className="p-1 text-midnight-900/40 hover:text-red-600" aria-label="Remove section">
-          <Trash size={16} />
-        </button>
-      </div>
+    <div className="space-y-4">
+      <RecordPicker table={table} records={section.records} onChange={(records) => onChange({ records })} />
 
-      {section.open && (
-        <div className="border-t border-midnight-900/10 p-4 space-y-5">
-          {/* Filters */}
-          <div className="space-y-4">
-            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-midnight-900/50">
-              <Funnel size={12} /> Filters for {table.label}
-            </p>
-
-            {dateFields.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-midnight-900/60 mb-1">Date column</label>
-                  <select value={section.dateField} onChange={(e) => onChange({ dateField: e.target.value })} className="input-field">
-                    {dateFields.map((f) => (
-                      <option key={f.name} value={f.name}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-midnight-900/60 mb-1">From</label>
-                  <input type="date" value={section.start} onChange={(e) => onChange({ start: e.target.value })} className="input-field" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-midnight-900/60 mb-1">To</label>
-                  <input type="date" value={section.end} onChange={(e) => onChange({ end: e.target.value })} className="input-field" />
-                </div>
-              </div>
-            )}
-
-            {enumFields.map((f) => {
-              const selected = section.enums[f.name] ?? [];
-              const toggle = (v: string) =>
-                onChange({
-                  enums: {
-                    ...section.enums,
-                    [f.name]: selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v],
-                  },
-                });
-              return (
-                <div key={f.name}>
-                  <p className="text-xs font-medium text-midnight-900/60 mb-1.5">
-                    {f.label}: <span className="text-midnight-900">{selected.length ? selected.map(humanizeValue).join(", ") : "All"}</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Chip active={selected.length === 0} onClick={() => onChange({ enums: { ...section.enums, [f.name]: [] } })}>
-                      All
-                    </Chip>
-                    {f.enumValues!.map((v) => (
-                      <Chip key={v} active={selected.includes(v)} onClick={() => toggle(v)}>
-                        {humanizeValue(v)}
+      {enumFields.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className="inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
+            aria-expanded={showFilters}
+          >
+            {showFilters ? <CaretDown size={12} /> : <CaretRight size={12} />}
+            More filters
+          </button>
+          {showFilters && (
+            <div className="mt-2 space-y-3">
+              {enumFields.map((f) => {
+                const selected = section.enums[f.name] ?? [];
+                const toggle = (v: string) =>
+                  onChange({
+                    enums: {
+                      ...section.enums,
+                      [f.name]: selected.includes(v) ? selected.filter((x) => x !== v) : [...selected, v],
+                    },
+                  });
+                return (
+                  <div key={f.name}>
+                    <p className="text-xs font-medium text-midnight-900/60 mb-1.5">
+                      {f.label}:{" "}
+                      <span className="text-midnight-900">{selected.length ? selected.map(humanizeValue).join(", ") : "All"}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Chip active={selected.length === 0} onClick={() => onChange({ enums: { ...section.enums, [f.name]: [] } })}>
+                        All
                       </Chip>
-                    ))}
+                      {f.enumValues!.map((v) => (
+                        <Chip key={v} active={selected.includes(v)} onClick={() => toggle(v)}>
+                          {humanizeValue(v)}
+                        </Chip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-
-            <RecordPicker table={table} records={section.records} onChange={(records) => onChange({ records })} />
-          </div>
-
-          {/* Columns + related tables */}
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-midnight-900/50 mb-2">Columns &amp; related tables</p>
-            <NodeEditor
-              node={section.root}
-              tables={tables}
-              depth={0}
-              onChange={(root) => onChange({ root })}
-            />
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
+
+      <NodeEditor node={section.root} tables={tables} depth={0} onChange={(root) => onChange({ root })} />
     </div>
   );
 }
+
 
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -628,7 +750,9 @@ function NodeEditor({
 }) {
   const table = tables.get(node.model)!;
   const [showColumns, setShowColumns] = useState(false);
+  const [showRelated, setShowRelated] = useState(false);
   const selected = node.fields ?? table.fields.map((f) => f.name);
+  const includedCount = Object.keys(node.relations).length;
 
   const setFields = (fields: string[]) =>
     onChange({ ...node, fields: fields.length === table.fields.length ? null : fields });
@@ -649,7 +773,7 @@ function NodeEditor({
           className="inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
         >
           {showColumns ? <CaretDown size={12} /> : <CaretRight size={12} />}
-          Columns: {selected.length === table.fields.length ? "all" : selected.length} of {table.fields.length}
+          Columns: {selected.length === table.fields.length ? `all ${table.fields.length}` : `${selected.length} of ${table.fields.length}`}
         </button>
         {showColumns && (
           <div className="mt-2 rounded-lg bg-ivory-100/60 border border-midnight-900/10 p-3">
@@ -688,46 +812,61 @@ function NodeEditor({
       </div>
 
       {table.relations.length > 0 && depth < MAX_DEPTH && (
-        <div className="space-y-1.5">
-          <p className="text-xs text-midnight-900/50">Include related tables:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {table.relations.map((rel) => (
-              <Chip key={rel.name} active={!!node.relations[rel.name]} onClick={() => toggleRelation(rel)}>
-                <span className="normal-case">
-                  {rel.label} <span className="opacity-60">({tables.get(rel.model)?.label ?? rel.model}{rel.isList ? ", many" : ""})</span>
-                </span>
-              </Chip>
-            ))}
-          </div>
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowRelated(!showRelated)}
+            className="inline-flex items-center gap-1 text-xs text-midnight-700 hover:underline"
+            aria-expanded={showRelated}
+          >
+            {showRelated ? <CaretDown size={12} /> : <CaretRight size={12} />}
+            Related tables: {includedCount === 0 ? "none" : `${includedCount} included`}
+          </button>
+          {showRelated && (
+            <div className="mt-2 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {table.relations.map((rel) => {
+                  const target = tables.get(rel.model)?.label ?? rel.model;
+                  // Only spell out the relationship name when it adds something
+                  // ("Rejected By → Users"), not for "Candidate → Candidates".
+                  const named = rel.label.toLowerCase() !== target.toLowerCase() && !target.toLowerCase().startsWith(rel.label.toLowerCase());
+                  return (
+                    <Chip key={rel.name} active={!!node.relations[rel.name]} onClick={() => toggleRelation(rel)}>
+                      <span className="normal-case">{named ? `${rel.label} (${target})` : target}</span>
+                    </Chip>
+                  );
+                })}
+              </div>
+              {Object.entries(node.relations).map(([relName, child]) => {
+                const rel = table.relations.find((r) => r.name === relName);
+                return (
+                  <div key={relName} className="ml-3 pl-3 border-l-2 border-gold-300/60 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-midnight-900">
+                        {rel?.label ?? relName} ({tables.get(child.model)?.label ?? child.model})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => rel && toggleRelation(rel)}
+                        className="text-midnight-900/40 hover:text-red-600"
+                        aria-label={`Remove ${rel?.label ?? relName}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <NodeEditor
+                      node={child}
+                      tables={tables}
+                      depth={depth + 1}
+                      onChange={(updated) => onChange({ ...node, relations: { ...node.relations, [relName]: updated } })}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
-
-      {Object.entries(node.relations).map(([relName, child]) => {
-        const rel = table.relations.find((r) => r.name === relName);
-        return (
-          <div key={relName} className="ml-3 pl-3 border-l-2 border-gold-300/60 space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-midnight-900">
-                {rel?.label ?? relName} → {tables.get(child.model)?.label ?? child.model}
-              </span>
-              <button
-                type="button"
-                onClick={() => rel && toggleRelation(rel)}
-                className="text-midnight-900/40 hover:text-red-600"
-                aria-label={`Remove ${rel?.label ?? relName}`}
-              >
-                <X size={12} />
-              </button>
-            </div>
-            <NodeEditor
-              node={child}
-              tables={tables}
-              depth={depth + 1}
-              onChange={(updated) => onChange({ ...node, relations: { ...node.relations, [relName]: updated } })}
-            />
-          </div>
-        );
-      })}
     </div>
   );
 }
