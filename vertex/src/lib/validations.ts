@@ -20,10 +20,13 @@ const CASE_STAGES = [
   "departure_arrival_support",
 ] as const;
 
-// Treats an empty string as "not provided" before validating an optional
-// field's format — otherwise z.string().email().optional() rejects "" from
-// an untouched form input, since .optional() only short-circuits undefined.
-const optionalEmail = z.preprocess((val) => (val === "" ? undefined : val), z.string().email().optional());
+// Treats an empty string (or null) as "not provided" before validating an
+// optional field's format — otherwise z.string().email().optional() rejects
+// "" from an untouched form input, since .optional() only short-circuits
+// undefined. null matters for edit forms that echo back a stored value the
+// record never had (e.g. a partner submission's email, no longer collected
+// since 2026-08-15), which broke every "Save Changes" on such a submission.
+const optionalEmail = z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().email().optional());
 
 // Same "" → undefined treatment for an optional date-input field. Without
 // this, an untouched <input type="date"> sends "" (passes .optional() the
@@ -441,7 +444,7 @@ export const updatePartnerCandidateDetailsSchema = z.object({
   job_id: z.string().cuid().optional(),
   job_position_id: z.string().cuid().nullable().optional(),
   full_name: z.string().min(2).max(150).optional(),
-  email: z.string().email().optional(),
+  email: optionalEmail,
   nationality: z.string().min(2).max(100).optional(),
   second_nationality: z.string().max(100).optional(),
   gender: optionalGender,
