@@ -5,6 +5,7 @@ import { PencilSimple } from "@phosphor-icons/react";
 import SearchableSelect from "@/components/SearchableSelect";
 import YesNoDetailField from "@/components/YesNoDetailField";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
+import { describeApiError } from "@/lib/apiError";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -196,7 +197,7 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(body.error?.message ?? "Update failed.");
+        setError(describeApiError(body, "Update failed."));
         return;
       }
       setOpen(false);

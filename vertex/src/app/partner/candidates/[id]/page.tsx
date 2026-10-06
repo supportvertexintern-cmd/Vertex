@@ -15,6 +15,7 @@ import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
 import { CheckCircle, WarningCircle, CircleNotch, PencilSimple } from "@phosphor-icons/react";
+import { describeApiError } from "@/lib/apiError";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -307,7 +308,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       });
       const json = await res.json();
       if (!res.ok) {
-        setSaveError(json.error?.message ?? "Failed to save changes.");
+        setSaveError(describeApiError(json, "Failed to save changes."));
         return;
       }
       setEditing(false);
