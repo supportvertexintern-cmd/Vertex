@@ -2,10 +2,13 @@
 # runs the prebuilt image from GHCR with no source mount or reload, and keeps
 # Postgres off the host network. Used for local staging on this PC today and
 # on a VPS later — start it via deploy/deploy.sh.
+#
+# pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin (local
+# staging does; a VPS should not), and is bound to localhost either way.
 
 services:
 
-  web:
+  backend:
     image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
 
     env_file:
@@ -49,6 +52,36 @@ services:
 
     restart: unless-stopped
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+
+    profiles: [ "pgadmin" ]
+
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@vertex.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-}
+      PGADMIN_SERVER_JSON_FILE: /tmp/servers.json
+
+    # Pre-registers this stack's database (read on pgAdmin's first start only).
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo '{"Servers": {"1": {"Name": "vertex-${APP_ENV}", "Group": "Vertex", "Host": "db", "Port": 5432, "MaintenanceDB": "${POSTGRES_DB}", "Username": "${POSTGRES_USER}", "SSLMode": "prefer"}}}' > /tmp/servers.json
+        exec /entrypoint.sh
+
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5151}:80"
+
+    depends_on:
+      - db
+
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   uploads:
+  pgadmin_data:
