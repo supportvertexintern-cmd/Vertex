@@ -14,15 +14,15 @@ COMPOSE="docker compose -p $PROJECT --env-file $ENV_FILE -f docker-compose.deplo
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE in $(pwd) — copy it from .env.<env>.example" >&2; exit 1; }
 
 export BACKEND_IMAGE="$IMAGE"
-$COMPOSE pull web || {
+$COMPOSE pull backend || {
   echo "Pull failed — run 'docker login ghcr.io' (PAT with read:packages) and check the tag exists." >&2
   exit 1
 }
 # The image runs `alembic upgrade head` before starting uvicorn.
 $COMPOSE up -d --remove-orphans
 
-# Wait for the web container's healthcheck (≈80s max).
-CONTAINER="$($COMPOSE ps -q web)"
+# Wait for the backend container's healthcheck (≈80s max).
+CONTAINER="$($COMPOSE ps -q backend)"
 i=0
 while [ $i -lt 40 ]; do
   STATUS="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER")"
@@ -32,6 +32,6 @@ while [ $i -lt 40 ]; do
   sleep 2
 done
 
-echo "Deploy failed: web container is ${STATUS:-not running}" >&2
-$COMPOSE logs --tail=80 web >&2
+echo "Deploy failed: backend container is ${STATUS:-not running}" >&2
+$COMPOSE logs --tail=80 backend >&2
 exit 1

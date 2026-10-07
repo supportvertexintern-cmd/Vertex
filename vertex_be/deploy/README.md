@@ -9,14 +9,26 @@
 Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
 CI also runs on every PR into those three branches.
 
-The two local environments are separate Compose projects with separate databases:
+Local Docker Desktop runs three separate Compose projects:
+
+| Project          | Containers                                | URLs                                                        |
+|------------------|-------------------------------------------|-------------------------------------------------------------|
+| `vertex-dev`     | backend, Postgres, pgAdmin                | API http://localhost:8001/docs · pgAdmin http://localhost:5050 · Postgres `localhost:5432` |
+| `vertex-staging` | backend, Postgres, pgAdmin                | API http://localhost:8002/docs · pgAdmin http://localhost:5151 · Postgres not exposed |
+| `vertex-web`     | the Next.js web app (separate repo)       | http://localhost:3000 — uses the `vertex-dev` database      |
 
 | | Development | Staging |
 |---|---|---|
 | Compose file | `docker-compose.yml` | `docker-compose.deploy.yml` |
 | Env file | `.env` | `.env.staging` |
 | Code | your working tree, auto-reload | the exact image CI pushed to GHCR |
-| Postgres | `vertex_db`, exposed on `:5432` | `vertex-staging-db-1`, not exposed |
+| Data volume | `vertex_postgres_data` | `vertex-staging_postgres_data` |
+
+Each pgAdmin already has its own database registered (`vertex-dev` / `vertex-staging`
+under the *Vertex* group); log in with the `PGADMIN_*` values from that stack's
+env file, then enter the Postgres password once. Staging's pgAdmin is behind the
+`pgadmin` Compose profile (`COMPOSE_PROFILES=pgadmin` in `.env.staging`) and
+bound to localhost, so it never runs on a VPS unless enabled there.
 
 Staging runs the same image and compose file a VPS will use later, so what you
 QA on staging is what ships.
@@ -25,8 +37,11 @@ QA on staging is what ships.
 
 ```sh
 cd vertex_be
-docker compose up -d        # http://localhost:8001/docs
+docker compose up -d
 ```
+
+The web app joins the `vertex-dev` network, so start `vertex-dev` first, then
+`docker compose up -d` in the web repo.
 
 ## Local staging
 
@@ -56,7 +71,7 @@ Check http://localhost:8002/api/v1/health — it reports `"environment": "stagin
 Tags: `:staging` is always the latest staging build; `:staging-<short sha>` pins
 one commit. Run the command with an older sha tag to roll back.
 
-Stop staging: `docker compose -p vertex-staging -f docker-compose.deploy.yml --env-file .env.staging down`
+Stop staging: `BACKEND_IMAGE=x docker compose -p vertex-staging --env-file .env.staging -f docker-compose.deploy.yml down`
 (add `-v` to also wipe its database).
 
 ## Later: moving staging to a VPS
