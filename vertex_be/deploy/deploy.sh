@@ -1,17 +1,23 @@
 #!/usr/bin/env sh
-# Runs on the target server (copied there by the deploy workflow).
-#   deploy.sh <project-name> <image>
-# Expects docker-compose.deploy.yml and a filled-in .env in the current dir.
+# Starts a prebuilt backend image with docker-compose.deploy.yml.
+#   [ENV_FILE=.env.staging] deploy.sh <project-name> <image>
+# Run from the dir holding docker-compose.deploy.yml: vertex_be/ for local
+# staging, or the deploy path on a server (where the workflow copies it).
+# ENV_FILE defaults to .env.
 set -eu
 
 PROJECT="$1"
 IMAGE="$2"
-COMPOSE="docker compose -p $PROJECT -f docker-compose.deploy.yml"
+export ENV_FILE="${ENV_FILE:-.env}"
+COMPOSE="docker compose -p $PROJECT --env-file $ENV_FILE -f docker-compose.deploy.yml"
 
-[ -f .env ] || { echo "Missing .env in $(pwd) — copy it from .env.<env>.example" >&2; exit 1; }
+[ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE in $(pwd) — copy it from .env.<env>.example" >&2; exit 1; }
 
 export BACKEND_IMAGE="$IMAGE"
-$COMPOSE pull web
+$COMPOSE pull web || {
+  echo "Pull failed — run 'docker login ghcr.io' (PAT with read:packages) and check the tag exists." >&2
+  exit 1
+}
 # The image runs `alembic upgrade head` before starting uvicorn.
 $COMPOSE up -d --remove-orphans
 
