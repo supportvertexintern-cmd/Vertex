@@ -27,7 +27,18 @@ import '../presentation/supervisor/supervisor_report_detail_screen.dart';
 import '../presentation/supervisor/supervisor_reports_screen.dart';
 import '../presentation/supervisor/supervisor_recruiter_detail_screen.dart';
 import '../presentation/supervisor/supervisor_recruiters_screen.dart';
+import '../presentation/director/campaigns_screen.dart';
 import '../presentation/director/director_dashboard.dart';
+import '../presentation/director/employer_clients_screen.dart';
+import '../presentation/director/fee_policy_screen.dart';
+import '../presentation/director/management_cases_screen.dart';
+import '../presentation/director/partner_detail_screen.dart';
+import '../presentation/director/partners_screen.dart';
+import '../presentation/management/reports_screen.dart';
+import '../presentation/management/report_detail_screen.dart';
+import '../presentation/management/exceptions_screen.dart';
+import '../presentation/management/staff_scorecards_screen.dart';
+import '../presentation/management/backup_screen.dart';
 import '../presentation/hr/hr_dashboard.dart';
 import '../presentation/operations/operations_dashboard.dart';
 
@@ -93,15 +104,37 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     ]),
     GoRoute(path: '/supervisor/exceptions', builder: (_, state) => const SupervisorExceptionsScreen()),
     GoRoute(path: '/management', builder: (_, state) => const DirectorDashboard()),
-    GoRoute(path: '/management/campaigns', builder: (_, state) => const DirectorSectionScreen(title: 'Campaigns')),
-    GoRoute(path: '/management/partners', builder: (_, state) => const DirectorSectionScreen(title: 'Partners')),
-    GoRoute(path: '/management/employer-clients', builder: (_, state) => const DirectorSectionScreen(title: 'Employer Clients')),
-    GoRoute(path: '/management/fee-policy', builder: (_, state) => const DirectorSectionScreen(title: 'Fee Policy')),
-    GoRoute(path: '/management/cases', builder: (_, state) => const DirectorSectionScreen(title: 'Cases')),
-    GoRoute(path: '/management/reports', builder: (_, state) => const DirectorSectionScreen(title: 'Reports')),
-    GoRoute(path: '/management/exceptions', builder: (_, state) => const DirectorSectionScreen(title: 'Exceptions')),
-    GoRoute(path: '/management/staff-scorecards', builder: (_, state) => const DirectorSectionScreen(title: 'Staff Scorecards')),
-    GoRoute(path: '/management/backup', builder: (_, state) => const DirectorSectionScreen(title: 'Backup')),
+    GoRoute(
+        path: '/management/campaigns',
+        builder: (_, state) => const ManagementCampaignsScreen()),
+    GoRoute(
+        path: '/management/partners',
+        builder: (_, state) => const ManagementPartnersScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (_, state) => ManagementPartnerDetailScreen(
+                partnerId: state.pathParameters['id']!),
+          ),
+        ]),
+    GoRoute(path: '/management/employer-clients', builder: (_, state) => const EmployerClientsScreen()),
+    GoRoute(path: '/management/fee-policy', builder: (_, state) => const FeePolicyScreen()),
+    GoRoute(path: '/management/cases', builder: (_, state) => const ManagementCasesScreen()),
+    GoRoute(
+      path: '/management/reports',
+      builder: (_, state) => const ManagementReportsScreen(),
+      routes: [
+        GoRoute(
+          path: ':id',
+          builder: (_, state) => ManagementReportDetailScreen(
+            reportId: state.pathParameters['id']!,
+          ),
+        ),
+      ],
+    ),
+    GoRoute(path: '/management/exceptions', builder: (_, state) => const ManagementExceptionsScreen()),
+    GoRoute(path: '/management/staff-scorecards', builder: (_, state) => const ManagementStaffScorecardsScreen()),
+    GoRoute(path: '/management/backup', builder: (_, state) => const ManagementBackupScreen()),
     GoRoute(path: '/hr', builder: (_, state) => const HrDashboard()),
     GoRoute(path: '/hr/self-applications', builder: (_, state) => const HrSectionScreen(title: 'Self Applications')),
     GoRoute(path: '/hr/cases', builder: (_, state) => const HrSectionScreen(title: 'Cases')),

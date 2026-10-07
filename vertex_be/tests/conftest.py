@@ -1,0 +1,46 @@
+"""Tests run against a dedicated database (TEST_DATABASE_URL), never the dev
+database. It's brought to `alembic upgrade head` once per session, so the
+tests also prove the migrations apply cleanly."""
+
+import os
+
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL", "postgresql://postgres:REDACTED@localhost:5432/vertexdb_test"
+)
+# Must happen before anything imports app.core.config.
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+from collections.abc import Iterator  # noqa: E402
+
+import pytest  # noqa: E402
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
+
+from app.core.config import BASE_DIR  # noqa: E402
+from app.db.session import engine  # noqa: E402
+from app.main import app  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def migrated_db() -> None:
+    command.upgrade(Config(str(BASE_DIR / "alembic.ini")), "head")
+
+
+@pytest.fixture
+def db() -> Iterator[Session]:
+    """A session whose work is always rolled back."""
+    with engine.connect() as conn:
+        trans = conn.begin()
+        session = Session(bind=conn, join_transaction_mode="create_savepoint")
+        try:
+            yield session
+        finally:
+            session.close()
+            trans.rollback()
+
+
+@pytest.fixture
+def client() -> TestClient:
+    return TestClient(app)
