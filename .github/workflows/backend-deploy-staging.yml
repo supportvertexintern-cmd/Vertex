@@ -1,9 +1,13 @@
 name: Backend deploy — staging
 
 # Every push to `staging` that touches the backend: test → build & push image
-# to GHCR → deploy to the staging VPS over SSH.
+# to GHCR → (once a VPS exists) deploy to it over SSH.
 #
-# Configure under Settings → Environments → staging:
+# Until then staging runs locally: pull the pushed image and start it with
+# vertex_be/deploy/deploy.sh (see vertex_be/deploy/README.md).
+#
+# To enable the VPS deploy, set the repo variable STAGING_VPS_ENABLED=true and
+# configure under Settings → Environments → staging:
 #   secrets: SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_KNOWN_HOSTS
 #   vars (optional): SSH_PORT (default 22), DEPLOY_PATH (default /opt/vertex/staging)
 
@@ -59,9 +63,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Local staging instructions
+        run: |
+          {
+            echo "### Run this build on local staging"
+            echo '```sh'
+            echo "cd vertex_be"
+            echo "ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging ${{ steps.ref.outputs.image }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
-    name: Deploy to staging
+    name: Deploy to staging VPS
     needs: build
+    if: vars.STAGING_VPS_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: staging
     env:

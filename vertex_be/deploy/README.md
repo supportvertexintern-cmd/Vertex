@@ -1,51 +1,91 @@
 # Backend environments & deployment
 
-| Branch    | Environment | What happens on push                                        |
-|-----------|-------------|-------------------------------------------------------------|
-| `dev`     | development | CI: tests + Docker build                                    |
-| `staging` | staging     | CI, then image pushed to GHCR and deployed to the staging VPS |
-| `main`    | production  | CI only (production deploy not wired up yet)                |
+| Branch    | Environment | Runs where                       | What happens on push                          |
+|-----------|-------------|----------------------------------|-----------------------------------------------|
+| `dev`     | development | your PC, `localhost:8001`        | CI: tests + Docker build                      |
+| `staging` | staging     | your PC, `localhost:8002`        | CI, then image built and pushed to GHCR       |
+| `main`    | production  | not deployed yet                 | CI only                                       |
 
 Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
 CI also runs on every PR into those three branches.
 
-Images: `ghcr.io/brookteferi/vertex-backend:staging` (latest) and
-`:staging-<short sha>` (what's actually deployed; redeploy an old one to roll back).
+The two local environments are separate Compose projects with separate databases:
 
-## One-time staging server setup
+| | Development | Staging |
+|---|---|---|
+| Compose file | `docker-compose.yml` | `docker-compose.deploy.yml` |
+| Env file | `.env` | `.env.staging` |
+| Code | your working tree, auto-reload | the exact image CI pushed to GHCR |
+| Postgres | `vertex_db`, exposed on `:5432` | `vertex-staging-db-1`, not exposed |
 
-On a Linux VPS with Docker + the compose plugin installed:
+Staging runs the same image and compose file a VPS will use later, so what you
+QA on staging is what ships.
 
-```sh
-sudo useradd -m -s /bin/bash deploy && sudo usermod -aG docker deploy
-sudo mkdir -p /opt/vertex/staging && sudo chown deploy: /opt/vertex/staging
-# as deploy: put the CI public key in ~/.ssh/authorized_keys
-```
-
-Create `/opt/vertex/staging/.env` from [`.env.staging.example`](../.env.staging.example).
-The app refuses to start in staging/production with `DEBUG=true` or a weak `SECRET_KEY`.
-
-## One-time GitHub setup
-
-Settings → Environments → **New environment** `staging`:
-
-| Kind     | Name              | Value                                                    |
-|----------|-------------------|----------------------------------------------------------|
-| secret   | `SSH_HOST`        | server IP / hostname                                     |
-| secret   | `SSH_USER`        | `deploy`                                                 |
-| secret   | `SSH_PRIVATE_KEY` | private half of a key made just for CI (`ssh-keygen -t ed25519`) |
-| secret   | `SSH_KNOWN_HOSTS` | output of `ssh-keyscan <SSH_HOST>`                       |
-| variable | `SSH_PORT`        | optional, default `22`                                   |
-| variable | `DEPLOY_PATH`     | optional, default `/opt/vertex/staging`                  |
-
-Then Settings → Branches: protect `staging` and `main` (require PR + the
-"Backend CI" checks to pass).
-
-## Manual deploy / rollback
-
-Actions → *Backend deploy — staging* → **Run workflow**, or on the server:
+## Development
 
 ```sh
-cd /opt/vertex/staging
-sh deploy.sh vertex-staging ghcr.io/brookteferi/vertex-backend:staging-<sha>
+cd vertex_be
+docker compose up -d        # http://localhost:8001/docs
 ```
+
+## Local staging
+
+One-time setup:
+
+1. Copy `.env.staging.example` to `.env.staging` and fill in the values. The app
+   refuses to start in staging with `DEBUG=true` or a weak `SECRET_KEY`.
+2. Log Docker in to GHCR, because the images are private. Create a classic
+   personal access token with only the `read:packages` scope (GitHub → Settings →
+   Developer settings → Personal access tokens), then:
+
+   ```sh
+   docker login ghcr.io -u BrookTeferi     # paste the token as the password
+   ```
+
+After each push to `staging`, once the *Backend deploy — staging* run is green
+(its summary prints this command with the exact tag), run from Git Bash:
+
+```sh
+cd vertex_be
+ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging ghcr.io/brookteferi/vertex-backend:staging
+```
+
+It pulls the image, applies migrations, restarts and waits for the healthcheck.
+Check http://localhost:8002/api/v1/health — it reports `"environment": "staging"`.
+
+Tags: `:staging` is always the latest staging build; `:staging-<short sha>` pins
+one commit. Run the command with an older sha tag to roll back.
+
+Stop staging: `docker compose -p vertex-staging -f docker-compose.deploy.yml --env-file .env.staging down`
+(add `-v` to also wipe its database).
+
+## Later: moving staging to a VPS
+
+The workflow already contains the SSH deploy job; it's skipped until enabled.
+
+1. On the VPS (Docker + compose plugin installed):
+
+   ```sh
+   sudo useradd -m -s /bin/bash deploy && sudo usermod -aG docker deploy
+   sudo mkdir -p /opt/vertex/staging && sudo chown deploy: /opt/vertex/staging
+   # as deploy: add the CI public key to ~/.ssh/authorized_keys
+   # create /opt/vertex/staging/.env from .env.staging.example
+   ```
+
+2. In GitHub, Settings → Environments → **New environment** `staging`:
+
+   | Kind     | Name              | Value                                                    |
+   |----------|-------------------|----------------------------------------------------------|
+   | secret   | `SSH_HOST`        | server IP / hostname                                     |
+   | secret   | `SSH_USER`        | `deploy`                                                 |
+   | secret   | `SSH_PRIVATE_KEY` | private half of a key made just for CI (`ssh-keygen -t ed25519`) |
+   | secret   | `SSH_KNOWN_HOSTS` | output of `ssh-keyscan <SSH_HOST>`                       |
+   | variable | `SSH_PORT`        | optional, default `22`                                   |
+   | variable | `DEPLOY_PATH`     | optional, default `/opt/vertex/staging`                  |
+
+3. Settings → Secrets and variables → Actions → Variables: add `STAGING_VPS_ENABLED` = `true`.
+
+## Branch protection
+
+Settings → Branches: protect `staging` and `main` (require a PR and passing
+"Backend CI" checks).
