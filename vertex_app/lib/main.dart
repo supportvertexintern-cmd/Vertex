@@ -7,6 +7,7 @@ import 'core/auth/candidate_store.dart';
 import 'core/auth/case_store.dart';
 import 'core/auth/report_store.dart';
 import 'core/auth/exception_store.dart';
+import 'core/auth/management_store.dart';
 import 'core/auth/supervisor_store.dart';
 
 Future<void> main() async {
@@ -22,6 +23,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ReportStore()),
         ChangeNotifierProvider(create: (_) => ExceptionStore()),
         ChangeNotifierProvider(create: (_) => SupervisorStore()),
+        ChangeNotifierProvider(create: (_) => ManagementStore()),
       ],
       child: const VertexApp(),
     ),
