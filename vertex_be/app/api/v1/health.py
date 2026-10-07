@@ -25,6 +25,7 @@ def health(db: DbSession) -> JSONResponse:
             "status": "healthy" if healthy else "degraded",
             "database": database,
             "version": settings.VERSION,
+            "environment": settings.APP_ENV,
             "timestamp": datetime.now(UTC).isoformat(),
         },
     )

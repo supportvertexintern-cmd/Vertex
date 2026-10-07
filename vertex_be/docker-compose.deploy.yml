@@ -1,0 +1,56 @@
+# Server-side stack for staging/production. Unlike docker-compose.yml (local
+# dev), this runs the prebuilt image from GHCR with no source mount or reload,
+# and keeps Postgres off the public network.
+#
+#   BACKEND_IMAGE=ghcr.io/<owner>/vertex-backend:<tag> \
+#     docker compose -p vertex-staging -f docker-compose.deploy.yml up -d
+
+services:
+
+  web:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+
+    env_file:
+      - .env
+
+    ports:
+      - "${BACKEND_PORT}:8000"
+
+    volumes:
+      - uploads:/app/uploads
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  uploads:
