@@ -24,9 +24,10 @@ regex = '''[a-zA-Z][a-zA-Z0-9+.-]*://[^:/\s@'"]+:([^@/\s'"]{1,})@'''
 secretGroup = 1
 keywords = ["://"]
 [[rules.allowlists]]
-# Placeholders, and the throwaway password of CI's disposable test databases.
+# Placeholders (incl. REDACTED from the history cleanup), and the throwaway
+# password of CI's disposable test databases.
 regexTarget = "secret"
-regexes = ['''^(<[A-Za-z_]+>|\$\{?[A-Z_]+\}?|\*+|CHANGE_ME|change-me|PASSWORD|password|postgres|\{password\}|\{[a-z_]+\})$''']
+regexes = ['''^(<[A-Za-z_]+>|\$\{?[A-Z_]+\}?|\*+|CHANGE_ME|change-me|PASSWORD|password|postgres|REDACTED|\{password\}|\{[a-z_]+\})$''']
 
 # PASSWORD= / SECRET= / TOKEN= / KEY= assignments in env-style files.
 [[rules]]
