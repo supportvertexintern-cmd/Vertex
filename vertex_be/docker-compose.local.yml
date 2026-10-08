@@ -1,0 +1,14 @@
+# Optional override: swap vertex-dev's backend for your working tree with live
+# reload, keeping the rest of the stack as deployed. Redeploying (CI or
+# deploy.sh) puts the published image back.
+#
+#   docker compose -p vertex-dev --env-file .env.dev \
+#     -f docker-compose.deploy.yml -f docker-compose.local.yml up -d --build backend
+
+services:
+  backend:
+    build: .
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - .:/app
+      - uploads:/app/uploads

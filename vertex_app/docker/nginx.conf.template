@@ -1,0 +1,30 @@
+# nginx's entrypoint runs envsubst over this file at container start, so the
+# same image serves any environment.
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+
+    # Runtime config for the app: fetch('/config.json') instead of baking the
+    # API URL in at build time.
+    location = /config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store";
+        return 200 '{"apiBaseUrl": "${API_BASE_URL}", "environment": "${APP_ENV}"}';
+    }
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 'ok';
+    }
+
+    # Entry points must never be cached, or users keep running an old build.
+    location ~ ^/(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|version\.json)$ {
+        add_header Cache-Control "no-cache";
+    }
+
+    # SPA: unknown paths go to the app's router.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
