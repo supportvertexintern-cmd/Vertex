@@ -3,10 +3,23 @@ database. It's brought to `alembic upgrade head` once per session, so the
 tests also prove the migrations apply cleanly."""
 
 import os
+from pathlib import Path
 
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql://postgres:REDACTED@localhost:5432/vertexdb_test"
-)
+from dotenv import dotenv_values
+
+
+def _default_test_database_url() -> str:
+    """Local runs reuse the dev stack's credentials (from the gitignored .env)
+    against its Postgres on localhost; CI sets TEST_DATABASE_URL instead."""
+    env = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
+    try:
+        user, password = env["POSTGRES_USER"], env["POSTGRES_PASSWORD"]
+    except KeyError:
+        raise RuntimeError("Set TEST_DATABASE_URL, or POSTGRES_USER/POSTGRES_PASSWORD in vertex_be/.env") from None
+    return f"postgresql://{user}:{password}@localhost:5432/vertexdb_test"
+
+
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL") or _default_test_database_url()
 # Must happen before anything imports app.core.config.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 

@@ -48,3 +48,7 @@ next-env.d.ts
 # uploaded candidate documents — private, never committed (SRS FR-1.6)
 /storage/*
 !/storage/.gitkeep
+
+# Real env files stay local; templates are committed.
+!.env.example
+!.env.*.example

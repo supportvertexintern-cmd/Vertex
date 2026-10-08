@@ -12,23 +12,24 @@ set -eu
 PROJECT="$1"
 export IMAGE_TAG="$2"
 export ENV_FILE="${ENV_FILE:-.env}"
-COMPOSE="docker compose -p $PROJECT --env-file $ENV_FILE -f docker-compose.deploy.yml"
+# A function, not a string, so paths with spaces survive.
+compose() { docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f docker-compose.deploy.yml "$@"; }
 
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE in $(pwd) — copy it from .env.<env>.example" >&2; exit 1; }
 
-$COMPOSE pull --quiet || {
+compose pull --quiet || {
   echo "Pull failed — run 'docker login ghcr.io' (PAT with read:packages) and check tag '$IMAGE_TAG' exists." >&2
   exit 1
 }
 
 # The backend runs `alembic upgrade head` before serving; Next.js waits for it.
-if $COMPOSE up -d --remove-orphans --wait --wait-timeout 240; then
+if compose up -d --remove-orphans --wait --wait-timeout 240; then
   echo "Deployed $IMAGE_TAG to $PROJECT — all services healthy"
   docker image prune -f >/dev/null
   exit 0
 fi
 
 echo "Deploy of $IMAGE_TAG to $PROJECT failed:" >&2
-$COMPOSE ps >&2
-$COMPOSE logs --tail=60 >&2
+compose ps >&2
+compose logs --tail=60 >&2
 exit 1
