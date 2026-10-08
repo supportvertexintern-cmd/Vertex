@@ -1,7 +1,8 @@
 # One stack per environment: backend, Postgres, pgAdmin, Flutter web, Next.js.
 # Runs the prebuilt images CI pushed to GHCR — the same file serves
 # vertex-dev and vertex-staging on this PC today, and a VPS later.
-# Start/update it with deploy/deploy.sh, which sets ENV_FILE and IMAGE_TAG.
+# Start/update it with deploy/deploy.sh, which also provisions the database
+# roles (deploy/db-roles.sql) each service connects as.
 #
 # pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin and is
 # bound to localhost; leave the profile off on a VPS.
@@ -11,8 +12,15 @@ services:
   backend:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-backend:${IMAGE_TAG:?IMAGE_TAG is required}
 
-    env_file:
-      - ${ENV_FILE:-.env}
+    # Explicit, not env_file: each service sees only its own credentials,
+    # never the superuser's or another service's.
+    environment:
+      APP_ENV: ${APP_ENV}
+      DEBUG: ${DEBUG:-false}
+      DATABASE_URL: postgresql://vertex_api:${DB_API_PASSWORD:?DB_API_PASSWORD is required}@db:5432/${POSTGRES_DB}
+      MIGRATION_DATABASE_URL: postgresql://vertex_migrator:${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}@db:5432/${POSTGRES_DB}
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:
       - "${BACKEND_PORT}:8000"
@@ -72,13 +80,41 @@ services:
   nextjs:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
 
-    # Shares the stack's env file: DATABASE_URL points Prisma at this stack's
-    # db, plus the Next-specific keys (JWT_SECRET, SMTP_*, STRIPE_*, …).
-    env_file:
-      - ${ENV_FILE:-.env}
-
+    # Explicit list (see backend). Prisma connects as vertex_web; the optional
+    # integration keys are empty unless set in the env file.
     environment:
       NODE_ENV: production
+      DATABASE_URL: postgresql://vertex_web:${DB_WEB_PASSWORD:?DB_WEB_PASSWORD is required}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-}
+      EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
+      PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
+      CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_API_BASE: ${PAYPAL_API_BASE:-}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-}
+      INTAKE_MODE: ${INTAKE_MODE:-}
 
     ports:
       - "${NEXTJS_PORT}:3000"
