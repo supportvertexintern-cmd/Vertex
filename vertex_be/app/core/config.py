@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: str
+    # Alembic connects as the schema-owning role; the app's runtime role
+    # (DATABASE_URL) can't run DDL. Unset (tests, local runs) = DATABASE_URL.
+    MIGRATION_DATABASE_URL: str | None = None
 
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

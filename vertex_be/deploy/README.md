@@ -27,6 +27,10 @@ Each environment is one Docker Compose project built from
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
   and never runs `prisma migrate`, so the schema has one owner.
+- Each service connects as its own **least-privilege database role**
+  (`vertex_migrator`, `vertex_api`, `vertex_web`), provisioned by
+  [`db-roles.sql`](db-roles.sql) on every deploy. The superuser is for admin
+  only. See [docs/secrets.md](../../docs/secrets.md).
 - **Flutter web** gets its API URL at runtime from `/config.json` (from
   `PUBLIC_API_URL`), so the same image works in every environment.
 - **Next.js** `NEXT_PUBLIC_*` values are baked in at image build time; its
