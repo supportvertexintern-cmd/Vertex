@@ -1,0 +1,43 @@
+# Secret scanning for this repo — run by pre-commit and CI (full history).
+# Extends gitleaks' built-in rules with checks for what those miss here:
+# committed env files and short/weak passwords (the built-in rules look for
+# high-entropy keys, so a password like "123" slips through them).
+
+title = "Vertex gitleaks config"
+
+[extend]
+useDefault = true
+
+# Any real env file. Only *.example templates may be committed.
+[[rules]]
+id = "committed-env-file"
+description = "Env file committed (only .env*.example templates are allowed)"
+path = '''(^|/)\.env(\.[^/]+)?$'''
+[[rules.allowlists]]
+paths = ['''\.example$''']
+
+# user:password@ in any connection string, however short the password.
+[[rules]]
+id = "credentials-in-url"
+description = "Password embedded in a connection URL"
+regex = '''[a-zA-Z][a-zA-Z0-9+.-]*://[^:/\s@'"]+:([^@/\s'"]{1,})@'''
+secretGroup = 1
+keywords = ["://"]
+[[rules.allowlists]]
+# Placeholders, and the throwaway password of CI's disposable test databases.
+regexTarget = "secret"
+regexes = ['''^(<[A-Za-z_]+>|\$\{?[A-Z_]+\}?|\*+|CHANGE_ME|change-me|PASSWORD|password|postgres|\{password\}|\{[a-z_]+\})$''']
+
+# PASSWORD= / SECRET= / TOKEN= / KEY= assignments in env-style files.
+[[rules]]
+id = "env-style-secret"
+description = "Secret value assigned in an env-style file"
+path = '''(^|/)\.env[^/]*$'''
+regex = '''(?im)^\s*[A-Z0-9_]*(PASSWORD|PASS|SECRET|TOKEN|API_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*["']?([^\s"'#]+)'''
+secretGroup = 2
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = [
+  '''^(generate-|choose-|change|CHANGE_ME|your|<|\.\.\.|sk_test_\.\.\.|pk_test_\.\.\.|whsec_\.\.\.|true$|false$)''',
+  '''^[0-9]+[smhdw]?$''',  # durations/limits, e.g. EMAIL_TOKEN_EXPIRES_IN="24h"
+]

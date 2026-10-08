@@ -15,6 +15,21 @@ permissions:
   contents: read
 
 jobs:
+  secrets:
+    name: Secret scan (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Uses the repo's .gitleaks.toml, which adds env-file and weak-password
+      # rules on top of gitleaks' defaults.
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            git /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose
+
   backend:
     name: Backend tests
     runs-on: ubuntu-latest
