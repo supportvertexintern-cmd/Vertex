@@ -1,106 +1,116 @@
-# Backend environments & deployment
+# Environments & CI/CD
 
-| Branch    | Environment | Runs where                       | What happens on push                          |
-|-----------|-------------|----------------------------------|-----------------------------------------------|
-| `dev`     | development | your PC, `localhost:8001`        | CI: tests + Docker build                      |
-| `staging` | staging     | your PC, `localhost:8002`        | CI, then image built and pushed to GHCR       |
-| `main`    | production  | not deployed yet                 | CI only                                       |
+## Branches → environments
+
+| Branch    | Environment       | On push                                                                 |
+|-----------|-------------------|-------------------------------------------------------------------------|
+| `dev`     | `vertex-dev`      | CI → build & push all images to GHCR → auto-deploy to this PC           |
+| `staging` | `vertex-staging`  | CI → build & push all images to GHCR → auto-deploy to this PC           |
+| `main`    | production        | CI only (no production host yet)                                        |
 
 Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
-CI also runs on every PR into those three branches.
+CI runs on every PR into those three branches, so nothing merges red.
 
-Local Docker Desktop runs three separate Compose projects:
+## What runs where
 
-| Project          | Containers                                | URLs                                                        |
-|------------------|-------------------------------------------|-------------------------------------------------------------|
-| `vertex-dev`     | backend, Postgres, pgAdmin                | API http://localhost:8001/docs · pgAdmin http://localhost:5050 · Postgres `localhost:5432` |
-| `vertex-staging` | backend, Postgres, pgAdmin                | API http://localhost:8002/docs · pgAdmin http://localhost:5151 · Postgres not exposed |
-| `vertex-web`     | the Next.js web app (separate repo)       | http://localhost:3000 — uses the `vertex-dev` database      |
+Each environment is one Docker Compose project built from
+[`docker-compose.deploy.yml`](../docker-compose.deploy.yml) and its env file:
 
-| | Development | Staging |
-|---|---|---|
-| Compose file | `docker-compose.yml` | `docker-compose.deploy.yml` |
-| Env file | `.env` | `.env.staging` |
-| Code | your working tree, auto-reload | the exact image CI pushed to GHCR |
-| Data volume | `vertex_postgres_data` | `vertex-staging_postgres_data` |
+| Service      | Image                    | vertex-dev               | vertex-staging           |
+|--------------|--------------------------|--------------------------|--------------------------|
+| backend      | `vertex-backend`         | http://localhost:8001/docs | http://localhost:8002/docs |
+| flutter-web  | `vertex-flutter-web`     | http://localhost:8081    | http://localhost:8082    |
+| nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    |
+| pgadmin      | `dpage/pgadmin4`         | http://localhost:5050    | http://localhost:5151    |
+| db           | `postgres:15-alpine`     | `localhost:5432`         | `localhost:5433`         |
+| env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` |
 
-Each pgAdmin already has its own database registered (`vertex-dev` / `vertex-staging`
-under the *Vertex* group); log in with the `PGADMIN_*` values from that stack's
-env file, then enter the Postgres password once. Staging's pgAdmin is behind the
-`pgadmin` Compose profile (`COMPOSE_PROFILES=pgadmin` in `.env.staging`) and
-bound to localhost, so it never runs on a VPS unless enabled there.
+- The **backend** applies Alembic migrations on start; **Next.js** waits for it
+  and never runs `prisma migrate`, so the schema has one owner.
+- **Flutter web** gets its API URL at runtime from `/config.json` (from
+  `PUBLIC_API_URL`), so the same image works in every environment.
+- **Next.js** `NEXT_PUBLIC_*` values are baked in at image build time; its
+  server-side settings come from the env file.
+- Postgres and pgAdmin are bound to localhost only. Each pgAdmin has its stack's
+  database pre-registered under the *Vertex* group.
 
-Staging runs the same image and compose file a VPS will use later, so what you
-QA on staging is what ships.
+Images are tagged `<branch>-<commit sha>` (exact build) and `<branch>` (latest).
 
-## Development
+## The pipeline
+
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — on PRs and `main`:
+
+| Job      | Checks                                                                 |
+|----------|------------------------------------------------------------------------|
+| backend  | pytest against Postgres (migrations apply, models match schema)        |
+| flutter  | `flutter analyze` (errors fail), `flutter test`                        |
+| nextjs   | `tsc`, vitest against a seeded Postgres (R2 upload test is local-only) |
+| images   | all three Docker images build                                          |
+
+[`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) — on push to
+`dev` / `staging`: runs CI, pushes the three images, then the **self-hosted runner
+on this PC** runs `deploy/deploy.sh`, which pulls that exact build and restarts
+the stack, waiting until every container is healthy. A failed health check
+fails the run and prints the logs.
+
+## One-time setup
+
+### 1. Env files
+
+`vertex_be/.env.dev` and `vertex_be/.env.staging` (gitignored) hold each stack's
+settings and secrets. Recreate them from `.env.dev.example` /
+`.env.staging.example` if lost. The runner reads them from `LOCAL_ENV_DIR`
+(default `D:/Django Projects/Vertex/vertex_be`; override with a repo variable).
+
+### 2. Self-hosted runner
+
+GitHub → repo **Settings → Actions → Runners → New self-hosted runner → Windows**.
+Copy the token from the `config.cmd` line, then in PowerShell:
+
+```powershell
+mkdir C:\actions-runner; cd C:\actions-runner
+# download + extract the runner zip using the commands GitHub shows, then:
+.\config.cmd --url https://github.com/BrookTeferi/Vertex --token <TOKEN> `
+  --name vertex-pc --labels vertex-host --unattended
+.\run.cmd          # or install it as a service running as *your* user
+```
+
+The runner must run as your Windows user (not `NETWORK SERVICE`) so it can use
+Docker Desktop. Docker Desktop must be running for deploys to succeed.
+
+### 3. Branch protection (recommended)
+
+Settings → Branches: protect `dev`, `staging` and `main` — require a PR and the
+CI checks to pass.
+
+## Manual deploy / rollback
+
+Re-run a previous *Deploy* run in the Actions tab, or from Git Bash on this PC:
 
 ```sh
 cd vertex_be
-docker compose up -d
+docker login ghcr.io -u BrookTeferi     # once; PAT with read:packages
+ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging staging-<full commit sha>
 ```
 
-The web app joins the `vertex-dev` network, so start `vertex-dev` first, then
-`docker compose up -d` in the web repo.
+Stop a stack: `IMAGE_TAG=x docker compose -p vertex-staging --env-file .env.staging -f docker-compose.deploy.yml down`
+(add `-v` to wipe its database).
 
-## Local staging
+## Backend live reload
 
-One-time setup:
-
-1. Copy `.env.staging.example` to `.env.staging` and fill in the values. The app
-   refuses to start in staging with `DEBUG=true` or a weak `SECRET_KEY`.
-2. Log Docker in to GHCR, because the images are private. Create a classic
-   personal access token with only the `read:packages` scope (GitHub → Settings →
-   Developer settings → Personal access tokens), then:
-
-   ```sh
-   docker login ghcr.io -u BrookTeferi     # paste the token as the password
-   ```
-
-After each push to `staging`, once the *Backend deploy — staging* run is green
-(its summary prints this command with the exact tag), run from Git Bash:
+To work on the backend inside vertex-dev with your working tree mounted:
 
 ```sh
 cd vertex_be
-ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging ghcr.io/brookteferi/vertex-backend:staging
+docker compose -p vertex-dev --env-file .env.dev \
+  -f docker-compose.deploy.yml -f docker-compose.local.yml up -d --build backend
 ```
 
-It pulls the image, applies migrations, restarts and waits for the healthcheck.
-Check http://localhost:8002/api/v1/health — it reports `"environment": "staging"`.
+The next deploy to `dev` swaps the published image back in.
 
-Tags: `:staging` is always the latest staging build; `:staging-<short sha>` pins
-one commit. Run the command with an older sha tag to roll back.
+## Later: a VPS
 
-Stop staging: `BACKEND_IMAGE=x docker compose -p vertex-staging --env-file .env.staging -f docker-compose.deploy.yml down`
-(add `-v` to also wipe its database).
-
-## Later: moving staging to a VPS
-
-The workflow already contains the SSH deploy job; it's skipped until enabled.
-
-1. On the VPS (Docker + compose plugin installed):
-
-   ```sh
-   sudo useradd -m -s /bin/bash deploy && sudo usermod -aG docker deploy
-   sudo mkdir -p /opt/vertex/staging && sudo chown deploy: /opt/vertex/staging
-   # as deploy: add the CI public key to ~/.ssh/authorized_keys
-   # create /opt/vertex/staging/.env from .env.staging.example
-   ```
-
-2. In GitHub, Settings → Environments → **New environment** `staging`:
-
-   | Kind     | Name              | Value                                                    |
-   |----------|-------------------|----------------------------------------------------------|
-   | secret   | `SSH_HOST`        | server IP / hostname                                     |
-   | secret   | `SSH_USER`        | `deploy`                                                 |
-   | secret   | `SSH_PRIVATE_KEY` | private half of a key made just for CI (`ssh-keygen -t ed25519`) |
-   | secret   | `SSH_KNOWN_HOSTS` | output of `ssh-keyscan <SSH_HOST>`                       |
-   | variable | `SSH_PORT`        | optional, default `22`                                   |
-   | variable | `DEPLOY_PATH`     | optional, default `/opt/vertex/staging`                  |
-
-3. Settings → Secrets and variables → Actions → Variables: add `STAGING_VPS_ENABLED` = `true`.
-
-## Branch protection
-
-Settings → Branches: protect `staging` and `main` (require a PR and passing
-"Backend CI" checks).
+`docker-compose.deploy.yml` and `deploy.sh` already work on a Linux host: put
+`.env` (from `.env.production.example` / `.env.staging.example`, without
+`COMPOSE_PROFILES`) in the deploy path, install a self-hosted runner there with
+its own label, and point the deploy job's `runs-on` at it.

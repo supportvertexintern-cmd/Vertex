@@ -1,15 +1,15 @@
-# Stack for staging/production. Unlike docker-compose.yml (local dev), this
-# runs the prebuilt image from GHCR with no source mount or reload, and keeps
-# Postgres off the host network. Used for local staging on this PC today and
-# on a VPS later — start it via deploy/deploy.sh.
+# One stack per environment: backend, Postgres, pgAdmin, Flutter web, Next.js.
+# Runs the prebuilt images CI pushed to GHCR — the same file serves
+# vertex-dev and vertex-staging on this PC today, and a VPS later.
+# Start/update it with deploy/deploy.sh, which sets ENV_FILE and IMAGE_TAG.
 #
-# pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin (local
-# staging does; a VPS should not), and is bound to localhost either way.
+# pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin and is
+# bound to localhost; leave the profile off on a VPS.
 
 services:
 
   backend:
-    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-backend:${IMAGE_TAG:?IMAGE_TAG is required}
 
     env_file:
       - ${ENV_FILE:-.env}
@@ -44,11 +44,49 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    # Localhost only, for tests and local tools.
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
+
+    restart: unless-stopped
+
+  flutter-web:
+    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
+
+    # Served to the app as /config.json.
+    environment:
+      API_BASE_URL: ${PUBLIC_API_URL}
+      APP_ENV: ${APP_ENV}
+
+    ports:
+      - "${FLUTTER_PORT}:80"
+
+    restart: unless-stopped
+
+  nextjs:
+    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
+
+    # Shares the stack's env file: DATABASE_URL points Prisma at this stack's
+    # db, plus the Next-specific keys (JWT_SECRET, SMTP_*, STRIPE_*, …).
+    env_file:
+      - ${ENV_FILE:-.env}
+
+    environment:
+      NODE_ENV: production
+
+    ports:
+      - "${NEXTJS_PORT}:3000"
+
+    # The backend applies migrations; Next.js only reads/writes the schema.
+    depends_on:
+      backend:
+        condition: service_healthy
 
     restart: unless-stopped
 
