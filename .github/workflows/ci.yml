@@ -43,14 +43,16 @@ jobs:
         env:
           POSTGRES_DB: vertexdb_test
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          # Disposable DB reachable only inside this job: no password at all,
+          # so nothing in CI looks like a credential to secret scanners.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres -d vertexdb_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
 
     env:
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vertexdb_test
+      TEST_DATABASE_URL: postgresql://postgres@localhost:5432/vertexdb_test
 
     steps:
       - uses: actions/checkout@v4
@@ -101,14 +103,16 @@ jobs:
         env:
           POSTGRES_DB: vertex_next_test
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          # Disposable DB reachable only inside this job: no password at all,
+          # so nothing in CI looks like a credential to secret scanners.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres -d vertex_next_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vertex_next_test
+      DATABASE_URL: postgresql://postgres@localhost:5432/vertex_next_test
 
     steps:
       - uses: actions/checkout@v4
