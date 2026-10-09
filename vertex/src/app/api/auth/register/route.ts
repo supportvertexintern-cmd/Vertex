@@ -4,7 +4,7 @@ import { auditedPrisma } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email";
 import { registerSchema, completeAccountSetupSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
+import { limitByIp, rateLimit } from "@/lib/rate-limit";
 import { verifyCandidateInviteToken, verifyAccountSetupToken } from "@/lib/jwt";
 import { evaluateDocumentCompletenessForCandidateId } from "@/server/services/documentCompleteness";
 
@@ -58,6 +58,9 @@ async function lookupClaimableAccountSetup(token: string) {
 // same prefill-then-set-password shape, but resolving a User directly
 // instead of a not-yet-existing Candidate.
 export async function GET(req: NextRequest) {
+  // Invite-link lookup: limit guessing of setup tokens.
+  const limited = limitByIp(req, "register-invite", { windowMs: 15 * 60_000, max: 20 });
+  if (limited) return limited;
   const setupToken = req.nextUrl.searchParams.get("setup");
   if (setupToken) {
     let account;

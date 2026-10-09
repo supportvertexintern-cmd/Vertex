@@ -91,9 +91,20 @@ export async function getPublicJobsList(params: PublicJobsListParams = {}) {
   return { jobs, total, page, pages: Math.ceil(total / limit) };
 }
 
+// The detail page adds the long-form fields to the listing's public set.
+// Never internal fields (employer_client_id, application_fee, updated_at).
+const PUBLIC_JOB_DETAIL_SELECT = {
+  ...PUBLIC_JOB_LIST_SELECT,
+  requirements: true,
+  processing_time: true,
+  visa_success_rates: true,
+} as const;
+
+// Public = active or closed (closed jobs stay reachable from old links and
+// show "No longer accepting applications"). Drafts are never public.
 export async function getPublicJobById(id: string) {
-  return prisma.job.findUnique({
-    where: { id },
-    include: { _count: { select: { applications: true } } },
+  return prisma.job.findFirst({
+    where: { id, status: { in: ["active", "closed"] } },
+    select: PUBLIC_JOB_DETAIL_SELECT,
   });
 }

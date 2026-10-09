@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
 import { auditedPrisma } from "@/lib/audit";
 import { resetPasswordSchema } from "@/lib/validations";
 import { verifyEmailToken } from "@/lib/jwt";
@@ -10,6 +11,8 @@ import { hashPassword } from "@/lib/auth";
 // required — the token itself (24h-expiring, single-purpose) is the
 // access grant, same pattern as verify-email.
 export async function POST(req: NextRequest) {
+  const limited = limitByIp(req, "reset-password", { windowMs: 15 * 60_000, max: 10 });
+  if (limited) return limited;
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 

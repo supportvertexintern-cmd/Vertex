@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { limitByIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
@@ -15,7 +16,9 @@ const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // GET /api/jobs/[id] — public. Also called directly (in-process, not over
 // HTTP) by /jobs/[id]'s Server Component — see server/services/publicJobs.ts.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const limited = limitByIp(req, "job-detail", { max: 120 });
+  if (limited) return limited;
   const { id } = await params;
   const job = await getPublicJobById(id);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });

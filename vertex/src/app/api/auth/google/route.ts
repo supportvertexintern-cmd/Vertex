@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { limitByIp } from "@/lib/rate-limit";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export async function GET(req: NextRequest) {
+  const limited = limitByIp(req, "google-signin", { windowMs: 15 * 60_000, max: 20 });
+  if (limited) return limited;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const redirectUri = `${appUrl}/api/auth/google/callback`;
@@ -11,7 +15,7 @@ export async function GET(req: NextRequest) {
 
   // Preserve redirect param so we can use it after Google callback
   const { searchParams } = req.nextUrl;
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = safeRedirectPath(searchParams.get("redirect"));
 
   const params = new URLSearchParams({
     client_id: clientId,
