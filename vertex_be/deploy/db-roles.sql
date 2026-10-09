@@ -4,6 +4,7 @@
 --   vertex_migrator  owns the schema; used only by `alembic upgrade` (DDL)
 --   vertex_api       FastAPI runtime: read/write rows, no DDL
 --   vertex_web       Next.js/Prisma runtime: read/write rows, no DDL
+--   vertex_readonly  people browsing data (pgAdmin): SELECT only
 --
 -- Neither runtime role can create/alter/drop objects, create roles or
 -- databases, truncate tables, touch migration bookkeeping, or change/delete
@@ -11,13 +12,14 @@
 --
 -- psql variables (set by deploy.sh; an empty password leaves it unchanged,
 -- which is how the test suite runs this without touching real credentials):
---   :migrator_pw  :api_pw  :web_pw
+--   :migrator_pw  :api_pw  :web_pw  :readonly_pw
 
 \set ON_ERROR_STOP on
 
 SELECT set_config('vertex.migrator_pw', :'migrator_pw', false),
        set_config('vertex.api_pw', :'api_pw', false),
-       set_config('vertex.web_pw', :'web_pw', false);
+       set_config('vertex.web_pw', :'web_pw', false),
+       set_config('vertex.readonly_pw', :'readonly_pw', false);
 
 DO $$
 DECLARE
@@ -27,7 +29,8 @@ BEGIN
   -- Roles: login only, no special powers.
   FOR r IN SELECT * FROM (VALUES ('vertex_migrator', 'vertex.migrator_pw'),
                                  ('vertex_api', 'vertex.api_pw'),
-                                 ('vertex_web', 'vertex.web_pw')) AS t(role, setting)
+                                 ('vertex_web', 'vertex.web_pw'),
+                                 ('vertex_readonly', 'vertex.readonly_pw')) AS t(role, setting)
   LOOP
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = r.role) THEN
       EXECUTE format('CREATE ROLE %I', r.role);
@@ -42,12 +45,13 @@ BEGIN
   -- Database: nobody connects by default.
   EXECUTE format('REVOKE ALL ON DATABASE %I FROM PUBLIC', current_database());
   EXECUTE format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO vertex_migrator, vertex_api, vertex_web', current_database());
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO vertex_readonly', current_database());
 END $$;
 
 -- Schema: only the migrator may create objects.
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE, CREATE ON SCHEMA public TO vertex_migrator;
-GRANT USAGE ON SCHEMA public TO vertex_api, vertex_web;
+GRANT USAGE ON SCHEMA public TO vertex_api, vertex_web, vertex_readonly;
 
 -- Hand every existing object in public to the migrator, so migrations can
 -- alter tables first created by the superuser (or by Prisma, historically).
@@ -94,11 +98,16 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vertex_api, vertex_web;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vertex_api, vertex_web;
 
+-- Read-only browsing role: rows can be read, nothing else.
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO vertex_readonly;
+
 -- Objects created by future migrations get the same grants automatically.
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vertex_api, vertex_web;
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO vertex_api, vertex_web;
+ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
+  GRANT SELECT ON TABLES TO vertex_readonly;
 
 -- Carve-outs: the audit trail is append-only (triggers block UPDATE/DELETE,
 -- this also covers TRUNCATE and the trigger-free path), and migration
