@@ -80,6 +80,8 @@ and CI, CI-built images, dev/staging isolation.
 | G7 | Authorization decisions are **not audited**: denials leave no record | Medium | `AuditLog` records data changes only | Phase 2 design, Phase 5 build |
 | G8 | Two systems hold business logic over one database (Next.js/Prisma and FastAPI) | High (architecture) | both roles can write the same tables | Phase 2 decision (plan Phase 4) |
 | G9 | FastAPI has no auth; its docs/OpenAPI are public | Low now (no data endpoints) | `/api/v1/openapi.json` | Phases 4–5 |
+| G10 | *(found in step 2)* Public auth flows aren't rate-limited: `forgot-password` (email bombing, account probing), `reset-password`, `verify-email`, Google sign-in; also `apply/options` | Medium | no `rateLimit` in those handlers | Phase 2 |
+| G11 | *(found in step 2)* `GET /api/jobs/[id]` (public) returns the full job row for **any** status, including drafts and closed jobs and `employer_client_id`; the public list correctly limits fields and status | Medium | `getPublicJobById` uses `findUnique` with no `select` or status filter | Phase 2 |
 
 **Policy questions (not confirmed bugs, need an owner's answer):**
 

@@ -55,15 +55,56 @@ not a control: the API enforces the same rules independently.
 
 ## 3. Deny by default
 
+Access is **denied unless the system can establish that the operation is
+explicitly allowed.** In particular, the request **must** be denied when:
+
+| Situation | Required result |
+|---|---|
+| The permission is unknown (no rule names it) | deny |
+| A protected operation has no identity (no or unreadable credential) | deny: 401 |
+| The credential is invalid, expired, revoked, or for a disabled account | deny: 401 |
+| Ownership or scope of the record can't be verified (record missing, scope lookup fails or returns nothing) | deny: 404 or 403 (see §5) |
+| The authorization check itself errors (exception, timeout, bad data) | deny: never an automatic allow |
+| A security dependency is unavailable (database, token signing key, rate-limit store, policy data) | deny: no fail-open path (see §7) |
+
+Rules for code:
+
 - Every endpoint and server action **must** start from *deny*. Access is
   granted only by an explicit rule naming the roles and the record scope.
-- An endpoint with no authorization rule is a defect. CI **must** fail when a
-  new API handler has neither a guard nor an explicit "public" declaration
+- Authorization code **must** be written so that an exception, `null`, empty
+  result or missing field falls through to *deny*. There **must not** be a
+  `catch` that continues, or a default branch that allows.
+- An endpoint with no authorization rule is a defect. CI **must** fail when an
+  API handler has neither a guard nor an entry in the public register below
   (closes baseline gap G6, which allowed G1 and G2).
-- **Public endpoints are an explicit, reviewed list** (login, registration,
-  password reset, public job listings, contact and intake forms, payment
-  webhooks). Each **must** be rate-limited, and each **must not** return
-  personal data or admin data.
+
+### Public endpoint register
+
+Public endpoints **must** be explicitly designated here, narrowly scoped, and
+documented. Each **must** be rate-limited and **must not** return personal or
+internal data beyond what its purpose requires. Anything public that isn't in
+this table is a defect.
+
+| Endpoint | Purpose | May return | Rate-limited | Status |
+|---|---|---|---|---|
+| `POST /api/auth/login` | sign in | session cookie; generic error on failure | ✅ | ok |
+| `POST /api/auth/logout` | sign out | clears cookie | n/a (no effect without a session) | ok |
+| `GET`, `POST /api/auth/register` | create a candidate account | outcome only | ✅ | ok |
+| `POST /api/auth/forgot-password` | request a reset email | the same response whether or not the account exists | ❌ | **gap G10** |
+| `POST /api/auth/reset-password` | set a new password | outcome only; needs a signed, expiring email token | ❌ | add a limit (G10) |
+| `GET /api/auth/verify-email` | confirm an email address | outcome only; needs a signed email token | ❌ | add a limit (G10) |
+| `GET /api/auth/google`, `GET /api/auth/google/callback` | Google sign-in | redirect; session cookie | ❌ | add a limit (G10) |
+| `GET /api/apply/options` | application form choices | country and document-type names and IDs | ❌ | add a limit |
+| `GET /api/jobs/[id]` | public job page | **active** jobs, public fields only | ❌ | **gap G11**: returns drafts/closed jobs and `employer_client_id` |
+| `POST /api/contact` | contact form | outcome only | ✅ | ok |
+| `POST /api/public-intake/application` | public application form | outcome only | ✅ | ok |
+| `POST /api/consultations/checkout` | pay for a consultation | payment redirect URL | ✅ | ok |
+| `POST /api/chat` | website AI assistant | generated text from public knowledge only | ❌ | **gap G3** (exception in §11) |
+| `GET /api/documents/file?token=` | download a document | the one file named in a signed, short-lived token issued after an access check | n/a (unguessable token) | ok |
+| `POST /api/webhooks/stripe` | payment events from Stripe | acknowledgement only; Stripe signature required | n/a (signature) | ok |
+
+**Not public, currently exposed (defects, fix in Phase 2):**
+`GET /api/admin/emails` (gap G1) and `GET /api/admin/knowledge` (gap G2).
 
 ## 4. Least privilege
 
@@ -173,4 +214,5 @@ expiry date) agreed by the project owner. Undocumented exceptions are defects.
 | Rule | Exception | Reason | Owner | Expires |
 |---|---|---|---|---|
 | §3 rate-limit every public endpoint | `POST /api/chat` is not rate-limited yet | known gap G3, fix scheduled in Phase 2 | — | end of Phase 2 |
+| §3 rate-limit every public endpoint | auth-flow and `apply/options` endpoints marked ❌ in the register | known gap G10, fix scheduled in Phase 2 | — | end of Phase 2 |
 | §8 revocable sessions | 7-day JWT without revocation | known gap G4 | — | end of Phase 4 |
