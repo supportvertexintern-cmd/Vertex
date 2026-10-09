@@ -119,9 +119,11 @@ apply raw SQL, so the audit-log immutability trigger (blocks
 UPDATE/DELETE on `AuditLog` at the database level) has to be run
 separately on every freshly created schema.
 
-## Known gap in this repo, unrelated to deployment
+## Resolved: leaked database credential in `probe.js`
 
-`probe.js` (repo root) contains a hardcoded, plaintext Supabase database
-password committed to git history. It's excluded from the deploy bundle
-above, but the credential itself should be rotated and the file removed
-from history — flagging here so it doesn't get lost.
+`probe.js` (repo root) contained a hardcoded, plaintext Supabase database
+password. Resolved 2026-10-08: the credential was rotated, `probe.js` was
+deleted, and git history was rewritten to remove it (verified with a
+full-history gitleaks scan of the GitHub repository). The Supabase project
+was never the production database. The process for any future leak is in
+`docs/secrets.md` at the monorepo root.
