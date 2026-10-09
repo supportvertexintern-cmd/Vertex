@@ -22,7 +22,7 @@ Each environment is one Docker Compose project built from
 | flutter-web  | `vertex-flutter-web`     | http://localhost:8081    | http://localhost:8082    |
 | nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    |
 | pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    |
-| db           | `postgres:15-alpine`     | `localhost:5432` (for tests) | not published        |
+| db           | `postgres:15-alpine`     | not published            | not published            |
 | env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` |
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
@@ -129,3 +129,12 @@ The next deploy to `dev` swaps the published image back in.
 `.env` (same variables as `.env.staging`, without `COMPOSE_PROFILES`) in the
 deploy path, install a self-hosted runner there with
 its own label, and point the deploy job's `runs-on` at it.
+
+## Running the backend tests
+
+```sh
+cd vertex_be
+sh scripts/test.sh          # extra args go to pytest
+```
+
+They run against a throwaway Postgres container, never a stack's database.
