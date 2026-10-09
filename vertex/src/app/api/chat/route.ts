@@ -1,6 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -57,6 +58,8 @@ CONTACT:
 `;
 
 export async function POST(req: Request) {
+  const limited = limitByIp(req, "chat", { windowMs: 10 * 60_000, max: 30 });
+  if (limited) return limited;
   try {
     const { messages } = await req.json();
 

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAdmin, requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
+  const guardRes = requireAdmin(user);
+  if (guardRes) return guardRes;
   const templates = await prisma.emailTemplate.findMany({ orderBy: { event: "asc" } });
   return NextResponse.json(templates);
 }

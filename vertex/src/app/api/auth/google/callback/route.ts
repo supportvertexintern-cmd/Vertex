@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { signToken } from "@/lib/jwt";
 
 interface GoogleTokenResponse {
@@ -17,6 +19,8 @@ interface GoogleUserInfo {
 }
 
 export async function GET(req: NextRequest) {
+  const limited = limitByIp(req, "google-callback", { windowMs: 15 * 60_000, max: 20 });
+  if (limited) return limited;
   const { searchParams } = req.nextUrl;
   const code = searchParams.get("code");
   const state = searchParams.get("state"); // the original redirect destination
@@ -24,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const redirectUri = `${appUrl}/api/auth/google/callback`;
-  const redirectTo = state ? decodeURIComponent(state) : "/dashboard";
+  const redirectTo = safeRedirectPath(state);
 
   if (error || !code) {
     return NextResponse.redirect(`${appUrl}/auth/login?error=google_cancelled`);

@@ -42,3 +42,23 @@ export function rateLimit(
   entry.count += 1;
   return { success: true, remaining: max - entry.count, resetAt: entry.resetAt };
 }
+
+/**
+ * Per-client limit for route handlers: returns a 429 response when the
+ * caller is over the limit, or null to continue. Keyed on the forwarded
+ * client IP, so it is only as trustworthy as that header (see the Phase 4
+ * note on a shared, proxy-aware store in docs/security/zero-trust.md).
+ */
+export function limitByIp(
+  req: Request,
+  scope: string,
+  options: RateLimitOptions = {},
+): Response | null {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  const { success, resetAt } = rateLimit(`${scope}:${ip}`, options);
+  if (success) return null;
+  return Response.json(
+    { error: "Too many requests. Please try again later." },
+    { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))) } },
+  );
+}

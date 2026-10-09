@@ -83,6 +83,20 @@ and CI, CI-built images, dev/staging isolation.
 | G10 | *(found in step 2)* Public auth flows aren't rate-limited: `forgot-password` (email bombing, account probing), `reset-password`, `verify-email`, Google sign-in; also `apply/options` | Medium | no `rateLimit` in those handlers | Phase 2 |
 | G11 | *(found in step 2)* `GET /api/jobs/[id]` (public) returns the full job row for **any** status, including drafts and closed jobs and `employer_client_id`; the public list correctly limits fields and status | Medium | `getPublicJobById` uses `findUnique` with no `select` or status filter | Phase 2 |
 
+| G12 | *(found in step 2)* **Open redirect** after Google sign-in: the callback redirected to `` `${appUrl}${state}` ``, so `state=.evil.com` or `@evil.com` sent a freshly signed-in user to another site | High | `auth/google/callback` used `state` unchecked | Phase 2 |
+| G13 | *(found in step 2)* OAuth `state` is not an anti-forgery value, so a login can be forced (login CSRF) | Medium | `state` carries the redirect path only | Phase 4 |
+| G14 | *(found in step 2)* Rate limits key on `X-Forwarded-For`, which a client can set to anything to get a fresh allowance | Medium | `lib/rate-limit.ts` | Phase 4 (with G5) |
+
+### Fixed in Phase 2 (branch `security/phase2-zero-trust`)
+
+| Gap | Fix | Test |
+|---|---|---|
+| G1, G2 | admin-only guard on `GET /api/admin/emails` and `GET /api/admin/knowledge` | `route-guards.test.ts` (unguarded handler, admin never public) |
+| G3, G10 | per-IP rate limits on chat, every auth flow, invite lookup, `apply/options`, job detail | `route-guards.test.ts` (register protection) |
+| G6 | public endpoint register in code + CI test that fails on any unguarded, unregistered handler | `route-guards.test.ts`; mutation-checked (removing a guard or a limit fails it) |
+| G11 | job detail returns active/closed jobs only, public fields only | `publicJobs.integration.test.ts` |
+| G12 | `safeRedirectPath`: only same-site relative paths after sign-in | `safe-redirect.test.ts` (13 attack inputs) |
+
 **Policy questions (not confirmed bugs, need an owner's answer):**
 
 | # | Question |
