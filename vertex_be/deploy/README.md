@@ -138,3 +138,14 @@ sh scripts/test.sh          # extra args go to pytest
 ```
 
 They run against a throwaway Postgres container, never a stack's database.
+
+## Verifying a stack
+
+After a deploy, check one stack against the Phase 2 security properties
+(ports, networks, database roles, G1/G2/G10/G11/G17); it prints a markdown
+table, recorded in `docs/security/phase2-verification.md`:
+
+```sh
+cd vertex_be
+LAN_IP=<this PC's LAN address> bash deploy/verify-stack.sh dev   # or staging
+```
