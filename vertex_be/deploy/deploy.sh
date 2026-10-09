@@ -38,10 +38,24 @@ fail() {
   exit 1
 }
 
-[ "${SKIP_PULL:-}" = 1 ] || compose pull --quiet || {
-  echo "Pull failed — run 'docker login ghcr.io' (PAT with read:packages) and check tag '$IMAGE_TAG' exists." >&2
-  exit 1
+# Retry the pull with backoff: a slow link to the registry shouldn't fail a
+# deploy. PULL_ATTEMPTS overrides the number of tries (default 4).
+pull_images() {
+  attempts="${PULL_ATTEMPTS:-4}"
+  attempt=1
+  while ! compose pull --quiet; do
+    if [ "$attempt" -ge "$attempts" ]; then
+      echo "Pull failed after $attempts attempts — check 'docker login ghcr.io' (PAT with read:packages) and that tag '$IMAGE_TAG' exists." >&2
+      return 1
+    fi
+    wait=$((attempt * 15))
+    echo "Pull attempt $attempt failed; retrying in ${wait}s" >&2
+    sleep "$wait"
+    attempt=$((attempt + 1))
+  done
 }
+
+[ "${SKIP_PULL:-}" = 1 ] || pull_images || exit 1
 
 # 1. Database first, so the roles exist before anything connects.
 compose up -d --wait --wait-timeout 120 db || fail "database did not become healthy"
