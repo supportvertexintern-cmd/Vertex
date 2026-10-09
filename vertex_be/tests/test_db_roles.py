@@ -98,9 +98,49 @@ def test_runtime_roles_cannot_do_admin_or_destructive_work(conn, role, sql):
     assert run_as(conn, role, sql) == INSUFFICIENT_PRIVILEGE
 
 
-def test_readonly_role_can_read_rows(conn):
+SECRET_NAME = r"(password|passwd|hash|token|secret|session|otp|mfa|salt|api_?key|private_?key|credential)"
+
+
+def test_readonly_role_can_read_non_secret_columns(conn):
     assert run_as(conn, "vertex_readonly", 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, "vertex_readonly", 'SELECT count(*) FROM "AuditLog"') is None
+    assert run_as(conn, "vertex_readonly", 'SELECT id, email, role FROM "User"') is None
+    assert run_as(conn, "vertex_readonly", 'SELECT id, name FROM "Region"') is None
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        'SELECT password_hash FROM "User"',
+        'SELECT * FROM "User"',  # * includes password_hash
+        'SELECT count(*) FROM "AuditLog"',  # personal-data snapshots
+        "SELECT * FROM alembic_version",
+        'SELECT stripe_checkout_session_id FROM "CasePayment"',
+    ],
+)
+def test_readonly_role_cannot_read_secrets_or_audit_log(conn, sql):
+    assert run_as(conn, "vertex_readonly", sql) == INSUFFICIENT_PRIVILEGE
+
+
+def test_readonly_role_has_no_secret_columns_table_grants_or_default_privileges(conn):
+    # Generic: whatever tables exist, no secret-looking column is readable...
+    readable = conn.execute(
+        text("""SELECT table_name, column_name FROM information_schema.column_privileges
+                WHERE grantee = 'vertex_readonly' AND privilege_type = 'SELECT'""")
+    ).all()
+    assert readable, "vertex_readonly should be able to read something"
+    leaked = [f"{t}.{c}" for t, c in readable if re.search(SECRET_NAME, c, re.I) or t == "AuditLog"]
+    assert leaked == []
+    # ...access is column by column, never whole tables...
+    table_grants = conn.execute(
+        text("""SELECT count(*) FROM information_schema.table_privileges
+                WHERE grantee = 'vertex_readonly' AND privilege_type = 'SELECT'""")
+    ).scalar()
+    assert table_grants == 0
+    # ...and nothing becomes readable automatically.
+    default_acl = conn.execute(
+        text("SELECT count(*) FROM pg_default_acl WHERE defaclacl::text LIKE '%vertex_readonly%'")
+    ).scalar()
+    assert default_acl == 0
 
 
 @pytest.mark.parametrize(
