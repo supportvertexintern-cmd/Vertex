@@ -244,7 +244,7 @@ Design so that one compromised piece does limited damage:
 | Limited network exposure and segmentation | ✅ (G15 fixed, internal data network) |
 | Auditable actions, tamper-proof log | ✅ writes + exports (G16 fixed); authorization denials still open (G7) |
 | **Explicit service authentication** | ❌ **open (G18).** No service calls another today, but nothing stops one: a compromised Next.js container can reach FastAPI over the Docker network. Harmless while FastAPI has only a health check; §6 must be built before FastAPI serves any data. |
-| **Separate signing keys per purpose** | ❌ **open (G17).** One `JWT_SECRET` signs sessions, email/reset tokens, invites and document links: stealing it forges an admin session *and* any document download. Phase 4. |
+| Separate signing keys per purpose | ✅ (G17 fixed). Each token type has its own HKDF-derived key and audience, so no token is accepted for another purpose (an anonymous upload token used to pass as a session). Stealing `JWT_SECRET` itself still forges every type; a key per secret store is a production decision. |
 
 ## 9. Audit security decisions
 

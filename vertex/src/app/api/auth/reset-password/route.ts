@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   let payload: ReturnType<typeof verifyEmailToken>;
   try {
-    payload = verifyEmailToken(parsed.data.token);
+    payload = verifyEmailToken(parsed.data.token, "password_reset");
   } catch {
     return NextResponse.json({ error: "This reset link is invalid or has expired. Request a new one." }, { status: 400 });
   }
