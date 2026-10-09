@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auditAccess } from "@/lib/audit";
+import { auditAccess, auditFilters } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 
@@ -182,7 +182,7 @@ export async function GET(req: NextRequest) {
 
   await auditAccess(user!.userId, "CandidateExport", "export", {
     rows: candidates.length,
-    filters: Object.fromEntries(req.nextUrl.searchParams),
+    filters: auditFilters(req.nextUrl.searchParams),
   });
 
   return new NextResponse(csv, {

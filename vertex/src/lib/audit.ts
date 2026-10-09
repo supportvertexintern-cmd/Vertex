@@ -125,3 +125,19 @@ export async function auditAccess(
     data: { entity_type: entityType, entity_id: "bulk", action, actor_id: actorId, after: detail as object },
   });
 }
+
+// Filter parameters whose values are safe to keep in the (immutable) audit
+// log. Anything else a caller sends, such as a free-text search that could
+// hold a name or email address, is recorded by name with its value redacted.
+const AUDITABLE_FILTER_KEYS = new Set([
+  "start", "end", "from", "to", "status", "stage", "source",
+  "country", "country_id", "region_id", "partner_id", "recruiter_id", "page", "limit",
+]);
+
+export function auditFilters(params: URLSearchParams): Record<string, string> {
+  const out: Record<string, string> = {};
+  params.forEach((value, key) => {
+    out[key] = AUDITABLE_FILTER_KEYS.has(key) ? value.slice(0, 100) : "[redacted]";
+  });
+  return out;
+}

@@ -15,12 +15,20 @@ PROJECT="$1"
 export IMAGE_TAG="$2"
 export ENV_FILE="${ENV_FILE:-.env}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# A function, not a string, so paths with spaces survive.
-compose() { docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f docker-compose.deploy.yml "$@"; }
 # Reads KEY from the env file without sourcing it (values may contain JSON).
 env_value() { grep -E "^$1=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- | tr -d '\r'; }
 
-[ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE in $(pwd) — copy it from .env.<env>.example" >&2; exit 1; }
+[ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE in $(pwd) — create it (see docs/secrets.md)" >&2; exit 1; }
+
+# Postgres is published on localhost only for stacks that ask for it.
+DB_PORT_FILE=""
+[ -n "$(env_value POSTGRES_HOST_PORT)" ] && DB_PORT_FILE="docker-compose.db-port.yml"
+
+# A function, not a string, so paths with spaces survive.
+compose() {
+  docker compose -p "$PROJECT" --env-file "$ENV_FILE" -f docker-compose.deploy.yml \
+    ${DB_PORT_FILE:+-f "$DB_PORT_FILE"} "$@"
+}
 
 # Runs db-roles.sql as the superuser. Passwords travel over stdin, never argv.
 provision_roles() {

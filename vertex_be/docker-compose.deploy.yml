@@ -10,8 +10,13 @@
 # Assume breach (docs/security/zero-trust.md §8):
 #  - Published ports bind to 127.0.0.1 unless BIND_ADDRESS says otherwise
 #    (a VPS should keep them local and put a TLS reverse proxy in front).
-#  - Networks are split: only services that use the database are on `data`;
-#    the static Flutter server sits alone on `static` and can't reach it.
+#  - Networks are split. `data` is internal (no outbound traffic, no
+#    published ports): only the database and the services that use it.
+#    `edge` carries published ports and outbound traffic for those services
+#    (Next.js needs SMTP/Stripe/AI APIs); the database is not on it, so it
+#    can't reach the internet. Flutter's static server sits alone on
+#    `static`. Postgres is unpublished unless docker-compose.db-port.yml is
+#    added (deploy.sh does that when POSTGRES_HOST_PORT is set).
 
 services:
 
@@ -46,7 +51,7 @@ services:
       start_period: 20s
 
 
-    networks: [ data ]
+    networks: [ data, edge ]
     restart: unless-stopped
 
   db:
@@ -60,9 +65,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-    # Localhost only, for tests and local tools.
-    ports:
-      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+    # Not published: services reach it over `data`. Stacks that need host
+    # access (dev: backend tests) add docker-compose.db-port.yml.
 
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
@@ -137,7 +141,7 @@ services:
         condition: service_healthy
 
 
-    networks: [ data ]
+    networks: [ data, edge ]
     restart: unless-stopped
 
   pgadmin:
@@ -168,7 +172,7 @@ services:
       - db
 
 
-    networks: [ data ]
+    networks: [ data, edge ]
     restart: unless-stopped
 
 volumes:
@@ -178,4 +182,6 @@ volumes:
 
 networks:
   data:
+    internal: true
+  edge:
   static:

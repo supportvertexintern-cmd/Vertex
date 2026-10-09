@@ -75,6 +75,7 @@ jobs:
           sparse-checkout: |
             vertex_be/deploy
             vertex_be/docker-compose.deploy.yml
+            vertex_be/docker-compose.db-port.yml
           sparse-checkout-cone-mode: false
 
       # Retries with backoff (this host's link to ghcr.io is sometimes slow
