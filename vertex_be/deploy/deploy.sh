@@ -64,46 +64,25 @@ pull_images() {
   done
 }
 
-[ "${SKIP_PULL:-}" = 1 ] || pull_images || exit 1
-
-# Compose reuses an existing network even when its definition has changed,
-# so a `data` network created before it was made internal would silently
-# stay open. Recreate the stack's networks (volumes are kept) when it drifts.
-DATA_NET="${PROJECT}_data"
-if [ "$(docker network inspect -f '{{.Internal}}' "$DATA_NET" 2>/dev/null)" = "false" ]; then
-  echo "$DATA_NET is not internal; recreating the stack's networks (data volumes are kept)" >&2
-  compose down --remove-orphans
-fi
-
-# 1. Database first, so the roles exist before anything connects.
-compose up -d --wait --wait-timeout 120 db || fail "database did not become healthy"
-provision_roles || fail "provisioning database roles"
-
-# 2. Backend: runs `alembic upgrade head` as vertex_migrator, then serves as
-#    vertex_api. Re-provision afterwards so tables a migration just created
-#    (e.g. AuditLog on a fresh database) get their carve-outs immediately.
-compose up -d --wait --wait-timeout 180 backend || fail "backend did not become healthy"
-provision_roles || fail "re-provisioning database roles"
-
-# 3. Everything else.
-compose up -d --remove-orphans --wait --wait-timeout 240 || fail "not all services became healthy"
-
 # Docker 24 / Compose 2.19 can leave a stale endpoint in a network, after
 # which Compose silently fails to attach a recreated container to it (seen:
-# backend on `data` only, so its published port was dead). Compare every
-# container with the config, repair missing attachments in place (clear the
-# stale endpoint, re-attach with the service's DNS alias), and fail if any
-# remain. Python is needed to compare; without it, fail closed.
+# backend on `edge` only, so it couldn't resolve `db` and crash-looped in
+# migrations; earlier, backend on `data` only, so its port was dead). After
+# every `up`, compare each container with the config, repair missing
+# attachments in place (clear the stale endpoint, re-attach with the
+# service's DNS alias), and fail if any remain. Python is needed to compare;
+# without it, fail closed.
 PY=""
 for candidate in python3 python; do
   "$candidate" -c 'import sys' >/dev/null 2>&1 && { PY="$candidate"; break; }
 done
-[ -n "$PY" ] || fail "python is required to verify network attachments"
+[ -n "$PY" ] || { echo "python is required to verify network attachments" >&2; exit 1; }
 # tr: Python on Windows ends each line with a carriage return, which would
 # otherwise end up in the network name ("network ...edge not found").
 missing_networks() { compose config --format json | "$PY" "$HERE/verify_networks.py" "$PROJECT" | tr -d '\r'; }
-missing="$(missing_networks)" || fail "could not verify network attachments"
-if [ -n "$missing" ]; then
+repair_networks() {
+  missing="$(missing_networks)" || fail "could not verify network attachments"
+  [ -n "$missing" ] || return 0
   # A for-loop over lines (not `| while read`): no subshell hiding failures,
   # and docker can't swallow the remaining lines from stdin.
   old_ifs="$IFS"
@@ -119,7 +98,40 @@ if [ -n "$missing" ]; then
   IFS="$old_ifs"
   missing="$(missing_networks)" || fail "could not verify network attachments"
   [ -z "$missing" ] || fail "containers still missing networks: $(echo "$missing" | tr '\n' ';')"
+}
+
+# Starts services, repairs their networks, then waits for health. The second
+# `up` recreates nothing; it starts anything stopped and waits.
+up_and_wait() {
+  timeout="$1"; shift
+  compose up -d "$@" || true
+  repair_networks
+  compose up -d --wait --wait-timeout "$timeout" "$@"
+}
+
+[ "${SKIP_PULL:-}" = 1 ] || pull_images || exit 1
+
+# Compose reuses an existing network even when its definition has changed,
+# so a `data` network created before it was made internal would silently
+# stay open. Recreate the stack's networks (volumes are kept) when it drifts.
+DATA_NET="${PROJECT}_data"
+if [ "$(docker network inspect -f '{{.Internal}}' "$DATA_NET" 2>/dev/null)" = "false" ]; then
+  echo "$DATA_NET is not internal; recreating the stack's networks (data volumes are kept)" >&2
+  compose down --remove-orphans
 fi
+
+# 1. Database first, so the roles exist before anything connects.
+up_and_wait 120 db || fail "database did not become healthy"
+provision_roles || fail "provisioning database roles"
+
+# 2. Backend: runs `alembic upgrade head` as vertex_migrator, then serves as
+#    vertex_api. Re-provision afterwards so tables a migration just created
+#    (e.g. AuditLog on a fresh database) get their carve-outs immediately.
+up_and_wait 180 backend || fail "backend did not become healthy"
+provision_roles || fail "re-provisioning database roles"
+
+# 3. Everything else.
+up_and_wait 240 --remove-orphans || fail "not all services became healthy"
 
 # Fail closed if the database network ended up able to reach the internet.
 [ "$(docker network inspect -f '{{.Internal}}' "$DATA_NET" 2>/dev/null)" = "true" ] \
