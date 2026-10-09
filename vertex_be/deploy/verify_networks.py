@@ -1,4 +1,4 @@
-"""Lists services whose running containers are missing a configured network.
+"""Lists services whose containers (running or not) are missing a configured network.
 
     docker compose ... config --format json | python verify_networks.py <project>
 
@@ -26,7 +26,7 @@ def main() -> None:
     for service, spec in config["services"].items():
         wanted = {names.get(key, f"{project}_{key}") for key in (spec.get("networks") or {"default": None})}
         containers = docker(
-            "ps", "-q",
+            "ps", "-aq",
             "--filter", f"label=com.docker.compose.project={project}",
             "--filter", f"label=com.docker.compose.service={service}",
         ).split()

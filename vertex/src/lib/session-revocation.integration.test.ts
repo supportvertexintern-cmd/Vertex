@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const state = vi.hoisted(() => {
-  process.env.JWT_SECRET ??= "test-only-signing-value-for-g19";
+  process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-g19";
   return { token: "" };
 });
 vi.mock("next/headers", () => ({
