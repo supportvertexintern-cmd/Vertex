@@ -1,10 +1,7 @@
-# Repo-wide secret guard. Real env files and keys never get committed; only
-# placeholder templates (*.example) do. gitleaks enforces this even for
-# `git add -f` (see .gitleaks.toml and .pre-commit-config.yaml).
+# Repo-wide secret guard. No env file of any kind is committed, not even
+# templates. gitleaks enforces this even for `git add -f` (see .gitleaks.toml and .pre-commit-config.yaml).
 .env
 .env.*
-!.env.example
-!.env.*.example
 
 *.pem
 *.key

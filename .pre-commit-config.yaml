@@ -24,6 +24,5 @@ repos:
       - id: forbid-secret-files
         name: forbid env files and local databases
         language: fail
-        entry: "Real env files / databases must not be committed — use a *.example template"
+        entry: "Env files and local databases must never be committed (see docs/secrets.md)"
         files: '(^|/)\.env(\.[^/]+)?$|\.(db|sqlite3?|dump)$'
-        exclude: '\.example$'

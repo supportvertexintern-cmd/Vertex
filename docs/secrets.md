@@ -1,18 +1,18 @@
 # Secrets: where they live and how to handle them
 
-The rule: **real secrets never enter Git.** Only placeholder templates
-(`*.example`) are committed. This is enforced, not just requested — see
+The rule: **no env file ever enters Git** — not real ones, not templates.
+This is enforced, not just requested — see
 [Guardrails](#guardrails).
 
 ## Where each secret lives
 
-| Secret | Lives in | Committed template |
-|---|---|---|
-| Local stack settings (DB passwords, `SECRET_KEY`, `JWT_SECRET`, pgAdmin login) | `vertex_be/.env.dev`, `vertex_be/.env.staging` on the Docker host | `.env.dev.example`, `.env.staging.example` |
-| Backend run outside Docker / tests | `vertex_be/.env` | `vertex_be/.env.example` |
-| Next.js run outside Docker | `vertex/.env` | `vertex/.env.example` |
-| Future VPS | `.env` in the deploy path → move to SOPS + age or Infisical before production | `.env.production.example` |
-| CI/CD | GitHub → Settings → Secrets / Environments (`dev`, `staging`). Workflows use the built-in `GITHUB_TOKEN` for GHCR; no long-lived keys are stored. | — |
+| Secret | Lives in |
+|---|---|
+| Local stack settings (DB passwords, `SECRET_KEY`, `JWT_SECRET`, pgAdmin login) | `vertex_be/.env.dev`, `vertex_be/.env.staging` on the Docker host |
+| Backend run outside Docker / tests | `vertex_be/.env` |
+| Next.js run outside Docker | `vertex/.env` |
+| Future VPS | `.env` in the deploy path → move to SOPS + age or Infisical before production |
+| CI/CD | GitHub → Settings → Secrets / Environments (`dev`, `staging`). Workflows use the built-in `GITHUB_TOKEN` for GHCR; no long-lived keys are stored. |
 
 ### Database credentials (per stack)
 
@@ -29,8 +29,9 @@ this. Each container receives only its own connection string.
 
 ## Creating a new environment's secrets
 
-1. Copy the template: `cp .env.staging.example .env.staging`.
-2. Replace every `generate-…` / `choose-…` value with a fresh random one:
+1. Create the env file (e.g. `vertex_be/.env.staging`) with the variables the
+   compose file and apps read; ask a maintainer for the list.
+2. Generate every secret value fresh:
    `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
    Never reuse a value across environments or roles.
 3. Deploy; `deploy.sh` creates/updates the database roles with those passwords.

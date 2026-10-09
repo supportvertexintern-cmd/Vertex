@@ -32,9 +32,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files: never committed, templates included
 .env*
-!.env.example
 
 # vercel
 .vercel
@@ -48,7 +47,3 @@ next-env.d.ts
 # uploaded candidate documents — private, never committed (SRS FR-1.6)
 /storage/*
 !/storage/.gitkeep
-
-# Real env files stay local; templates are committed.
-!.env.example
-!.env.*.example

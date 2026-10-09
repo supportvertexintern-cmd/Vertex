@@ -18,10 +18,8 @@ A modern, full-stack recruitment platform built for international job placements
    ```
 
 2. **Environment Variables**
-   Copy `.env.example` to `.env` and fill in your actual values:
-   ```bash
-   cp .env.example .env
-   ```
+   Create a `.env` file with the required values (get them from a maintainer;
+   it is gitignored and must never be committed — see `docs/secrets.md`).
    **Important:** Set your `DATABASE_URL` to a valid PostgreSQL connection string.
 
 3. **Database Setup**

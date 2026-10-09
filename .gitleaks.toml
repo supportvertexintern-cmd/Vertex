@@ -8,13 +8,11 @@ title = "Vertex gitleaks config"
 [extend]
 useDefault = true
 
-# Any real env file. Only *.example templates may be committed.
+# Any env file. None may be committed, templates included.
 [[rules]]
 id = "committed-env-file"
-description = "Env file committed (only .env*.example templates are allowed)"
+description = "Env file committed (no env files may be committed)"
 path = '''(^|/)\.env(\.[^/]+)?$'''
-[[rules.allowlists]]
-paths = ['''\.example$''']
 
 # user:password@ in any connection string, however short the password.
 [[rules]]
