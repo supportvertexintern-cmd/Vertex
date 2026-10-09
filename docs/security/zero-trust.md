@@ -121,6 +121,13 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
   `vertex_be/tests/test_db_roles.py`).
 - **The database superuser is for humans only** (pgAdmin, psql) and for
   `deploy.sh` provisioning. No application **may** hold it.
+- **Administrative privileges are never inherited.** There is no role
+  hierarchy: every check lists the roles it allows, so `director`,
+  `inhouse_supervisor` or any other role gets nothing from `admin` implicitly.
+  Only an admin can create users or change a role (`/api/admin/users*`).
+  Request bodies are validated against schemas that contain no `role`,
+  `user_id` or ownership fields, so they can't be mass-assigned (checked for
+  every handler that spreads request data into a write, Phase 2).
 - **Containers** run with the least OS privilege that works (Phase 3:
   non-root, read-only filesystem where practical, no added capabilities).
 
@@ -136,6 +143,26 @@ changing an ID in the URL (IDOR/BOLA). Therefore:
   after loading the data.
 - An inaccessible record **should** return 404, not 403, so callers can't
   probe which IDs exist (for records where existence itself is sensitive).
+
+**Where each kind of sensitive operation is checked** (Next.js API, verified
+handler by handler in Phase 2; FastAPI must meet the same table as its
+endpoints are built):
+
+| Operation | Endpoints | Server-side check |
+|---|---|---|
+| Read candidate profiles | `GET /api/candidates`, `/api/candidates/[id]`, `/api/candidates/profile` | role + `canAccessCandidate` / scope filter; candidates see only their own profile |
+| Update personal information | `PATCH /api/candidates/[id]`, `PUT /api/candidates/profile` | role + record scope; self-service always keyed on the caller's own `user_id`; schema allows personal fields only |
+| CVs and documents | `GET /api/documents/[id]/signed-url` → `GET /api/documents/file`, `POST /api/upload`, `PATCH /api/documents/[id]/verify` | access check on the owning candidate, then a short-lived signed URL; files are never public |
+| View applications and outcomes | `GET /api/applications*`, `/api/cases*`, `/api/cases/[id]/contract` | owner or reviewer role; cases scoped through `scopeCasesToRequester` / `canAccessCase` |
+| Change application or case status | `PUT /api/applications/[id]`, `PATCH /api/cases/[id]/stage\|reject\|retention\|ops-review`, partner-candidate decisions | role + record scope + allowed transition (`canSetCaseStage`, `canSetLifecycleStatus`) |
+| Manage roles and permissions | `/api/admin/users*` | `admin` only |
+| Other administration | `/api/admin/**` | role per action; reference data (countries, regions, sectors) is role-checked only, which is correct for shared data |
+| Export or delete data | `/api/admin/backup/*`, `/api/candidates/export`, every `DELETE` | role + scope where per-record; **every bulk export is written to the audit log first** (CI-enforced) |
+
+Open scope questions (owner to decide): Q1 partner details, Q2 partner
+candidates and the HR/operations bulk exports, Q3 applications for
+reviewers: currently visible across all regions to the listed roles. See the
+baseline.
 
 ## 6. Service-to-service trust
 
@@ -176,6 +203,15 @@ Design so that one compromised piece does limited damage:
   today a stolen token lasts 7 days and logout can't revoke it).
 - Sensitive files are reachable only through short-lived signed URLs issued
   after an access check (already true for documents).
+- **Limited network exposure:** every published port binds to `127.0.0.1`
+  (`BIND_ADDRESS` overrides, for a VPS behind a TLS proxy); nothing in dev or
+  staging is reachable from the local network (gap G15, fixed).
+- **Network segmentation:** only services that use the database share its
+  Docker network; the static Flutter server is on its own network and can't
+  reach the database.
+- **Auditable actions:** data changes are logged automatically
+  (`auditedPrisma`); sensitive reads such as bulk exports are logged with
+  `auditAccess`, before the data is returned (gap G16, fixed).
 
 ## 9. Audit security decisions
 

@@ -108,3 +108,20 @@ export function auditedPrisma(actorId: string | null) {
     },
   });
 }
+
+/**
+ * Records a sensitive *read* such as a bulk export (zero-trust policy §9):
+ * the write extension above only sees changes. Stores who, what and how
+ * much, never the data itself. Awaited before the response is sent, so if
+ * the audit write fails the export fails too (fail closed).
+ */
+export async function auditAccess(
+  actorId: string,
+  entityType: string,
+  action: "export",
+  detail: Record<string, unknown>,
+): Promise<void> {
+  await prisma.auditLog.create({
+    data: { entity_type: entityType, entity_id: "bulk", action, actor_id: actorId, after: detail as object },
+  });
+}
