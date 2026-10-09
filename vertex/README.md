@@ -54,9 +54,9 @@ A modern, full-stack recruitment platform built for international job placements
 - Connect the repository to Vercel.
 - Add all environment variables (including `DATABASE_URL`) to Vercel's Edge Environment settings.
 
-**Database (Railway / Supabase / Neon)**
-- Use any cloud PostgreSQL provider.
-- Paste the connection string into the `DATABASE_URL` environment variable.
+**Database (PostgreSQL)**
+- Production runs on a Prisma Postgres instance; see `vertex/CLAUDE.md` and `vertex/docs/CPANEL_DEPLOYMENT.md`.
+- Paste the connection string into the `DATABASE_URL` environment variable. Never commit it (see `docs/secrets.md`).
 
 ## Notes
 - **File Uploads:** Uploads are stored locally in `public/uploads/` by default. For production (e.g., Vercel), you must change this to use AWS S3, Cloudinary, or Vercel Blob, as Vercel's filesystem is read-only and ephemeral.
