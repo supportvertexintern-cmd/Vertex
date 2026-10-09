@@ -80,31 +80,35 @@ Rules for code:
 
 ### Public endpoint register
 
-Public endpoints **must** be explicitly designated here, narrowly scoped, and
-documented. Each **must** be rate-limited and **must not** return personal or
-internal data beyond what its purpose requires. Anything public that isn't in
-this table is a defect.
+Public endpoints **must** be explicitly designated, narrowly scoped and
+documented. The register is code, not prose: **`vertex/src/lib/public-endpoints.ts`**.
+`vertex/src/lib/route-guards.test.ts` fails CI when an API handler has no
+guard and isn't registered, when a registered endpoint no longer exists, when
+a public endpoint lacks the protection its entry claims (rate limit, signed
+token, signature), or when anything under `/api/admin/` is registered public.
 
-| Endpoint | Purpose | May return | Rate-limited | Status |
-|---|---|---|---|---|
-| `POST /api/auth/login` | sign in | session cookie; generic error on failure | ✅ | ok |
-| `POST /api/auth/logout` | sign out | clears cookie | n/a (no effect without a session) | ok |
-| `GET`, `POST /api/auth/register` | create a candidate account | outcome only | ✅ | ok |
-| `POST /api/auth/forgot-password` | request a reset email | the same response whether or not the account exists | ❌ | **gap G10** |
-| `POST /api/auth/reset-password` | set a new password | outcome only; needs a signed, expiring email token | ❌ | add a limit (G10) |
-| `GET /api/auth/verify-email` | confirm an email address | outcome only; needs a signed email token | ❌ | add a limit (G10) |
-| `GET /api/auth/google`, `GET /api/auth/google/callback` | Google sign-in | redirect; session cookie | ❌ | add a limit (G10) |
-| `GET /api/apply/options` | application form choices | country and document-type names and IDs | ❌ | add a limit |
-| `GET /api/jobs/[id]` | public job page | **active** jobs, public fields only | ❌ | **gap G11**: returns drafts/closed jobs and `employer_client_id` |
-| `POST /api/contact` | contact form | outcome only | ✅ | ok |
-| `POST /api/public-intake/application` | public application form | outcome only | ✅ | ok |
-| `POST /api/consultations/checkout` | pay for a consultation | payment redirect URL | ✅ | ok |
-| `POST /api/chat` | website AI assistant | generated text from public knowledge only | ❌ | **gap G3** (exception in §11) |
-| `GET /api/documents/file?token=` | download a document | the one file named in a signed, short-lived token issued after an access check | n/a (unguessable token) | ok |
-| `POST /api/webhooks/stripe` | payment events from Stripe | acknowledgement only; Stripe signature required | n/a (signature) | ok |
+| Endpoint | Purpose | May return | Protection |
+|---|---|---|---|
+| `POST /api/auth/login` | sign in | session cookie; generic error | rate limit |
+| `POST /api/auth/logout` | sign out | clears cookie | none needed |
+| `GET /api/auth/register` | look up an account-setup invite link | invite status | rate limit (20 / 15 min) |
+| `POST /api/auth/register` | create a candidate account | outcome only | rate limit |
+| `POST /api/auth/forgot-password` | request a reset email | same reply whether or not the account exists | rate limit (5 / 15 min) |
+| `POST /api/auth/reset-password` | set a new password | outcome only | signed email token + rate limit (10 / 15 min) |
+| `GET /api/auth/verify-email` | confirm an email address | outcome only | signed email token + rate limit (10 / 15 min) |
+| `GET /api/auth/google`, `.../callback` | Google sign-in | redirect to a **same-site path only**; session cookie | rate limit (20 / 15 min) |
+| `GET /api/apply/options` | application form choices | country and document-type names/IDs | rate limit (60 / min) |
+| `POST /api/applications` | public apply form | outcome only (staff/candidate submissions are checked inside) | rate limit (5 / min) |
+| `GET /api/jobs/[id]` | public job page | **active or closed** jobs, public fields only; never drafts | rate limit (120 / min) |
+| `POST /api/contact` | contact form | outcome only | rate limit |
+| `POST /api/public-intake/application` | public application form | outcome only | rate limit |
+| `POST /api/consultations/checkout` | pay for a consultation | payment redirect URL | rate limit |
+| `POST /api/chat` | website AI assistant | text from public knowledge only | rate limit (30 / 10 min) |
+| `GET /api/documents/file?token=` | download a document | the one file named in a short-lived signed token issued after an access check | signed token |
+| `POST /api/webhooks/stripe` | payment events from Stripe | acknowledgement only | Stripe signature |
 
-**Not public, currently exposed (defects, fix in Phase 2):**
-`GET /api/admin/emails` (gap G1) and `GET /api/admin/knowledge` (gap G2).
+Rate limits are per client IP and held in process memory; Phase 4 moves them
+to a shared store keyed on a trusted client address (gaps G5, G14).
 
 ## 4. Least privilege
 
@@ -213,6 +217,6 @@ expiry date) agreed by the project owner. Undocumented exceptions are defects.
 
 | Rule | Exception | Reason | Owner | Expires |
 |---|---|---|---|---|
-| §3 rate-limit every public endpoint | `POST /api/chat` is not rate-limited yet | known gap G3, fix scheduled in Phase 2 | — | end of Phase 2 |
-| §3 rate-limit every public endpoint | auth-flow and `apply/options` endpoints marked ❌ in the register | known gap G10, fix scheduled in Phase 2 | — | end of Phase 2 |
+| §3 rate limits are trustworthy | limits are per-process and keyed on a client-supplied `X-Forwarded-For` | gaps G5, G14 | — | end of Phase 4 |
+| §2 identity: OAuth sign-in verifies the request it answers | Google sign-in `state` carries the redirect path, not an anti-forgery value (login CSRF) | gap G13 | — | end of Phase 4 |
 | §8 revocable sessions | 7-day JWT without revocation | known gap G4 | — | end of Phase 4 |

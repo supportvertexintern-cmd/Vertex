@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // GET /api/apply/options — public reference data for the Candidate
@@ -22,7 +23,9 @@ export const dynamic = "force-dynamic";
 // purpose (deciding whether a self-submission has a recruiter to fall
 // back to) went away along with recruiter assignment for self-registered
 // candidates entirely; see /api/jobs for the opportunity list itself.
-export async function GET() {
+export async function GET(req: Request) {
+  const limited = limitByIp(req, "apply-options", { max: 60 });
+  if (limited) return limited;
   const [countries, locationCountries, documentTypes, documentRequirements, intakeModeSetting] = await Promise.all([
     prisma.country.findMany({
       where: { region: { name: "Europe" } },

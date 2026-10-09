@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
 import { verifyEmailToken } from "@/lib/jwt";
 
 export async function GET(req: NextRequest) {
+  const limited = limitByIp(req, "verify-email", { windowMs: 15 * 60_000, max: 10 });
+  if (limited) return limited;
   const token = req.nextUrl.searchParams.get("token");
 
   if (!token) {
