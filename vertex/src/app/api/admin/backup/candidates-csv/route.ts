@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auditAccess } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 
@@ -178,6 +179,11 @@ export async function GET(req: NextRequest) {
 
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
   const suffix = startParam || endParam ? `_${startParam ?? "start"}_to_${endParam ?? "end"}` : "";
+
+  await auditAccess(user!.userId, "CandidateExport", "export", {
+    rows: candidates.length,
+    filters: Object.fromEntries(req.nextUrl.searchParams),
+  });
 
   return new NextResponse(csv, {
     status: 200,
