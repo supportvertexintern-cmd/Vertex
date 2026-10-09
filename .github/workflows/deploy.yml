@@ -77,25 +77,18 @@ jobs:
             vertex_be/docker-compose.deploy.yml
           sparse-checkout-cone-mode: false
 
-      # This host's link to ghcr.io is sometimes slow enough to time out a
-      # single login, so retry with backoff instead of failing the deploy.
+      # Retries with backoff (this host's link to ghcr.io is sometimes slow
+      # enough to time out a single attempt). Runs in Git Bash: see the script
+      # for why PowerShell can't pipe the token.
       - name: Log in to GHCR (with retries)
         shell: powershell
+        working-directory: vertex_be
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # A failed attempt must not abort the loop (runner default is Stop).
-          $ErrorActionPreference = 'Continue'
-          for ($attempt = 1; $attempt -le 5; $attempt++) {
-            $env:GHCR_TOKEN | docker login ghcr.io -u $env:GHCR_USER --password-stdin
-            if ($LASTEXITCODE -eq 0) { exit 0 }
-            $wait = 15 * $attempt
-            Write-Host "GHCR login attempt $attempt failed; retrying in ${wait}s"
-            Start-Sleep -Seconds $wait
-          }
-          Write-Error "GHCR login failed after 5 attempts"
-          exit 1
+          & "C:\Program Files\Git\bin\bash.exe" deploy/ghcr-login.sh
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Pull images and restart the stack
         shell: powershell
