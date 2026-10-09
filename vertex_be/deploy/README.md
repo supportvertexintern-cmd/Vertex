@@ -21,8 +21,8 @@ Each environment is one Docker Compose project built from
 | backend      | `vertex-backend`         | http://localhost:8001/docs | http://localhost:8002/docs |
 | flutter-web  | `vertex-flutter-web`     | http://localhost:8081    | http://localhost:8082    |
 | nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    |
-| pgadmin      | `dpage/pgadmin4`         | http://localhost:5050    | http://localhost:5151    |
-| db           | `postgres:15-alpine`     | `localhost:5432`         | `localhost:5433`         |
+| pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    |
+| db           | `postgres:15-alpine`     | `localhost:5432` (for tests) | not published        |
 | env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` |
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
@@ -35,8 +35,19 @@ Each environment is one Docker Compose project built from
   `PUBLIC_API_URL`), so the same image works in every environment.
 - **Next.js** `NEXT_PUBLIC_*` values are baked in at image build time; its
   server-side settings come from the env file.
-- Postgres and pgAdmin are bound to localhost only. Each pgAdmin has its stack's
-  database pre-registered under the *Vertex* group.
+- Everything published is bound to localhost only. Staging's Postgres is not
+  published at all.
+- **pgAdmin is off by default.** Start it when you need it, stop it after:
+
+  ```sh
+  cd vertex_be
+  ENV_FILE=.env.dev sh deploy/pgadmin.sh vertex-dev up     # or vertex-staging
+  ENV_FILE=.env.dev sh deploy/pgadmin.sh vertex-dev down
+  ```
+
+  It pre-registers the stack's database as **`vertex_readonly`** (SELECT only;
+  password `DB_READONLY_PASSWORD`). Superuser access is never pre-registered;
+  add it by hand only when you need it, and it is dropped on the next start.
 
 Images are tagged `<branch>-<commit sha>` (exact build) and `<branch>` (latest).
 

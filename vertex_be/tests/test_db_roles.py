@@ -23,7 +23,7 @@ INSUFFICIENT_PRIVILEGE = "42501"
 def roles_provisioned() -> None:
     sql = (BASE_DIR / "deploy" / "db-roles.sql").read_text(encoding="utf-8")
     sql = re.sub(r"^\\set .*$", "", sql, flags=re.M)  # psql-only directive
-    sql = re.sub(r":'(migrator|api|web)_pw'", "''", sql)  # keep passwords as-is
+    sql = re.sub(r":'(migrator|api|web|readonly)_pw'", "''", sql)  # keep passwords as-is
     # Straight to psycopg2 with no parameters, so the script's own format()
     # placeholders (%I, %L) aren't taken for bind parameters.
     raw = engine.raw_connection()
@@ -98,7 +98,29 @@ def test_runtime_roles_cannot_do_admin_or_destructive_work(conn, role, sql):
     assert run_as(conn, role, sql) == INSUFFICIENT_PRIVILEGE
 
 
-@pytest.mark.parametrize("role", [*RUNTIME_ROLES, "vertex_migrator"])
+def test_readonly_role_can_read_rows(conn):
+    assert run_as(conn, "vertex_readonly", 'SELECT count(*) FROM "User"') is None
+    assert run_as(conn, "vertex_readonly", 'SELECT count(*) FROM "AuditLog"') is None
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        """INSERT INTO "Region" (id, name) VALUES ('ctest-readonly', 'x')""",
+        'UPDATE "User" SET full_name = full_name',
+        'DELETE FROM "Region"',
+        'TRUNCATE "Region"',
+        """INSERT INTO "AuditLog" (id, entity_type, entity_id, action) VALUES ('ctest-ro', 't', 'x', 'CREATE')""",
+        "CREATE TABLE role_probe (id int)",
+        'ALTER TABLE "User" ADD COLUMN role_probe int',
+        "CREATE ROLE role_probe",
+    ],
+)
+def test_readonly_role_cannot_change_anything(conn, sql):
+    assert run_as(conn, "vertex_readonly", sql) == INSUFFICIENT_PRIVILEGE
+
+
+@pytest.mark.parametrize("role", [*RUNTIME_ROLES, "vertex_migrator", "vertex_readonly"])
 def test_no_role_has_special_attributes(conn, role):
     row = conn.execute(
         text("SELECT rolsuper, rolcreaterole, rolcreatedb, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = :r"),
