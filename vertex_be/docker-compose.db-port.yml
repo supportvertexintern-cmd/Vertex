@@ -1,0 +1,10 @@
+# Optional: publish this stack's Postgres on localhost for host tools and the
+# backend test suite. deploy.sh adds this file only when the env file sets
+# POSTGRES_HOST_PORT (dev does; staging doesn't). The database joins `edge`
+# because an internal-only network can't publish ports.
+services:
+  db:
+    networks:
+      edge: {}
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT}:5432"
