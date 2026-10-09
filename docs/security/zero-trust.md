@@ -206,12 +206,35 @@ Design so that one compromised piece does limited damage:
 - **Limited network exposure:** every published port binds to `127.0.0.1`
   (`BIND_ADDRESS` overrides, for a VPS behind a TLS proxy); nothing in dev or
   staging is reachable from the local network (gap G15, fixed).
-- **Network segmentation:** only services that use the database share its
-  Docker network; the static Flutter server is on its own network and can't
-  reach the database.
+- **Network segmentation:** the database network is `internal` (no outbound
+  traffic), shared only by the database and the services that use it;
+  services that need the internet or a published port also join `edge`; the
+  static Flutter server is alone. Postgres is published (on localhost) only
+  where a stack asks for it: dev, for the test suite; never staging.
+- **Small blast radius per service:** each container receives only its own
+  secrets. Next.js holds its database login (`vertex_web`), `JWT_SECRET` and
+  a public URL; FastAPI holds `vertex_api`/`vertex_migrator` logins and
+  `SECRET_KEY`. Neither sees the other's, and every value differs between
+  dev and staging (checked by fingerprint, Phase 2).
 - **Auditable actions:** data changes are logged automatically
   (`auditedPrisma`); sensitive reads such as bulk exports are logged with
-  `auditAccess`, before the data is returned (gap G16, fixed).
+  `auditAccess`, before the data is returned (gap G16, fixed). Audit
+  entries record filter **names**; values are kept only for an allowlist of
+  non-personal filters (dates, status, IDs), so a search by name or email is
+  stored as `[redacted]`. The application roles can insert audit rows but
+  never update, delete or truncate them (Phase 1 grants plus triggers;
+  verified live).
+
+**Status of "assume breach" (plan 5.5):**
+
+| Control | Status |
+|---|---|
+| Isolated credentials per service and environment | ✅ |
+| Constrained database roles | ✅ (Phase 1) |
+| Limited network exposure and segmentation | ✅ (G15 fixed, internal data network) |
+| Auditable actions, tamper-proof log | ✅ writes + exports (G16 fixed); authorization denials still open (G7) |
+| **Explicit service authentication** | ❌ **open (G18).** No service calls another today, but nothing stops one: a compromised Next.js container can reach FastAPI over the Docker network. Harmless while FastAPI has only a health check; §6 must be built before FastAPI serves any data. |
+| **Separate signing keys per purpose** | ❌ **open (G17).** One `JWT_SECRET` signs sessions, email/reset tokens, invites and document links: stealing it forges an admin session *and* any document download. Phase 4. |
 
 ## 9. Audit security decisions
 
