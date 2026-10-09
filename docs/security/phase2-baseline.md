@@ -93,6 +93,8 @@ and CI, CI-built images, dev/staging isolation.
 | G17 | *(found checking 5.5)* One `JWT_SECRET` signs every token type: sessions, password-reset/verification, invites, account setup, CIF upload and document-download links. Stealing it forges an admin session and any document link | High | `lib/jwt.ts` uses one secret for all `sign*Token` | Phase 4 |
 | G18 | *(found checking 5.5)* No service-to-service authentication: any container on the network can call FastAPI | Low today (FastAPI has no data endpoints), High once it does | no service credential exists | Phase 2 step 6, before FastAPI serves data |
 
+| G19 | *(found reviewing 5.2)* **A session outlives the decisions behind it.** Identity and role come only from the signed token (7-day expiry), never the database: a **demoted admin keeps admin rights**, a **deleted user keeps access**, and a **password change doesn't end existing sessions**. Accounts also can't be disabled at all (no active flag), only deleted | High | `getAuthUser` returns the token payload; no DB check; `User` has no status field | Phase 4 (`token_version` checked per request, bumped on role change/deletion/password change; short-lived access tokens) — made visible now by strict expected-failure tests in `session-revocation.integration.test.ts` |
+
 ### Fixed in Phase 2 (branch `security/phase2-zero-trust`)
 
 | Gap | Fix | Test |

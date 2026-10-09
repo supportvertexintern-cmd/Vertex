@@ -22,7 +22,7 @@ This is enforced, not just requested — see
 | `vertex_migrator` | `alembic upgrade` at backend start | own and change the schema |
 | `vertex_api` | FastAPI | read/write rows; no DDL, no `TRUNCATE`, append-only audit log |
 | `vertex_web` | Next.js/Prisma | same as `vertex_api` |
-| `vertex_readonly` | people browsing data in pgAdmin | `SELECT` on non-secret columns only: never password hashes, tokens/sessions or the audit log; no automatic access to new tables |
+| `vertex_readonly` | people browsing data in pgAdmin | `SELECT` on allowlisted columns only (`vertex_be/deploy/readonly-columns.sql`): no secrets, audit log or personal data; new columns hidden until classified (CI enforces) |
 
 Roles and grants come from `vertex_be/deploy/db-roles.sql`, applied on every
 deploy; `vertex_be/tests/test_db_roles.py` fails CI if a role can do more than

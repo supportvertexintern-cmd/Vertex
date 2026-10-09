@@ -122,10 +122,11 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
 - **The database superuser is for humans only** (psql, when needed) and for
   `deploy.sh` provisioning. No application **may** hold it, and pgAdmin
   never pre-registers it: pgAdmin is off by default and connects as
-  `vertex_readonly`, which can read non-secret columns only (no password
-  hashes, tokens or audit log), granted column by column on every deploy
-  with no default privileges, so a leaked pgAdmin credential exposes as
-  little as possible.
+  `vertex_readonly`, which reads only columns on an **allowlist**
+  (`vertex_be/deploy/readonly-columns.sql`): every column in the schema is
+  classified `grant` or `exclude`, CI fails on any unclassified column, and
+  nothing becomes readable without a decision. Secrets, the audit log and
+  personal data (names, contact details, documents, free text) are excluded.
 - **Tests never touch a stack's database.** Locally they run against a
   throwaway Postgres (`vertex_be/scripts/test.sh`), like CI; neither dev's
   nor staging's Postgres is published to the host.
@@ -287,4 +288,4 @@ expiry date) agreed by the project owner. Undocumented exceptions are defects.
 |---|---|---|---|---|
 | §3 rate limits are trustworthy | limits are per-process and keyed on a client-supplied `X-Forwarded-For` | gaps G5, G14 | — | end of Phase 4 |
 | §2 identity: OAuth sign-in verifies the request it answers | Google sign-in `state` carries the redirect path, not an anti-forgery value (login CSRF) | gap G13 | — | end of Phase 4 |
-| §8 revocable sessions | 7-day JWT without revocation | known gap G4 | — | end of Phase 4 |
+| §8 revocable sessions; 5.2 revoked credentials denied | 7-day JWT, no revocation; role and identity read only from the token, so demotion, deletion and password changes don't take effect until expiry | gaps G4, G19 (tracked by strict expected-failure tests) | — | end of Phase 4 |

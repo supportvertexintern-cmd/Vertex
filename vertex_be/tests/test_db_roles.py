@@ -21,7 +21,10 @@ INSUFFICIENT_PRIVILEGE = "42501"
 
 @pytest.fixture(scope="module", autouse=True)
 def roles_provisioned() -> None:
-    sql = (BASE_DIR / "deploy" / "db-roles.sql").read_text(encoding="utf-8")
+    # Same order as deploy.sh: the readonly column allowlist, then the roles.
+    sql = (BASE_DIR / "deploy" / "readonly-columns.sql").read_text(encoding="utf-8") + "\n" + (
+        BASE_DIR / "deploy" / "db-roles.sql"
+    ).read_text(encoding="utf-8")
     sql = re.sub(r"^\\set .*$", "", sql, flags=re.M)  # psql-only directive
     sql = re.sub(r":'(migrator|api|web|readonly)_pw'", "''", sql)  # keep passwords as-is
     # Straight to psycopg2 with no parameters, so the script's own format()
@@ -103,7 +106,42 @@ SECRET_NAME = r"(password|passwd|hash|token|secret|session|otp|mfa|salt|api_?key
 
 def test_readonly_role_can_read_non_secret_columns(conn):
     assert run_as(conn, "vertex_readonly", 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, "vertex_readonly", 'SELECT id, email, role FROM "User"') is None
+    assert run_as(conn, "vertex_readonly", 'SELECT id, role FROM "User"') is None
+
+
+def _classification() -> dict[tuple[str, str], str]:
+    text_ = (BASE_DIR / "deploy" / "readonly-columns.sql").read_text(encoding="utf-8")
+    rows = re.findall(r"^\s*\('([^']+)', '([^']+)',\s*'(grant|exclude)'\)[,;]", text_, re.M)
+    return {(t, c): d for t, c, d in rows}
+
+
+def test_every_column_is_classified_for_the_readonly_role(conn):
+    # Allowlist gate: a migration that adds a column fails CI until someone
+    # decides (in deploy/readonly-columns.sql) whether pgAdmin may read it.
+    schema = {
+        (t, c)
+        for t, c in conn.execute(
+            text("""SELECT table_name, column_name FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name NOT IN ('alembic_version', '_prisma_migrations')""")
+        ).all()
+    }
+    classified = set(_classification())
+    assert sorted(f"{t}.{c}" for t, c in schema - classified) == [], "classify in deploy/readonly-columns.sql"
+    assert sorted(f"{t}.{c}" for t, c in classified - schema) == [], "stale rows in deploy/readonly-columns.sql"
+
+
+def test_readonly_role_reads_exactly_the_granted_columns(conn):
+    granted = {k for k, d in _classification().items() if d == "grant"}
+    readable = {
+        (t, c)
+        for t, c in conn.execute(
+            text("""SELECT table_name, column_name FROM information_schema.column_privileges
+                    WHERE grantee = 'vertex_readonly' AND privilege_type = 'SELECT'""")
+        ).all()
+    }
+    assert readable == granted
+    assert [f"{t}.{c}" for t, c in granted if re.search(SECRET_NAME, c, re.I) or t == "AuditLog"] == []
     assert run_as(conn, "vertex_readonly", 'SELECT id, name FROM "Region"') is None
 
 
@@ -111,6 +149,8 @@ def test_readonly_role_can_read_non_secret_columns(conn):
     "sql",
     [
         'SELECT password_hash FROM "User"',
+        'SELECT email FROM "User"',  # personal data: excluded in the allowlist
+        'SELECT date_of_birth, passport_number FROM "Candidate"',
         'SELECT * FROM "User"',  # * includes password_hash
         'SELECT count(*) FROM "AuditLog"',  # personal-data snapshots
         "SELECT * FROM alembic_version",

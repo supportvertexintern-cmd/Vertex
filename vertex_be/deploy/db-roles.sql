@@ -4,7 +4,7 @@
 --   vertex_migrator  owns the schema; used only by `alembic upgrade` (DDL)
 --   vertex_api       FastAPI runtime: read/write rows, no DDL
 --   vertex_web       Next.js/Prisma runtime: read/write rows, no DDL
---   vertex_readonly  people browsing data (pgAdmin): SELECT on non-secret columns only
+--   vertex_readonly  people browsing data (pgAdmin): SELECT on allowlisted columns only
 --
 -- Neither runtime role can create/alter/drop objects, create roles or
 -- databases, truncate tables, touch migration bookkeeping, or change/delete
@@ -104,34 +104,27 @@ ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO vertex_api, vertex_web;
 
--- Read-only browsing role (pgAdmin). Deny by default, then grant column by
--- column: if this credential leaks, it must not expose password hashes,
--- tokens or the audit log. Re-applied on every deploy (after migrations), so
--- new tables are covered by the same rules; there are no default privileges,
--- so nothing becomes readable without passing through them.
---  * excluded tables: AuditLog (holds personal-data snapshots), migration
---    bookkeeping, and any table whose name looks like it holds credentials;
---  * excluded columns: anything whose name looks like a secret.
+-- Read-only browsing role (pgAdmin): an ALLOWLIST. Every deploy revokes all
+-- its access and default privileges, then grants SELECT only on columns
+-- marked 'grant' in readonly-columns.sql (loaded before this file). Columns
+-- that aren't classified stay hidden, and CI fails until they are.
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM vertex_readonly;  -- also clears column grants
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public REVOKE ALL ON TABLES FROM vertex_readonly;
 DO $$
 DECLARE
   t record;
-  cols text;
 BEGIN
-  FOR t IN SELECT c.oid, c.relname FROM pg_class c
-           WHERE c.relnamespace = 'public'::regnamespace
-             AND c.relkind IN ('r', 'p', 'v', 'm')
-             AND c.relname NOT IN ('AuditLog', 'alembic_version', '_prisma_migrations')
-             AND c.relname !~* '(session|token|credential|secret|reset|otp|mfa|api_?key)'
+  IF to_regclass('pg_temp.readonly_columns') IS NULL THEN
+    RAISE EXCEPTION 'readonly-columns.sql must be loaded before db-roles.sql';
+  END IF;
+  FOR t IN SELECT r.tbl, string_agg(quote_ident(r.col), ', ' ORDER BY r.col) AS cols
+           FROM readonly_columns r
+           JOIN information_schema.columns ic
+             ON ic.table_schema = 'public' AND ic.table_name = r.tbl AND ic.column_name = r.col
+           WHERE r.decision = 'grant'
+           GROUP BY r.tbl
   LOOP
-    SELECT string_agg(quote_ident(a.attname), ', ' ORDER BY a.attnum) INTO cols
-    FROM pg_attribute a
-    WHERE a.attrelid = t.oid AND a.attnum > 0 AND NOT a.attisdropped
-      AND a.attname !~* '(password|passwd|hash|token|secret|session|otp|mfa|salt|api_?key|private_?key|credential)';
-    IF cols IS NOT NULL THEN
-      EXECUTE format('GRANT SELECT (%s) ON public.%I TO vertex_readonly', cols, t.relname);
-    END IF;
+    EXECUTE format('GRANT SELECT (%s) ON public.%I TO vertex_readonly', t.cols, t.tbl);
   END LOOP;
 END $$;
 
