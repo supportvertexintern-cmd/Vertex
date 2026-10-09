@@ -65,6 +65,15 @@ pull_images() {
 
 [ "${SKIP_PULL:-}" = 1 ] || pull_images || exit 1
 
+# Compose reuses an existing network even when its definition has changed,
+# so a `data` network created before it was made internal would silently
+# stay open. Recreate the stack's networks (volumes are kept) when it drifts.
+DATA_NET="${PROJECT}_data"
+if [ "$(docker network inspect -f '{{.Internal}}' "$DATA_NET" 2>/dev/null)" = "false" ]; then
+  echo "$DATA_NET is not internal; recreating the stack's networks (data volumes are kept)" >&2
+  compose down --remove-orphans
+fi
+
 # 1. Database first, so the roles exist before anything connects.
 compose up -d --wait --wait-timeout 120 db || fail "database did not become healthy"
 provision_roles || fail "provisioning database roles"
@@ -77,6 +86,43 @@ provision_roles || fail "re-provisioning database roles"
 
 # 3. Everything else.
 compose up -d --remove-orphans --wait --wait-timeout 240 || fail "not all services became healthy"
+
+# Docker 24 / Compose 2.19 can leave a stale endpoint in a network, after
+# which Compose silently fails to attach a recreated container to it (seen:
+# backend on `data` only, so its published port was dead). Compare every
+# container with the config, repair missing attachments in place (clear the
+# stale endpoint, re-attach with the service's DNS alias), and fail if any
+# remain. Python is needed to compare; without it, fail closed.
+PY=""
+for candidate in python3 python; do
+  "$candidate" -c 'import sys' >/dev/null 2>&1 && { PY="$candidate"; break; }
+done
+[ -n "$PY" ] || fail "python is required to verify network attachments"
+# tr: Python on Windows ends each line with a carriage return, which would
+# otherwise end up in the network name ("network ...edge not found").
+missing_networks() { compose config --format json | "$PY" "$HERE/verify_networks.py" "$PROJECT" | tr -d '\r'; }
+missing="$(missing_networks)" || fail "could not verify network attachments"
+if [ -n "$missing" ]; then
+  # A for-loop over lines (not `| while read`): no subshell hiding failures,
+  # and docker can't swallow the remaining lines from stdin.
+  old_ifs="$IFS"
+  IFS='
+'
+  for entry in $missing; do
+    IFS="$old_ifs"
+    set -- $entry  # service container network
+    echo "Re-attaching $2 to $3" >&2
+    docker network disconnect --force "$3" "$2" </dev/null >/dev/null 2>&1 || true
+    docker network connect --alias "$1" "$3" "$2" </dev/null || fail "re-attaching $2 to $3"
+  done
+  IFS="$old_ifs"
+  missing="$(missing_networks)" || fail "could not verify network attachments"
+  [ -z "$missing" ] || fail "containers still missing networks: $(echo "$missing" | tr '\n' ';')"
+fi
+
+# Fail closed if the database network ended up able to reach the internet.
+[ "$(docker network inspect -f '{{.Internal}}' "$DATA_NET" 2>/dev/null)" = "true" ] \
+  || fail "$DATA_NET is not an internal network"
 
 echo "Deployed $IMAGE_TAG to $PROJECT — all services healthy"
 docker image prune -f >/dev/null
