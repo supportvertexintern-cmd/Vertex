@@ -72,6 +72,15 @@ describe("API route guards", () => {
     expect(missing).toEqual([]);
   });
 
+  // Zero-trust §9 / 5.5: bulk reads of personal data must leave an audit trail.
+  it("bulk exports and backups are audited", () => {
+    const unaudited = all
+      .filter((h) => /\/(export|backup)(\/|$)/.test(h.key))
+      .filter((h) => !/auditAccess\(/.test(h.body))
+      .map((h) => h.key);
+    expect(unaudited, "call auditAccess() before returning exported data").toEqual([]);
+  });
+
   it("admin endpoints are never public", () => {
     expect(Object.keys(PUBLIC_ENDPOINTS).filter((k) => k.includes("/api/admin/"))).toEqual([]);
   });
