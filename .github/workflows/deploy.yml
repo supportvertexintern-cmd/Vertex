@@ -77,11 +77,25 @@ jobs:
             vertex_be/docker-compose.deploy.yml
           sparse-checkout-cone-mode: false
 
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      # This host's link to ghcr.io is sometimes slow enough to time out a
+      # single login, so retry with backoff instead of failing the deploy.
+      - name: Log in to GHCR (with retries)
+        shell: powershell
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # A failed attempt must not abort the loop (runner default is Stop).
+          $ErrorActionPreference = 'Continue'
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            $env:GHCR_TOKEN | docker login ghcr.io -u $env:GHCR_USER --password-stdin
+            if ($LASTEXITCODE -eq 0) { exit 0 }
+            $wait = 15 * $attempt
+            Write-Host "GHCR login attempt $attempt failed; retrying in ${wait}s"
+            Start-Sleep -Seconds $wait
+          }
+          Write-Error "GHCR login failed after 5 attempts"
+          exit 1
 
       - name: Pull images and restart the stack
         shell: powershell
@@ -105,3 +119,8 @@ jobs:
           | Next.js | http://localhost:$($f.NEXTJS_PORT) |
           | pgAdmin | http://localhost:$($f.PGADMIN_PORT) |
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Log out of GHCR
+        if: always()
+        shell: powershell
+        run: docker logout ghcr.io
