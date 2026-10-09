@@ -122,7 +122,13 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
 - **The database superuser is for humans only** (psql, when needed) and for
   `deploy.sh` provisioning. No application **may** hold it, and pgAdmin
   never pre-registers it: pgAdmin is off by default and connects as
-  `vertex_readonly` (SELECT only).
+  `vertex_readonly`, which can read non-secret columns only (no password
+  hashes, tokens or audit log), granted column by column on every deploy
+  with no default privileges, so a leaked pgAdmin credential exposes as
+  little as possible.
+- **Tests never touch a stack's database.** Locally they run against a
+  throwaway Postgres (`vertex_be/scripts/test.sh`), like CI; neither dev's
+  nor staging's Postgres is published to the host.
 - **Administrative privileges are never inherited.** There is no role
   hierarchy: every check lists the roles it allows, so `director`,
   `inhouse_supervisor` or any other role gets nothing from `admin` implicitly.
@@ -211,8 +217,9 @@ Design so that one compromised piece does limited damage:
 - **Network segmentation:** the database network is `internal` (no outbound
   traffic), shared only by the database and the services that use it;
   services that need the internet or a published port also join `edge`; the
-  static Flutter server is alone. Postgres is published (on localhost) only
-  where a stack asks for it: dev, for the test suite; never staging.
+  static Flutter server is alone. Neither dev's nor staging's Postgres is
+  published; `docker-compose.db-port.yml` exists for a deliberate, temporary
+  exception (set `POSTGRES_HOST_PORT`) and is off in both.
 - **Small blast radius per service:** each container receives only its own
   secrets. Next.js holds its database login (`vertex_web`), `JWT_SECRET` and
   a public URL; FastAPI holds `vertex_api`/`vertex_migrator` logins and
