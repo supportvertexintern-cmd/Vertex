@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   let payload: ReturnType<typeof verifyEmailToken>;
   try {
-    payload = verifyEmailToken(token);
+    payload = verifyEmailToken(token, "email_verification");
   } catch {
     return NextResponse.json(
       { error: "Invalid or expired verification token." },

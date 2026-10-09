@@ -1,7 +1,7 @@
+import { hkdfSync } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { Role } from "@prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 const EMAIL_TOKEN_EXPIRES_IN = process.env.EMAIL_TOKEN_EXPIRES_IN || "24h";
 
@@ -10,6 +10,73 @@ const EMAIL_TOKEN_EXPIRES_IN = process.env.EMAIL_TOKEN_EXPIRES_IN || "24h";
 // with alg:none or a mismatched algorithm) even though the library's own
 // default already restricts to HMAC variants when given a string secret.
 const ALGORITHM = "HS256" as const;
+const ISSUER = "vertex-web";
+
+// Gap G17 (docs/security/phase2-baseline.md): every token type used to be
+// signed with JWT_SECRET itself, and no verifier checked the type — so any
+// token passed for any other. An anonymous applicant's CIF upload token
+// worked as a session cookie, and with no userId in it Prisma dropped the
+// `user_id` filter on /api/payments/me.
+//
+// Now each purpose has its own key, derived from JWT_SECRET with HKDF (one
+// secret to manage per environment, independent keys per purpose), and its
+// own audience. A token is only ever accepted by the verifier of the purpose
+// it was signed for. Bump a purpose's version to invalidate all of its
+// outstanding tokens without touching the others.
+export type TokenPurpose =
+  | "session"
+  | "email_verification"
+  | "password_reset"
+  | "candidate_invite"
+  | "account_setup"
+  | "cif_upload"
+  | "document";
+
+const KEY_VERSION: Record<TokenPurpose, number> = {
+  session: 1,
+  email_verification: 1,
+  password_reset: 1,
+  candidate_invite: 1,
+  account_setup: 1,
+  cif_upload: 1,
+  document: 1,
+};
+
+const keys = new Map<TokenPurpose, Buffer>();
+
+function keyFor(purpose: TokenPurpose): Buffer {
+  let key = keys.get(purpose);
+  if (!key) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.length < 32) throw new Error("JWT_SECRET must be set (at least 32 characters)");
+    const info = `vertex/jwt/${purpose}/v${KEY_VERSION[purpose]}`;
+    key = Buffer.from(hkdfSync("sha256", secret, "vertex-token-keys", info, 32));
+    keys.set(purpose, key);
+  }
+  return key;
+}
+
+const audience = (purpose: TokenPurpose) => `vertex:${purpose}`;
+
+function sign(purpose: TokenPurpose, payload: object, expiresIn: jwt.SignOptions["expiresIn"]): string {
+  return jwt.sign(payload, keyFor(purpose), { expiresIn, algorithm: ALGORITHM, issuer: ISSUER, audience: audience(purpose) });
+}
+
+// Throws on a bad signature, expiry, wrong purpose or a payload missing the
+// fields its purpose needs.
+function verify<T>(purpose: TokenPurpose, token: string, required: (keyof T & string)[]): T {
+  const payload = jwt.verify(token, keyFor(purpose), {
+    algorithms: [ALGORITHM],
+    issuer: ISSUER,
+    audience: audience(purpose),
+  }) as Record<string, unknown>;
+  for (const field of required) {
+    if (typeof payload[field] !== "string" || payload[field] === "") {
+      throw new jwt.JsonWebTokenError(`${purpose} token is missing ${field}`);
+    }
+  }
+  return payload as T;
+}
 
 export interface JwtPayload {
   userId: string;
@@ -43,29 +110,31 @@ export interface CifUploadTokenPayload {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN, algorithm: ALGORITHM } as jwt.SignOptions);
+  return sign("session", payload, JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]);
 }
 
 export function signEmailToken(payload: EmailTokenPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: EMAIL_TOKEN_EXPIRES_IN, algorithm: ALGORITHM } as jwt.SignOptions);
+  return sign(payload.type, payload, EMAIL_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"]);
 }
 
 // Short-lived, single-purpose token granting access to exactly one document
 // storage path (SRS FR-1.6 "signed, time-limited access URLs").
 export function signDocumentToken(payload: DocumentTokenPayload, expiresInSeconds: number): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: expiresInSeconds, algorithm: ALGORITHM } as jwt.SignOptions);
+  return sign("document", payload, expiresInSeconds);
 }
 
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as JwtPayload;
+  return verify<JwtPayload>("session", token, ["userId", "email", "role"]);
 }
 
-export function verifyEmailToken(token: string): EmailTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as EmailTokenPayload;
+// The caller says which kind it expects: verification and reset links are
+// signed with different keys, so one can't be replayed as the other.
+export function verifyEmailToken(token: string, type: EmailTokenPayload["type"]): EmailTokenPayload {
+  return verify<EmailTokenPayload>(type, token, ["userId", "email", "type"]);
 }
 
 export function verifyDocumentToken(token: string): DocumentTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as DocumentTokenPayload;
+  return verify<DocumentTokenPayload>("document", token, ["storagePath"]);
 }
 
 // Invites a recruiter-sourced lead to create their own account and link it
@@ -73,11 +142,11 @@ export function verifyDocumentToken(token: string): DocumentTokenPayload {
 // self-service application submission). 7 days: field candidates may not
 // have reliable connectivity the moment this is sent.
 export function signCandidateInviteToken(candidateId: string): string {
-  return jwt.sign({ candidateId, type: "candidate_invite" }, JWT_SECRET, { expiresIn: "7d", algorithm: ALGORITHM });
+  return sign("candidate_invite", { candidateId, type: "candidate_invite" }, "7d");
 }
 
 export function verifyCandidateInviteToken(token: string): CandidateInviteTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as CandidateInviteTokenPayload;
+  return verify<CandidateInviteTokenPayload>("candidate_invite", token, ["candidateId"]);
 }
 
 // Invites a staff member (system-admin-created) or a partner (director-
@@ -88,11 +157,11 @@ export function verifyCandidateInviteToken(token: string): CandidateInviteTokenP
 // password_hash on it, not creating anything. 7 days, same reasoning as
 // the candidate invite (the recipient may not open email immediately).
 export function signAccountSetupToken(userId: string): string {
-  return jwt.sign({ userId, type: "account_setup" }, JWT_SECRET, { expiresIn: "7d", algorithm: ALGORITHM });
+  return sign("account_setup", { userId, type: "account_setup" }, "7d");
 }
 
 export function verifyAccountSetupToken(token: string): AccountSetupTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as AccountSetupTokenPayload;
+  return verify<AccountSetupTokenPayload>("account_setup", token, ["userId"]);
 }
 
 // Grants the *same browser session* that just submitted the CIF permission
@@ -107,12 +176,9 @@ export function verifyAccountSetupToken(token: string): AccountSetupTokenPayload
 const CIF_UPLOAD_TOKEN_TTL_SECONDS = 4 * 60 * 60;
 
 export function signCifUploadToken(candidateId: string): string {
-  return jwt.sign({ candidateId, type: "cif_upload" }, JWT_SECRET, {
-    expiresIn: CIF_UPLOAD_TOKEN_TTL_SECONDS,
-    algorithm: ALGORITHM,
-  });
+  return sign("cif_upload", { candidateId, type: "cif_upload" }, CIF_UPLOAD_TOKEN_TTL_SECONDS);
 }
 
 export function verifyCifUploadToken(token: string): CifUploadTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as CifUploadTokenPayload;
+  return verify<CifUploadTokenPayload>("cif_upload", token, ["candidateId"]);
 }

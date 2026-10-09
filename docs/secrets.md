@@ -43,7 +43,7 @@ this. Each container receives only its own connection string.
 |---|---|
 | `DB_API_PASSWORD` / `DB_WEB_PASSWORD` / `DB_MIGRATOR_PASSWORD` | Change it in the env file and redeploy — `deploy.sh` re-sets the role password and restarts the services with the new URL. |
 | `POSTGRES_PASSWORD` (superuser) | `ALTER ROLE <user> PASSWORD '…'` via psql, then update the env file (the variable only takes effect on a brand-new volume). Update pgAdmin's saved password. |
-| `SECRET_KEY` / `JWT_SECRET` | Change and redeploy; existing sessions/tokens become invalid. |
+| `SECRET_KEY` / `JWT_SECRET` | Change and redeploy; existing sessions/tokens become invalid. `JWT_SECRET` must be at least 32 characters (Next.js refuses to sign or verify otherwise). Every token purpose's key is derived from it, so rotating it invalidates all of them; to invalidate one type only (e.g. all password-reset links), bump that purpose's `KEY_VERSION` in `vertex/src/lib/jwt.ts`. |
 | pgAdmin login | Only read on first start: change the env file, remove the stack's `*_pgadmin_data` volume, start pgAdmin again. |
 | `DB_READONLY_PASSWORD` | Change it in the env file and redeploy; `deploy.sh` re-sets the role password. |
 
