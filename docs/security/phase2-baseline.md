@@ -90,6 +90,9 @@ and CI, CI-built images, dev/staging isolation.
 | G15 | *(found checking 5.5)* Dev and staging apps were reachable **from the local network**: backend, Next.js and Flutter ports bound to `0.0.0.0` (verified from the PC's LAN address); databases and pgAdmin were already localhost-only | High | `docker ps`: `0.0.0.0:3001->3000` etc. | Phase 2 |
 | G16 | *(found checking 5.5)* Bulk exports of personal data (`backup/candidates-csv`, `backup/partners-csv`, `candidates/export`) left **no audit trail**: the audit log recorded writes only | Medium | no audit call in the export handlers | Phase 2 |
 
+| G17 | *(found checking 5.5)* One `JWT_SECRET` signs every token type: sessions, password-reset/verification, invites, account setup, CIF upload and document-download links. Stealing it forges an admin session and any document link | High | `lib/jwt.ts` uses one secret for all `sign*Token` | Phase 4 |
+| G18 | *(found checking 5.5)* No service-to-service authentication: any container on the network can call FastAPI | Low today (FastAPI has no data endpoints), High once it does | no service credential exists | Phase 2 step 6, before FastAPI serves data |
+
 ### Fixed in Phase 2 (branch `security/phase2-zero-trust`)
 
 | Gap | Fix | Test |
@@ -100,7 +103,7 @@ and CI, CI-built images, dev/staging isolation.
 | G11 | job detail returns active/closed jobs only, public fields only | `publicJobs.integration.test.ts` |
 | G12 | `safeRedirectPath`: only same-site relative paths after sign-in | `safe-redirect.test.ts` (13 attack inputs) |
 | G15 | published ports bind to `127.0.0.1` (`BIND_ADDRESS` override); database network shared only by services that need it | verified from the LAN address after deploy |
-| G16 | `auditAccess()` writes an audit entry (who, what, how many rows, filters; never the data) before an export is returned | `audit-access.integration.test.ts`; `route-guards.test.ts` fails CI on any unaudited export/backup route (mutation-checked) |
+| G16 | `auditAccess()` writes an audit entry (who, what, how many rows, filter names with only allowlisted values; never the data) before an export is returned | `audit-access.integration.test.ts`; `route-guards.test.ts` fails CI on any unaudited export/backup route (mutation-checked) |
 
 **Policy questions (not confirmed bugs, need an owner's answer):**
 
