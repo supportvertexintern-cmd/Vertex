@@ -4,8 +4,9 @@
 # Start/update it with deploy/deploy.sh, which also provisions the database
 # roles (deploy/db-roles.sql) each service connects as.
 #
-# pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin and is
-# bound to localhost; leave the profile off on a VPS.
+# pgAdmin is off by default (profile `pgadmin`); start it only when needed
+# with deploy/pgadmin.sh. It is bound to localhost and connects as the
+# read-only role.
 #
 # Assume breach (docs/security/zero-trust.md §8):
 #  - Published ports bind to 127.0.0.1 unless BIND_ADDRESS says otherwise
@@ -153,13 +154,18 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@vertex.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-}
       PGADMIN_SERVER_JSON_FILE: /tmp/servers.json
+      # Re-register on every start: always the read-only connection; anything
+      # added by hand (e.g. a superuser login) is dropped at the next restart.
+      PGADMIN_REPLACE_SERVERS_ON_STARTUP: "True"
 
-    # Pre-registers this stack's database (read on pgAdmin's first start only).
+    # Pre-registers this stack's database as the SELECT-only role
+    # vertex_readonly (read on pgAdmin's first start only). Superuser access
+    # is never pre-registered: add it by hand when you really need it.
     entrypoint:
       - sh
       - -c
       - |
-        echo '{"Servers": {"1": {"Name": "vertex-${APP_ENV}", "Group": "Vertex", "Host": "db", "Port": 5432, "MaintenanceDB": "${POSTGRES_DB}", "Username": "${POSTGRES_USER}", "SSLMode": "prefer"}}}' > /tmp/servers.json
+        echo '{"Servers": {"1": {"Name": "vertex-${APP_ENV}", "Group": "Vertex", "Host": "db", "Port": 5432, "MaintenanceDB": "${POSTGRES_DB}", "Username": "vertex_readonly", "SSLMode": "prefer"}}}' > /tmp/servers.json
         exec /entrypoint.sh
 
     volumes:

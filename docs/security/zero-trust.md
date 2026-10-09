@@ -119,8 +119,10 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
   `vertex_api`, migrations use `vertex_migrator`; none can run DDL at runtime,
   truncate tables, or change the audit log (Phase 1, enforced by
   `vertex_be/tests/test_db_roles.py`).
-- **The database superuser is for humans only** (pgAdmin, psql) and for
-  `deploy.sh` provisioning. No application **may** hold it.
+- **The database superuser is for humans only** (psql, when needed) and for
+  `deploy.sh` provisioning. No application **may** hold it, and pgAdmin
+  never pre-registers it: pgAdmin is off by default and connects as
+  `vertex_readonly` (SELECT only).
 - **Administrative privileges are never inherited.** There is no role
   hierarchy: every check lists the roles it allows, so `director`,
   `inhouse_supervisor` or any other role gets nothing from `admin` implicitly.
