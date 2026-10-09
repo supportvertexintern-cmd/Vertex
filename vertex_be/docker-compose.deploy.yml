@@ -6,6 +6,12 @@
 #
 # pgAdmin only starts when the env file sets COMPOSE_PROFILES=pgadmin and is
 # bound to localhost; leave the profile off on a VPS.
+#
+# Assume breach (docs/security/zero-trust.md §8):
+#  - Published ports bind to 127.0.0.1 unless BIND_ADDRESS says otherwise
+#    (a VPS should keep them local and put a TLS reverse proxy in front).
+#  - Networks are split: only services that use the database are on `data`;
+#    the static Flutter server sits alone on `static` and can't reach it.
 
 services:
 
@@ -23,7 +29,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:
-      - "${BACKEND_PORT}:8000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT}:8000"
 
     volumes:
       - uploads:/app/uploads
@@ -39,6 +45,8 @@ services:
       retries: 6
       start_period: 20s
 
+
+    networks: [ data ]
     restart: unless-stopped
 
   db:
@@ -62,6 +70,8 @@ services:
       timeout: 5s
       retries: 10
 
+
+    networks: [ data ]
     restart: unless-stopped
 
   flutter-web:
@@ -73,8 +83,10 @@ services:
       APP_ENV: ${APP_ENV}
 
     ports:
-      - "${FLUTTER_PORT}:80"
+      - "${BIND_ADDRESS:-127.0.0.1}:${FLUTTER_PORT}:80"
 
+
+    networks: [ static ]
     restart: unless-stopped
 
   nextjs:
@@ -117,13 +129,15 @@ services:
       INTAKE_MODE: ${INTAKE_MODE:-}
 
     ports:
-      - "${NEXTJS_PORT}:3000"
+      - "${BIND_ADDRESS:-127.0.0.1}:${NEXTJS_PORT}:3000"
 
     # The backend applies migrations; Next.js only reads/writes the schema.
     depends_on:
       backend:
         condition: service_healthy
 
+
+    networks: [ data ]
     restart: unless-stopped
 
   pgadmin:
@@ -153,9 +167,15 @@ services:
     depends_on:
       - db
 
+
+    networks: [ data ]
     restart: unless-stopped
 
 volumes:
   postgres_data:
   uploads:
   pgadmin_data:
+
+networks:
+  data:
+  static:
