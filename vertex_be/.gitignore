@@ -8,4 +8,3 @@ __pycache__/
 uploads/
 *.db
 .env.*
-!.env*.example

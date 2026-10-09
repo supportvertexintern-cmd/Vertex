@@ -62,8 +62,8 @@ fails the run and prints the logs.
 ### 1. Env files
 
 `vertex_be/.env.dev` and `vertex_be/.env.staging` (gitignored) hold each stack's
-settings and secrets. Recreate them from `.env.dev.example` /
-`.env.staging.example` if lost. The runner reads them from `LOCAL_ENV_DIR`
+settings and secrets. They are not in Git in any form; keep a secure backup.
+The runner reads them from `LOCAL_ENV_DIR`
 (default `D:/Django Projects/Vertex/vertex_be`; override with a repo variable).
 
 ### 2. Self-hosted runner
@@ -115,6 +115,6 @@ The next deploy to `dev` swaps the published image back in.
 ## Later: a VPS
 
 `docker-compose.deploy.yml` and `deploy.sh` already work on a Linux host: put
-`.env` (from `.env.production.example` / `.env.staging.example`, without
-`COMPOSE_PROFILES`) in the deploy path, install a self-hosted runner there with
+`.env` (same variables as `.env.staging`, without `COMPOSE_PROFILES`) in the
+deploy path, install a self-hosted runner there with
 its own label, and point the deploy job's `runs-on` at it.
