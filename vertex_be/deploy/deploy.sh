@@ -36,7 +36,7 @@ provision_roles() {
     printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set web_pw '%s'\n\\set readonly_pw '%s'\n" \
       "$(env_value DB_MIGRATOR_PASSWORD)" "$(env_value DB_API_PASSWORD)" "$(env_value DB_WEB_PASSWORD)" \
       "$(env_value DB_READONLY_PASSWORD)"
-    cat "$HERE/db-roles.sql"
+    cat "$HERE/readonly-columns.sql" "$HERE/db-roles.sql"
   } | compose exec -T db psql -q -U "$(env_value POSTGRES_USER)" -d "$(env_value POSTGRES_DB)" >/dev/null
 }
 
