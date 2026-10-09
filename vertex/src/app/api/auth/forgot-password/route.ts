@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { limitByIp } from "@/lib/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validations";
 import { sendPasswordResetEmail } from "@/lib/email";
 
@@ -13,6 +14,8 @@ const GENERIC_MESSAGE = "If an account exists for that email, we've sent a passw
 // set) — a candidate lead or not-yet-provisioned staff/partner account
 // has nothing to reset yet.
 export async function POST(req: NextRequest) {
+  const limited = limitByIp(req, "forgot-password", { windowMs: 15 * 60_000, max: 5 });
+  if (limited) return limited;
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
