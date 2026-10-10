@@ -160,6 +160,24 @@ checked; the Vercel integration was not.
 | Runtime logs | Not available (retention too short) |
 | Sessions and emailed links | Would all be invalidated by G17; with no `JWT_SECRET` none could have been issued |
 
+**Follow-up checks (2026-10-10):**
+
+- **Could sessions have been forged with a known key?** No evidence of it.
+  No runtime code ever had a fallback (`process.env.JWT_SECRET!`, never
+  `|| "…"`; the only defaults are in test files). Next.js reports any
+  `.env` file it loads (`- Environments: .env`); none of the project's 12
+  production builds (2026-09-10 to 2026-10-09, its whole history) loaded
+  one, so no committed `.env` supplied a secret either. With `JWT_SECRET`
+  unset, `jsonwebtoken` can't sign or verify, so no session was ever valid
+  on this deployment. No database review for forged-admin activity is
+  needed on this basis.
+- **Which database, as which role?** A hosted **Prisma Postgres** database
+  (`db.prisma.io:5432`, SSL required, internet-reachable), created
+  2026-09-14 through Vercel's storage integration. All three variables use
+  the one generated credential Prisma Postgres issues, which owns the
+  database: no Phase 1 role separation there, and preview builds have had
+  it too.
+
 **Open, for the owner:** whether this deployment or its database holds real
 users or data; whether to keep the Vercel project (production is planned
 for a new provider). If kept: turn off automatic production deploys (or
