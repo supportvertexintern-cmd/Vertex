@@ -125,10 +125,14 @@ services:
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       PAYPAL_API_BASE: ${PAYPAL_API_BASE:-}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-}
-      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
-      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
-      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
-      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-}
+      # Documents go to this stack's MinIO (S3 API) with the app's own key,
+      # limited to its bucket (deploy/minio-bootstrap.sh). For AWS S3: drop
+      # S3_ENDPOINT, set S3_REGION and IAM keys (lib/upload.ts).
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-}
       INTAKE_MODE: ${INTAKE_MODE:-}
@@ -140,9 +144,28 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-
+      minio:
+        condition: service_healthy
 
     networks: [ data, edge ]
+    restart: unless-stopped
+
+  minio:
+    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
+    # S3-compatible object storage for uploaded documents. Files live on the
+    # host in MINIO_DATA_DIR (D:/VertexData/minio/<env>). Only on the internal
+    # `data` network: no published port, no web console.
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      MINIO_BROWSER: "off"
+      # Read only by deploy/minio-bootstrap.sh, which creates the app's key.
+      VERTEX_S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      VERTEX_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      VERTEX_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+    volumes:
+      - ${MINIO_DATA_DIR:?MINIO_DATA_DIR is required}:/data
+    networks: [ data ]
     restart: unless-stopped
 
   pgadmin:
