@@ -131,3 +131,69 @@ intermittently (it also failed one deploy's `actions/checkout` download).
 - **The scratch version of this check could pass falsely:** if the network
   comparison itself crashed, the row read `0`. The committed script fails
   closed ("check failed"), proven by breaking the comparison on purpose.
+
+## Incident: unplanned production deploy (2026-10-09)
+
+Phase 2 was scoped to dev and staging with no production changes. This
+changed production.
+
+**What happened.** At 12:19 UTC `main` was fast-forwarded to `19db922` (the
+staging-verified commit) as the production baseline, on the understanding
+that pushing `main` deploys nothing. It does: the Vercel project
+`brookteferis-projects/vertex` (root `vertex/`, production branch `main`) is
+connected to this repo and built and promoted `19db922` to its production
+domain `vertex-self-pi.vercel.app` within a minute. It had been doing so for
+every push to `main` (deploys of `5dfe69b`, `679a111`, `2cff667`, `48ff146`),
+and it builds a preview of every `dev` push. The GitHub workflows were
+checked; the Vercel integration was not.
+
+**Impact, as far as could be checked from outside and the Vercel API:**
+
+| Check | Result |
+|---|---|
+| Domain public? | Yes. Vercel Authentication covers deployment URLs only |
+| Fixes live | G1: `GET /api/admin/emails` → 401 (was public) |
+| New environment variables needed | None: the code reads the same 34 variables before and after |
+| Database changed by the build | No: `build` is `next build`, `postinstall` is `prisma generate`; no migrations run |
+| `JWT_SECRET` in Vercel | **Not set** (only `DATABASE_URL`, `POSTGRES_URL`, `PRISMA_DATABASE_URL`). Signing a session failed before this deploy too, so logins were already broken; the deploy didn't change that |
+| Preview database | **Same as production.** Each variable has one value for production, preview and development |
+| Runtime logs | Not available (retention too short) |
+| Sessions and emailed links | Would all be invalidated by G17; with no `JWT_SECRET` none could have been issued |
+
+**Follow-up checks (2026-10-10):**
+
+- **Could sessions have been forged with a known key?** No evidence of it.
+  No runtime code ever had a fallback (`process.env.JWT_SECRET!`, never
+  `|| "…"`; the only defaults are in test files). Next.js reports any
+  `.env` file it loads (`- Environments: .env`); none of the project's 12
+  production builds (2026-09-10 to 2026-10-09, its whole history) loaded
+  one, so no committed `.env` supplied a secret either. With `JWT_SECRET`
+  unset, `jsonwebtoken` can't sign or verify, so no session was ever valid
+  on this deployment. No database review for forged-admin activity is
+  needed on this basis.
+- **Which database, as which role?** A hosted **Prisma Postgres** database
+  (`db.prisma.io:5432`, SSL required, internet-reachable), created
+  2026-09-14 through Vercel's storage integration. All three variables use
+  the one generated credential Prisma Postgres issues, which owns the
+  database: no Phase 1 role separation there, and preview builds have had
+  it too.
+
+**Decisions (owner, 2026-10-10):** keep the Vercel project for now.
+
+- Git-triggered deployments are off (`vertex/vercel.json`:
+  `git.deploymentEnabled: false`): pushes to `main`, `dev` or any branch no
+  longer deploy or build previews. Production changes only when deployed
+  deliberately (`vercel deploy --prod` or Redeploy in the dashboard).
+- A fresh `JWT_SECRET` (64 characters, Production only, type *sensitive*,
+  never displayed or reused) was set and production redeployed with it
+  (`19db922`, deployment `dpl_76kvxVrzmFEyB3TSTMoMEyYTcMVv`).
+- `main` is protected on GitHub: changes only through a pull request with
+  passing CI; no force-pushes or deletion.
+- A restricted database role for the Prisma Postgres database is planned
+  (the app still uses the owner login until then).
+- Still open: Preview and Development share Production's `DATABASE_URL`
+  (moot while previews are off).
+
+**Lesson.** Before any push to `main`, list every deploy hook on the repo,
+including third-party integrations (GitHub deployments API, Vercel/Netlify
+apps), not just `.github/workflows`.
