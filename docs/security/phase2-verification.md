@@ -178,12 +178,21 @@ checked; the Vercel integration was not.
   database: no Phase 1 role separation there, and preview builds have had
   it too.
 
-**Open, for the owner:** whether this deployment or its database holds real
-users or data; whether to keep the Vercel project (production is planned
-for a new provider). If kept: turn off automatic production deploys (or
-change the production branch), give Preview its own database, set a fresh
-`JWT_SECRET` (at least 32 characters), and protect `main` on GitHub so it
-can't be pushed directly.
+**Decisions (owner, 2026-10-10):** keep the Vercel project for now.
+
+- Git-triggered deployments are off (`vertex/vercel.json`:
+  `git.deploymentEnabled: false`): pushes to `main`, `dev` or any branch no
+  longer deploy or build previews. Production changes only when deployed
+  deliberately (`vercel deploy --prod` or Redeploy in the dashboard).
+- A fresh `JWT_SECRET` (64 characters, Production only, type *sensitive*,
+  never displayed or reused) was set and production redeployed with it
+  (`19db922`, deployment `dpl_76kvxVrzmFEyB3TSTMoMEyYTcMVv`).
+- `main` is protected on GitHub: changes only through a pull request with
+  passing CI; no force-pushes or deletion.
+- A restricted database role for the Prisma Postgres database is planned
+  (the app still uses the owner login until then).
+- Still open: Preview and Development share Production's `DATABASE_URL`
+  (moot while previews are off).
 
 **Lesson.** Before any push to `main`, list every deploy hook on the repo,
 including third-party integrations (GitHub deployments API, Vercel/Netlify
