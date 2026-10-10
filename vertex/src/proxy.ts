@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/jwt";
 import { canAccessPortal, homeFor } from "@/lib/rbac";
+import { checkRequestSize } from "@/lib/request-size";
 
 const PROTECTED_PATHS = ["/dashboard", "/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/api/")) return checkRequestSize(req) ?? NextResponse.next();
+
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
 
   if (!isProtected) return NextResponse.next();
@@ -35,6 +38,7 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/api/:path*",
     "/dashboard/:path*",
     "/admin/:path*",
     "/recruiter/:path*",
