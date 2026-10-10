@@ -95,6 +95,10 @@ and CI, CI-built images, dev/staging isolation.
 
 | G19 | *(found reviewing 5.2)* **A session outlives the decisions behind it.** Identity and role come only from the signed token (7-day expiry), never the database: a **demoted admin keeps admin rights**, a **deleted user keeps access**, and a **password change doesn't end existing sessions**. Accounts also can't be disabled at all (no active flag), only deleted | High | `getAuthUser` returns the token payload; no DB check; `User` has no status field | Phase 4 (`token_version` checked per request, bumped on role change/deletion/password change; short-lived access tokens) — made visible now by strict expected-failure tests in `session-revocation.integration.test.ts` |
 
+| G20 | *(found mapping trust boundaries)* Authentication events aren't audited: logins, failed logins, Google sign-ins, logouts | Medium | no audit call in `auth/login`, `auth/google/callback`, `auth/logout` | With G7 (Phase 5) |
+| G21 | *(found mapping trust boundaries)* Document views aren't audited: issuing a signed link and downloading a passport or CV leave no record | Medium | no audit call in `documents/[id]/signed-url` or `documents/file` | Phase 2 candidate |
+| G22 | *(found mapping trust boundaries)* Some writes bypass the audited client: Stripe webhook payment updates, PayPal capture, Google sign-in user creation | Medium | plain `prisma.*.update/create` in those handlers | Phase 2 candidate |
+
 ### Fixed in Phase 2 (branch `security/phase2-zero-trust`)
 
 | Gap | Fix | Test |
