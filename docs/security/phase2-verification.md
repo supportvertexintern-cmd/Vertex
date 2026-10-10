@@ -131,3 +131,42 @@ intermittently (it also failed one deploy's `actions/checkout` download).
 - **The scratch version of this check could pass falsely:** if the network
   comparison itself crashed, the row read `0`. The committed script fails
   closed ("check failed"), proven by breaking the comparison on purpose.
+
+## Incident: unplanned production deploy (2026-10-09)
+
+Phase 2 was scoped to dev and staging with no production changes. This
+changed production.
+
+**What happened.** At 12:19 UTC `main` was fast-forwarded to `19db922` (the
+staging-verified commit) as the production baseline, on the understanding
+that pushing `main` deploys nothing. It does: the Vercel project
+`brookteferis-projects/vertex` (root `vertex/`, production branch `main`) is
+connected to this repo and built and promoted `19db922` to its production
+domain `vertex-self-pi.vercel.app` within a minute. It had been doing so for
+every push to `main` (deploys of `5dfe69b`, `679a111`, `2cff667`, `48ff146`),
+and it builds a preview of every `dev` push. The GitHub workflows were
+checked; the Vercel integration was not.
+
+**Impact, as far as could be checked from outside and the Vercel API:**
+
+| Check | Result |
+|---|---|
+| Domain public? | Yes. Vercel Authentication covers deployment URLs only |
+| Fixes live | G1: `GET /api/admin/emails` → 401 (was public) |
+| New environment variables needed | None: the code reads the same 34 variables before and after |
+| Database changed by the build | No: `build` is `next build`, `postinstall` is `prisma generate`; no migrations run |
+| `JWT_SECRET` in Vercel | **Not set** (only `DATABASE_URL`, `POSTGRES_URL`, `PRISMA_DATABASE_URL`). Signing a session failed before this deploy too, so logins were already broken; the deploy didn't change that |
+| Preview database | **Same as production.** Each variable has one value for production, preview and development |
+| Runtime logs | Not available (retention too short) |
+| Sessions and emailed links | Would all be invalidated by G17; with no `JWT_SECRET` none could have been issued |
+
+**Open, for the owner:** whether this deployment or its database holds real
+users or data; whether to keep the Vercel project (production is planned
+for a new provider). If kept: turn off automatic production deploys (or
+change the production branch), give Preview its own database, set a fresh
+`JWT_SECRET` (at least 32 characters), and protect `main` on GitHub so it
+can't be pushed directly.
+
+**Lesson.** Before any push to `main`, list every deploy hook on the repo,
+including third-party integrations (GitHub deployments API, Vercel/Netlify
+apps), not just `.github/workflows`.
