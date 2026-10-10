@@ -1,11 +1,14 @@
 name: Deploy
 
-# Push to `dev` → vertex-dev, push to `staging` → vertex-staging:
+# Push to `dev` → vertex-dev, push to `staging` → vertex-staging. `main` →
+# vertex-main only by hand: Actions → Deploy → Run workflow → branch `main`
+# (merging to main never deploys by itself).
 #   CI (all apps) → build & push all images to GHCR → self-hosted runner on
 #   the Docker host pulls them and restarts that stack (deploy/deploy.sh).
 #
 # Setup: register a self-hosted runner on the Docker host (label `vertex-host`)
-# and keep `.env.dev` / `.env.staging` in LOCAL_ENV_DIR on that machine.
+# and keep `.env.dev` / `.env.staging` / `.env.main` in LOCAL_ENV_DIR on that
+# machine.
 # See vertex_be/deploy/README.md.
 
 on:
@@ -28,6 +31,8 @@ jobs:
   build:
     name: Push ${{ matrix.image }}
     needs: ci
+    # Only the three environments; a manual run on any other branch stops here.
+    if: contains(fromJSON('["dev", "staging", "main"]'), github.ref_name)
     runs-on: ubuntu-latest
     strategy:
       matrix:
