@@ -98,6 +98,8 @@ and CI, CI-built images, dev/staging isolation.
 | G20 | *(found mapping trust boundaries)* Authentication events aren't audited: logins, failed logins, Google sign-ins, logouts | Medium | no audit call in `auth/login`, `auth/google/callback`, `auth/logout` | With G7 (Phase 5) |
 | G21 | *(found mapping trust boundaries)* Document views aren't audited: issuing a signed link and downloading a passport or CV leave no record | Medium | no audit call in `documents/[id]/signed-url` or `documents/file` | Phase 2 candidate |
 | G22 | *(found mapping trust boundaries)* Some writes bypass the audited client: Stripe webhook payment updates, PayPal capture, Google sign-in user creation | Medium | plain `prisma.*.update/create` in those handlers | Phase 2 candidate |
+| G23 | *(found defining the pipeline)* No request body size limit: `req.json()`/`req.formData()` read whole bodies, and `/api/upload` buffered the entire form before checking the caller or the file size | Medium (memory exhaustion by anonymous callers) | no limit in handlers or config | Phase 2 (fixed: `lib/request-size.ts` via `proxy.ts`) |
+| G24 | *(found defining the pipeline)* No MFA or step-up authentication for any role, including admin, finance and directors | High | password or Google sign-in only | Phase 4 |
 
 ### Fixed in Phase 2 (branch `security/phase2-zero-trust`)
 
