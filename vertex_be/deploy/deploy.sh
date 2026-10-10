@@ -149,6 +149,6 @@ docker image prune -f >/dev/null
 # Vertex tags that no container uses; every build stays in GHCR for rollback.
 ENV_PREFIX="${IMAGE_TAG%%-*}"
 in_use="$(docker ps -a --format '{{.Image}}')"
-for ref in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "/vertex-(backend|nextjs|flutter-web):${ENV_PREFIX}-" || true); do
+for ref in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "/vertex-(backend|nextjs|flutter-web|minio):${ENV_PREFIX}-" || true); do
   printf '%s\n' "$in_use" | grep -qxF "$ref" || docker rmi "$ref" >/dev/null 2>&1 || true
 done
