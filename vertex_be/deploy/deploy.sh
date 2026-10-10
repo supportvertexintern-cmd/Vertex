@@ -139,3 +139,10 @@ up_and_wait 240 --remove-orphans || fail "not all services became healthy"
 
 echo "Deployed $IMAGE_TAG to $PROJECT — all services healthy"
 docker image prune -f >/dev/null
+# Each deploy leaves ~2 GB of images behind. Remove this environment's older
+# Vertex tags that no container uses; every build stays in GHCR for rollback.
+ENV_PREFIX="${IMAGE_TAG%%-*}"
+in_use="$(docker ps -a --format '{{.Image}}')"
+for ref in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "/vertex-(backend|nextjs|flutter-web):${ENV_PREFIX}-" || true); do
+  printf '%s\n' "$in_use" | grep -qxF "$ref" || docker rmi "$ref" >/dev/null 2>&1 || true
+done
