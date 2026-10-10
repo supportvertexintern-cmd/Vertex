@@ -11,7 +11,17 @@ import bcrypt from "bcryptjs";
 // e2e-*@test.local. A dedicated Region/Country is created too, rather than
 // depending on prisma/seed.ts having been run, so this suite is
 // self-contained.
+// The suite creates and deletes users; never let it near a real database.
+export function assertLocalDatabase() {
+  const url = process.env.DATABASE_URL ?? "";
+  const host = (() => { try { return new URL(url).hostname; } catch { return ""; } })();
+  if (!["localhost", "127.0.0.1", "::1", "postgres", "db"].includes(host)) {
+    throw new Error(`E2E refuses to run against a non-local database (host "${host || "unset"}"); point DATABASE_URL at a throwaway one`);
+  }
+}
+
 export default async function globalSetup() {
+  assertLocalDatabase();
   const prisma = new PrismaClient();
   try {
     const password_hash = await bcrypt.hash("E2ETestPassword123!", 12);

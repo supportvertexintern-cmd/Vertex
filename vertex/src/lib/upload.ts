@@ -34,9 +34,12 @@ function getR2Client(): S3Client {
       "Document storage is not configured — R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are all required."
     );
   }
+  // R2_ENDPOINT points tests at a local S3-compatible store (MinIO in the
+  // e2e job); unset everywhere else, so real environments always use R2.
   return new S3Client({
     region: "auto",
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    endpoint: process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    forcePathStyle: Boolean(process.env.R2_ENDPOINT),
     credentials: {
       accessKeyId: process.env.R2_ACCESS_KEY_ID,
       secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
