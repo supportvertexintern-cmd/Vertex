@@ -6,7 +6,7 @@
 |-----------|-------------------|-------------------------------------------------------------------------|
 | `dev`     | `vertex-dev`      | CI → build & push all images to GHCR → auto-deploy to this PC           |
 | `staging` | `vertex-staging`  | CI → build & push all images to GHCR → auto-deploy to this PC           |
-| `main`    | production        | CI only (no production host yet)                                        |
+| `main`    | `vertex-main`     | CI only. Deploys **by hand**: Actions → Deploy → Run workflow → `main`   |
 
 Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
 CI runs on every PR into those three branches, so nothing merges red.
@@ -16,14 +16,18 @@ CI runs on every PR into those three branches, so nothing merges red.
 Each environment is one Docker Compose project built from
 [`docker-compose.deploy.yml`](../docker-compose.deploy.yml) and its env file:
 
-| Service      | Image                    | vertex-dev               | vertex-staging           |
-|--------------|--------------------------|--------------------------|--------------------------|
-| backend      | `vertex-backend`         | http://localhost:8001/docs | http://localhost:8002/docs |
-| flutter-web  | `vertex-flutter-web`     | http://localhost:8081    | http://localhost:8082    |
-| nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    |
-| pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    |
-| db           | `postgres:15-alpine`     | not published            | not published            |
-| env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` |
+| Service      | Image                    | vertex-dev               | vertex-staging           | vertex-main              |
+|--------------|--------------------------|--------------------------|--------------------------|--------------------------|
+| backend      | `vertex-backend`         | http://localhost:8001/docs | http://localhost:8002/docs | http://localhost:8003/docs |
+| flutter-web  | `vertex-flutter-web`     | http://localhost:8081    | http://localhost:8082    | http://localhost:8083    |
+| nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    | http://localhost:3003    |
+| pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    | http://localhost:5353    |
+| db           | `postgres:15-alpine`     | not published            | not published            | not published            |
+| env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` | `vertex_be/.env.main`    |
+
+vertex-main holds the main data (restored 2026-10-10 from the old
+`vertex_postgres_data` volume, which is kept untouched as a backup). It runs
+with `APP_ENV=production`.
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
   and never runs `prisma migrate`, so the schema has one owner.
@@ -138,3 +142,14 @@ sh scripts/test.sh          # extra args go to pytest
 ```
 
 They run against a throwaway Postgres container, never a stack's database.
+
+## Verifying a stack
+
+After a deploy, check one stack against the Phase 2 security properties
+(ports, networks, database roles, G1/G2/G10/G11/G17); it prints a markdown
+table, recorded in `docs/security/phase2-verification.md`:
+
+```sh
+cd vertex_be
+LAN_IP=<this PC's LAN address> bash deploy/verify-stack.sh dev   # or staging
+```
