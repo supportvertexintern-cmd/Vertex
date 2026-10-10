@@ -65,6 +65,10 @@ jobs:
     needs: build
     runs-on: [self-hosted, vertex-host]
     environment: ${{ github.ref_name }}
+    # Pull only: the token on the self-hosted runner can't push images.
+    permissions:
+      contents: read
+      packages: read
     env:
       PROJECT: vertex-${{ github.ref_name }}
       IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
