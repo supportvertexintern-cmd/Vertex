@@ -1,5 +1,9 @@
-# Install once per clone:  pip install pre-commit && pre-commit install
+# Install once per clone:  pip install pre-commit && pre-commit install --install-hooks
+#                          (installs both the pre-commit and pre-push hooks)
 # Run on everything:       pre-commit run --all-files
+
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/gitleaks/gitleaks
@@ -26,3 +30,16 @@ repos:
         language: fail
         entry: "Env files and local databases must never be committed (see docs/secrets.md)"
         files: '(^|/)\.env(\.[^/]+)?$|\.(db|sqlite3?|dump)$'
+
+      # GitHub can't protect `main` on this private repo without a paid plan,
+      # and a push to `main` can reach production (docs/security/
+      # phase2-verification.md, incident). Changes reach `main` through a
+      # pull request merged on GitHub, never a push from a clone.
+      - id: no-push-to-main
+        name: refuse pushes to main
+        language: system
+        entry: >-
+          sh -c '[ "$PRE_COMMIT_REMOTE_BRANCH" != refs/heads/main ] || { echo "main is protected - open a pull request instead"; exit 1; }'
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
