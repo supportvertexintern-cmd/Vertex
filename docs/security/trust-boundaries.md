@@ -138,7 +138,17 @@ by staff through P1 (`cases/[id]/remind`). The only timer is
 Whoever can run `docker` on this PC is effectively root over both stacks.
 That is the human administrator and the runner (P9), nobody else.
 
-### P8 File storage (Cloudflare R2)
+### P8 File storage (MinIO locally; S3 API)
+
+**Update 2026-10-10:** the local stacks now store documents in their own
+MinIO (`vertex_be/deploy/README.md`, "Object storage"), not Cloudflare R2.
+Next.js uses a per-environment app key limited by policy to one bucket;
+MinIO is only on the internal `data` network, with no published port.
+`verify-stack.sh` checks that the key can read, write and delete in its
+bucket and cannot list other buckets, create or delete buckets, make its
+bucket public or use the admin API. The table below still describes the
+request flow, which is unchanged; read "R2" as "the configured S3 store".
+
 
 | Operation | Caller → receiver | Identity | Authentication | Authorization | Audit | Failure |
 |---|---|---|---|---|---|---|

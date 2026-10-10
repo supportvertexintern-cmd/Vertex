@@ -124,6 +124,12 @@ fi
 up_and_wait 120 db || fail "database did not become healthy"
 provision_roles || fail "provisioning database roles"
 
+# 1b. Object storage: bucket and the app's own key (idempotent). The data
+#     folder must exist on the host before Docker bind-mounts it.
+mkdir -p "$(env_value MINIO_DATA_DIR)"
+up_and_wait 120 minio || fail "object storage did not become healthy"
+compose exec -T minio sh -s < "$HERE/minio-bootstrap.sh" || fail "provisioning object storage"
+
 # 2. Backend: runs `alembic upgrade head` as vertex_migrator, then serves as
 #    vertex_api. Re-provision afterwards so tables a migration just created
 #    (e.g. AuditLog on a fresh database) get their carve-outs immediately.
