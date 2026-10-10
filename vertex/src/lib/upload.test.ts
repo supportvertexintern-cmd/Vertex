@@ -9,16 +9,18 @@ import {
 } from "./upload";
 import { verifyDocumentToken, signDocumentToken } from "./jwt";
 
-// Real integration tests against the configured R2 test bucket (same
-// pattern as scope.test.ts running against a real database) — storage is
-// R2-only now, so mocking the S3 client would mostly just be re-testing
-// the mock.
+// Real integration tests against the configured object store (MinIO in CI
+// and locally, the same S3 API as AWS S3 and R2), like scope.test.ts runs
+// against a real database: mocking the S3 client would only test the mock.
+const env = process.env;
+const BUCKET = (env.S3_BUCKET || env.R2_BUCKET_NAME)!;
 const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  region: env.S3_REGION || "us-east-1",
+  endpoint: env.S3_ENDPOINT || env.R2_ENDPOINT || `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  forcePathStyle: Boolean(env.S3_ENDPOINT || env.R2_ENDPOINT),
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    accessKeyId: (env.S3_ACCESS_KEY_ID || env.R2_ACCESS_KEY_ID)!,
+    secretAccessKey: (env.S3_SECRET_ACCESS_KEY || env.R2_SECRET_ACCESS_KEY)!,
   },
 });
 
@@ -26,7 +28,7 @@ const cleanupKeys: string[] = [];
 afterEach(async () => {
   await Promise.all(
     cleanupKeys.splice(0).map((key) =>
-      r2.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key })).catch(() => {})
+      r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key })).catch(() => {})
     )
   );
 });
