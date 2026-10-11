@@ -3,6 +3,7 @@ import { contactMessageSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendContactMessageEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // POST /api/contact — the public /contact page had no backend at all
 // (client-side simulated success). Always emails PUBLIC_FORMS_NOTIFY_EMAIL
 // — unlike the CIF, there's no CRM record this could otherwise create, so
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendContactMessageEmail(parsed.data);
   } catch (error) {
-    console.error("Failed to send contact-form notification email:", error);
+    log.error("api.failed_to_send_contact_form_notification_email", { err: error });
     return NextResponse.json({ error: "We couldn't send your message right now. Please try again shortly or email us directly." }, { status: 502 });
   }
 

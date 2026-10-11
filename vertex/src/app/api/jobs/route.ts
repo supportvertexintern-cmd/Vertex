@@ -4,6 +4,7 @@ import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
+import { log } from "@/lib/log";
 export const dynamic = "force-dynamic";
 
 // Job postings are Marketing's sole responsibility — a role deliberately
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   // Provisions the 3 Stripe Products/Prices for this opportunity — never
   // blocks Job creation on a Stripe outage/misconfiguration.
-  syncJobMilestonePricing(job.id).catch((err) => console.error(`Failed to provision Stripe pricing for job ${job.id}.`, err));
+  syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_provision_stripe_pricing_for_job", { message: `Failed to provision Stripe pricing for job ${job.id}.`, err }));
 
   return NextResponse.json(job, { status: 201 });
 }

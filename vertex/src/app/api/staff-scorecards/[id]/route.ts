@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { finalizeStaffScorecardSchema } from "@/lib/validations";
 import { categorizeScore, computeOverallScore } from "@/server/services/scorecardScoring";
 import type { Role } from "@prisma/client";
@@ -39,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
   if (!scorecard) return NextResponse.json({ error: { code: "not_found", message: "Scorecard not found." } }, { status: 404 });
   if (user!.role !== "admin" && scorecard.reviewer_id !== user!.userId) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
   if (scorecard.status !== "draft") {
     return NextResponse.json({ error: { code: "already_finalized", message: "This scorecard has already been finalized." } }, { status: 422 });

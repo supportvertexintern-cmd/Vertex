@@ -4,6 +4,7 @@ import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import { getPayPalAccessToken } from "@/lib/paypal";
 import { createReceiptPdf } from "@/lib/invoice";
 
+import { log } from "@/lib/log";
 export async function POST(req: NextRequest) {
   const tokenPayload = await getAuthUser(req);
   const guardRes = requireAuth(tokenPayload);
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     const captureData = await res.json();
     
     if (!res.ok || captureData.status !== "COMPLETED") {
-      console.error("PayPal Capture Error:", captureData);
+      log.error("api.paypal_capture_error", { err: captureData });
       return NextResponse.json({ error: "Payment could not be captured." }, { status: 400 });
     }
     
@@ -59,12 +60,12 @@ export async function POST(req: NextRequest) {
     try {
        await createReceiptPdf(payment.id, dbUser.full_name, dbUser.email, job.title, payment.amount, payment.transaction_id as string, payment.created_at);
     } catch (receiptErr) {
-       console.error("Failed to send receipt:", receiptErr);
+       log.error("api.failed_to_send_receipt", { err: receiptErr });
     }
 
     return NextResponse.json({ success: true, paymentId: payment.id });
   } catch (err) {
-    console.error("PayPal Capture Exception:", err);
+    log.error("api.paypal_capture_exception", { err });
     return NextResponse.json({ error: "An unexpected error occurred during capture." }, { status: 500 });
   }
 }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { getSignedDocumentUrl } from "@/lib/upload";
+import { recordSecurityEvent } from "@/lib/audit";
 
 // GET /api/documents/:id/signed-url
 // Issues a short-lived signed URL for one document, after checking the
@@ -29,9 +30,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const allowed = await canAccessCandidate(user!, document.candidate);
   if (!allowed) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return forbidden({ error: "Forbidden." });
   }
 
   const url = await getSignedDocumentUrl(document.storage_path);
+  await recordSecurityEvent("document_link_issued", {
+    actorId: user!.userId,
+    entityType: "Document",
+    entityId: document.id,
+    detail: { type: document.type, candidate_id: document.candidate_id },
+  });
   return NextResponse.json({ url });
 }

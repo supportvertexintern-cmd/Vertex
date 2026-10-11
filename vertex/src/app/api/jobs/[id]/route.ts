@@ -5,6 +5,7 @@ import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { getPublicJobById } from "@/server/services/publicJobs";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
+import { log } from "@/lib/log";
 export const dynamic = "force-dynamic";
 
 // Editing any of these silently leaves Stripe pricing stale otherwise —
@@ -43,7 +44,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const job = await prisma.job.update({ where: { id }, data: parsed.data });
 
   if (FEE_RELEVANT_FIELDS.some((field) => field in parsed.data)) {
-    syncJobMilestonePricing(job.id).catch((err) => console.error(`Failed to re-sync Stripe pricing for job ${job.id}.`, err));
+    syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_re_sync_stripe_pricing_for", { message: `Failed to re-sync Stripe pricing for job ${job.id}.`, err }));
   }
 
   return NextResponse.json(job);

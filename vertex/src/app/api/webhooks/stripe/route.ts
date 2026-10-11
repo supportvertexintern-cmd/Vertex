@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { createReceiptPdf } from "@/lib/invoice";
 import { sendConsultationBookingNotification } from "@/lib/email";
 
+import { log } from "@/lib/log";
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build") as string, {
   apiVersion: "2025-02-24.acacia" as any,
 });
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (!sig || !endpointSecret) throw new Error("Missing stripe signature or secret.");
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
-    console.error(`Webhook Error: ${err.message}`);
+    log.error("api.webhook_error", { message: `Webhook Error: ${err.message}` });
     return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
   }
 
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
           await createReceiptPdf(payment.id, user.full_name, user.email, jobTitle || "Job", payment.amount, payment.transaction_id as string, payment.created_at);
         }
       } catch (receiptErr) {
-        console.error("Failed to generate/send receipt for Stripe webhook:", receiptErr);
+        log.error("api.failed_to_generate_send_receipt_for_stripe", { err: receiptErr });
       }
     }
   }

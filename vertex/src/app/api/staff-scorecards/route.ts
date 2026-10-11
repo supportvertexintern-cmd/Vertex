@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { upsertStaffScorecardSchema, SCORECARD_AREAS } from "@/lib/validations";
 import type { Prisma, Role } from "@prisma/client";
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const staff = await prisma.user.findUnique({ where: { id: parsed.data.staff_id }, select: { supervisor_id: true } });
   if (!staff) return NextResponse.json({ error: { code: "not_found", message: "Staff member not found." } }, { status: 404 });
   if (user!.role !== "admin" && staff.supervisor_id !== user!.userId) {
-    return NextResponse.json({ error: { code: "forbidden", message: "You can only score your own direct reports." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "You can only score your own direct reports." } });
   }
 
   const db = auditedPrisma(user!.userId);

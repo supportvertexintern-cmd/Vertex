@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { verifyDocumentSchema } from "@/lib/validations";
 import type { Role } from "@prisma/client";
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (authError) return authError;
 
   if (!VERIFIER_ROLES.includes(user!.role)) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Not authorized to verify documents." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Not authorized to verify documents." } });
   }
 
   const { id } = await params;
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const allowed = await canAccessCandidate(user!, document.candidate);
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   const updated = await auditedPrisma(user!.userId).document.update({

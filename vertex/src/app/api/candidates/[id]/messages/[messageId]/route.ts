@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 
 // PATCH/DELETE /api/candidates/:id/messages/:messageId — a sender
 // correcting or removing their own message after sending it (CRM
@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id, messageId } = await params;
   const existing = await loadOwnedMessage(id, messageId, user!.userId);
   if (existing === null) return NextResponse.json({ error: { code: "not_found", message: "Message not found." } }, { status: 404 });
-  if (existing === "forbidden") return NextResponse.json({ error: { code: "forbidden", message: "You can only edit your own messages." } }, { status: 403 });
+  if (existing === "forbidden") return forbidden({ error: { code: "forbidden", message: "You can only edit your own messages." } });
 
   let body: unknown;
   try {
@@ -59,7 +59,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id, messageId } = await params;
   const existing = await loadOwnedMessage(id, messageId, user!.userId);
   if (existing === null) return NextResponse.json({ error: { code: "not_found", message: "Message not found." } }, { status: 404 });
-  if (existing === "forbidden") return NextResponse.json({ error: { code: "forbidden", message: "You can only delete your own messages." } }, { status: 403 });
+  if (existing === "forbidden") return forbidden({ error: { code: "forbidden", message: "You can only delete your own messages." } });
 
   await auditedPrisma(user!.userId).candidateMessage.delete({ where: { id: messageId } });
 

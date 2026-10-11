@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { sendCandidateInviteEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 export interface ScreeningResult {
   passed: boolean;
   failures: string[];
@@ -179,7 +180,7 @@ export async function screenAndInvite(candidateId: string, actorId: string | nul
     // it completes (the exact reason this used to be awaited) — after()
     // is the platform-supported way to defer work past the response while
     // still guaranteeing it runs to completion.
-    after(() => sendCandidateInviteEmail(candidateId, updated.email!, updated.full_name ?? "there").catch(console.error));
+    after(() => sendCandidateInviteEmail(candidateId, updated.email!, updated.full_name ?? "there").catch((err) => log.error("email.send_failed", { err })));
   }
 
   return { passed: true, failures: [], candidate: { id: updated.id, lifecycle_status: updated.lifecycle_status, return_reason: updated.return_reason } };

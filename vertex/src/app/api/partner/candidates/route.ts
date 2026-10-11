@@ -7,6 +7,7 @@ import { submitPartnerCandidateSchema } from "@/lib/validations";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
 import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
 
+import { log } from "@/lib/log";
 // GET /api/partner/candidates — a partner sees only its own submissions
 // (SRS FR-5.1). Scoped by Partner.user_id, not a role-wide query — a
 // partner has no visibility into any other agency's candidates.
@@ -270,7 +271,7 @@ export async function POST(req: NextRequest) {
       const { sendPartnerCandidateSubmittedEmail } = await import("@/lib/email");
       await sendPartnerCandidateSubmittedEmail(partner.name, partnerCandidate.full_name);
     } catch (err) {
-      console.error("Failed to send partner-candidate submission notification.", err);
+      log.error("api.failed_to_send_partner_candidate_submission_notification", { err });
     }
   });
 

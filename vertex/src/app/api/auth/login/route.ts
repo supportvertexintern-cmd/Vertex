@@ -4,6 +4,7 @@ import { comparePassword } from "@/lib/auth";
 import { signToken } from "@/lib/jwt";
 import { loginSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
+import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest) {
   // it in a real environment.
   const rl = rateLimit(`login:${ip}`, { max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10 });
   if (!rl.success) {
+    await recordSecurityEvent("login_rate_limited", { actorId: null, entityType: "Auth", entityId: "login", detail: {} });
     return NextResponse.json(
       { error: "Too many login attempts. Please try again later." },
       { status: 429 }
@@ -36,9 +38,19 @@ export async function POST(req: NextRequest) {
   const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
+  // Phase 10: every outcome is recorded. Failures keep only a fingerprint
+  // of the address, never what was typed.
+  const failed = (reason: string) =>
+    recordSecurityEvent("login_failed", {
+      actorId: null,
+      entityType: "Auth",
+      entityId: user ? `user:${user.id}` : "unknown_account",
+      detail: { reason, method: "password", email_fp: emailFingerprint(email) },
+    });
 
   // Use same generic message for security (avoid user enumeration)
   if (!user || !user.password_hash) {
+    await failed(user ? "no_password_set" : "unknown_account");
     return NextResponse.json(
       { error: "Invalid email or password." },
       { status: 401 }
@@ -47,6 +59,7 @@ export async function POST(req: NextRequest) {
 
   const valid = await comparePassword(password, user.password_hash);
   if (!valid) {
+    await failed("bad_password");
     return NextResponse.json(
       { error: "Invalid email or password." },
       { status: 401 }
@@ -54,11 +67,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (!user.email_verified) {
+    await failed("email_unverified");
     return NextResponse.json(
       { error: "Please verify your email before logging in." },
       { status: 403 }
     );
   }
+
+  await recordSecurityEvent("login_succeeded", {
+    actorId: user.id,
+    entityType: "Auth",
+    entityId: `user:${user.id}`,
+    detail: { method: "password", role: user.role },
+  });
 
   const token = signToken({
     userId: user.id,

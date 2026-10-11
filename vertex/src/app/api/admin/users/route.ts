@@ -7,6 +7,7 @@ import { createStaffUserSchema } from "@/lib/validations";
 import { isStaffRole } from "@/lib/rbac";
 import type { Role } from "@prisma/client";
 
+import { log } from "@/lib/log";
 const STAFF_ROLES: Role[] = [
   "regional_recruiter",
   "country_supervisor",
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendAccountSetupInviteEmail(created.id, created.email, created.full_name).catch(console.error);
+  await sendAccountSetupInviteEmail(created.id, created.email, created.full_name).catch((err) => log.error("email.send_failed", { err }));
 
   const { inhouse_country_assignments, ...createdRest } = created;
   return NextResponse.json(
