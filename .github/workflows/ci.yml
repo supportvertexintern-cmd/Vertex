@@ -121,6 +121,11 @@ jobs:
           MINIO_ROOT_PASSWORD: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
           MINIO_BROWSER: "off"
         ports: ["9000:9000"]
+      # Malware scanning tests (EICAR) need a real clamd; it loads its
+      # signatures on start, and the job waits for its health check.
+      clamav:
+        image: clamav/clamav:stable
+        ports: ["3310:3310"]
 
     # Pull the private MinIO image; nothing else.
     permissions:
@@ -133,6 +138,8 @@ jobs:
       S3_BUCKET: vertex-ci
       S3_ACCESS_KEY_ID: ci-root
       S3_SECRET_ACCESS_KEY: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      CLAMD_HOST: localhost
+      CLAMD_PORT: "3310"
 
     steps:
       - uses: actions/checkout@v4

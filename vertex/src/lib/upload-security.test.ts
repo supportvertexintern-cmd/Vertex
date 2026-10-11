@@ -7,7 +7,8 @@ vi.hoisted(() => {
   process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-upload";
 });
 
-import { saveUploadedFile, deleteUploadedFile, detectFileType, resolveDocumentContent, getSignedDocumentUrl } from "./upload";
+import { saveUploadedFile, saveUploadedDocument, deleteUploadedFile, detectFileType, resolveDocumentContent, getSignedDocumentUrl, MalwareDetectedError } from "./upload";
+import { EICAR } from "@/test-fixtures/eicar";
 
 const PDF = "%PDF-1.4\nsecurity probe\n%%EOF";
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
@@ -85,3 +86,34 @@ describe("saveUploadedFile", () => {
     expect(extension).toBe("pdf");
   });
 });
+
+describe("malware scanning on upload", () => {
+  it.skipIf(!process.env.CLAMD_HOST)("refuses the EICAR test file and stores nothing", async () => {
+    await expect(saveUploadedDocument(file(EICAR, "cv.pdf", "application/pdf"), "cv")).rejects.toBeInstanceOf(MalwareDetectedError);
+  });
+
+  it.skipIf(!process.env.CLAMD_HOST)("marks a clean upload as scanned", async () => {
+    const saved = await saveUploadedDocument(file(PDF, "cv.pdf", "application/pdf"), "cv");
+    savedKeys(saved.storagePath);
+    expect(saved.scanStatus).toBe("clean");
+    expect(saved.scannedAt).toBeInstanceOf(Date);
+  });
+
+  it("accepts but flags an upload when the scanner is down (fail-open)", async () => {
+    const before = { host: process.env.CLAMD_HOST, port: process.env.CLAMD_PORT };
+    process.env.CLAMD_HOST = "127.0.0.1";
+    process.env.CLAMD_PORT = "1";
+    try {
+      const saved = await saveUploadedDocument(file(PDF, "cv.pdf", "application/pdf"), "cv");
+      savedKeys(saved.storagePath);
+      expect(saved).toMatchObject({ scanStatus: "unscanned", scannedAt: null });
+    } finally {
+      process.env.CLAMD_HOST = before.host;
+      process.env.CLAMD_PORT = before.port;
+    }
+  });
+});
+
+function savedKeys(key: string) {
+  saved.push(key);
+}
