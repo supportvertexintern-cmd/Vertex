@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-  if (user!.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (user!.role !== "admin") return forbidden({ error: "Unauthorized" });
 
   const settings = await prisma.systemSetting.findMany();
   // Return as a key-value object
@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-  if (user!.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (user!.role !== "admin") return forbidden({ error: "Unauthorized" });
 
   const body = await req.json();
   const validKeys = ["ai_enabled", "whatsapp_number", "intake_mode"];

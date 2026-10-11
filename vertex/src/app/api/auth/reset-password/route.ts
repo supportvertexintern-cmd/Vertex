@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
-import { auditedPrisma } from "@/lib/audit";
+import { auditedPrisma, recordSecurityEvent } from "@/lib/audit";
 import { resetPasswordSchema } from "@/lib/validations";
 import { verifyEmailToken } from "@/lib/jwt";
 import { hashPassword } from "@/lib/auth";
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
   try {
     payload = verifyEmailToken(parsed.data.token, "password_reset");
   } catch {
+    await recordSecurityEvent("password_reset_completed", {
+      actorId: null, entityType: "Auth", entityId: "invalid_link", detail: { outcome: "invalid_or_expired_link" },
+    });
     return NextResponse.json({ error: "This reset link is invalid or has expired. Request a new one." }, { status: 400 });
   }
 
@@ -41,6 +44,9 @@ export async function POST(req: NextRequest) {
   await auditedPrisma(user.id).user.update({
     where: { id: user.id },
     data: { password_hash },
+  });
+  await recordSecurityEvent("password_reset_completed", {
+    actorId: user.id, entityType: "Auth", entityId: `user:${user.id}`, detail: { outcome: "password_changed" },
   });
 
   return NextResponse.json({ message: "Password reset successfully. You can now log in." });

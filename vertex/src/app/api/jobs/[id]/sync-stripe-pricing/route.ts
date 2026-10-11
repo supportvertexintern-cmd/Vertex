@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
 
+import { log } from "@/lib/log";
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // POST /api/jobs/:id/sync-stripe-pricing — manual retry for the case a
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     await syncJobMilestonePricing(id);
   } catch (err) {
-    console.error(`Manual Stripe pricing sync failed for job ${id}.`, err);
+    log.error("api.manual_stripe_pricing_sync_failed_for_job", { message: `Manual Stripe pricing sync failed for job ${id}.`, err });
     return NextResponse.json(
       { error: { code: "stripe_sync_failed", message: err instanceof Error ? err.message : "Failed to sync Stripe pricing." } },
       { status: 502 }

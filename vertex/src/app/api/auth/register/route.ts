@@ -8,6 +8,7 @@ import { limitByIp, rateLimit } from "@/lib/rate-limit";
 import { verifyCandidateInviteToken, verifyAccountSetupToken } from "@/lib/jwt";
 import { evaluateDocumentCompletenessForCandidateId } from "@/server/services/documentCompleteness";
 
+import { log } from "@/lib/log";
 // Shared by GET (prefill) and POST (actual account creation) — a
 // candidate account only ever comes into being via this invite, so both
 // need the same "is this token still claimable, and what does the
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
   // Awaited (not truly fire-and-forget, despite the name) — on serverless
   // (Vercel) a function instance can freeze right after the response is
   // sent, silently killing an un-awaited async send before it completes.
-  await sendVerificationEmail(user.id, user.email, user.full_name).catch(console.error);
+  await sendVerificationEmail(user.id, user.email, user.full_name).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json(
     {

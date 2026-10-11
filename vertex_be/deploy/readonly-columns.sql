@@ -51,6 +51,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('AuditLog', 'before',                                    'exclude'), -- audit log holds personal-data snapshots
   ('AuditLog', 'after',                                     'exclude'), -- audit log holds personal-data snapshots
   ('AuditLog', 'created_at',                                'exclude'), -- audit log holds personal-data snapshots
+  ('AuditLog', 'request_id',                                'exclude'), -- audit log holds personal-data snapshots
   ('Campaign', 'id',                                        'grant'),   -- identifier/link
   ('Campaign', 'name',                                      'exclude'), -- personal data
   ('Campaign', 'criteria',                                  'exclude'), -- free text/JSON: may hold personal data

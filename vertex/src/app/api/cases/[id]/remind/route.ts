@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 import { sendCaseReminderSchema } from "@/lib/validations";
 import { sendCaseReminderEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // POST /api/cases/:id/remind — Operations sends a manual reminder email
 // for a delayed document or payment (2026-07-31, per the Operational
 // Workflow SOP). Deliberately staff-triggered, not a background
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     country_id: candidate.country_id,
     partner_id: candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   let recipientEmail: string | null;
   let recipientName: string;
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendCaseReminderEmail(recipientEmail, recipientName, candidateName, programmeTitle, parsed.data.channel, parsed.data.message).catch(console.error);
+  await sendCaseReminderEmail(recipientEmail, recipientName, candidateName, programmeTitle, parsed.data.channel, parsed.data.message).catch((err) => log.error("email.send_failed", { err }));
 
   const reminder = await prisma.caseReminder.create({
     data: {

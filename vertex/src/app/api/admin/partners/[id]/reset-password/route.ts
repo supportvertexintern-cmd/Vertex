@@ -4,6 +4,7 @@ import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { sendAccountSetupInviteEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
 // POST /api/admin/partners/:id/reset-password (2026-08-01) — same manager
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: { password_hash: null },
   });
 
-  await sendAccountSetupInviteEmail(linkedUser.id, linkedUser.email, linkedUser.full_name).catch(console.error);
+  await sendAccountSetupInviteEmail(linkedUser.id, linkedUser.email, linkedUser.full_name).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: { email: linkedUser.email } });
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { reportContentSchema } from "@/lib/validations";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "admin"] as const;
@@ -21,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (report.submitted_by !== user!.userId && user!.role !== "admin") {
-    return NextResponse.json({ error: { code: "forbidden", message: "Only the original submitter can resubmit this report." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Only the original submitter can resubmit this report." } });
   }
 
   if (report.status !== "returned") {

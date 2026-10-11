@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { upsertRecruiterTargetSchema } from "@/lib/validations";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
@@ -93,10 +93,10 @@ export async function POST(req: NextRequest) {
 
   if (user!.role === "country_supervisor") {
     if (recruiter.supervisor_id !== user!.userId) {
-      return NextResponse.json({ error: { code: "forbidden", message: "You can only set targets for recruiters you supervise." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "You can only set targets for recruiters you supervise." } });
     }
     if (!campaignTarget.country_id || campaignTarget.country_id !== recruiter.assigned_country_id) {
-      return NextResponse.json({ error: { code: "forbidden", message: "This campaign target isn't scoped to your recruiter's country." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "This campaign target isn't scoped to your recruiter's country." } });
     }
   }
 

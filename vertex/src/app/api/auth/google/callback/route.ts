@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { signToken } from "@/lib/jwt";
+import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
+import { log } from "@/lib/log";
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
     tokens = await tokenRes.json();
     if (tokens.error) throw new Error(tokens.error);
   } catch (e) {
-    console.error("Google token exchange error:", e);
+    log.warn("auth.google_token_exchange_failed", { err: e });
     return NextResponse.redirect(`${appUrl}/auth/login?error=google_token_failed`);
   }
 
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
     });
     googleUser = await userRes.json();
   } catch (e) {
-    console.error("Google userinfo error:", e);
+    log.warn("auth.google_userinfo_failed", { err: e });
     return NextResponse.redirect(`${appUrl}/auth/login?error=google_user_failed`);
   }
 
@@ -86,6 +88,10 @@ export async function GET(req: NextRequest) {
   });
 
   if (!user) {
+    await recordSecurityEvent("login_failed", {
+      actorId: null, entityType: "Auth", entityId: "unknown_account",
+      detail: { reason: "unknown_account", method: "google", email_fp: emailFingerprint(googleUser.email) },
+    });
     return NextResponse.redirect(`${appUrl}/auth/login?error=google_no_account`);
   }
 
@@ -97,6 +103,10 @@ export async function GET(req: NextRequest) {
       data: { google_id: googleUser.sub, email_verified: true },
     });
   }
+
+  await recordSecurityEvent("login_succeeded", {
+    actorId: user.id, entityType: "Auth", entityId: `user:${user.id}`, detail: { method: "google", role: user.role },
+  });
 
   // 4. Sign JWT and set cookie
   const token = signToken({

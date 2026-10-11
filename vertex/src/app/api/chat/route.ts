@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
 
+import { log } from "@/lib/log";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
@@ -112,7 +113,7 @@ ${kbText || FALLBACK_KB}`;
 
     return Response.json({ text });
   } catch (error) {
-    console.error("Chat API Error:", error);
+    log.error("api.chat_api_error", { err: error });
     return Response.json(
       { error: "An error occurred while processing your request." },
       { status: 500 }

@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { submitApplicationSchema } from "@/lib/validations";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 import { isStaffRole } from "@/lib/rbac";
 import { canAccessCandidate, scopeCandidatesToRequester } from "@/server/scope";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
@@ -11,6 +11,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { screenAndInvite } from "@/server/services/screening";
 import { signCifUploadToken } from "@/lib/jwt";
 
+import { log } from "@/lib/log";
 const MAX_PAGE_SIZE = 200;
 
 // GET /api/applications — a candidate sees their own; every staff role
@@ -141,7 +142,7 @@ export async function POST(req: NextRequest) {
 
   if (parsed.data.candidate_id) {
     if (!user || !isStaffRole(user.role)) {
-      return NextResponse.json({ error: "Only staff can submit an application on behalf of a candidate." }, { status: 403 });
+      return forbidden({ error: "Only staff can submit an application on behalf of a candidate." });
     }
     candidate = await prisma.candidate.findUnique({
       where: { id: parsed.data.candidate_id },
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
     });
     if (!candidate) return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
     if (!(await canAccessCandidate(user, candidate))) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return forbidden({ error: "Forbidden." });
     }
   } else if (user && user.role === "candidate") {
     candidate = await prisma.candidate.findUnique({
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
     // An authenticated, non-staff, non-candidate role (shouldn't really
     // exist, but fail closed rather than silently treating them as a new
     // anonymous submitter).
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return forbidden({ error: "Forbidden." });
   } else {
     // Anonymous self-service, or staff entering a brand-new walk-in lead.
     isNewCandidate = true;
@@ -379,7 +380,7 @@ export async function POST(req: NextRequest) {
         const { sendApplicationConfirmationEmail } = await import("@/lib/email");
         await sendApplicationConfirmationEmail(recipientEmail, recipientName, job?.title ?? "your Vertex programme", !!activeCandidate.user);
       } catch (err) {
-        console.error("Failed to trigger confirmation email.", err);
+        log.error("api.failed_to_trigger_confirmation_email", { err });
       }
     });
   }
