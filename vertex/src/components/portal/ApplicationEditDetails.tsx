@@ -118,7 +118,7 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
   }
 
   return (
-    <form onSubmit={submit} className="bg-ivory-100 border border-midnight-900/10 rounded-lg p-4 space-y-4">
+    <form method="post" onSubmit={submit} className="bg-ivory-100 border border-midnight-900/10 rounded-lg p-4 space-y-4">
       <div>
         <div className="text-[11px] font-semibold text-midnight-900/50 uppercase tracking-wider mb-2">Programme Information</div>
         <label className="block text-xs text-midnight-900/50 mb-1">Opportunity</label>

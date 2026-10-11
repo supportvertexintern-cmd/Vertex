@@ -136,7 +136,7 @@ export default function ContactPage() {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form method="post" onSubmit={handleSubmit} className="space-y-5">
                   <h2 className="text-2xl font-semibold text-midnight-900 tracking-tight mb-6">Send a message</h2>
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>

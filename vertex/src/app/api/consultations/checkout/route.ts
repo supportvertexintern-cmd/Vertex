@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { rateLimit } from "@/lib/rate-limit";
+import { log } from "@/lib/log";
 
 const CONSULTATION_FEE_USD = 50;
 
@@ -20,7 +21,11 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-  const session = await stripe.checkout.sessions.create({
+  // A Stripe failure (including no key in this environment) is reported as
+  // unavailable, with the details in the log only (ZAP 90022).
+  let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+  try {
+    session = await stripe.checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
     phone_number_collection: { enabled: true },
@@ -40,7 +45,11 @@ export async function POST(req: NextRequest) {
     metadata: { type: "consultation" },
     success_url: `${appUrl}/consultation/confirmed?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/consultation`,
-  });
+    });
+  } catch (err) {
+    log.error("payments.consultation_checkout_failed", { err });
+    return NextResponse.json({ error: "Payments are unavailable right now. Please try again later." }, { status: 503 });
+  }
 
   return NextResponse.json({ url: session.url });
 }

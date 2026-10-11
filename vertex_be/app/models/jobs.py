@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import UniqueConstraint, text
+from sqlalchemy import Index, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
-from app.models.enums import CaseStage, EmployerClientStatus, JobStatus
+from app.models.enums import CaseStage, EmployerClientStatus, JobStatus, MilestonePaymentType
 
 
 class EmployerClient(Base):
@@ -133,3 +133,21 @@ class JobPaymentStage(Base):
     updated_at: Mapped[datetime] = updated_at_col()
 
     job: Mapped[Job] = relationship(back_populates="payment_stages")
+
+
+class JobMilestonePrice(Base):
+    """The Stripe price for one milestone of a Job (Next.js milestone
+    payments, migration 0004). Prisma sets updated_at, so there is no
+    server default."""
+
+    __tablename__ = "JobMilestonePrice"
+    __table_args__ = (Index("JobMilestonePrice_job_id_type_key", "job_id", "type", unique=True),)
+
+    id: Mapped[str] = pk()
+    job_id: Mapped[str] = mapped_column(fk("Job.id", "CASCADE"))
+    type: Mapped[MilestonePaymentType] = enum_col(MilestonePaymentType)
+    amount_gbp: Mapped[float]
+    stripe_product_id: Mapped[str]
+    stripe_price_id: Mapped[str]
+    created_at: Mapped[datetime] = created_at_col()
+    updated_at: Mapped[datetime] = mapped_column(onupdate=func.current_timestamp())
