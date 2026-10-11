@@ -13,6 +13,7 @@ from app.models.enums import (
     CaseStage,
     CaseStatus,
     ContractStatus,
+    MilestonePaymentType,
 )
 from app.models.identity import Country, User
 from app.models.jobs import JobPaymentStage
@@ -33,6 +34,7 @@ class Case(Base):
     )
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
+    stage_deadline: Mapped[datetime | None]
 
     ops_review_status: Mapped[CaseOpsReviewStatus] = enum_col(
         CaseOpsReviewStatus, default=CaseOpsReviewStatus.pending, index=True
@@ -121,7 +123,10 @@ class CasePayment(Base):
 
     id: Mapped[str] = pk()
     case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"), index=True)
-    job_payment_stage_id: Mapped[str] = mapped_column(fk("JobPaymentStage.id", "RESTRICT"))
+    # Nullable since 0004: the Next.js app records the milestone `type`
+    # and doesn't set a stage.
+    job_payment_stage_id: Mapped[str | None] = mapped_column(fk("JobPaymentStage.id", "RESTRICT"))
+    type: Mapped[MilestonePaymentType] = enum_col(MilestonePaymentType)
     amount: Mapped[float]
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     receipt_reference: Mapped[str | None]
@@ -137,7 +142,7 @@ class CasePayment(Base):
     sent_to_email: Mapped[str | None]
 
     case: Mapped[Case] = relationship(back_populates="payments")
-    job_payment_stage: Mapped[JobPaymentStage] = relationship()
+    job_payment_stage: Mapped[JobPaymentStage | None] = relationship()
     receipt_document: Mapped[Document | None] = relationship()
     recorder: Mapped[User] = relationship()
 

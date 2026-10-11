@@ -195,6 +195,14 @@ class CaseReminderChannel(str, enum.Enum):
     payment = "payment"
 
 
+class MilestonePaymentType(str, enum.Enum):
+    """The Next.js app's three fee milestones (migration 0004)."""
+
+    documentation = "documentation"
+    permit = "permit"
+    visa = "visa"
+
+
 class CasePaymentStatus(str, enum.Enum):
     pending = "pending"
     collected = "collected"
