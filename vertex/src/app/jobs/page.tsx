@@ -79,7 +79,7 @@ export default async function JobsPage({
       {/* Filters */}
       <section className="bg-ivory-50/95 backdrop-blur-md border-b border-midnight-900/10 sticky top-20 z-40">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <form method="post" className="flex flex-col md:flex-row gap-3 items-center">
+          <form method="get" className="flex flex-col md:flex-row gap-3 items-center">
             <input
               name="q"
               defaultValue={params.q || ""}
