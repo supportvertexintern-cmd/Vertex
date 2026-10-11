@@ -137,7 +137,7 @@ Each stack is separate: its own Compose project, networks, database volume and o
 
 ### 7.1 Final drill: PASSED
 
-Report `D:\VertexDataackups\drillsertex-main-20261011T132335Z.md`:
+Report `D:/VertexData/backups/drills/vertex-main-20261011T132335Z.md`:
 
 | Check | Result |
 |---|---|
