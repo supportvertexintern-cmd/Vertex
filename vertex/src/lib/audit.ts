@@ -141,3 +141,17 @@ export function auditFilters(params: URLSearchParams): Record<string, string> {
   });
   return out;
 }
+
+// Security decisions that aren't data changes (e.g. a file the malware
+// scanner refused). Never put file contents or credentials in `detail`.
+export async function auditSecurityEvent(
+  actorId: string | null,
+  entityType: string,
+  entityId: string,
+  action: "malware_rejected" | "malware_blocked_download",
+  detail: Record<string, unknown>,
+): Promise<void> {
+  await prisma.auditLog.create({
+    data: { entity_type: entityType, entity_id: entityId, action, actor_id: actorId, after: detail as object },
+  });
+}

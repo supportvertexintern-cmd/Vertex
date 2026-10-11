@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveDocumentContent, DocumentNotFoundError } from "@/lib/upload";
+import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
 
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -23,8 +24,14 @@ export async function GET(req: NextRequest) {
   let buffer: Buffer;
   let extension: string;
   try {
-    ({ buffer, extension } = await resolveDocumentContent(token));
+    let storagePath: string;
+    ({ buffer, extension, storagePath } = await resolveDocumentContent(token));
+    // The link holder has no session; the token is the grant.
+    await assertDocumentReadable(storagePath, buffer, null);
   } catch (err) {
+    if (err instanceof DocumentBlockedError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     if (err instanceof DocumentNotFoundError) {
       return NextResponse.json({ error: "Document not found." }, { status: 404 });
     }

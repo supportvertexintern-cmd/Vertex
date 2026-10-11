@@ -183,6 +183,8 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('Document', 'verified_at',                               'grant'),   -- business timestamp
   ('Document', 'uploaded_at',                               'grant'),   -- business timestamp
   ('Document', 'label',                                     'exclude'), -- free text/JSON: may hold personal data
+  ('Document', 'scan_status',                               'grant'),   -- status/type value
+  ('Document', 'scanned_at',                                'grant'),   -- business timestamp
   ('DocumentRequirementType', 'id',                         'grant'),   -- reference data
   ('DocumentRequirementType', 'key',                        'exclude'), -- secret-like
   ('DocumentRequirementType', 'label',                      'grant'),   -- reference data

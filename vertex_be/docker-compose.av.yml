@@ -1,0 +1,19 @@
+# One shared malware scanner (ClamAV) for the local stacks: dev, staging
+# and main each send uploads to it before storing them.
+#
+#   docker compose -p vertex-av -f docker-compose.av.yml up -d
+#
+# The stacks reach it through the host (host.docker.internal:3310), not a
+# shared Docker network, so they stay isolated from each other. It listens
+# on 127.0.0.1 only and needs internet access to keep its signatures
+# current (freshclam). Signatures live on D: (CLAMAV_DATA_DIR).
+
+services:
+  clamav:
+    image: clamav/clamav:stable
+    ports:
+      - "127.0.0.1:3310:3310"
+    volumes:
+      - ${CLAMAV_DATA_DIR:-D:/VertexData/clamav}:/var/lib/clamav
+    restart: unless-stopped
+    # The image's own health check waits until signatures are loaded.
