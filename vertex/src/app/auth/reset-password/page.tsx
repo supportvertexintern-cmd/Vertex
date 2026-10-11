@@ -81,7 +81,7 @@ function ResetPasswordForm() {
               <Link href="/auth/forgot-password" className="btn-secondary">Request a New Link</Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form method="post" onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">New Password *</label>
                 <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />

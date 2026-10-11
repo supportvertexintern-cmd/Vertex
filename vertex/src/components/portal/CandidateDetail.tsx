@@ -334,7 +334,7 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
         </div>
 
         {editing ? (
-          <form onSubmit={saveDetails} className="grid sm:grid-cols-2 gap-4">
+          <form method="post" onSubmit={saveDetails} className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs text-midnight-900/50 mb-1">Full name</label>
               <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input-field text-sm w-full" />

@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${appUrl}/api/auth/google/callback`;
 
   if (!clientId) {
-    return NextResponse.json({ error: "Google OAuth not configured" }, { status: 500 });
+    // Not configured here is unavailability, not a server fault (ZAP 90022).
+    return NextResponse.json({ error: "Google sign-in is not available." }, { status: 503 });
   }
 
   // Preserve redirect param so we can use it after Google callback

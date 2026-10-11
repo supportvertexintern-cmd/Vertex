@@ -87,7 +87,7 @@ export default function CandidateProfileForm({ initial, onSaved }: Props) {
   const inputCls = "input-field text-sm";
 
   return (
-    <form onSubmit={submit} className="grid sm:grid-cols-2 gap-4">
+    <form method="post" onSubmit={submit} className="grid sm:grid-cols-2 gap-4">
       <div>
         <label className={labelCls}>Nationality</label>
         <SearchableSelect

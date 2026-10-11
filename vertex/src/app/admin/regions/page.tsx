@@ -177,7 +177,7 @@ export default function RegionsPage() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-8 mb-10">
-        <form onSubmit={handleCreateRegion} className="card p-6">
+        <form method="post" onSubmit={handleCreateRegion} className="card p-6">
           <h2 className="font-semibold text-midnight-900 mb-4">Add a region</h2>
           <div className="flex gap-3">
             <input
@@ -193,7 +193,7 @@ export default function RegionsPage() {
           </div>
         </form>
 
-        <form onSubmit={handleCreateCountry} className="card p-6">
+        <form method="post" onSubmit={handleCreateCountry} className="card p-6">
           <h2 className="font-semibold text-midnight-900 mb-4">Add a country</h2>
           <div className="flex gap-3">
             <SearchableSelect

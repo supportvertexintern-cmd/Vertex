@@ -38,7 +38,8 @@ export default function AIChatWidget() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        // The API takes at most 30 turns; recent context is what matters.
+        body: JSON.stringify({ messages: [...messages, userMessage].slice(-20).map(({ role, content }) => ({ role, content })) }),
       });
 
       const data = await res.json();
@@ -183,7 +184,7 @@ export default function AIChatWidget() {
               </div>
 
               {/* Input Area */}
-              <form id="ai-chat-form" onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-100">
+              <form method="post" id="ai-chat-form" onSubmit={handleSubmit} className="p-3 bg-white border-t border-slate-100">
                 <div className="relative flex items-center bg-slate-100 rounded-xl outline-2 outline-emerald-500 focus-within:outline transition-all">
                   <input
                     className="flex-1 bg-transparent border-none py-3 pl-4 pr-12 text-sm text-slate-800 focus:ring-0 focus:outline-none placeholder-slate-400"

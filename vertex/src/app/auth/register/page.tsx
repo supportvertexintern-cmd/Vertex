@@ -129,7 +129,7 @@ function RegisterForm() {
               <Link href="/auth/login" className="btn-primary">Go to Login</Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form method="post" onSubmit={handleSubmit} className="space-y-4">
               <div className="bg-ivory-100 rounded-lg p-4 space-y-1">
                 <p className="text-xs font-semibold text-midnight-900/45 uppercase tracking-wider mb-2">Your details on file</p>
                 <p className="text-sm text-midnight-900"><span className="text-midnight-900/50">Name:</span> {form.full_name}</p>
