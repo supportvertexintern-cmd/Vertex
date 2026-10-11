@@ -110,9 +110,29 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres -d vertex_next_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
+      # Document storage tests run against this stack's own MinIO image.
+      minio:
+        image: ghcr.io/brookteferi/vertex-minio:dev
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          MINIO_ROOT_USER: ci-root
+          MINIO_ROOT_PASSWORD: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          MINIO_BROWSER: "off"
+        ports: ["9000:9000"]
+
+    # Pull the private MinIO image; nothing else.
+    permissions:
+      contents: read
+      packages: read
 
     env:
       DATABASE_URL: postgresql://postgres@localhost:5432/vertex_next_test
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: vertex-ci
+      S3_ACCESS_KEY_ID: ci-root
+      S3_SECRET_ACCESS_KEY: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - uses: actions/checkout@v4
@@ -129,9 +149,96 @@ jobs:
 
       - run: npx prisma db push --skip-generate && npx prisma db seed
 
-      # upload.test.ts talks to the real Cloudflare R2 bucket; it needs R2
-      # credentials, so it runs locally only.
-      - run: npx vitest run --exclude src/lib/upload.test.ts
+      - name: Create the test bucket
+        run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
+
+      - run: npx vitest run
+
+  e2e:
+    name: End-to-end journeys
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vertex
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: vertex_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vertex_e2e"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      minio:
+        image: ghcr.io/brookteferi/vertex-minio:dev
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          MINIO_ROOT_USER: ci-root
+          MINIO_ROOT_PASSWORD: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          MINIO_BROWSER: "off"
+        ports: ["9000:9000"]
+      # Catches the invite and notification emails the journeys send.
+      mailpit:
+        image: axllent/mailpit
+        ports: ["1025:1025"]
+
+    permissions:
+      contents: read
+      packages: read
+
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/vertex_e2e
+      S3_ENDPOINT: http://localhost:9000
+      S3_BUCKET: vertex-e2e
+      S3_ACCESS_KEY_ID: ci-root
+      S3_SECRET_ACCESS_KEY: minio-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      EMAIL_FROM: e2e@test.local
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+      # The journeys log in many times from one machine (default limit: 10/min).
+      LOGIN_RATE_LIMIT_MAX: "1000"
+      E2E_PORT: "3100"
+      E2E_WEB_SERVER: npx next start -p 3100
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: vertex/package-lock.json
+
+      - run: npm ci
+
+      # A fresh signing key per run, so no secret-looking value lives here.
+      - run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      - run: npx prisma db push --skip-generate && npx prisma db seed
+
+      - name: Create the e2e bucket
+        run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-e2e'
+
+      - run: npx next build
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npx playwright test --reporter=line
+
+      - name: Keep screenshots and traces of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failures
+          path: vertex/test-results
+          retention-days: 14
 
   images:
     name: Image builds (${{ matrix.image }})

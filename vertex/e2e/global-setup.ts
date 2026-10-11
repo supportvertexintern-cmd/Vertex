@@ -25,6 +25,13 @@ export default async function globalSetup() {
   const prisma = new PrismaClient();
   try {
     const password_hash = await bcrypt.hash("E2ETestPassword123!", 12);
+    // Anonymous /apply submissions go into the CRM (HR screening) rather than
+    // by email; self-application.spec.ts tests that routing.
+    await prisma.systemSetting.upsert({
+      where: { key: "intake_mode" },
+      update: { value: "crm" },
+      create: { key: "intake_mode", value: "crm" },
+    });
     await prisma.user.upsert({
       where: { email: "e2e-admin@test.local" },
       update: { role: "admin", password_hash, email_verified: true },
