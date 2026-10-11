@@ -3,14 +3,24 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# No compilers or headers in the image: psycopg2-binary ships its own
+# libpq, and every other dependency is a wheel. (Trivy, Phase 12: the build
+# toolchain carried most of the image's OS vulnerabilities.) Base packages
+# get the distribution's current security fixes.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev \
+    && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Install, then remove the installers: the app never runs pip, and pip's
+# vendored copies (urllib3, msgpack) and setuptools were the image's last
+# fixable findings (Trivy, Phase 12).
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y setuptools wheel \
+    && pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.11/ensurepip
 
 COPY . /app
 

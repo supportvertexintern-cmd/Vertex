@@ -22,7 +22,9 @@ COPY . .
 RUN flutter build web --release
 
 
-FROM nginx:1.27-alpine
+FROM nginx:1.29-alpine
+# Current Alpine security fixes (OpenSSL and others; Trivy, Phase 12).
+RUN apk upgrade --no-cache
 
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /src/build/web /usr/share/nginx/html
