@@ -205,7 +205,7 @@ export default function PartnersPage() {
       {notice && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg p-4 text-sm mb-8">{notice}</div>}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="card p-6 mb-8 grid sm:grid-cols-2 gap-4">
+        <form method="post" onSubmit={handleCreate} className="card p-6 mb-8 grid sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="partner-name" className="block text-xs font-medium text-midnight-900/60 mb-1.5">Agency Name</label>
             <input id="partner-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="e.g. Horizon Travel & Visa Services" />

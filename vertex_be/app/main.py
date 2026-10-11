@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.logging import RequestContextMiddleware, configure_logging
+from app.core.security_headers import SecurityHeadersMiddleware
 
 
 def create_app() -> FastAPI:
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     )
     # Outermost, so every response (CORS rejections included) carries the
     # request ID and gets an access line.
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 

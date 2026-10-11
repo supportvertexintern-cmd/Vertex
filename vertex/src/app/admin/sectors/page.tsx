@@ -211,7 +211,7 @@ export default function SectorsPage() {
       ) : (
         <div className="grid lg:grid-cols-2 gap-8">
           <div>
-            <form onSubmit={handleCreateSector} className="card p-6 mb-6">
+            <form method="post" onSubmit={handleCreateSector} className="card p-6 mb-6">
               <h2 className="font-semibold text-midnight-900 mb-4 flex items-center gap-2">
                 <Briefcase size={18} weight="regular" className="text-gold-600" /> Sectors
               </h2>
@@ -251,7 +251,7 @@ export default function SectorsPage() {
               </div>
             )}
 
-            <form onSubmit={handleCreateDocType} className="card p-6 mb-6">
+            <form method="post" onSubmit={handleCreateDocType} className="card p-6 mb-6">
               <h2 className="font-semibold text-midnight-900 mb-4 flex items-center gap-2">
                 <Files size={18} weight="regular" className="text-gold-600" /> Document Types
               </h2>

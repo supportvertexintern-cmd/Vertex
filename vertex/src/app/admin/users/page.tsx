@@ -362,7 +362,7 @@ export default function StaffUsersPage() {
       )}
 
       {showCreateForm && (
-        <form onSubmit={handleCreateStaff} className="card p-6 mb-6 space-y-4">
+        <form method="post" onSubmit={handleCreateStaff} className="card p-6 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900">New staff member</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             <input
