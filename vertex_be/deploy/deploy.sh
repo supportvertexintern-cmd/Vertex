@@ -124,6 +124,12 @@ fi
 up_and_wait 120 db || fail "database did not become healthy"
 provision_roles || fail "provisioning database roles"
 
+# 1b. Object storage: bucket and the app's own key (idempotent). The data
+#     folder must exist on the host before Docker bind-mounts it.
+mkdir -p "$(env_value MINIO_DATA_DIR)"
+up_and_wait 120 minio || fail "object storage did not become healthy"
+compose exec -T minio sh -s < "$HERE/minio-bootstrap.sh" || fail "provisioning object storage"
+
 # 2. Backend: runs `alembic upgrade head` as vertex_migrator, then serves as
 #    vertex_api. Re-provision afterwards so tables a migration just created
 #    (e.g. AuditLog on a fresh database) get their carve-outs immediately.
@@ -139,3 +145,10 @@ up_and_wait 240 --remove-orphans || fail "not all services became healthy"
 
 echo "Deployed $IMAGE_TAG to $PROJECT — all services healthy"
 docker image prune -f >/dev/null
+# Each deploy leaves ~2 GB of images behind. Remove this environment's older
+# Vertex tags that no container uses; every build stays in GHCR for rollback.
+ENV_PREFIX="${IMAGE_TAG%%-*}"
+in_use="$(docker ps -a --format '{{.Image}}')"
+for ref in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep -E "/vertex-(backend|nextjs|flutter-web|minio):${ENV_PREFIX}-" || true); do
+  printf '%s\n' "$in_use" | grep -qxF "$ref" || docker rmi "$ref" >/dev/null 2>&1 || true
+done

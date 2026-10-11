@@ -3,6 +3,7 @@ import path from "path";
 config({ path: path.resolve(__dirname, "../.env") });
 
 import { PrismaClient } from "@prisma/client";
+import { assertLocalDatabase } from "./global-setup";
 
 // E2E tests exercise the real dev server/database (there's no separate test
 // instance to spin up cheaply) — this sweeps up anything the suite created
@@ -10,6 +11,7 @@ import { PrismaClient } from "@prisma/client";
 // specifically (not all of @test.local) so it never touches manually
 // created dev fixtures that happen to share the .test.local convention.
 export default async function globalTeardown() {
+  assertLocalDatabase();
   const prisma = new PrismaClient();
   try {
     // Candidates lose their recruiter_id (SetNull) rather than being

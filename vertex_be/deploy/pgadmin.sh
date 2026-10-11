@@ -23,10 +23,16 @@ case "$ACTION" in
     compose up -d --no-deps --wait pgadmin
     # Same Compose network bug as in deploy.sh: make sure it can reach the db.
     container="$(compose ps -q pgadmin)"
+    reattached=""
     for net in "${PROJECT}_data" "${PROJECT}_edge"; do
-      docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | grep -q "\"$net\"" \
-        || docker network connect --alias pgadmin "$net" "$container"
+      if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | grep -q "\"$net\""; then
+        docker network connect --alias pgadmin "$net" "$container"
+        reattached=yes
+      fi
     done
+    # A port published while the container was only on the internal network
+    # stays dead (empty reply) until the container restarts with both.
+    [ -z "$reattached" ] || docker restart "$container" >/dev/null
     port="$(grep -E '^PGADMIN_PORT=' "$ENV_FILE" | cut -d= -f2 | tr -d '\r')"
     echo "pgAdmin: http://localhost:${port:-5151}  (stop it with: ... pgadmin.sh $PROJECT down)"
     ;;

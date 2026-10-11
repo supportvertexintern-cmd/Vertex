@@ -40,6 +40,7 @@ jobs:
           - { image: vertex-backend, context: vertex_be }
           - { image: vertex-flutter-web, context: vertex_app }
           - { image: vertex-nextjs, context: vertex }
+          - { image: vertex-minio, context: vertex_be/deploy/minio }
     steps:
       - uses: actions/checkout@v4
 
