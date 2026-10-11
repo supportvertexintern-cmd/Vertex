@@ -9,13 +9,19 @@ const BASE_URL = process.env.E2E_BASE_URL || `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // One worker: the journeys share one app server, and parallel logins
+  // (bcrypt) slowed it enough to time out sign-ins and fail tests at random.
+  workers: 1,
+  // Each test is a whole multi-role journey (forms, uploads, several logins).
+  timeout: 180_000,
   retries: process.env.CI ? 2 : 0,
   reporter: "list",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   use: {
     baseURL: BASE_URL,
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

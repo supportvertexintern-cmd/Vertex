@@ -556,6 +556,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                     <input
                       type="file"
                       accept="application/pdf,image/*"
+                      data-testid={`cif-doc-${doc.key}-input`}
                       onChange={(e) => setDocumentFiles((f) => ({ ...f, [doc.key]: e.target.files?.[0] ?? null }))}
                       className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs"
                     />

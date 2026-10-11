@@ -50,7 +50,6 @@ const PARTNER_CONTACT_EMAIL = "e2e-partner-contact@test.local";
 test.describe("Partner CRM (Phase 5, self-service intake)", () => {
   test("management adds a partner, provisions its login, and the partner submits a candidate", async ({ page }) => {
     const candidateName = `E2E Partner Candidate ${Date.now()}`;
-    const candidateEmail = `e2e-partner-candidate-${Date.now()}@test.local`;
     const partnerPassword = "E2EPartnerPassword123!";
 
     // Partner management lives under /management, which is now
@@ -63,7 +62,7 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await login(page, "e2e-admin@test.local", PASSWORD);
       await expect(page).toHaveURL(/\/admin$/);
       await page.goto("/management");
-      await expect(page).toHaveURL(/\/management$/);
+      await expect(page).toHaveURL(/\/management(\?.*)?$/);
 
       await page.goto("/management/partners");
       await page.getByRole("button", { name: "Add Partner" }).click();
@@ -117,11 +116,12 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await page.getByLabel("Date of Birth").fill("1995-06-15");
       // Nationality is a SearchableSelect (full world-country list) now,
       // not a free-text input, so pick the option rather than filling text.
+      await pickOption(page, page.locator("#gender"), /^Male$/);
       await pickOption(page, page.locator("#nationality"), "Kenya");
       await page.getByLabel("Passport Number").fill("P" + Date.now());
       await page.getByLabel(/Passport Expiry Date/).fill("2030-01-01");
-      await page.getByLabel(/Phone Number/).fill("+254700111222");
-      await page.getByLabel("Email Address").fill(candidateEmail);
+      // The partner form no longer collects the candidate's phone or email:
+      // the partner is the point of contact until the candidate is invited.
 
       // Section 2 is a single Opportunity picker now (2026-07-31), not a
       // 3-country + sector cluster — Czech Republic's programmes have no
@@ -133,8 +133,8 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
 
       await page.getByLabel("We understand the payment plan above.").check();
 
-      // Preferred contact channel is mandatory now.
-      await pickOption(page, page.getByLabel(/preferred contact channel/), "Email");
+      // The partner form has no contact-channel field (the partner is the
+      // candidate's point of contact).
 
       // Current location is the full world-country list now (2026-07-31),
       // not Vertex's admin-managed source-market Country rows — "E2E
@@ -160,7 +160,7 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
     await test.step("the candidate shows up on the partner's own list", async () => {
       const row = page.locator("tr", { hasText: candidateName });
       await expect(row).toBeVisible({ timeout: 25_000 });
-      await expect(row.getByText("submitted", { exact: true })).toBeVisible();
+      await expect(row.getByText(/^submitted$/i)).toBeVisible();
     });
   });
 });

@@ -7,7 +7,10 @@ import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`login:${ip}`, { max: 10 });
+  // 10 attempts a minute per client. LOGIN_RATE_LIMIT_MAX exists only so the
+  // end-to-end suite (many logins from one machine) can raise it; never set
+  // it in a real environment.
+  const rl = rateLimit(`login:${ip}`, { max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10 });
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many login attempts. Please try again later." },
