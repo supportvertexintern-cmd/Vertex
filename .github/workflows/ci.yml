@@ -154,7 +154,18 @@ jobs:
 
       - run: npx tsc --noEmit
 
-      - run: npx prisma db push --skip-generate && npx prisma db seed
+      # The schema comes from the Alembic migrations, exactly as every
+      # deployed stack gets it, never from `prisma db push`: tests must run
+      # against the schema that is deployed (a push here hid a drift
+      # between the two until the 2026-10-11 DAST scan).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: vertex_be/requirements.txt
+      - run: pip install -r requirements.txt && alembic upgrade head
+        working-directory: vertex_be
+      - run: npx prisma db seed
 
       - name: Create the test bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
@@ -228,7 +239,18 @@ jobs:
       # A fresh signing key per run, so no secret-looking value lives here.
       - run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
-      - run: npx prisma db push --skip-generate && npx prisma db seed
+      # The schema comes from the Alembic migrations, exactly as every
+      # deployed stack gets it, never from `prisma db push`: tests must run
+      # against the schema that is deployed (a push here hid a drift
+      # between the two until the 2026-10-11 DAST scan).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: vertex_be/requirements.txt
+      - run: pip install -r requirements.txt && alembic upgrade head
+        working-directory: vertex_be
+      - run: npx prisma db seed
 
       - name: Create the e2e bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-e2e'

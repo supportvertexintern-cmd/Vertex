@@ -109,6 +109,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('Case', 'id',                                            'grant'),   -- identifier/link
   ('Case', 'application_id',                                'grant'),   -- identifier/link
   ('Case', 'current_stage',                                 'exclude'), -- personal data
+  ('Case', 'stage_deadline',                                'exclude'), -- personal data (one person's case timeline)
   ('Case', 'created_at',                                    'grant'),   -- business timestamp
   ('Case', 'updated_at',                                    'grant'),   -- business timestamp
   ('Case', 'ops_review_status',                             'grant'),   -- status/type value
@@ -129,6 +130,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('CasePayment', 'recorded_by',                            'exclude'), -- free text/JSON: may hold personal data
   ('CasePayment', 'recorded_at',                            'grant'),   -- business timestamp
   ('CasePayment', 'status',                                 'grant'),   -- status/type value
+  ('CasePayment', 'type',                                   'grant'),   -- status/type value
   ('CasePayment', 'stripe_payment_link_id',                 'grant'),   -- identifier/link
   ('CasePayment', 'stripe_payment_link_url',                'exclude'), -- free text/JSON: may hold personal data
   ('CasePayment', 'stripe_checkout_session_id',             'exclude'), -- secret-like
@@ -286,6 +288,14 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('JobPaymentStage', 'synced_amount_gbp',                  'grant'),   -- reference data
   ('JobPaymentStage', 'created_at',                         'grant'),   -- reference data
   ('JobPaymentStage', 'updated_at',                         'grant'),   -- reference data
+  ('JobMilestonePrice', 'id',                                     'grant'),   -- reference data
+  ('JobMilestonePrice', 'job_id',                                 'grant'),   -- reference data
+  ('JobMilestonePrice', 'type',                                   'grant'),   -- reference data
+  ('JobMilestonePrice', 'amount_gbp',                             'grant'),   -- reference data
+  ('JobMilestonePrice', 'stripe_product_id',                      'grant'),   -- reference data
+  ('JobMilestonePrice', 'stripe_price_id',                        'grant'),   -- reference data
+  ('JobMilestonePrice', 'created_at',                             'grant'),   -- reference data
+  ('JobMilestonePrice', 'updated_at',                             'grant'),   -- reference data
   ('JobPosition', 'id',                                     'grant'),   -- reference data
   ('JobPosition', 'job_sector_id',                          'grant'),   -- reference data
   ('JobPosition', 'title',                                  'grant'),   -- reference data
