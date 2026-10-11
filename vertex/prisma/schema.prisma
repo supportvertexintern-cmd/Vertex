@@ -1277,6 +1277,7 @@ model Partner {
 }
 
 enum PartnerCandidateStatus {
+  draft // started on the partner portal, not yet submitted (fields may be empty)
   submitted
   under_review
   job_assigned
@@ -1296,13 +1297,13 @@ model PartnerCandidate {
   status     PartnerCandidateStatus @default(submitted)
 
   // Section 3 — Candidate Personal Information
-  full_name          String
-  date_of_birth      DateTime
-  nationality        String
+  full_name          String?
+  date_of_birth      DateTime?
+  nationality        String?
   second_nationality String?
   gender             Gender?
-  passport_number    String
-  passport_expiry    DateTime
+  passport_number    String?
+  passport_expiry    DateTime?
   current_occupation String?
   highest_education  String?
   home_address       String?  @db.Text
@@ -1323,9 +1324,9 @@ model PartnerCandidate {
   // employer relationship directly), so this is one required Job pick —
   // not the 3-country-alternates + sector pattern the internal Candidate
   // Information Form uses for a candidate exploring options in general.
-  job_id                        String
-  job                           Job      @relation(fields: [job_id], references: [id], onDelete: Restrict)
-  earliest_travel_date          DateTime
+  job_id                        String?
+  job                           Job?      @relation(fields: [job_id], references: [id], onDelete: Restrict)
+  earliest_travel_date          DateTime?
   // Yes/No + an optional free-text detail (2026-08-06), matching
   // Application's identical field — was String? @db.Text. Converted after
   // /api/partner/candidates's bridge into a real Application row started
@@ -1344,7 +1345,7 @@ model PartnerCandidate {
   // always set (free choice from the full world-country list, matching
   // Application's own pattern) — the FK only resolves when that name
   // happens to match one of Vertex's admin-managed Country rows.
-  current_location_country_name     String
+  current_location_country_name     String?
   current_location_country_id       String?
   current_location_country          Country?        @relation("PartnerCurrentLocation", fields: [current_location_country_id], references: [id], onDelete: SetNull)
   holds_schengen_visa               Boolean?

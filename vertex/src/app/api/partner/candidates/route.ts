@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (!partner) return NextResponse.json({ error: { code: "not_found", message: "Partner record not found." } }, { status: 404 });
 
   const candidates = await prisma.partnerCandidate.findMany({
-    where: { partner_id: partner.id },
+    where: { partner_id: partner.id, status: { not: "draft" } },
     include: {
       job: { select: { title: true, country: true, city: true } },
     },

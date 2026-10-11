@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
 
   const candidate = await prisma.partnerCandidate.findUnique({
-    where: { id },
+    where: { id, status: { not: "draft" } },
     include: {
       job: { select: { title: true, country: true, city: true } },
       current_location_country: { select: { name: true } },
@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
 
-  const existing = await prisma.partnerCandidate.findUnique({ where: { id } });
+  const existing = await prisma.partnerCandidate.findUnique({ where: { id, status: { not: "draft" } } });
   if (!existing || existing.partner_id !== partner.id) {
     return NextResponse.json({ error: { code: "not_found", message: "Submission not found." } }, { status: 404 });
   }
