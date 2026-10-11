@@ -61,3 +61,13 @@ describe("controlled errors (ZAP 90022)", () => {
     }
   });
 });
+
+describe("unknown records are 404, not 500 (ZAP retest, Phase 12)", () => {
+  it("isNotFound recognises Prisma's P2025 only", async () => {
+    const { isNotFound } = await import("@/lib/prisma");
+    expect(isNotFound({ code: "P2025" })).toBe(true);
+    expect(isNotFound({ code: "P2002" })).toBe(false);
+    expect(isNotFound(new Error("x"))).toBe(false);
+    expect(isNotFound(null)).toBe(false);
+  });
+});

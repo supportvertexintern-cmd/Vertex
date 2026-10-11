@@ -82,6 +82,23 @@ Case lists, case details, payments and job edits failed on **every** stack, vert
 
 ## 5. Retest
 
-After the fixes are deployed to staging, the same scan is run again. Expected: no CSP, X-Powered-By, `nosniff` or error-disclosure alerts, and both canaries pass.
+Run `vertex-staging-20261012-012610` against release candidate `1d950e8`. Both canaries passed: authenticated 200, unauthenticated 401.
 
-Results: *(added after the staging deploy)*
+| Before | After |
+|---|---|
+| CSP not set | **fixed** (header present on every response) |
+| X-Powered-By | **fixed** |
+| Backend `nosniff` missing | **fixed** |
+| 14 server errors (500) | 11 **fixed** (all schema-drift and configuration ones). 3 remained: `PUT`/`DELETE /api/jobs/<unknown id>` and `PUT /api/candidates/profile` for an account with no profile threw Prisma `P2025`. **Fixed** to return 404 (`isNotFound` in `lib/prisma.ts`) |
+| Email in URL (`/contact`) | **fixed** |
+
+New alerts that appear *because* a CSP now exists are assessed in the release checklist:
+
+| Alert | Verdict |
+|---|---|
+| CSP `script-src`/`style-src 'unsafe-inline'` (10055) | **Accepted for now.** Next.js inlines its bootstrap; per-request nonces are the next step (they make every page dynamic) |
+| CSP wildcard (10055) | `img-src https:` (images from any HTTPS host). **Accepted:** images can't run code; the rest of the policy is strict |
+| Sub-resource integrity missing (90003) | Google Translate and Calendly scripts. **Accepted:** third-party scripts that change can't be pinned with SRI; both origins are explicitly allowed in the CSP |
+| Absence of anti-CSRF tokens (10202) | **Mitigated:** the session cookie is `SameSite=Strict` and every state-changing API takes JSON, so a cross-site form can't act as the user |
+
+No injection, XSS, path traversal, access-control or session findings.
