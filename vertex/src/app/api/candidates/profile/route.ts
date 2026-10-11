@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { isNotFound, prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { candidateProfileSchema } from "@/lib/validations";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
@@ -45,10 +45,17 @@ export async function PUT(req: NextRequest) {
     data.passport_expiry = new Date(parsed.data.passport_expiry);
   }
 
-  const profile = await auditedPrisma(user!.userId).candidate.update({
-    where: { user_id: user!.userId },
-    data,
-  });
+  let profile;
+  try {
+    profile = await auditedPrisma(user!.userId).candidate.update({
+      where: { user_id: user!.userId },
+      data,
+    });
+  } catch (err) {
+    // Signed in, but no candidate profile linked to this account.
+    if (isNotFound(err)) return NextResponse.json({ error: "No candidate profile for this account." }, { status: 404 });
+    throw err;
+  }
 
   return NextResponse.json(profile);
 }
