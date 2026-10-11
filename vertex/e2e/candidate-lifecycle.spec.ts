@@ -60,6 +60,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       // (if any)" — target the input by id instead. Nationality is a
       // SearchableSelect (full world-country list) now, not a free-text
       // input, so pick the option rather than filling text.
+      await pickOption(page, page.locator("#gender"), /^Male$/);
       await pickOption(page, page.locator("#nationality"), "Kenya");
       await page.getByLabel("Passport Number").fill("P" + Date.now());
       await page.getByLabel(/Passport Expiry Date/).fill("2030-01-01");
@@ -86,18 +87,24 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByLabel("I understand the payment plan above.").check();
       // Preferred contact channel is mandatory now.
       await pickOption(page, page.getByLabel(/Preferred contact channel/), "Email");
+      // Passport and passport-size photo must be attached in the form itself
+      // before Submit unlocks (ApplicationForm REQUIRED_UPLOAD_TYPES).
+      for (const [label, key] of [["Passport Copy — first page", "passport"], ["Passport-Size Photos", "passport_photo"]] as const) {
+        await page.getByLabel(label).check();
+        await page.getByTestId(`cif-doc-${key}-input`).setInputFiles({ name: `${key}.pdf`, mimeType: "application/pdf", buffer: PDF_BUFFER });
+      }
       await page.getByLabel("I confirm the above.").check();
       await page.getByRole("button", { name: "Submit Application" }).click();
 
       await expect(page.getByText(candidateName)).toBeVisible({ timeout: 25_000 });
-      await expect(page.getByText("identified", { exact: true })).toBeVisible();
+      await expect(page.getByText(/^identified$/i).first()).toBeVisible();
     });
 
     await test.step("recruiter advances to screened; the gate passes since the CIF was complete", async () => {
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/recruiter\/candidates\/.+/);
       await page.getByRole("button", { name: /Advance to Screened/ }).click();
-      await expect(page.getByText("screened", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/^screened$/i).first()).toBeVisible({ timeout: 25_000 });
 
       // guided_to_apply is system-only now — fired when the candidate
       // claims their invite, not a manual recruiter action.
@@ -141,11 +148,11 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await login(page, "e2e-recruiter@test.local", PASSWORD);
       await expect(page).toHaveURL(/\/recruiter$/);
 
-      await expect(page.getByText("submitted", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/^submitted$/i).first()).toBeVisible({ timeout: 25_000 });
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/recruiter\/candidates\/.+/);
       await page.getByRole("button", { name: /Advance to Reported/ }).click();
-      await expect(page.getByText("reported", { exact: true })).toBeVisible();
+      await expect(page.getByText(/^reported$/i).first()).toBeVisible();
       await expect(page.getByText("Awaiting supervisor action")).toBeVisible();
     });
 
@@ -164,7 +171,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByPlaceholder("Reason for return (required)…").fill("Please double-check the passport number.");
       await page.getByRole("button", { name: "Confirm Return" }).click();
 
-      await expect(page.getByText("submitted", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/^submitted$/i).first()).toBeVisible({ timeout: 25_000 });
       await expect(page.getByText(/Please double-check the passport number/)).toBeVisible();
     });
 
@@ -175,7 +182,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/recruiter\/candidates\/.+/);
       await page.getByRole("button", { name: /Advance to Reported/ }).click();
-      await expect(page.getByText("reported", { exact: true })).toBeVisible();
+      await expect(page.getByText(/^reported$/i).first()).toBeVisible();
 
       await logout(page);
       await login(page, "e2e-supervisor@test.local", PASSWORD);
@@ -191,7 +198,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       // document, which an unscoped locator would collide with.
       const lifecycleStatusCard = page.locator(".card", { hasText: "Lifecycle status" });
       await lifecycleStatusCard.getByRole("button", { name: "Verify", exact: true }).click();
-      await expect(page.getByText("verified", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/^verified$/i).first()).toBeVisible({ timeout: 25_000 });
 
       // Country Supervisor's ceiling is "Verified" — "Approved" is a
       // distinct, higher tier (Regional Supervisory Operational Workflow
@@ -213,8 +220,8 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/inhouse\/candidates\/.+/);
 
-      await page.getByRole("button", { name: "Approve", exact: true }).click();
-      await expect(page.getByText("approved", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await page.getByRole("button", { name: "Create Case", exact: true }).click();
+      await expect(page.getByText("Case Created", { exact: true }).first()).toBeVisible({ timeout: 25_000 });
     });
   });
 });
