@@ -62,11 +62,6 @@ function getStorageClient(): S3Client {
 
 const storageBucket = () => resolveStorageConfig().bucket;
 
-function contentTypeForPath(storagePath: string): string {
-  const ext = (storagePath.split(".").pop() || "").toLowerCase();
-  return CONTENT_TYPES[ext] || "application/octet-stream";
-}
-
 export class DocumentNotFoundError extends Error {}
 
 /**
@@ -79,6 +74,12 @@ export async function saveUploadedFile(
   file: File,
   type: string
 ): Promise<string> {
+  // The storage folder is a document-type key; never let a caller's input
+  // shape the object path.
+  if (!/^[a-z0-9_]{1,64}$/.test(type)) {
+    throw new Error("Invalid document type.");
+  }
+
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     throw new Error("Invalid file type. Only PDF, JPEG, and PNG are allowed.");
   }
@@ -87,22 +88,48 @@ export async function saveUploadedFile(
     throw new Error(`File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB.`);
   }
 
-  const ext = file.name.split(".").pop() || "bin";
-  const uniqueName = `${uuidv4()}.${ext}`;
-  const storagePath = `${type}/${uniqueName}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB.`);
+  }
+
+  // The browser's declared type is only a claim: the bytes decide. The
+  // extension comes from the detected type, never the user's filename.
+  const detected = detectFileType(buffer);
+  if (!detected || !sameFileFamily(detected.mime, file.type)) {
+    throw new Error("File content does not match an allowed type (PDF, JPEG, PNG).");
+  }
+
+  const storagePath = `${type}/${uuidv4()}.${detected.ext}`;
 
   const r2 = getStorageClient();
-  const buffer = Buffer.from(await file.arrayBuffer());
   await r2.send(
     new PutObjectCommand({
       Bucket: storageBucket(),
       Key: storagePath,
       Body: buffer,
-      ContentType: contentTypeForPath(storagePath),
+      ContentType: detected.mime,
     })
   );
 
   return storagePath;
+}
+
+/**
+ * Identifies an allowed document type from its first bytes (magic numbers),
+ * independent of the filename or the browser's declared MIME type.
+ */
+export function detectFileType(bytes: Uint8Array): { mime: string; ext: string } | null {
+  const starts = (sig: number[]) => bytes.length >= sig.length && sig.every((b, i) => bytes[i] === b);
+  if (starts([0x25, 0x50, 0x44, 0x46, 0x2d])) return { mime: "application/pdf", ext: "pdf" }; // %PDF-
+  if (starts([0xff, 0xd8, 0xff])) return { mime: "image/jpeg", ext: "jpg" };
+  if (starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { mime: "image/png", ext: "png" };
+  return null;
+}
+
+function sameFileFamily(detected: string, declared: string): boolean {
+  const normalise = (m: string) => (m === "image/jpg" ? "image/jpeg" : m);
+  return normalise(detected) === normalise(declared);
 }
 
 /**
