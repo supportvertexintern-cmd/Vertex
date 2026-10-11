@@ -189,7 +189,7 @@ describe("alerts (item 6)", () => {
     expect(state.sent.filter((m) => m.subject.includes("failed sign-ins for one account"))).toHaveLength(1);
     expect(state.sent[0].to).toEqual(["security@test.invalid"]);
     expect(lines.some((l) => l.level === "alert" && l.event === "alert.raised" && l.rule === "brute_force_account")).toBe(true);
-  });
+  }, 30_000); // 12 real bcrypt sign-ins
 
   it("authorization probing by one user", async () => {
     const prober = `${tag}-prober`;
