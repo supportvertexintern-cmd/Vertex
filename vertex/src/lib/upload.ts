@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { signDocumentToken, verifyDocumentToken } from "./jwt";
+import { scanBuffer } from "./malware-scan";
 
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
@@ -70,10 +71,21 @@ export class DocumentNotFoundError extends Error {}
  * getSignedDocumentUrl to view it; the object itself is only ever read back
  * through the app's own token-gated proxy route, never a direct R2 URL).
  */
-export async function saveUploadedFile(
-  file: File,
-  type: string
-): Promise<string> {
+export class MalwareDetectedError extends Error {
+  constructor(readonly signature: string) {
+    super("This file was rejected by the malware scanner.");
+  }
+}
+
+export interface SavedDocument {
+  storagePath: string;
+  // "unscanned" when the scanner couldn't be reached (fail-open policy);
+  // such files are scanned when next opened (lib/document-access.ts).
+  scanStatus: "clean" | "unscanned";
+  scannedAt: Date | null;
+}
+
+export async function saveUploadedDocument(file: File, type: string): Promise<SavedDocument> {
   // The storage folder is a document-type key; never let a caller's input
   // shape the object path.
   if (!/^[a-z0-9_]{1,64}$/.test(type)) {
@@ -91,6 +103,12 @@ export async function saveUploadedFile(
   const buffer = Buffer.from(await file.arrayBuffer());
   if (buffer.length > MAX_FILE_SIZE) {
     throw new Error(`File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB.`);
+  }
+
+  // Scan everything that arrives, before any other judgement about it.
+  const scan = await scanBuffer(buffer);
+  if (scan.status === "infected") {
+    throw new MalwareDetectedError(scan.signature);
   }
 
   // The browser's declared type is only a claim: the bytes decide. The
@@ -112,7 +130,13 @@ export async function saveUploadedFile(
     })
   );
 
-  return storagePath;
+  const clean = scan.status === "clean";
+  return { storagePath, scanStatus: clean ? "clean" : "unscanned", scannedAt: clean ? new Date() : null };
+}
+
+/** Stores a document and returns only its storage key. */
+export async function saveUploadedFile(file: File, type: string): Promise<string> {
+  return (await saveUploadedDocument(file, type)).storagePath;
 }
 
 /**
@@ -176,9 +200,9 @@ export async function getStorageContent(storagePath: string): Promise<ResolvedDo
  * from R2. Throws if the token is invalid/expired or the object doesn't
  * exist.
  */
-export async function resolveDocumentContent(token: string): Promise<ResolvedDocument> {
+export async function resolveDocumentContent(token: string): Promise<ResolvedDocument & { storagePath: string }> {
   const { storagePath } = verifyDocumentToken(token);
-  return getStorageContent(storagePath);
+  return { ...(await getStorageContent(storagePath)), storagePath };
 }
 
 export async function deleteUploadedFile(storagePath: string): Promise<void> {

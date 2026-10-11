@@ -342,6 +342,11 @@ model Document {
   // (every other type still supersedes on re-upload) since a generic
   // "Other Document" label can't otherwise tell two of them apart.
   label               String?
+  // Malware scan (ClamAV, Phase 9): "clean", "unscanned" (scanner was
+  // unreachable at upload; scanned when next opened) or "infected".
+  // Column added by Alembic migration 0002.
+  scan_status         String                  @default("unscanned")
+  scanned_at          DateTime?
 
   candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
 
