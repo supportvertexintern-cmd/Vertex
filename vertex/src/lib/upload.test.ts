@@ -1,4 +1,9 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
+// Document links are signed tokens; give the tests their own throwaway key.
+vi.hoisted(() => {
+  process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-upload";
+});
+
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import {
   saveUploadedFile,
@@ -33,7 +38,8 @@ afterEach(async () => {
   );
 });
 
-function makeFile(name: string, content = "test file bytes"): File {
+// Real PDF magic bytes: uploads are checked by content, not just by type.
+function makeFile(name: string, content = "%PDF-1.4\ntest file bytes\n%%EOF"): File {
   return new File([content], name, { type: "application/pdf" });
 }
 
@@ -56,7 +62,7 @@ describe("saveUploadedFile / getSignedDocumentUrl / resolveDocumentContent", () 
     const token = new URL(url, "http://localhost").searchParams.get("token")!;
 
     const { buffer, extension } = await resolveDocumentContent(token);
-    expect(buffer.toString("utf-8")).toBe("test file bytes");
+    expect(buffer.toString("utf-8")).toBe("%PDF-1.4\ntest file bytes\n%%EOF");
     expect(extension).toBe("pdf");
   });
 
