@@ -20,7 +20,7 @@ data.
 | 6 | **Scope enforcement** | Data boundaries: region, country, assignment, partner | Lists: `scopeCandidatesToRequester`, `scopeCasesToRequester` in the query's `where`. Single records: stage 5 helpers apply the same rules | ✅ candidates/cases; ❓ partners, partner candidates, applications for reviewers (Q1–Q3) |
 | 7 | **Contextual controls** | MFA, step-up, rate limits, risk | Per-IP rate limits (`limitByIp`) on public and auth routes. **No MFA or step-up** for any role | ⚠️ rate limits in memory (G5, G14); ❌ MFA (G24) |
 | 8 | **Execution** | The operation itself | Handler body; writes through `auditedPrisma(actor)` | ✅ |
-| 9 | **Security audit** | Record the decision and outcome | `auditedPrisma` (data changes), `auditAccess` (exports). Never credentials; filter values allowlisted (`auditFilters`) | ⚠️ denials (G7), sign-ins (G20), document views (G21), some writes (G22) not recorded |
+| 9 | **Security audit** | Record the decision and outcome | `auditedPrisma` (data changes), `auditAccess` (exports), `recordSecurityEvent` (sign-ins, denials via `requireRole`/`forbidden()`, document views; Phase 10). Never credentials (`lib/redact.ts`); filter values allowlisted (`auditFilters`) | ✅ G7, G20, G21 (Phase 10); ⚠️ some writes (G22) not recorded |
 
 ## 2. Rules
 

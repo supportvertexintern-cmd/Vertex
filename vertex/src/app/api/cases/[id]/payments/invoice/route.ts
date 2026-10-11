@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { sendCaseInvoiceSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 import { sendCasePaymentInvoiceEmail } from "@/lib/email";
@@ -10,6 +10,7 @@ import { getStorageContent } from "@/lib/upload";
 import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
 import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 
+import { log } from "@/lib/log";
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
   jpg: "image/jpeg",
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     country_id: candidate.country_id,
     partner_id: candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   // Same admin-configured FeePolicy gate as the Record form and Payment
   // Link routes — this is still recording/collecting a milestone payment,
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (err instanceof DocumentBlockedError) {
       return NextResponse.json({ error: { code: "invoice_blocked", message: err.message } }, { status: 422 });
     }
-    console.error(`Failed to read invoice file for case ${id}.`, err);
+    log.error("api.failed_to_read_invoice_file_for_case", { message: `Failed to read invoice file for case ${id}.`, err });
     return NextResponse.json({ error: { code: "invoice_file_missing", message: "Could not read the uploaded invoice file." } }, { status: 502 });
   }
 
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     );
   } catch (err) {
-    console.error(`Failed to send invoice email for case ${id}.`, err);
+    log.error("api.failed_to_send_invoice_email_for_case", { message: `Failed to send invoice email for case ${id}.`, err });
     return NextResponse.json(
       { error: { code: "invoice_email_failed", message: err instanceof Error ? err.message : "Failed to send invoice email." } },
       { status: 502 }

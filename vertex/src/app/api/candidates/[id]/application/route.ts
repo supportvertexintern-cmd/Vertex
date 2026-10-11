@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { updateApplicationDetailsSchema } from "@/lib/validations";
 
@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!candidate) return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
 
   const allowed = await canAccessCandidate(user!, candidate);
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   let body: unknown;
   try {

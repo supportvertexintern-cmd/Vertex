@@ -67,7 +67,7 @@ Next.js and FastAPI share is the database, each through its own role.
 | Authorization | Per handler: `requireRole`/`requireAdmin` (role from the token), then record checks (`canAccessCandidate`, `canAccessCase`, scope filters). Default deny enforced by `route-guards.test.ts` |
 | Secrets | `JWT_SECRET` (per-purpose keys derived from it) |
 | Network exposure | `127.0.0.1:3001` (dev), `:3002` (staging); not the LAN (G15). Vercel: public internet |
-| Audit | Data writes through `auditedPrisma` (who, what, before/after); bulk exports via `auditAccess` (G16). **Not audited: logins, failed logins, logouts, denials (G7, G20), document views (G21)** |
+| Audit | Data writes through `auditedPrisma` (who, what, before/after); bulk exports via `auditAccess` (G16). Since Phase 10: sign-ins, failures, logouts, resets, denials and document views too, each with the request's `X-Request-ID` ([audit-logging-monitoring.md](audit-logging-monitoring.md)) |
 | Failure behavior | Missing/invalid/expired/wrong-purpose token → `null` user → 401/403 or redirect: fails closed. Missing `JWT_SECRET` → every verify fails (closed). Rate limits are per process and reset on restart (G5); keyed on `X-Forwarded-For` (G14) |
 | Known limits | Role comes from the token; demotion, deletion and password change take effect only at expiry (G19) |
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
 
 const CAMPAIGN_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
@@ -20,7 +20,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (user!.role === "inhouse_supervisor") {
     const countryIds = await getInhouseAssignedCountryIds(user!.userId);
     if (!target.country_id || !countryIds.includes(target.country_id)) {
-      return NextResponse.json({ error: { code: "forbidden", message: "You can only remove targets for one of your own assigned countries." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "You can only remove targets for one of your own assigned countries." } });
     }
   }
 

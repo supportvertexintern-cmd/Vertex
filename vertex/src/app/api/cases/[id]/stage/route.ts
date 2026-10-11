@@ -2,11 +2,12 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { advanceCaseStageSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { canSetCaseStage, type CaseStage } from "@/server/services/caseLifecycle";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 
+import { log } from "@/lib/log";
 // PATCH /api/cases/:id/stage — advance or return a case's stage (SRS FR-4.2).
 // Operations-owned (2026-07-31, per the Operational Workflow SOP), Director/
 // Admin retain override — the other staff tiers keep read-only visibility
@@ -46,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   // A rejected case (2026-08-16) is closed — nothing moves it further.
   if (caseRecord.status === "rejected") {
@@ -123,7 +124,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const { sendCaseStageUpdateEmail, sendPartnerCaseStageUpdateEmail } = await import("@/lib/email");
       if (candidate.user) {
         await sendCaseStageUpdateEmail(candidate.user.email, candidate.user.full_name, programmeTitle, stage).catch((err) =>
-          console.error("Failed to send case stage update email.", err)
+          log.error("api.failed_to_send_case_stage_update_email", { err })
         );
       }
       if (candidate.partner) {
@@ -133,7 +134,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           candidate.full_name ?? candidate.user?.full_name ?? "Candidate",
           programmeTitle,
           stage
-        ).catch((err) => console.error("Failed to send partner case stage update email.", err));
+        ).catch((err) => log.error("api.failed_to_send_partner_case_stage_update", { err }));
       }
     });
   }

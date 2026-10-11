@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { stripe } from "@/lib/stripe";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 
+import { log } from "@/lib/log";
 // POST /api/cases/:id/payments/:paymentId/check-status — manual
 // reconciliation for when the Stripe webhook never fires (or fails,
 // or is late) but a candidate/partner reports they've already paid.
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const allowed = await canAccessCase(user!, payment.case.application.candidate);
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   // Only the payment fields matter to the caller from here on — drop the
   // nested case/application/candidate relation that was only needed for
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     sessions = await stripe.checkout.sessions.list({ payment_link: bareLoadedPayment.stripe_payment_link_id, limit: 10 });
   } catch (err) {
-    console.error(`Failed to check Stripe status for payment ${paymentId}.`, err);
+    log.error("api.failed_to_check_stripe_status_for_payment", { message: `Failed to check Stripe status for payment ${paymentId}.`, err });
     return NextResponse.json(
       { error: { code: "stripe_check_failed", message: err instanceof Error ? err.message : "Failed to check Stripe." } },
       { status: 502 }

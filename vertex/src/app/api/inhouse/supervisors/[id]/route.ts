@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { computeAgentSignups, computeConversionRates } from "@/server/services/kpi";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
 
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (user!.role !== "admin") {
     const countryIds = await getInhouseAssignedCountryIds(user!.userId);
     if (!supervisor.assigned_country || !countryIds.includes(supervisor.assigned_country.id)) {
-      return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
     }
   }
 

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 import { sendCandidateMessageNotificationEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // One continuous thread per candidate (2026-07-13, confirmed with the
 // business) — not split per-Application or per-Case, so it carries
 // through whether the candidate is still applying or already has a case
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
   }
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   const messages = await prisma.candidateMessage.findMany({
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
   }
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   let body: unknown;
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // silently killing an un-awaited async send before it actually
     // completes (invisible on a long-running local dev server, where the
     // process just keeps running regardless).
-    await sendCandidateMessageNotificationEmail(recipient.email, recipient.full_name, viewUrl).catch(console.error);
+    await sendCandidateMessageNotificationEmail(recipient.email, recipient.full_name, viewUrl).catch((err) => log.error("email.send_failed", { err }));
   }
 
   return NextResponse.json({ data: message }, { status: 201 });

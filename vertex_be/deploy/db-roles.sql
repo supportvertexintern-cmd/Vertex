@@ -135,6 +135,9 @@ DO $$
 BEGIN
   IF to_regclass('public."AuditLog"') IS NOT NULL THEN
     REVOKE UPDATE, DELETE, TRUNCATE ON "AuditLog" FROM vertex_api, vertex_web;
+    -- Phase 10: reading the trail is limited to the service that shows it
+    -- (Next.js: case history, security monitor). FastAPI may append, not read.
+    REVOKE SELECT ON "AuditLog" FROM vertex_api;
   END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api, vertex_web;

@@ -3,9 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.logging import RequestContextMiddleware, configure_logging
 
 
 def create_app() -> FastAPI:
+    configure_logging(settings.APP_ENV)
     # Schema is managed by Alembic (`alembic upgrade head`), never create_all.
     app = FastAPI(
         title=settings.PROJECT_NAME,
@@ -21,7 +23,11 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+    # Outermost, so every response (CORS rejections included) carries the
+    # request ID and gets an access line.
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
     @app.get("/", include_in_schema=False)

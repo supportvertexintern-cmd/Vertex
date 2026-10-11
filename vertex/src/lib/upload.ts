@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { signDocumentToken, verifyDocumentToken } from "./jwt";
-import { scanBuffer } from "./malware-scan";
+import { scanBuffer, scannerConfigured } from "./malware-scan";
+import { onScannerUnavailable } from "./security-monitor";
 
+import { log } from "./log";
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -110,6 +112,7 @@ export async function saveUploadedDocument(file: File, type: string): Promise<Sa
   if (scan.status === "infected") {
     throw new MalwareDetectedError(scan.signature);
   }
+  if (scan.status === "unavailable" && scannerConfigured()) onScannerUnavailable(scan.reason);
 
   // The browser's declared type is only a claim: the bytes decide. The
   // extension comes from the detected type, never the user's filename.
@@ -210,6 +213,6 @@ export async function deleteUploadedFile(storagePath: string): Promise<void> {
   try {
     await r2.send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: storagePath }));
   } catch (err) {
-    console.error("R2 delete failed for", storagePath, err);
+    log.error("storage.delete_failed", { storage_path: storagePath, err });
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { raiseExceptionSchema } from "@/lib/validations";
 import { canAccessCandidate, getInhouseAssignedCountryIds } from "@/server/scope";
 import type { EscalationLevel, Prisma, Role } from "@prisma/client";
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
       select: { user_id: true, recruiter_id: true, country_id: true },
     });
     if (!candidate || !(await canAccessCandidate(user!, candidate))) {
-      return NextResponse.json({ error: { code: "forbidden", message: "You don't have access to that candidate." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "You don't have access to that candidate." } });
     }
     exceptionCountryId = candidate.country_id;
   } else if (user!.role === "inhouse_supervisor") {

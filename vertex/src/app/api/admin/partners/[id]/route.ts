@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { updatePartnerSchema } from "@/lib/validations";
 import { sendAccountSetupInviteEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
 // GET /api/admin/partners/:id — detail, including candidates it has sourced.
@@ -105,7 +106,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: existing.user_id },
       data: { email: parsed.data.contact_email, password_hash: null },
     });
-    await sendAccountSetupInviteEmail(linkedUser.id, linkedUser.email, linkedUser.full_name).catch(console.error);
+    await sendAccountSetupInviteEmail(linkedUser.id, linkedUser.email, linkedUser.full_name).catch((err) => log.error("email.send_failed", { err }));
   }
 
   return NextResponse.json({ data: partner });

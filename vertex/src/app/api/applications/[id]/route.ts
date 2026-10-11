@@ -2,8 +2,9 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { updateApplicationStatusSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 
+import { log } from "@/lib/log";
 // "Approved by In-House" is the framework's controlling position for this
 // decision (Regional Supervisory Operational Workflow p.5) — admin
 // retains override access, not primary ownership.
@@ -62,7 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           status
         );
       } catch (err) {
-        console.error("Failed to send status update email.", err);
+        log.error("api.failed_to_send_status_update_email", { err });
       }
     });
   }
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const isReviewer = (APPLICATION_REVIEWER_ROLES as readonly string[]).includes(user.role);
   if (!isReviewer && application.candidate.user_id !== user.userId) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return forbidden({ error: "Forbidden." });
   }
 
   return NextResponse.json(application);
