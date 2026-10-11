@@ -7,6 +7,7 @@ import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 import { sendCasePaymentInvoiceEmail } from "@/lib/email";
 import { getStorageContent } from "@/lib/upload";
+import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
 import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -115,7 +116,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let fileContent: Awaited<ReturnType<typeof getStorageContent>>;
   try {
     fileContent = await getStorageContent(invoiceDocument.storage_path);
+    // Never email a file that fails the malware scan.
+    await assertDocumentReadable(invoiceDocument.storage_path, fileContent.buffer, user!.userId);
   } catch (err) {
+    if (err instanceof DocumentBlockedError) {
+      return NextResponse.json({ error: { code: "invoice_blocked", message: err.message } }, { status: 422 });
+    }
     console.error(`Failed to read invoice file for case ${id}.`, err);
     return NextResponse.json({ error: { code: "invoice_file_missing", message: "Could not read the uploaded invoice file." } }, { status: 502 });
   }

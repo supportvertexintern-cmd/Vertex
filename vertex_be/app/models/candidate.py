@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, Text, text
+from sqlalchemy import CheckConstraint, Index, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -115,6 +115,9 @@ class Document(Base):
     PartnerCandidate and reparented once it's finalized."""
 
     __tablename__ = "Document"
+    __table_args__ = (
+        CheckConstraint("scan_status IN ('clean', 'unscanned', 'infected')", name="Document_scan_status_check"),
+    )
 
     id: Mapped[str] = pk()
     candidate_id: Mapped[str | None] = mapped_column(fk("Candidate.id", "CASCADE"), index=True)
@@ -131,6 +134,10 @@ class Document(Base):
     uploaded_at: Mapped[datetime] = created_at_col()
     # Free-text name for type "other", the one type that may repeat per candidate.
     label: Mapped[str | None]
+    # Malware scan (ClamAV): "unscanned" if the scanner was unreachable at
+    # upload; such files are scanned when next opened (migration 0002).
+    scan_status: Mapped[str] = mapped_column(default="unscanned", server_default="unscanned")
+    scanned_at: Mapped[datetime | None]
 
     candidate: Mapped[Candidate | None] = relationship(back_populates="documents")
     partner_candidate: Mapped[PartnerCandidate | None] = relationship(back_populates="documents")
