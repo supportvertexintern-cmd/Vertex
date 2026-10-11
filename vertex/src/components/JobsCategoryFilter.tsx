@@ -8,7 +8,7 @@ interface Props {
   defaultValue: string;
 }
 
-// The surrounding <form method="post"> on /jobs is a plain server-rendered GET form (no
+// The surrounding <form> on /jobs is a plain server-rendered GET form (no
 // client-side routing) — this wraps just the category filter with a
 // searchable combobox while keeping a hidden native input in sync, so the
 // page doesn't need converting into a client component to get this.
