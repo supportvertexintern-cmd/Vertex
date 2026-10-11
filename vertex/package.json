@@ -19,22 +19,22 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.43",
-    "@ai-sdk/openai": "^3.0.41",
+    "@ai-sdk/google": "^3.0.131",
+    "@ai-sdk/openai": "^3.0.125",
     "@aws-sdk/client-s3": "^3.1081.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@paypal/react-paypal-js": "^9.0.1",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.19.3",
     "@stripe/stripe-js": "^8.11.0",
-    "ai": "^6.0.116",
+    "ai": "^6.0.303",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.36.0",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.0",
-    "multer": "^2.1.1",
-    "next": "^16.3.3",
-    "nodemailer": "^9.1.0",
+    "multer": "^2.4.0",
+    "next": "^16.3.8",
+    "nodemailer": "^10.1.0",
     "pdf-lib": "^1.17.1",
     "pg": "^8.20.0",
     "react": "19.2.3",
@@ -63,5 +63,11 @@
     "tsx": "^4.23.0",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "sharp": "^0.35.5",
+    "dompurify": "^3.4.16",
+    "source-map-js": "^1.2.2",
+    "deepmerge-ts": "^8.0.2"
   }
 }
