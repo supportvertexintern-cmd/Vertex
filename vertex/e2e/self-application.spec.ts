@@ -54,6 +54,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       await page.goto("/apply");
       await page.getByLabel("Full Name (as per passport)").fill(candidateName);
       await page.getByLabel("Date of Birth").fill("1995-06-15");
+      await pickOption(page, page.locator("#gender"), /^Male$/);
       await pickOption(page, page.locator("#nationality"), "Kenya");
       await page.getByLabel("Passport Number").fill("P" + Date.now());
       await page.getByLabel(/Passport Expiry Date/).fill("2030-01-01");
@@ -73,6 +74,12 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       await pickOption(page, page.getByLabel("Current Location (country)"), "Kenya");
       await page.getByLabel("I understand the payment plan above.").check();
       await pickOption(page, page.getByLabel(/Preferred contact channel/), "Email");
+      // Passport and passport-size photo must be attached in the form itself
+      // before Submit unlocks (ApplicationForm REQUIRED_UPLOAD_TYPES).
+      for (const [label, key] of [["Passport Copy — first page", "passport"], ["Passport-Size Photos", "passport_photo"]] as const) {
+        await page.getByLabel(label).check();
+        await page.getByTestId(`cif-doc-${key}-input`).setInputFiles({ name: `${key}.pdf`, mimeType: "application/pdf", buffer: PDF_BUFFER });
+      }
       await page.getByLabel("I confirm the above.").check();
       await page.getByRole("button", { name: "Submit Application" }).click();
 
@@ -83,20 +90,23 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });
       expect(candidate.source).toBe("self_registered");
       expect(candidate.recruiter_id).toBeNull();
-      expect(candidate.lifecycle_status).toBe("identified");
+      // A complete self-application is screened automatically on submit
+      // (screenAndInvite, 2026-08-06), and the account invite goes out.
+      expect(candidate.lifecycle_status).toBe("screened");
     });
 
-    await test.step("HR approves the candidate for account creation; the screening gate passes since the CIF was complete", async () => {
+    await test.step("HR sees the candidate already screened and awaiting account creation", async () => {
       await login(page, "e2e-hr@test.local", PASSWORD);
       await expect(page).toHaveURL(/\/hr$/);
 
       await page.getByRole("link", { name: "Self Applications", exact: true }).click();
-      await page.waitForURL(/\/hr\/self-applications$/);
+      await page.waitForURL(/\/hr\/self-applications(\?.*)?$/);
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/hr\/self-applications\/.+/);
 
-      await page.getByRole("button", { name: "Approve for Account Creation" }).click();
-      await expect(page.getByText("screened", { exact: true })).toBeVisible({ timeout: 25_000 });
+      // No manual approval any more: screening already happened on submit.
+      await expect(page.getByRole("button", { name: "Approve for Account Creation" })).toHaveCount(0);
+      await expect(page.getByText(/^screened$/i).first()).toBeVisible({ timeout: 25_000 });
       await expect(page.getByText("Awaiting candidate to create an account")).toBeVisible();
 
       // HR's skip-ahead widget offers no further action until the
@@ -139,7 +149,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       await expect(page).toHaveURL(/\/hr$/);
 
       await page.getByRole("link", { name: "Self Applications", exact: true }).click();
-      await page.waitForURL(/\/hr\/self-applications$/);
+      await page.waitForURL(/\/hr\/self-applications(\?.*)?$/);
 
       await expect(page.getByText(/submitted their documents — ready for your approval/)).toBeVisible({ timeout: 25_000 });
       const candidateRow = page.locator("tr", { hasText: candidateName });
@@ -150,9 +160,9 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       await page.getByRole("link", { name: candidateName }).click();
       await page.waitForURL(/\/hr\/self-applications\/.+/);
 
-      await expect(page.getByText("submitted", { exact: true })).toBeVisible({ timeout: 25_000 });
-      await page.getByRole("button", { name: "Approve", exact: true }).click();
-      await expect(page.getByText("approved", { exact: true })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/^submitted$/i).first()).toBeVisible({ timeout: 25_000 });
+      await page.getByRole("button", { name: "Create Case", exact: true }).click();
+      await expect(page.getByText("Case Created", { exact: true }).first()).toBeVisible({ timeout: 25_000 });
       await expect(page.getByRole("link", { name: "View Case" })).toBeVisible({ timeout: 25_000 });
 
       const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });

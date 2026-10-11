@@ -42,8 +42,10 @@ test.describe("Mobility case lifecycle (Phase 4)", () => {
       await page.getByRole("link", { name: "E2E Case Candidate" }).click();
       await page.waitForURL(/\/inhouse\/candidates\/.+/);
 
-      await page.getByRole("button", { name: "Approve", exact: true }).click();
-      await expect(page.getByText("approved", { exact: true })).toBeVisible({ timeout: 25_000 });
+      // Approving is labelled "Create Case" now, and the approved status
+      // displays as "Case Created" (CandidateStatusControls STATUS_LABELS).
+      await page.getByRole("button", { name: "Create Case", exact: true }).click();
+      await expect(page.getByText("Case Created", { exact: true }).first()).toBeVisible({ timeout: 25_000 });
     });
 
     await test.step("the case appears in Operations' case list at its opening stage", async () => {
@@ -60,6 +62,13 @@ test.describe("Mobility case lifecycle (Phase 4)", () => {
       await expect(caseRow.getByText(/Stage 1 of 11: Candidate Registration & Document Submission/)).toBeVisible();
       await caseRow.getByRole("link", { name: "E2E Case Candidate" }).click();
       await page.waitForURL(/\/operations\/.+/);
+    });
+
+    await test.step("Operations confirms the documentation, which a case needs before it can advance", async () => {
+      // Without this the stage API refuses with 422 "Awaiting
+      // Operations/Director documentation confirmation".
+      await page.getByRole("button", { name: "Confirm Documentation" }).click();
+      await expect(page.getByText(/Confirmed by /)).toBeVisible({ timeout: 25_000 });
     });
 
     await test.step("Operations advances the case to Document Preparation with a deadline", async () => {
