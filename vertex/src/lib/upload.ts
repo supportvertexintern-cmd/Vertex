@@ -19,30 +19,48 @@ const CONTENT_TYPES: Record<string, string> = {
 const MAX_FILE_SIZE = (Number(process.env.MAX_FILE_SIZE_MB) || 5) * 1024 * 1024;
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 300; // 5 minutes
 
-const R2_BUCKET = process.env.R2_BUCKET_NAME;
+// Candidate documents live in S3-compatible object storage only, never on
+// local disk (serverless and container filesystems aren't durable). One
+// client, three kinds of backend, chosen by configuration alone:
+//   - MinIO (the local Docker stacks): S3_ENDPOINT=http://minio:9000
+//   - AWS S3: no S3_ENDPOINT, S3_REGION set (e.g. eu-central-1)
+//   - Cloudflare R2: the legacy R2_* variables, still honoured
+// S3_* names win; R2_* are the fallback for existing configurations.
+export interface StorageConfig {
+  bucket: string;
+  region: string;
+  endpoint?: string; // undefined for AWS S3: the SDK derives it from the region
+  forcePathStyle: boolean;
+  accessKeyId: string;
+  secretAccessKey: string;
+}
 
-// Cloudflare R2 is the only storage backend for candidate documents — there
-// is no local-disk fallback. This app runs on Vercel, whose serverless
-// functions have no persistent (or even reliably writable) local
-// filesystem, so a local-disk primary silently doesn't work there: writes
-// either throw immediately (read-only bundle path) or vanish between
-// invocations. R2 (S3-compatible) is durable, reachable from any runtime,
-// and requires no host-specific storage assumptions.
-function getR2Client(): S3Client {
-  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
+export function resolveStorageConfig(env: Record<string, string | undefined> = process.env): StorageConfig {
+  const bucket = env.S3_BUCKET || env.R2_BUCKET_NAME;
+  const accessKeyId = env.S3_ACCESS_KEY_ID || env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = env.S3_SECRET_ACCESS_KEY || env.R2_SECRET_ACCESS_KEY;
+  const endpoint =
+    env.S3_ENDPOINT ||
+    env.R2_ENDPOINT ||
+    (env.R2_ACCOUNT_ID ? `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined);
+  const region = env.S3_REGION || (endpoint ? "us-east-1" : undefined);
+  if (!bucket || !accessKeyId || !secretAccessKey || !region) {
     throw new Error(
-      "Document storage is not configured — R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME are all required."
+      "Document storage is not configured: set S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY and either S3_ENDPOINT (MinIO, R2) or S3_REGION (AWS S3)."
     );
   }
-  return new S3Client({
-    region: "auto",
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    },
-  });
+  // MinIO serves buckets by path (http://minio:9000/<bucket>); AWS and R2
+  // use their default addressing.
+  const forcePathStyle = Boolean(env.S3_ENDPOINT || env.R2_ENDPOINT);
+  return { bucket, region, endpoint, forcePathStyle, accessKeyId, secretAccessKey };
 }
+
+function getStorageClient(): S3Client {
+  const { region, endpoint, forcePathStyle, accessKeyId, secretAccessKey } = resolveStorageConfig();
+  return new S3Client({ region, endpoint, forcePathStyle, credentials: { accessKeyId, secretAccessKey } });
+}
+
+const storageBucket = () => resolveStorageConfig().bucket;
 
 function contentTypeForPath(storagePath: string): string {
   const ext = (storagePath.split(".").pop() || "").toLowerCase();
@@ -73,11 +91,11 @@ export async function saveUploadedFile(
   const uniqueName = `${uuidv4()}.${ext}`;
   const storagePath = `${type}/${uniqueName}`;
 
-  const r2 = getR2Client();
+  const r2 = getStorageClient();
   const buffer = Buffer.from(await file.arrayBuffer());
   await r2.send(
     new PutObjectCommand({
-      Bucket: R2_BUCKET,
+      Bucket: storageBucket(),
       Key: storagePath,
       Body: buffer,
       ContentType: contentTypeForPath(storagePath),
@@ -114,9 +132,9 @@ export interface ResolvedDocument {
  */
 export async function getStorageContent(storagePath: string): Promise<ResolvedDocument> {
   const extension = (storagePath.split(".").pop() || "bin").toLowerCase();
-  const r2 = getR2Client();
+  const r2 = getStorageClient();
   try {
-    const res = await r2.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: storagePath }));
+    const res = await r2.send(new GetObjectCommand({ Bucket: storageBucket(), Key: storagePath }));
     const bytes = await res.Body?.transformToByteArray();
     if (!bytes) throw new DocumentNotFoundError("Document not found in storage.");
     return { buffer: Buffer.from(bytes), extension };
@@ -137,9 +155,9 @@ export async function resolveDocumentContent(token: string): Promise<ResolvedDoc
 }
 
 export async function deleteUploadedFile(storagePath: string): Promise<void> {
-  const r2 = getR2Client();
+  const r2 = getStorageClient();
   try {
-    await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: storagePath }));
+    await r2.send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: storagePath }));
   } catch (err) {
     console.error("R2 delete failed for", storagePath, err);
   }

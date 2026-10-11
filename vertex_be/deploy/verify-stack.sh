@@ -48,6 +48,29 @@ ok "vertex_readonly: read AuditLog" "$(net vertex_readonly "$(v DB_READONLY_PASS
 ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
 ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
+# Object storage (MinIO). The app's key is handed to a throwaway `mc` through
+# an env file, never argv; every probe runs on the internal network.
+B=$(v S3_BUCKET)
+ok "MinIO published to host" "$(docker port ${P}-minio-1 2>/dev/null | wc -l | tr -d ' ')" 0
+src=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' ${P}-minio-1 2>/dev/null)
+ok "MinIO files on D:" "$(printf '%s' "$src" | grep -qiE '^(d:|/run/desktop/mnt/host/d/)' && echo yes || echo "no ($src)")" yes
+ok "MinIO → internet" "$(docker exec ${P}-minio-1 wget -q -T 5 --spider https://1.1.1.1 >/dev/null 2>&1 && echo yes || echo no)" no
+ok "Flutter → MinIO" "$(docker exec ${P}-flutter-web-1 nc -z -w 3 minio 9000 >/dev/null 2>&1 && echo yes || echo no)" no
+MI=$(docker inspect -f '{{.Config.Image}}' ${P}-minio-1 2>/dev/null)
+MCENV=$(mktemp); printf 'MC_HOST_app=http://%s:%s@minio:9000\nMC_CONFIG_DIR=/tmp/.mc\n' "$(v S3_ACCESS_KEY_ID)" "$(v S3_SECRET_ACCESS_KEY)" > "$MCENV"
+# Docker on Windows needs the Windows form of the temp file's path.
+MCENV_ARG=$(cygpath -w "$MCENV" 2>/dev/null || printf '%s' "$MCENV")
+mcapp() { docker run --rm --network "${P}_data" --env-file "$MCENV_ARG" --entrypoint sh "$MI" -c "$1" 2>&1 | tail -1; }
+ok "App key: write, read, delete in its bucket" "$(mcapp "echo probe | mc pipe app/$B/verify-probe.txt >/dev/null && mc cat app/$B/verify-probe.txt >/dev/null && mc rm app/$B/verify-probe.txt >/dev/null && echo ok")" ok
+# MinIO filters the bucket list to the key's own buckets rather than refusing.
+ok "App key: buckets it can see" "$(mcapp "mc ls app 2>/dev/null | awk '{print \$NF}' | tr '\n' ' ' | sed 's/ *\$//'")" "$B/"
+ok "App key: create a bucket" "$(mcapp 'mc mb app/verify-probe-bucket >/dev/null 2>&1 && echo allowed || echo denied')" denied
+ok "App key: admin API" "$(mcapp 'mc admin info app >/dev/null 2>&1 && echo allowed || echo denied')" denied
+# Denials alone would also pass for a key with no permissions at all (that
+# hid a missing policy once); these test the edge inside its own bucket.
+ok "App key: make its bucket public" "$(mcapp "mc anonymous set download app/$B >/dev/null 2>&1 && echo allowed || echo denied")" denied
+ok "App key: delete its bucket" "$(mcapp "mc rb app/$B >/dev/null 2>&1 && echo allowed || echo denied")" denied
+rm -f "$MCENV"
 ok "GET /api/admin/emails, no login (G1)" "$(code http://127.0.0.1:$NP/api/admin/emails)" 401
 ok "GET /api/admin/knowledge, no login (G2)" "$(code http://127.0.0.1:$NP/api/admin/knowledge)" 401
 tok() { docker exec -w /app ${P}-nextjs-1 node -e "$1" 2>/dev/null | tail -1; }

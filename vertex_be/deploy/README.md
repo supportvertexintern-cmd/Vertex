@@ -23,6 +23,7 @@ Each environment is one Docker Compose project built from
 | nextjs       | `vertex-nextjs`          | http://localhost:3001    | http://localhost:3002    | http://localhost:3003    |
 | pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    | http://localhost:5353    |
 | db           | `postgres:15-alpine`     | not published            | not published            | not published            |
+| minio (object storage) | `vertex-minio` (built from source) | not published | not published | not published |
 | env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` | `vertex_be/.env.main`    |
 
 vertex-main holds the main data (restored 2026-10-10 from the old
@@ -152,4 +153,26 @@ table, recorded in `docs/security/phase2-verification.md`:
 ```sh
 cd vertex_be
 LAN_IP=<this PC's LAN address> bash deploy/verify-stack.sh dev   # or staging
+```
+
+## Object storage (MinIO)
+
+Each stack has its own MinIO (S3 API) for uploaded documents. Files are on
+this PC in `D:\VertexData\minio\<env>` (MinIO's own format: a folder per
+file, so open documents through the app or `mc`, not by double-clicking).
+
+- Only on the internal `data` network: no published port, web console off.
+- `deploy/minio-bootstrap.sh` (run by every deploy, idempotent) creates the
+  bucket `vertex-<env>` and the app's key `vertex-app-<env>`, whose policy
+  allows reading, writing and deleting objects in that bucket only.
+- The admin login (`MINIO_ROOT_*` in the env file) is never given to an app.
+- The image is built from pinned MinIO and `mc` release tags in
+  `deploy/minio/Dockerfile`: the community edition is source-only.
+- Moving to AWS S3 later is configuration: drop `S3_ENDPOINT`, set
+  `S3_REGION`, an S3 bucket and IAM keys (`vertex/src/lib/upload.ts`).
+
+Admin commands run inside the container, with its own credentials:
+
+```sh
+docker exec -it vertex-dev-minio-1 sh -c   'export MC_CONFIG_DIR=/tmp/.mc; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc ls --recursive local/$VERTEX_S3_BUCKET'
 ```
