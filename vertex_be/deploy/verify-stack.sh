@@ -106,4 +106,11 @@ ok "Log rotation (all containers)" "$(docker ps --filter "label=com.docker.compo
 ' ' ' | sed 's/ $//')" 10m
 ok "Next.js → Mailpit (alert email)" "$(docker exec ${P}-nextjs-1 nc -z -w 3 mailpit 1025 >/dev/null 2>&1 && echo yes || echo no)" yes
 ok "Mailpit UI on localhost" "$(code http://127.0.0.1:$MP/)" 200
+# Phase 11: main every 6 hours, staging weekly (dev isn't backed up).
+case "$E" in main) MAXH=7 ;; staging) MAXH=192 ;; *) MAXH="" ;; esac
+if [ -n "$MAXH" ]; then
+  newest=$(ls -d "${BACKUP_ROOT:-D:/VertexData/backups}/$P"/*/manifest.json 2>/dev/null | sort | tail -1)
+  age=$( [ -n "$newest" ] && echo $(( ($(date +%s) - $(date -r "$newest" +%s)) / 3600 )) || echo none)
+  ok "Newest backup within ${MAXH}h" "$( [ "$age" != none ] && [ "$age" -le "$MAXH" ] && echo yes || echo "no (age: ${age}h)")" yes
+fi
 echo

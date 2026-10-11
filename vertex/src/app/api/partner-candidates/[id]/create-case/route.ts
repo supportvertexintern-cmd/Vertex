@@ -25,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const partnerCandidate = await prisma.partnerCandidate.findUnique({
-    where: { id },
+    where: { id, status: { not: "draft" } },
     include: { partner: { select: { name: true, contact_email: true } } },
   });
   if (!partnerCandidate) {
