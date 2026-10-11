@@ -7,6 +7,7 @@ import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseSt
 import type { MilestonePaymentType } from "@prisma/client";
 import { prisma } from "./prisma";
 
+import { log } from "./log";
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT) || 587,
@@ -39,7 +40,7 @@ async function getEmailConfig(event: string, defaultSubject: string, defaultHtml
     const template = await prisma.emailTemplate.findUnique({ where: { event } });
     if (template) return { subject: template.subject, html: template.body_html };
   } catch (e) {
-    console.warn("DB not ready or template missing. Using default template.");
+    log.warn("email.db_not_ready_or_template_missing_using");
   }
   return { subject: defaultSubject, html: defaultHtml };
 }
@@ -124,6 +125,13 @@ const small = (html: string) => `<p style="font-size:13px;color:rgba(6,33,25,0.5
 const FINANCE_NEXT_STEP_HTML = small(
   `The next step is the initial payment — our Finance Department will be in touch, or you can reach them directly at <a href="mailto:finance@vertexintern.com" style="color:${BRAND.gold600};">finance@vertexintern.com</a>.`
 );
+
+// Security alerts (lib/security-monitor.ts): plain text, no template or
+// branding, so an alert still goes out if the template table is the
+// problem. The body is already redacted by the monitor.
+export async function sendSecurityAlertEmail(to: string[], subject: string, text: string) {
+  await transporter.sendMail({ from: FROM, to, subject, text });
+}
 
 export async function sendVerificationEmail(userId: string, email: string, fullName: string) {
   const token = signEmailToken({ userId, email, type: "email_verification" });
@@ -249,7 +257,7 @@ export async function sendApplicationConfirmationEmail(to: string, name: string,
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending application confirmation:", error);
+    log.error("email.error_sending_application_confirmation", { err: error });
   }
 }
 
@@ -274,7 +282,7 @@ export async function sendStatusUpdateEmail(to: string, name: string, jobTitle: 
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending status update:", error);
+    log.error("email.error_sending_status_update", { err: error });
   }
 }
 
@@ -300,7 +308,7 @@ export async function sendInterviewInvitationEmail(to: string, name: string, job
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending interview invitation:", error);
+    log.error("email.error_sending_interview_invitation", { err: error });
   }
 }
 
@@ -329,7 +337,7 @@ export async function sendCaseStageUpdateEmail(to: string, name: string, jobTitl
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending case stage update:", error);
+    log.error("email.error_sending_case_stage_update", { err: error });
   }
 }
 
@@ -352,7 +360,7 @@ export async function sendPartnerCaseStageUpdateEmail(to: string, partnerName: s
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Case update for ${candidateName} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending partner case stage update:", error);
+    log.error("email.error_sending_partner_case_stage_update", { err: error });
   }
 }
 
@@ -375,7 +383,7 @@ export async function sendCaseRejectedEmail(to: string, recipientName: string, c
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Case rejected for ${candidateName} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending case rejected notification:", error);
+    log.error("email.error_sending_case_rejected_notification", { err: error });
   }
 }
 
@@ -397,7 +405,7 @@ export async function sendPartnerCaseRejectedEmail(to: string, partnerName: stri
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Case rejected for ${candidateName} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending partner case rejected notification:", error);
+    log.error("email.error_sending_partner_case_rejected_notification", { err: error });
   }
 }
 
@@ -424,7 +432,7 @@ export async function sendCandidateApprovedEmail(to: string, name: string) {
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending candidate approved email:", error);
+    log.error("email.error_sending_candidate_approved_email", { err: error });
   }
 }
 
@@ -448,7 +456,7 @@ export async function sendCandidateMessageNotificationEmail(to: string, name: st
   try {
     await transporter.sendMail({ from: FROM, to, subject: config.subject, html: finalHtml });
   } catch (error) {
-    console.error("Error sending message notification:", error);
+    log.error("email.error_sending_message_notification", { err: error });
   }
 }
 
@@ -461,7 +469,7 @@ export async function sendCandidateMessageNotificationEmail(to: string, name: st
 export async function sendPartnerCandidateSubmittedEmail(partnerName: string, candidateName: string) {
   const to = process.env.PARTNER_SUBMISSION_NOTIFY_EMAIL;
   if (!to) {
-    console.log(`[partner-candidate] ${partnerName} submitted ${candidateName} — no PARTNER_SUBMISSION_NOTIFY_EMAIL configured, skipping notification email.`);
+    log.info("email.submitted_no_partner_submission_notify_email_configured", { message: `[partner-candidate] ${partnerName} submitted ${candidateName} — no PARTNER_SUBMISSION_NOTIFY_EMAIL configured, skipping notification email.` });
     return;
   }
 
@@ -477,7 +485,7 @@ export async function sendPartnerCandidateSubmittedEmail(partnerName: string, ca
   try {
     await transporter.sendMail({ from: FROM, to, subject: `New partner candidate: ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending partner-candidate submission notification:", error);
+    log.error("email.error_sending_partner_candidate_submission_notification", { err: error });
   }
 }
 
@@ -501,7 +509,7 @@ export async function sendPartnerCaseCreatedEmail(to: string, partnerName: strin
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Case opened for ${candidateName} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending partner case-created notification:", error);
+    log.error("email.error_sending_partner_case_created_notification", { err: error });
   }
 }
 
@@ -524,7 +532,7 @@ export async function sendPartnerCandidateRejectedEmail(to: string, partnerName:
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Action needed on ${candidateName}'s submission — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending partner-candidate rejection notification:", error);
+    log.error("email.error_sending_partner_candidate_rejection_notification", { err: error });
   }
 }
 
@@ -548,7 +556,7 @@ export async function sendPartnerResubmissionRequestEmail(to: string, contactNam
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Action needed — please resubmit ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending partner resubmission request:", error);
+    log.error("email.error_sending_partner_resubmission_request", { err: error });
   }
 }
 
@@ -584,7 +592,7 @@ export async function sendCaseReminderEmail(
   try {
     await transporter.sendMail({ from: FROM, to, subject: `${subjectLine} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending case reminder email:", error);
+    log.error("email.error_sending_case_reminder_email", { err: error });
   }
 }
 
@@ -657,7 +665,7 @@ export async function sendMilestonePaymentLinkEmail(
   try {
     await transporter.sendMail({ from: FROM, to, subject: `${milestoneLabel} due for ${candidateName} — Vertex International`, html });
   } catch (error) {
-    console.error("Error sending milestone payment link email:", error);
+    log.error("email.error_sending_milestone_payment_link_email", { err: error });
   }
 }
 
@@ -941,7 +949,7 @@ export interface ConsultationBookingNotificationData {
 export async function sendConsultationBookingNotification(data: ConsultationBookingNotificationData) {
   const to = process.env.CONSULTATION_NOTIFY_EMAIL;
   if (!to) {
-    console.error("CONSULTATION_NOTIFY_EMAIL is not configured — skipping consultation booking notification.");
+    log.error("email.consultation_notify_email_is_not_configured_skipping");
     return;
   }
 
@@ -960,6 +968,6 @@ export async function sendConsultationBookingNotification(data: ConsultationBook
   try {
     await transporter.sendMail({ from: FROM, to, subject: `New consultation booking — ${data.fullName ?? data.email}`, html });
   } catch (error) {
-    console.error("Error sending consultation booking notification email:", error);
+    log.error("email.error_sending_consultation_booking_notification_email", { err: error });
   }
 }

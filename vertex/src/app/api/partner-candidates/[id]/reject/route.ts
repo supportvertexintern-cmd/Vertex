@@ -6,6 +6,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { HR_ROLES } from "@/lib/rbac";
 import { sendPartnerCandidateRejectedEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 const rejectSchema = z.object({
   rejection_reason: z.string().min(1).max(2000),
 });
@@ -61,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendPartnerCandidateRejectedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, partnerCandidate.full_name, parsed.data.rejection_reason).catch(console.error);
+  await sendPartnerCandidateRejectedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, partnerCandidate.full_name, parsed.data.rejection_reason).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updated });
 }

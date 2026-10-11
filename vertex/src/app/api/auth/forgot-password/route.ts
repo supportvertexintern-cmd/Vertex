@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validations";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
+import { log } from "@/lib/log";
 
 const GENERIC_MESSAGE = "If an account exists for that email, we've sent a password reset link.";
 
@@ -29,6 +31,13 @@ export async function POST(req: NextRequest) {
     select: { id: true, email: true, full_name: true, password_hash: true },
   });
 
+  await recordSecurityEvent("password_reset_requested", {
+    actorId: null,
+    entityType: "Auth",
+    entityId: user ? `user:${user.id}` : "unknown_account",
+    detail: { email_fp: emailFingerprint(parsed.data.email), email_sent: Boolean(user?.password_hash) },
+  });
+
   if (user?.password_hash) {
     // Deferred via after() (2026-08-06) — the response is the same generic
     // message either way, so nothing depends on waiting for this to
@@ -38,7 +47,7 @@ export async function POST(req: NextRequest) {
       try {
         await sendPasswordResetEmail(user.id, user.email, user.full_name);
       } catch (err) {
-        console.error("Failed to send password reset email.", err);
+        log.error("email.password_reset_failed", { user_id: user.id, err });
       }
     });
   }

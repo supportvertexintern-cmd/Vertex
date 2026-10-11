@@ -387,15 +387,18 @@ model AuditLog {
   id          String   @id @default(cuid())
   entity_type String
   entity_id   String
-  action      String // create | update | delete | verify | approve
+  action      String // create | update | delete | export | security events (lib/audit.ts)
   actor_id    String?
   before      Json?
   after       Json?
   created_at  DateTime @default(now())
+  request_id  String? // X-Request-ID of the request that wrote the row (Phase 10)
 
   @@index([entity_type, entity_id])
   @@index([actor_id])
   @@index([created_at])
+  @@index([request_id])
+  @@index([action, created_at])
 }
 
 // ── Phase 3: Control, Reporting & Governance ────────────────────────────

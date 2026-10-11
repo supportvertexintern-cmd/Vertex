@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 
 const CASE_ACCESS_ROLES = [
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   const entityFilters: { entity_type: string; entity_id: string }[] = [
     { entity_type: "Case", entity_id: caseRecord.id },

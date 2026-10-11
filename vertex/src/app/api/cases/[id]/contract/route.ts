@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { createContractSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   if (caseRecord.contract) {
     return NextResponse.json({ error: "A contract already exists for this case." }, { status: 409 });
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   if (!caseRecord.contract) return NextResponse.json({ error: "No contract yet." }, { status: 404 });
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma, auditSecurityEvent } from "@/lib/audit";
-import { scanBuffer } from "@/lib/malware-scan";
+import { scanBuffer, scannerConfigured } from "@/lib/malware-scan";
+import { onScannerUnavailable } from "@/lib/security-monitor";
 
 export class DocumentBlockedError extends Error {
   constructor() {
@@ -30,7 +31,10 @@ export async function assertDocumentReadable(storagePath: string, bytes: Uint8Ar
   if (document.scan_status === "clean") return;
 
   const scan = await scanBuffer(bytes);
-  if (scan.status === "unavailable") return;
+  if (scan.status === "unavailable") {
+    if (scannerConfigured()) onScannerUnavailable(scan.reason);
+    return;
+  }
 
   const db = auditedPrisma(actorId);
   if (scan.status === "clean") {

@@ -114,6 +114,16 @@ and CI, CI-built images, dev/staging isolation.
 | G16 | `auditAccess()` writes an audit entry (who, what, how many rows, filter names with only allowlisted values; never the data) before an export is returned | `audit-access.integration.test.ts`; `route-guards.test.ts` fails CI on any unaudited export/backup route (mutation-checked) |
 | G17 | one key per token purpose, derived from `JWT_SECRET` with HKDF-SHA256 (`vertex/jwt/<purpose>/v<n>`); each token carries issuer `vertex-web` and audience `vertex:<purpose>`, and its verifier requires both plus the fields its purpose needs (a session needs `userId`, `email`, `role`); verification and reset links use different keys; `JWT_SECRET` must be at least 32 characters. Per-purpose versions let one token type be invalidated alone. All existing sessions and links became invalid on deploy | `jwt.test.ts`: 7×6 cross-purpose matrix, pre-G17 tokens, missing `userId`, another environment's secret, `alg:none`, expiry; mutation-checked (collapsing to one key fails 8 tests) |
 
+### Fixed in Phase 10 (branch `security/audit-logging-monitoring`)
+
+See [audit-logging-monitoring.md](audit-logging-monitoring.md).
+
+| Gap | Fix | Test |
+|---|---|---|
+| G7 | Every role denial (`requireRole`) and record/scope denial (`forbidden()`, 65 call sites) is recorded as `access_denied`, in the background so an audit failure can't change the answer; repeated denials alert | `security-events.integration.test.ts` |
+| G20 | Password and Google sign-ins (success and every failure reason), rate-limited logins, logouts and password resets are recorded; failures keep a fingerprint of the address, never what was typed; brute force alerts | `security-events.integration.test.ts` |
+| G21 | Issuing a signed document link (who, which document) and every download or refused link are recorded | `security-events.integration.test.ts` |
+
 **Policy questions (not confirmed bugs, need an owner's answer):**
 
 | # | Question |

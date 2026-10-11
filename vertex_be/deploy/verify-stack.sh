@@ -18,7 +18,7 @@ BP=$(v BACKEND_PORT); NP=$(v NEXTJS_PORT); FP=$(v FLUTTER_PORT); GP=$(v PGADMIN_
 LAN="${LAN_IP:-}"
 ok() { if [ "$2" = "$3" ]; then echo "| $1 | $2 | ✅ |"; else echo "| $1 | $2 (expected $3) | ❌ |"; fi; }
 code() { curl -s -o /dev/null -m 5 -w '%{http_code}' "$@"; }
-net() { docker run --rm --network "${P}_data" -e PGPASSWORD="$2" postgres:15-alpine psql -h db -U "$1" -d "$DB" -tAc "$3" 2>&1 | tr -d '\n' | grep -oE 'permission denied|^ *[0-9]+ *$' | head -1 | sed -E 's/^ +| +$//g'; }
+net() { docker run --rm --network "${P}_data" -e PGPASSWORD="$2" postgres:15-alpine psql -h db -U "$1" -d "$DB" -tAc "$3" 2>&1 | tr -d '\n' | grep -oE 'permission denied|must be owner|^ *[0-9]+ *$' | head -1 | sed -E 's/^ +| +$//g'; }
 
 echo "### $P"
 echo
@@ -47,6 +47,8 @@ ok "vertex_readonly: SELECT email (personal data)" "$(net vertex_readonly "$(v D
 ok "vertex_readonly: read AuditLog" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
 ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
 ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
+ok "vertex_api: read AuditLog (Phase 10)" "$(net vertex_api "$(v DB_API_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
+ok "vertex_web: disable AuditLog triggers" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
 # Object storage (MinIO). The app's key is handed to a throwaway `mc` through
 # an env file, never argv; every probe runs on the internal network.
@@ -84,4 +86,24 @@ docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "delete from \"Job\" where id='
 last=""; for i in 1 2 3 4 5 6; do last=$(code -X POST -H 'content-type: application/json' -H "x-forwarded-for: 203.0.113.$RANDOM" -d '{}' http://127.0.0.1:$NP/api/auth/forgot-password); done
 ip="203.0.113.250"; for i in 1 2 3 4 5 6; do last=$(code -X POST -H 'content-type: application/json' -H "x-forwarded-for: $ip-$E" -d '{}' http://127.0.0.1:$NP/api/auth/forgot-password); done
 ok "6th forgot-password from one client (G10)" "$last" 429
+# Phase 10: logging, correlation and alert plumbing. The trace writes one
+# login_failed audit row for an address that can't exist (test.invalid).
+MP=$(v MAIL_UI_PORT)
+RID="verify-$E-$(date +%s)"
+hdr() { curl -s -o /dev/null -m 5 -D - "$@" | tr -d '\r' | sed -n 's/^[Xx]-[Rr]equest-[Ii][Dd]: //p'; }
+ok "Next.js echoes X-Request-ID" "$(hdr -H "X-Request-ID: $RID-a" http://127.0.0.1:$NP/api/auth/me)" "$RID-a"
+ok "Backend echoes X-Request-ID" "$(hdr -H "X-Request-ID: $RID-b" http://127.0.0.1:$BP/api/v1/health)" "$RID-b"
+ok "Forged X-Request-ID replaced" "$(hdr -H 'X-Request-ID: bad id' http://127.0.0.1:$NP/api/auth/me | grep -cE '^[0-9a-f-]{36}$')" 1
+ok "Trace: failed login → 401" "$(code -X POST -H 'content-type: application/json' -H "X-Request-ID: $RID-t" -H "x-forwarded-for: 203.0.113.99" -d '{"email":"verify-trace@test.invalid","password":"not-a-real-password"}' http://127.0.0.1:$NP/api/auth/login)" 401
+sleep 1
+ok "Trace: audit row for that request" "$(docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -tAc "select action from \"AuditLog\" where request_id = '$RID-t'" | tr -d '\r')" login_failed
+ok "Trace: Next.js log line for that request" "$(docker logs --since 2m ${P}-nextjs-1 2>&1 | grep -c "\"request_id\":\"$RID-t\"" | tr -d ' ')" 1
+ok "Trace: backend log line for its request" "$(docker logs --since 2m ${P}-backend-1 2>&1 | grep -c "\"request_id\":\"$RID-b\"" | tr -d ' ')" 1
+ok "Logs are JSON (backend access line)" "$(docker logs --since 2m ${P}-backend-1 2>&1 | grep "$RID-b" | python -c "import sys,json; print(json.loads(sys.stdin.readline())['event'])" 2>/dev/null)" http.request
+# Counts only: a match is never printed.
+ok "Credentials in container logs" "$(for c in nextjs backend; do docker logs ${P}-$c-1 2>&1; done | grep -cE 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[a-z]+://[^:@/ ]+:[^@/ ]+@|password_hash\":\"\$2' | tr -d ' ')" 0
+ok "Log rotation (all containers)" "$(docker ps --filter "label=com.docker.compose.project=$P" -q | xargs docker inspect -f '{{index .HostConfig.LogConfig.Config "max-size"}}' | sort -u | tr '
+' ' ' | sed 's/ $//')" 10m
+ok "Next.js → Mailpit (alert email)" "$(docker exec ${P}-nextjs-1 nc -z -w 3 mailpit 1025 >/dev/null 2>&1 && echo yes || echo no)" yes
+ok "Mailpit UI on localhost" "$(code http://127.0.0.1:$MP/)" 200
 echo

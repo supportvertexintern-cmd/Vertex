@@ -18,6 +18,17 @@
 #    can't reach the internet. Flutter's static server sits alone on
 #    `static`. Postgres is unpublished unless docker-compose.db-port.yml is
 #    added (deploy.sh does that when POSTGRES_HOST_PORT is set).
+#
+# Logs (Phase 10): every service writes JSON lines to stdout; Docker keeps
+# them, rotated, on the host (only host admins can read them). Security
+# alerts also go by email: on this PC to the stack's Mailpit (UI on
+# 127.0.0.1:MAIL_UI_PORT); on a server, point SMTP_* at a real relay.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
 
@@ -54,6 +65,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
   db:
     image: postgres:15-alpine
@@ -78,6 +90,7 @@ services:
 
     networks: [ data ]
     restart: unless-stopped
+    logging: *default-logging
 
   flutter-web:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -93,6 +106,7 @@ services:
 
     networks: [ static ]
     restart: unless-stopped
+    logging: *default-logging
 
   nextjs:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -110,12 +124,18 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-}
+      # Unset = this stack's Mailpit (nothing leaves the PC).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_SECURE: ${SMTP_SECURE:-}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Security alerts (lib/security-monitor.ts): comma-separated; unset =
+      # every admin user.
+      SECURITY_ALERT_EMAILS: ${SECURITY_ALERT_EMAILS:-}
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
       PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
       CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
@@ -157,6 +177,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
   minio:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -175,6 +196,20 @@ services:
       - ${MINIO_DATA_DIR:?MINIO_DATA_DIR is required}:/data
     networks: [ data ]
     restart: unless-stopped
+    logging: *default-logging
+
+  mailpit:
+    # Local mail catcher: the app's email, security alerts included, lands
+    # here instead of real inboxes. Web UI on 127.0.0.1 only; it never relays
+    # anything onward.
+    image: axllent/mailpit:v1.31.4
+    environment:
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - "127.0.0.1:${MAIL_UI_PORT:-8025}:8025"
+    networks: [ data, edge ]
+    restart: unless-stopped
+    logging: *default-logging
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -211,6 +246,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   postgres_data:

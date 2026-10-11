@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { updateCandidateDetailsSchema } from "@/lib/validations";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
@@ -95,7 +95,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const allowed = await canAccessCandidate(user!, candidate);
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   // Which document types each application needs (universal set + that
@@ -195,7 +195,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const allowed = await canAccessCandidate(user!, candidate);
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   const { date_of_birth, passport_expiry, consent_given, ...rest } = parsed.data;
@@ -260,7 +260,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const allowed = await canAccessCandidate(user!, candidate);
   if (!allowed) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   // A real Case (2026-08-16: checked directly, not inferred from

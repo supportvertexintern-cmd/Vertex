@@ -72,6 +72,13 @@ def test_runtime_roles_can_read_and_write_rows(conn, role):
                                  VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')""") is None
 
 
+def test_only_the_web_service_reads_the_audit_trail(conn):
+    # Phase 10: Next.js shows case history and runs the security monitor;
+    # FastAPI may append to the trail but not read it.
+    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "AuditLog"') is None
+    assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
+
+
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 @pytest.mark.parametrize(
     "sql",
@@ -84,6 +91,9 @@ def test_runtime_roles_can_read_and_write_rows(conn, role):
         'UPDATE "AuditLog" SET action = action',
         'DELETE FROM "AuditLog"',
         'TRUNCATE "AuditLog"',
+        'ALTER TABLE "AuditLog" DISABLE TRIGGER audit_log_no_update',
+        'DROP TRIGGER audit_log_no_delete ON "AuditLog"',
+        "CREATE OR REPLACE FUNCTION prevent_auditlog_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$",
         "SELECT * FROM alembic_version",
         "UPDATE alembic_version SET version_num = version_num",
         "CREATE ROLE role_probe",

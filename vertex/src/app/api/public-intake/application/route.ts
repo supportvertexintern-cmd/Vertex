@@ -4,6 +4,7 @@ import { submitApplicationSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendPublicIntakeEmail, sendPublicIntakeConfirmationEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // POST /api/public-intake/application — the temporary bridge for the
 // public Candidate Information Form while the site is live on the main
 // domain ahead of the CRM's staff workflows being signed off (Admin
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
       coverLetter: parsed.data.cover_letter,
     });
   } catch (error) {
-    console.error("Failed to send public-intake notification email:", error);
+    log.error("api.failed_to_send_public_intake_notification_email", { err: error });
     return NextResponse.json({ error: "We couldn't submit your application right now. Please try again shortly or contact us directly." }, { status: 502 });
   }
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
     try {
       await sendPublicIntakeConfirmationEmail(email, fullName);
     } catch (error) {
-      console.error("Failed to send public-intake confirmation email:", error);
+      log.error("api.failed_to_send_public_intake_confirmation_email", { err: error });
     }
   });
 

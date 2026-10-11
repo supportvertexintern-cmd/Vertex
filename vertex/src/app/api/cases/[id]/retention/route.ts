@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { completeRetentionFollowUpSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 
@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   if (!caseRecord.retention_follow_up) {
     return NextResponse.json({ error: "No retention follow-up scheduled yet — the case must reach travel & settlement first." }, { status: 404 });
