@@ -97,8 +97,8 @@ ok "Forged X-Request-ID replaced" "$(hdr -H 'X-Request-ID: bad id' http://127.0.
 ok "Trace: failed login → 401" "$(code -X POST -H 'content-type: application/json' -H "X-Request-ID: $RID-t" -H "x-forwarded-for: 203.0.113.99" -d '{"email":"verify-trace@test.invalid","password":"not-a-real-password"}' http://127.0.0.1:$NP/api/auth/login)" 401
 sleep 1
 ok "Trace: audit row for that request" "$(docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -tAc "select action from \"AuditLog\" where request_id = '$RID-t'" | tr -d '\r')" login_failed
-ok "Trace: Next.js log line for that request" "$(docker logs --since 2m ${P}-nextjs-1 2>&1 | grep -c "\"request_id\":\"$RID-t\"" | tr -d ' ')" 1
-ok "Trace: backend log line for its request" "$(docker logs --since 2m ${P}-backend-1 2>&1 | grep -c "\"request_id\":\"$RID-b\"" | tr -d ' ')" 1
+ok "Trace: Next.js log line for that request" "$(docker logs --since 2m ${P}-nextjs-1 2>&1 | grep -cE "\"request_id\": ?\"$RID-t\"" | tr -d ' ')" 1
+ok "Trace: backend log line for its request" "$(docker logs --since 2m ${P}-backend-1 2>&1 | grep -cE "\"request_id\": ?\"$RID-b\"" | tr -d ' ')" 1
 ok "Logs are JSON (backend access line)" "$(docker logs --since 2m ${P}-backend-1 2>&1 | grep "$RID-b" | python -c "import sys,json; print(json.loads(sys.stdin.readline())['event'])" 2>/dev/null)" http.request
 # Counts only: a match is never printed.
 ok "Credentials in container logs" "$(for c in nextjs backend; do docker logs ${P}-$c-1 2>&1; done | grep -cE 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[a-z]+://[^:@/ ]+:[^@/ ]+@|password_hash\":\"\$2' | tr -d ' ')" 0

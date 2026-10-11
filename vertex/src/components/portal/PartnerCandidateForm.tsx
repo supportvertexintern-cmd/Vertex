@@ -243,7 +243,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
   const errCls = "text-xs text-red-600 mt-1";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form method="post" onSubmit={handleSubmit} className="space-y-4">
       <section>
         <h2 className="font-bold text-slate-800 mb-4">Section 3 — Candidate Personal Information</h2>
         <div className="grid sm:grid-cols-2 gap-4">
