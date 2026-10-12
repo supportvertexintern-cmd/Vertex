@@ -58,18 +58,6 @@ export default function Loading() {
           </div>
         </div>
 
-        {/* Custom precise animations for the loader */}
-        <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes pulse-scale {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-          }
-          @keyframes progress-shimmer {
-            0% { transform: translateX(-100%); width: 20%; }
-            50% { transform: translateX(50%); width: 80%; }
-            100% { transform: translateX(250%); width: 20%; }
-          }
-        `}} />
       </div>
     </div>
   );

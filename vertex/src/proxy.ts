@@ -4,30 +4,44 @@ import { ACCESS_COOKIE, PROTECTED_PATHS } from "@/lib/session-constants";
 import { canAccessPortal, homeFor } from "@/lib/rbac";
 import { checkRequestSize } from "@/lib/request-size";
 import { REQUEST_ID_HEADER, REQUEST_PATH_HEADER, resolveRequestId } from "@/lib/request-context";
+import { newNonce, NONCE_HEADER, pageCsp } from "@/lib/csp";
 
 // Every matched request gets a correlation ID (lib/request-context.ts): it
 // is passed to the handler as a request header and returned to the caller.
+//
+// Every page response also gets a fresh CSP nonce and its policy (E3,
+// lib/csp.ts). Next.js reads the nonce from the CSP request header set
+// here and puts it on every script it renders. A client-sent CSP or nonce
+// header is always replaced, so the caller can't choose the nonce.
 export function proxy(req: NextRequest) {
   const requestId = resolveRequestId(req.headers.get(REQUEST_ID_HEADER));
-  const res = route(req, requestId);
+  const isApi = req.nextUrl.pathname.startsWith("/api/");
+  const https = req.nextUrl.protocol === "https:" || req.headers.get("x-forwarded-proto") === "https";
+  const csp = isApi ? null : pageCsp(newNonce(), { https });
+
+  const res = route(req, requestId, csp?.request ?? {});
   res.headers.set(REQUEST_ID_HEADER, requestId);
+  // API and other responses keep next.config.ts's static policy.
+  if (csp) for (const [name, value] of Object.entries(csp.response)) res.headers.set(name, value);
   return res;
 }
 
-function next(req: NextRequest, requestId: string): NextResponse {
+function next(req: NextRequest, requestId: string, extra: Record<string, string>): NextResponse {
   const headers = new Headers(req.headers);
+  for (const name of ["content-security-policy", "content-security-policy-report-only", NONCE_HEADER]) headers.delete(name);
   headers.set(REQUEST_ID_HEADER, requestId);
   headers.set(REQUEST_PATH_HEADER, req.nextUrl.pathname);
+  for (const [name, value] of Object.entries(extra)) headers.set(name, value);
   return NextResponse.next({ request: { headers } });
 }
 
-function route(req: NextRequest, requestId: string): NextResponse {
+function route(req: NextRequest, requestId: string, extra: Record<string, string>): NextResponse {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/api/")) return checkRequestSize(req) ?? next(req, requestId);
+  if (pathname.startsWith("/api/")) return checkRequestSize(req) ?? next(req, requestId, extra);
 
   const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
 
-  if (!isProtected) return next(req, requestId);
+  if (!isProtected) return next(req, requestId, extra);
 
   // A portal page with no usable access token goes through
   // /api/auth/refresh, which renews the 15-minute token from the refresh
@@ -44,7 +58,7 @@ function route(req: NextRequest, requestId: string): NextResponse {
       return NextResponse.redirect(new URL(homeFor(payload.role), req.url));
     }
 
-    return next(req, requestId);
+    return next(req, requestId, extra);
   } catch {
     return toRefresh(req, pathname);
   }
@@ -56,20 +70,7 @@ function toRefresh(req: NextRequest, pathname: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
+// Everything except build assets and public files, which aren't documents.
 export const config = {
-  matcher: [
-    "/api/:path*",
-    "/auth/:path*",
-    "/dashboard/:path*",
-    "/admin/:path*",
-    "/recruiter/:path*",
-    "/supervisor/:path*",
-    "/inhouse/:path*",
-    "/management/:path*",
-    "/marketing/:path*",
-    "/partner/:path*",
-    "/hr/:path*",
-    "/operations/:path*",
-    "/finance/:path*",
-  ],
+  matcher: ["/((?!_next/static|_next/image|js/|favicon\\.ico|icon\\.svg|.*\\.(?:png|jpe?g|gif|svg|webp|ico|txt|xml|woff2?|css|map)$).*)"],
 };

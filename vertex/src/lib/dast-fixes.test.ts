@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/rate-limit", () => ({ limitByIp: () => null, rateLimit: () => ({ success: true, remaining: 1, resetAt: 0 }) }));
 
 import nextConfig from "../../next.config";
+import { proxy } from "@/proxy";
 import { POST as chat } from "@/app/api/chat/route";
 import { GET as googleStart } from "@/app/api/auth/google/route";
 import { NextRequest } from "next/server";
@@ -15,13 +16,20 @@ function chatRequest(body: unknown) {
 
 describe("response headers (ZAP 10038, 10037)", () => {
   it("sets a CSP that blocks plugins, framing and foreign base URLs", async () => {
+    // The static baseline (next.config) and, on pages in enforce mode, the
+    // proxy's nonce policy (E3; csp.test.ts has the details).
     const rules = await nextConfig.headers!();
-    const headers = Object.fromEntries(rules[0].headers.map((h) => [h.key, h.value]));
-    const csp = headers["Content-Security-Policy"];
-    for (const directive of ["default-src 'self'", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'none'", "form-action 'self'"]) {
-      expect(csp).toContain(directive);
+    const baseline = Object.fromEntries(rules[0].headers.map((h) => [h.key, h.value]))["Content-Security-Policy"];
+    process.env.CSP_MODE = "enforce";
+    const enforced = proxy(new NextRequest("http://localhost/jobs")).headers.get("Content-Security-Policy")!;
+    delete process.env.CSP_MODE;
+    for (const csp of [baseline, enforced]) {
+      for (const directive of ["default-src 'self'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'"]) {
+        expect(csp).toContain(directive);
+      }
+      expect(csp).toMatch(/base-uri '(self|none)'/);
+      expect(csp).not.toMatch(/script-src[^;]*\*/); // no wildcard script sources
     }
-    expect(csp).not.toMatch(/script-src[^;]*\*/); // no wildcard script sources
   });
 
   it("doesn't advertise the framework", () => {

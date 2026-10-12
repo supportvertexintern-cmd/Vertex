@@ -118,6 +118,7 @@ Effects:
 |---|---|---|
 | 2026-10-12 | Backend tests (throwaway Postgres) | 91 passed |
 | 2026-10-12 | Next.js tests (throwaway Postgres + MinIO, CI layout) | 327 passed; 1 ClamAV timeout under parallel load, passes alone |
+| 2026-10-12 | Local production build in real Chromium (with E3, [csp.md](csp.md) §6) | The following all passed: UI sign-in; cookie flags (`HttpOnly`, `SameSite=Strict`, refresh cookie path `/api/auth`); 15-minute access cookie; silent refresh on page navigation and on an API call; refresh token rotated; spent token replayed → 401; log out everywhere → sign-in, and portal pages stay closed |
 | 2026-10-12 | Kill-switch SQL on a throwaway database | 3 sessions / 2 users ended, 0 live tokens left, reason stored verbatim (quoting-safe) |
 
 **Deployment note.** Access tokens issued before this change have no session ID, so they are refused, and everyone signs in once after the deploy.
