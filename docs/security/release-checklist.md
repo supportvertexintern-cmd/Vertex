@@ -45,14 +45,18 @@ Phase 12 (local release readiness), prepared 2026-10-12.
 
 ## 3. Exceptions (need the owner's approval)
 
-| ID | Exception | Risk | Why acceptable now | Plan |
-|---|---|---|---|---|
-| E1 | 5 high advisories in the ESLint toolchain (`braces` ≤ 3.0.3 via `eslint-config-next`) | Low | Dev tooling only: never in an image or at runtime. **No patched version exists.** Input is our own repository | Update when `braces` ships a fix |
-| E2 | MinIO: 6 advisories in MinIO's own code (2 critical: OIDC and LDAP, neither configured; 2 high: unauthenticated object write via unsigned-trailer uploads) | Medium | The pinned tag is MinIO's **last community release**; no fix exists. MinIO has no published port and sits only on the stack's internal `data` network, reachable from the app containers alone. Local stacks only | Production uses AWS S3 (Phase 13), a configuration change (`S3_*`). Alternatively a maintained S3-compatible store |
-| E3 | CSP allows `'unsafe-inline'` for scripts and styles, `img-src https:`; no SRI on two third-party scripts; no CSRF tokens | Low–Medium | The CSP still blocks foreign scripts, plugins, framing and base-URL hijacking. CSRF is mitigated by `SameSite=Strict` sessions and JSON-only APIs | Next step: per-request CSP nonces (makes pages dynamic; separate change) |
-| E4 | Backend image: 44 Debian base findings with no fix released | Low | None fixable; no compilers or package managers left in the image; the backend serves only `/health` and docs | Rebuild when Debian ships fixes (`apt-get upgrade` in the build) |
-| E5 | Backups only on D: (no off-site copy) | Medium | **Accepted by the owner** (Phase 11) | `BACKUP_OFFSITE_CMD` when S3 exists |
-| E6 | 3 strict expected-failure tests (G19: sessions aren't revoked on role change, deletion or password change before expiry) | Medium | Known, tracked gap; sessions expire in 7 days | Phase 4 follow-up (token version check) |
+Since 2026-10-12, these are handled under the owner's implementation plan. Fixes, acceptance conditions with evidence, and the **register to sign** are in [exceptions.md](exceptions.md).
+
+| ID | Exception | Decision | Status (2026-10-12) |
+|---|---|---|---|
+| E1 | 5 high advisories in the ESLint toolchain (`braces`), dev-only, no fix | Accept with conditions | All conditions in place; CI and the image build enforce them |
+| E2 | MinIO: 6 advisories in its last community release | Accept with conditions | No ports, internal network only, unique credentials. vertex-main holds 0 documents today. **Expiry = S3 cutover date: owner to set** |
+| E3 | CSP allowed `'unsafe-inline'` for scripts | **Fix** | Nonce policy built (report-only first, then `CSP_MODE=enforce`); verified in Chromium ([csp.md](csp.md)) |
+| E4 | Backend image: 44 Debian findings, none fixable | Accept with conditions | 0 KEV matches, none reachable, backend now non-root, weekly rebuild and scan, CI fails on fixable HIGH/CRITICAL |
+| E5 | Backups only on D: | **Fix** | Off-site immutable copy built and rehearsed; needs the owner's bucket and the first real off-site restore ([backup-recovery.md](backup-recovery.md) §9) |
+| E6 | Sessions not revocable (G19) | **Fix** | Done: revocable sessions, 15-minute access tokens ([session-management.md](session-management.md)) |
+
+These fixes are **not part of this release** (`283075f`). They follow in the next release from `dev`.
 
 ## 4. Release steps
 

@@ -154,6 +154,16 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      # E1: what ships must have no known advisories; dev-only tooling
+      # (the ESLint chain's `braces`) must never reach production. Runs on
+      # every pull request, so every lockfile change is re-checked.
+      - name: Production dependencies (E1)
+        run: |
+          npm audit --omit=dev --audit-level=high
+          if npm ls braces --omit=dev --parseable 2>/dev/null | grep -q braces; then
+            echo "braces (E1 exception: dev-only) is now a production dependency" >&2; exit 1
+          fi
+
       # The schema comes from the Alembic migrations, exactly as every
       # deployed stack gets it, never from `prisma db push`: tests must run
       # against the schema that is deployed (a push here hid a drift
@@ -286,5 +296,13 @@ jobs:
         with:
           context: ${{ matrix.context }}
           push: false
+          load: true
+          tags: ${{ matrix.image }}:ci
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+      # E4: a fixable HIGH/CRITICAL finding fails the build. Unfixed ones
+      # are the documented exceptions (docs/security/exceptions.md).
+      - name: Image scan (fixable HIGH/CRITICAL)
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 ${{ matrix.image }}:ci

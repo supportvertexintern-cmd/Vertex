@@ -13,7 +13,9 @@ RUN npm ci
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && npm prune --omit=dev
+# Only production dependencies ship (equivalent to `npm ci --omit=dev`).
+# The dev-only ESLint chain's `braces` (exception E1) must not be among them.
+RUN npm run build && npm prune --omit=dev  && if [ -e node_modules/braces ]; then echo "E1: braces in the production image" >&2; exit 1; fi
 
 
 FROM node:22-alpine

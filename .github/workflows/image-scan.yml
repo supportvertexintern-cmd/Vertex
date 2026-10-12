@@ -1,0 +1,43 @@
+name: Weekly image rebuild and scan
+
+# E4 (docs/security/exceptions.md): rebuild every image from fresh base
+# images (the Dockerfiles apply the distribution's current security fixes),
+# then scan. Fails on any fixable HIGH/CRITICAL finding, which means: deploy
+# so the fix ships. The reports are kept as artifacts.
+on:
+  schedule:
+    - cron: "17 4 * * 1" # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Rebuild and scan (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: vertex-backend, context: vertex_be, file: vertex_be/Dockerfile }
+          - { image: vertex-flutter-web, context: vertex_app, file: vertex_app/Dockerfile }
+          - { image: vertex-nextjs, context: vertex, file: vertex/Dockerfile }
+          - { image: vertex-minio, context: vertex_be/deploy/minio, file: vertex_be/deploy/minio/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build from fresh base images, no cache
+        run: docker build --pull --no-cache -t ${{ matrix.image }}:weekly -f ${{ matrix.file }} ${{ matrix.context }}
+      - name: Full report (HIGH/CRITICAL, fixed or not)
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" aquasec/trivy:0.67.2
+          image --quiet --severity CRITICAL,HIGH --format json -o /out/trivy-${{ matrix.image }}.json ${{ matrix.image }}:weekly
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.image }}
+          path: trivy-${{ matrix.image }}.json
+          retention-days: 90
+      - name: Gate (fixable HIGH/CRITICAL)
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 ${{ matrix.image }}:weekly
