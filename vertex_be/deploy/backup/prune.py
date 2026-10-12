@@ -10,6 +10,8 @@ Policies:
            for 14 days, of each ISO week for 8 weeks, of each month for 12
            months. Everything older is deleted.
   staging  the newest 4.
+  offsite  the off-site copy (E5, offsite.py): the newest of each day for 7
+           days, of each ISO week for 4 weeks, of each month for 6 months.
 
 A directory without a manifest.json (an interrupted backup) is deleted once
 it's more than a day old, and never counted as a kept backup. The newest
@@ -53,7 +55,23 @@ def keep_staging(stamps: list[datetime], now: datetime) -> set[datetime]:
     return set(sorted(stamps, reverse=True)[:4])
 
 
-POLICIES = {"main": keep_main, "staging": keep_staging}
+def keep_offsite(stamps: list[datetime], now: datetime) -> set[datetime]:
+    keep: set[datetime] = set()
+    newest = sorted(stamps, reverse=True)
+    for count, bucket in ((7, lambda s: s.date()), (4, lambda s: s.isocalendar()[:2]), (6, lambda s: (s.year, s.month))):
+        seen: list[object] = []
+        for s in newest:
+            if bucket(s) not in seen:
+                if len(seen) == count:
+                    break
+                seen.append(bucket(s))
+                keep.add(s)
+    if stamps:
+        keep.add(max(stamps))
+    return keep
+
+
+POLICIES = {"main": keep_main, "staging": keep_staging, "offsite": keep_offsite}
 
 
 def plan(root: Path, policy: str, now: datetime) -> list[Path]:

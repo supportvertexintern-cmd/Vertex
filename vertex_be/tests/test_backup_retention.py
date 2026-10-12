@@ -65,3 +65,21 @@ def test_the_newest_complete_backup_is_never_deleted(tmp_path, policy):
     make(tmp_path, [NOW - timedelta(days=500), NOW - timedelta(days=400)])
     deleted = {d.name for d in prune.plan(tmp_path, policy, NOW)}
     assert (NOW - timedelta(days=400)).strftime(prune.STAMP) not in deleted
+
+
+def test_offsite_keeps_7_daily_4_weekly_6_monthly():
+    # E5: two years of 6-hourly backups thin to at most 7 + 4 + 6 restore points.
+    stamps = every_6_hours(730)
+    kept = prune.keep_offsite(stamps, NOW)
+    assert max(stamps) in kept
+    assert len(kept) <= 17
+    newest_days = sorted({s.date() for s in kept}, reverse=True)[:7]
+    assert newest_days == [(NOW - timedelta(days=i)).date() for i in range(7)]  # 7 consecutive days
+    months = {(s.year, s.month) for s in kept}
+    assert len(months) == 6
+    assert min(NOW - s for s in kept if (s.year, s.month) == min(months)) < timedelta(days=6 * 31)
+
+
+def test_offsite_keeps_the_newest_of_each_day():
+    stamps = every_6_hours(1)  # 12:00, 06:00, 00:00 today and 18:00 yesterday
+    assert prune.keep_offsite(stamps, NOW) == {NOW, NOW - timedelta(hours=18)}

@@ -15,14 +15,15 @@
 # (AES-256, authenticated), so no plaintext copy is ever written. The key
 # comes from backup-key.ps1 (DPAPI, this Windows account) through a file
 # descriptor. The manifest holds no personal data or credentials. Then the
-# retention policy is applied (prune.py) and, if BACKUP_OFFSITE_CMD is set,
-# it's run with the backup directory as its argument (e.g. an `aws s3 sync`
-# once there is a bucket).
+# retention policy is applied (prune.py) and, once off-site is configured
+# (offsite.conf, E5), the backup is copied to the immutable off-site bucket
+# (offsite.py push). A failed backup or a failed off-site copy raises an
+# alert (alert.sh).
 #
 # Roles and their passwords are not in the dump (they're cluster-wide);
 # deploy.sh recreates them from the env file on restore. Secrets, env files
 # and keys are never part of a backup (checked by restore-drill.sh).
-set -euo pipefail
+set -Eeuo pipefail
 export MSYS_NO_PATHCONV=1
 
 P="${1:?usage: backup.sh <project> [env-file]}"
@@ -36,6 +37,8 @@ SU=$(v POSTGRES_USER); DB=$(v POSTGRES_DB); BUCKET=$(v S3_BUCKET)
 case "$P" in vertex-main) POLICY=main ;; *) POLICY=staging ;; esac
 
 log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*"; }
+# E5: a failed backup says so (email + audit trail), not only in a log.
+trap 'bash "$HERE/alert.sh" "backup_failed_$P" "The backup of $P failed" "see $ROOT/logs/backup-$P.log" >/dev/null 2>&1' ERR
 psql_su() { docker exec "$P-db-1" psql -U "$SU" -d "$DB" -tAc "$1" | tr -d '\r'; }
 
 # Windows form (C:/...): Python and Docker here are Windows programs.
@@ -111,8 +114,11 @@ PY
 log "retention ($POLICY)"
 python "$HERE/prune.py" "$ROOT/$P" "$POLICY" --apply
 
-if [ -n "${BACKUP_OFFSITE_CMD:-}" ]; then
+if [ -f "${OFFSITE_CONF:-D:/VertexData/backup-keys/offsite.conf}" ]; then
   log "off-site copy"
-  $BACKUP_OFFSITE_CMD "$OUT"
+  # The local backup stands either way; a failed copy alerts, and the
+  # health check alerts again if no copy succeeds for 26 hours.
+  python "$HERE/offsite.py" push "$OUT" \
+    || bash "$HERE/alert.sh" "offsite_failed_$P" "Copying the backup of $P off-site failed" "$OUT"
 fi
 log "done: $OUT"
