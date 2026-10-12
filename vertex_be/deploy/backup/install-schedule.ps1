@@ -47,3 +47,25 @@ Register-VertexTask "Backup vertex-staging" `
 $monthly = New-ScheduledTaskTrigger -Weekly -WeeksInterval 4 -DaysOfWeek Sunday -At "04:00"
 Register-VertexTask "Restore drill vertex-main" `
     "bash deploy/backup/restore-drill.sh vertex-main >> $($Logs -replace '\\','/')/restore-drill-vertex-main.log 2>&1" $monthly 1
+
+# E5: hourly health check (stale backups, stale off-site copy, overdue
+# drill → alert email + audit row).
+$LogsPosix = $Logs -replace '\\', '/'
+$hourly = New-ScheduledTaskTrigger -Once -At $now.Date.AddHours($now.Hour + 1) -RepetitionInterval (New-TimeSpan -Hours 1)
+Register-VertexTask "Backup health check" `
+    "bash deploy/backup/backup-health.sh >> $LogsPosix/backup-health.log 2>&1" $hourly 1
+
+# E5 off-site tasks, once the bucket is configured (backup-recovery.md §9):
+# weekly prune with the admin credential, and a monthly restore drill of
+# the newest off-site copy, a week after the local one.
+$OffsiteConf = if ($env:OFFSITE_CONF) { $env:OFFSITE_CONF } else { "D:\VertexData\backup-keys\offsite.conf" }
+if (Test-Path $OffsiteConf) {
+    $weeklyPrune = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Saturday -At "04:30"
+    Register-VertexTask "Off-site prune" `
+        "{ python deploy/backup/offsite.py prune vertex-main --apply; python deploy/backup/offsite.py prune vertex-staging --apply; } >> $LogsPosix/offsite-prune.log 2>&1" $weeklyPrune 1
+    $offsiteDrill = New-ScheduledTaskTrigger -Weekly -WeeksInterval 4 -DaysOfWeek Saturday -At "05:00"
+    Register-VertexTask "Off-site restore drill vertex-main" `
+        "bash deploy/backup/offsite-drill.sh vertex-main >> $LogsPosix/offsite-drill.log 2>&1" $offsiteDrill 2
+} else {
+    Write-Output "off-site not configured ($OffsiteConf): off-site tasks not registered"
+}

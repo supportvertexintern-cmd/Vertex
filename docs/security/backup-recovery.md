@@ -31,10 +31,19 @@ Each stack is separate: its own Compose project, networks, database volume and o
 | Backup vertex-main | every 6 h (00, 06, 12, 18) | `backup.sh vertex-main` |
 | Backup vertex-staging | Sundays 03:30 | `backup.sh vertex-staging` |
 | Restore drill vertex-main | every 4 weeks, Sunday 04:00 | `restore-drill.sh vertex-main` |
+| Backup health check (E5) | every hour | `backup-health.sh`: alerts if main's newest backup is over 7 h old (staging: 8 days), the newest off-site copy is over 26 h old, or the newest drill is over 35 days old |
+| Off-site prune (E5) | Saturdays 04:30, once off-site is configured | `offsite.py prune … --apply` (admin credential) |
+| Off-site restore drill vertex-main (E5) | every 4 weeks, Saturday 05:00, once off-site is configured | `offsite-drill.sh`: downloads the newest off-site copy and runs the full restore drill on it |
 
 - **Run conditions.** Tasks run as the owner's account, only when logged on: the key is DPAPI-bound to that account, and Docker Desktop runs in that session. A run missed while the PC was off starts as soon as possible afterwards.
 - **Logs** go to `D:\VertexData\backups\logs\`.
 - **Freshness check.** `verify-stack.sh` fails if main's newest backup is more than 7 h old (staging: 8 days).
+- **Alerts (E5).** A failed backup (`backup.sh` ERR trap), a failed off-site copy and every health-check finding raise an alert through `alert.sh`. The alert is:
+  - a line in `logs/alerts.log`;
+  - an `alert_raised` row in the stack's audit trail;
+  - an email to `SECURITY_ALERT_EMAILS` (default: every admin), sent through the stack's own mail settings.
+
+  The same rule repeats at most once every 6 h. Delivery to Mailpit and the stale-backup alert were tested on 2026-10-12.
 
 ## 3. What a backup is
 
@@ -163,11 +172,78 @@ Every drill checks the following and reports counts only, never a value:
 - **Document archive.** Only server-generated names (`<type>/<uuid>.<pdf|jpg|png>`), so nothing else can have been copied in.
 - **Password hashes.** Present (10 on main) by design: users must be able to sign in after a restore. They are bcrypt hashes and stay encrypted inside the backup.
 
-## 9. Open risks
+## 9. Off-site copy (E5, 3-2-1)
+
+**Goal.** Three copies on two kinds of storage, one of them off-site and immutable:
+- the live database;
+- the encrypted copy on D:;
+- an off-site object-storage bucket with Object Lock.
+
+**How it works.**
+- **Encrypted before it leaves.** The backups are encrypted on this PC before they leave (gpg AES-256, §3), so the provider only ever stores ciphertext. The key stays here, plus the escrow copy.
+- **Pushed after every backup.** After each backup, `backup.sh` runs `offsite.py push`. It uploads `db.dump.gpg`, `documents.tar.gpg` and then `manifest.json`; the manifest goes last because it marks a complete copy. Each file has a SHA-256 checksum that the provider verifies. The AWS CLI runs in a pinned container (`amazon/aws-cli:2.27.0`). Credentials reach it through the environment, never on a command line.
+- **Immutable.** The bucket has versioning and Object Lock, with a default retention of 30 days in COMPLIANCE mode. No one can delete or overwrite a copy before its retention ends: not the writer key, not the admin key, and not ransomware on this PC.
+- **Two credentials,** stored like the backup key (DPAPI, `offsite-creds.ps1`):
+
+  | Credential | Used by | May |
+  |---|---|---|
+  | writer | every backup | `s3:PutObject` only: no list, read or delete |
+  | admin | weekly prune, monthly off-site drill | list, read, delete (deletes fail while a copy is locked) |
+
+- **Retention off-site:** 7 daily, 4 weekly, 6 monthly (`prune.py` policy `offsite`). Copies past the policy are deleted once their lock expires. Backups contain candidates' personal data, so check this against the data-retention policy for candidate data. A candidate erased from the database stays in off-site copies for up to about 6 months.
+- **Restore tests:**
+  - **Monthly, automatic:** `offsite-drill.sh` downloads the newest copy and runs the full restore drill on it.
+  - **Quarterly, by hand:** a timed drill against the 1 h RTO with `restore.sh` on staging (§6), using an off-site copy fetched with `offsite.py fetch`.
+
+### 9.1 Setting it up (owner)
+
+1. **Choose a provider.** Use a different account from anything else on this PC. Examples:
+   - **AWS S3:** create the bucket with *Object Lock* enabled (this also turns on versioning). Default retention: COMPLIANCE, 30 days.
+   - **Backblaze B2:** create the bucket with *Object Lock* enabled. Default retention: Compliance, 30 days. Use the S3 endpoint, e.g. `https://s3.eu-central-003.backblazeb2.com`.
+   - Any other S3-compatible store with Object Lock in compliance mode.
+2. **Create the writer key,** allowed only `s3:PutObject` on `arn:aws:s3:::<bucket>/*`. On B2: an application key restricted to the bucket, with only the `writeFiles` capability.
+3. **Create the admin key,** allowed `s3:ListBucket`, `s3:ListBucketVersions`, `s3:GetObject`, `s3:GetObjectVersion`, `s3:DeleteObject`, `s3:DeleteObjectVersion` and `s3:GetObjectRetention` on the bucket and its objects. Never `s3:BypassGovernanceRetention`, and no permission to change the bucket's lock settings. Also keep this key in the password manager.
+4. **Store both keys** on this PC (each prompts):
+   ```powershell
+   powershell -File vertex_be\deploy\backup\offsite-creds.ps1 set writer
+   powershell -File vertex_be\deploy\backup\offsite-creds.ps1 set admin
+   ```
+5. **Write `D:\VertexData\backup-keys\offsite.conf`.** It holds no secrets:
+   ```
+   OFFSITE_BUCKET=<bucket>
+   OFFSITE_ENDPOINT=            # empty for AWS; B2/Wasabi: their S3 endpoint
+   OFFSITE_REGION=<region>
+   ```
+6. **Check, push and prove.** From `vertex_be/`:
+   ```sh
+   python deploy/backup/offsite.py check-writer      # put allowed; list, get, delete denied
+   bash deploy/backup/backup.sh vertex-main .env.main # now also pushes off-site
+   bash deploy/backup/offsite-drill.sh vertex-main    # restore test of the off-site copy
+   powershell -File deploy\backup\install-schedule.ps1   # adds the weekly prune and monthly off-site drill
+   ```
+
+The first successful `offsite-drill.sh` against the real bucket is the evidence that closes E5. Record it in §7.
+
+### 9.2 Rehearsal, 2026-10-12 (local stand-in for the provider)
+
+This used a throwaway S3-compatible bucket (MinIO), configured like the real one: versioning on, Object Lock COMPLIANCE 30 days, a writer key with PutObject only and an admin key. The test data was the newest staging backup.
+
+| Check | Result |
+|---|---|
+| `check-writer` | put allowed; list, get, delete **denied** ✅ |
+| `push` | 3 files uploaded with SHA-256 checksums; state recorded for the health check ✅ |
+| Writer deletes a copy | **denied** ✅ |
+| Admin deletes a locked version | **refused**: "Object is WORM protected" ✅ |
+| Object retention | COMPLIANCE until 2026-11-11 (30 days) ✅ |
+| `prune --apply` | policy applied; the newest copy kept ✅ |
+| `fetch latest` + full restore drill of the downloaded copy | **PASSED in 24 s**: checksums, all rows, migrated to head, no model drift, all 39 Prisma models, no secrets ✅ |
+| Alerts | test alert emailed (Mailpit) and audited; a stale-backup (275 h) alert and an "off-site never pushed" alert fired from `backup-health.sh` ✅ |
+
+## 10. Open risks
 
 | Risk | Status |
 |---|---|
-| Single disk: D: failure or loss of the PC loses the data and every backup | **Accepted by the owner for now.** `BACKUP_OFFSITE_CMD` is ready for an S3 bucket (`aws s3 sync`) |
-| Key not yet escrowed | **Owner action** (§4) |
-| Two old unencrypted dumps of real data in `D:\VertexData\backups\2026-10-10` and `\2026-10-11` | Access-restricted now. **Owner decision:** delete them, or keep `vertex_postgres_data` alone as the historical fallback |
-| Tasks run only while the owner is logged on | Missed runs catch up at the next logon; the freshness check in `verify-stack.sh` flags gaps |
+| Single disk: D: failure or loss of the PC loses the data and every backup | **Exception E5, being closed.** The off-site copy is built and rehearsed (§9). It needs the owner's bucket and keys (§9.1) and the first real off-site restore |
+| Key not yet escrowed | **Owner action** (§4). Without the escrowed key, an off-site copy can't be read after losing this PC |
+| Two old unencrypted dumps of real data in `D:\VertexData\backups\2026-10-10` and `\2026-10-11` | Access-restricted now. **Owner decision:** recommended to delete them, since encrypted backups now restore successfully (§7) |
+| Tasks run only while the owner is logged on | Missed runs catch up at the next logon. The hourly health check alerts on gaps |
