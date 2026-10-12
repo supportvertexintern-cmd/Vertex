@@ -511,4 +511,17 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('User', 'created_at',                                    'grant'),   -- business timestamp
   ('User', 'updated_at',                                    'grant'),   -- business timestamp
   ('User', 'supervisor_id',                                 'grant'),   -- identifier/link
-  ('User', 'assigned_country_id',                           'grant');   -- identifier/link
+  ('User', 'assigned_country_id',                           'grant'),   -- identifier/link
+  ('User', 'token_version',                                 'exclude'), -- session security state
+  -- Sessions (0005, G19): token hashes and devices, never for browsing.
+  ('RefreshToken', 'id',                                    'exclude'), -- session security state
+  ('RefreshToken', 'user_id',                               'exclude'), -- session security state
+  ('RefreshToken', 'family_id',                             'exclude'), -- session security state
+  ('RefreshToken', 'token_hash',                            'exclude'), -- secret-like
+  ('RefreshToken', 'token_version',                         'exclude'), -- session security state
+  ('RefreshToken', 'device_info',                           'exclude'), -- personal data (browser)
+  ('RefreshToken', 'created_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'expires_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'used_at',                               'exclude'), -- session security state
+  ('RefreshToken', 'revoked_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'revoke_reason',                         'exclude'); -- session security state

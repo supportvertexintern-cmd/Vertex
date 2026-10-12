@@ -68,6 +68,7 @@ describe("API route guards", () => {
       if (entry.protection.includes("rate-limit") && !RATE_LIMIT.test(h.body)) missing.push(`${h.key}: rate-limit`);
       if (entry.protection.includes("signed-token") && !SIGNED_TOKEN.test(h.body)) missing.push(`${h.key}: signed-token`);
       if (entry.protection.includes("signature") && !SIGNATURE.test(h.body)) missing.push(`${h.key}: signature`);
+      if (entry.protection.includes("refresh-token") && !/refreshSession\(/.test(h.body)) missing.push(`${h.key}: refresh-token`);
     }
     expect(missing).toEqual([]);
   });

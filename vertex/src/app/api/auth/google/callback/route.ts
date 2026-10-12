@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
 import { safeRedirectPath } from "@/lib/safe-redirect";
-import { signToken } from "@/lib/jwt";
+import { setSessionCookies, startSession } from "@/lib/session";
 import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
 import { log } from "@/lib/log";
 
@@ -108,21 +108,10 @@ export async function GET(req: NextRequest) {
     actorId: user.id, entityType: "Auth", entityId: `user:${user.id}`, detail: { method: "google", role: user.role },
   });
 
-  // 4. Sign JWT and set cookie
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-  });
-
+  // 4. Start a session (lib/session.ts) and set its cookies
+  const session = await startSession(user, req);
   const response = NextResponse.redirect(`${appUrl}${redirectTo}`);
-  response.cookies.set("auth_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60,
-    path: "/",
-  });
+  setSessionCookies(response, session);
 
   return response;
 }

@@ -15,7 +15,7 @@ vi.mock("next/headers", () => ({
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { signToken } from "@/lib/jwt";
+import { sessionToken } from "@/lib/test-session";
 import { GET as staffList } from "@/app/api/partner-candidates/route";
 import { GET as staffGet } from "@/app/api/partner-candidates/[id]/route";
 import { GET as partnerList } from "@/app/api/partner/candidates/route";
@@ -47,7 +47,7 @@ const ctx = () => ({ params: Promise.resolve({ id: draftId }) });
 
 describe("partner-candidate drafts are invisible to this app", () => {
   it("staff lists skip them, even when asked for status=draft", async () => {
-    state.token = signToken({ userId: "drafts-admin", email: "a@test.invalid", role: "admin" });
+    state.token = await sessionToken({ userId: "drafts-admin", email: "a@test.invalid", role: "admin" });
     for (const qs of ["", "?status=draft", `?q=${encodeURIComponent(tag)}`]) {
       const res = await staffList(new NextRequest(`http://localhost/api/partner-candidates${qs}`));
       expect(res.status).toBe(200);
@@ -60,7 +60,7 @@ describe("partner-candidate drafts are invisible to this app", () => {
   });
 
   it("the partner's own list skips it and it can't be opened", async () => {
-    state.token = signToken({ userId: partnerUserId, email: `${tag}@test.invalid`, role: "partner" });
+    state.token = await sessionToken({ userId: partnerUserId, email: `${tag}@test.invalid`, role: "partner" });
     const res = await partnerList(new NextRequest("http://localhost/api/partner/candidates"));
     expect(res.status).toBe(200);
     expect(JSON.stringify(await res.json())).not.toContain(draftId);

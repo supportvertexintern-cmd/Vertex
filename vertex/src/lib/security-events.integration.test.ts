@@ -24,7 +24,7 @@ vi.mock("@/lib/email", () => ({
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { signToken } from "@/lib/jwt";
+import { sessionToken } from "@/lib/test-session";
 import { auditAccess, auditedPrisma, emailFingerprint, recordSecurityEvent } from "@/lib/audit";
 import { forbidden, getAuthUser, requireRole } from "@/lib/api-auth";
 import { setLogSink } from "@/lib/log";
@@ -112,7 +112,7 @@ describe("what gets recorded (items 3, 4)", () => {
     expect((await login(loginRequest("whatever", `${tag}-nobody@test.invalid`))).status).toBe(401);
 
     inRequest(`${tag}-deny`, "/api/admin/users");
-    const denied = requireRole({ userId, email, role: "candidate" }, ["admin"]);
+    const denied = requireRole({ userId, email, role: "candidate", sid: "test", ver: 0 }, ["admin"]);
     expect(denied?.status).toBe(403);
     await settle();
 
@@ -144,7 +144,7 @@ describe("what gets recorded (items 3, 4)", () => {
     const candidate = await prisma.candidate.create({ data: { full_name: `${tag} candidate` } });
     const doc = await prisma.document.create({ data: { candidate_id: candidate.id, type: "passport", storage_path: `passport/${tag}.pdf` } });
     try {
-      state.token = signToken({ userId: "p10-admin", email: "admin@test.invalid", role: "admin" });
+      state.token = await sessionToken({ userId: "p10-admin", email: "admin@test.invalid", role: "admin" });
       inRequest(`${tag}-doc`, `/api/documents/${doc.id}/signed-url`);
       const res = await issueLink(new NextRequest(`http://localhost/api/documents/${doc.id}/signed-url`), { params: Promise.resolve({ id: doc.id }) });
       expect(res.status).toBe(200);
@@ -225,7 +225,7 @@ describe("logging failures cannot grant access (item 7)", () => {
   it("a role denial stays a denial", async () => {
     breakAuditTrail();
     inRequest(`${tag}-f1`, "/api/admin/users");
-    expect(requireRole({ userId, email, role: "candidate" }, ["admin"])?.status).toBe(403);
+    expect(requireRole({ userId, email, role: "candidate", sid: "test", ver: 0 }, ["admin"])?.status).toBe(403);
     await settle();
     expect(lines.some((l) => l.event === "audit.write_failed")).toBe(true);
     expect(lines.some((l) => l.event === "alert.raised" && l.rule === "audit_write_failed")).toBe(true);
@@ -233,7 +233,7 @@ describe("logging failures cannot grant access (item 7)", () => {
 
   it("a record denial stays a denial", async () => {
     breakAuditTrail();
-    state.token = signToken({ userId, email, role: "candidate" });
+    state.token = await sessionToken({ userId, email, role: "candidate" });
     inRequest(`${tag}-f2`, "/api/cases/x");
     expect(forbidden().status).toBe(403);
     await settle();

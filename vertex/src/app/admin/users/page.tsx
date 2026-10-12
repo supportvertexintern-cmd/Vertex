@@ -7,7 +7,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import SortableTh from "@/components/SortableTh";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
-import { Plus, Copy, CheckCircle, Trash, Key, CaretDown, Check } from "@phosphor-icons/react";
+import { Plus, Copy, CheckCircle, Trash, Key, CaretDown, Check, SignOut } from "@phosphor-icons/react";
 import FilterBar from "@/components/portal/FilterBar";
 
 const ROLES = [
@@ -251,6 +251,23 @@ export default function StaffUsersPage() {
     }
   };
 
+  // G19: ends every session of the user at once; their next request is refused.
+  const signOutEverywhere = async (u: StaffUser) => {
+    if (!window.confirm(`Sign ${u.full_name} (${u.email}) out of every browser and device now?`)) return;
+    setSavingId(u.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}/sessions`, { method: "DELETE" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || "Failed to end sessions.");
+      window.alert(`${u.full_name}: ${body.data.ended} session${body.data.ended === 1 ? "" : "s"} ended.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to end sessions.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const staffOptions = users.filter((u) => u.role !== "candidate");
   const [sortBy, setSortBy] = useState<"full_name" | "role">("full_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -487,6 +504,15 @@ export default function StaffUsersPage() {
                           title="Reset password"
                         >
                           <Key size={16} weight="regular" />
+                        </button>
+                        <button
+                          onClick={() => signOutEverywhere(u)}
+                          disabled={rowSaving}
+                          className="text-midnight-900/35 hover:text-gold-600 disabled:opacity-40"
+                          aria-label="Sign out everywhere"
+                          title="Sign out everywhere"
+                        >
+                          <SignOut size={16} weight="regular" />
                         </button>
                         <button
                           onClick={() => deleteUser(u)}

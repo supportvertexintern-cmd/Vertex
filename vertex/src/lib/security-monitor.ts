@@ -7,6 +7,7 @@ import { currentRequest } from "./request-context";
 // (2026-10-11): brute-force sign-ins, malware, authorization probing and
 // privilege grants, plus two operational ones: audit-trail write failures
 // and the malware scanner being unreachable (uploads accepted unscanned).
+// E6 (2026-10-12) adds refresh-token reuse, a sign of a stolen session.
 //
 // An alert is a log line at level "alert" (event alert.raised), an
 // `alert_raised` row in the audit trail, and an email to
@@ -29,6 +30,7 @@ export const RULES = {
   privilegeGranted: { id: "privilege_granted", severity: "critical", windowMinutes: 1, threshold: 1 },
   auditWriteFailed: { id: "audit_write_failed", severity: "critical", windowMinutes: 15, threshold: 1 },
   scannerUnavailable: { id: "malware_scanner_unavailable", severity: "high", windowMinutes: 60, threshold: 1 },
+  refreshTokenReused: { id: "refresh_token_reused", severity: "high", windowMinutes: 15, threshold: 1 },
 } as const satisfies Record<string, AlertRule>;
 
 // Per-process dedupe, so a burst doesn't query the database per event and
@@ -67,6 +69,10 @@ export async function onSecurityEvent(
       const r = RULES.authorizationProbing;
       const n = await prisma.auditLog.count({ where: { action, actor_id: actorId, created_at: { gte: since(r.windowMinutes) } } });
       if (n >= r.threshold) await raiseAlert(r, `user:${actorId}`, `${n} denied requests by one user in ${r.windowMinutes} minutes`, { actor_id: actorId, denials: n, last_path: detail.path });
+    } else if (action === "refresh_token_reused") {
+      await raiseAlert(RULES.refreshTokenReused, `session:${entityId}`, "A spent refresh token was used again; the session was revoked", {
+        actor_id: actorId, session: entityId, used_at: detail.used_at,
+      });
     } else if (action === "malware_rejected" || action === "malware_blocked_download") {
       await raiseAlert(RULES.malware, `${action}:${entityId}`, action === "malware_rejected" ? "An uploaded file was infected and rejected" : "A stored document was found infected and blocked", {
         actor_id: actorId, entity_id: entityId, signature: detail.signature,

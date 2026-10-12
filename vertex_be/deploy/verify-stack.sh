@@ -80,6 +80,11 @@ CIF=$(tok 'const c=require("crypto"),j=require("jsonwebtoken");const k=Buffer.fr
 LEGACY=$(tok 'const j=require("jsonwebtoken");console.log(j.sign({userId:"probe",email:"p@test.invalid",role:"admin"},process.env.JWT_SECRET,{expiresIn:300,algorithm:"HS256"}))')
 ok "Upload token used as a session (G17)" "$(code -H "Cookie: auth_token=$CIF" http://127.0.0.1:$NP/api/auth/me)" 401
 ok "Pre-G17 single-key session token (G17)" "$(code -H "Cookie: auth_token=$LEGACY" http://127.0.0.1:$NP/api/auth/me)" 401
+# G19: a correctly signed session token is not enough; the session must be
+# live in the database.
+NOSESSION=$(tok 'const c=require("crypto"),j=require("jsonwebtoken");const k=Buffer.from(c.hkdfSync("sha256",process.env.JWT_SECRET,"vertex-token-keys","vertex/jwt/session/v1",32));console.log(j.sign({userId:"probe",email:"p@test.invalid",role:"admin",sid:"probe",ver:0},k,{expiresIn:300,algorithm:"HS256",issuer:"vertex-web",audience:"vertex:session"}))')
+ok "Signed session token, no live session (G19)" "$(code -H "Cookie: auth_token=$NOSESSION" http://127.0.0.1:$NP/api/auth/me)" 401
+ok "Refresh without a refresh token (G19)" "$(code -X POST http://127.0.0.1:$NP/api/auth/refresh)" 401
 docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "insert into \"Job\" (id,title,country,city,job_description,requirements,status,updated_at) values ('ctest-verify-draft','verify draft','X','X','d','r','draft',now())" >/dev/null
 ok "Draft job via API (G11)" "$(code http://127.0.0.1:$NP/api/jobs/ctest-verify-draft)" 404
 docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "delete from \"Job\" where id='ctest-verify-draft'" >/dev/null

@@ -46,3 +46,22 @@ def test_audit_log_is_immutable(db):
     db.flush()
     with pytest.raises(InternalError, match="immutable"):
         db.execute(text('UPDATE "AuditLog" SET action = \'tampered\''))
+
+
+def test_password_or_role_change_bumps_token_version(db):
+    # G19: whatever code path changes a credential or a role, every session
+    # issued before the change stops working.
+    user = User(full_name="V", email="v@test.local", password_hash="a")
+    db.add(user)
+    db.flush()
+
+    def version() -> int:
+        return db.scalar(text('SELECT token_version FROM "User" WHERE id = :id'), {"id": user.id})
+
+    assert version() == 0
+    db.execute(text("""UPDATE "User" SET full_name = 'W' WHERE id = :id"""), {"id": user.id})
+    assert version() == 0
+    db.execute(text("""UPDATE "User" SET password_hash = 'b' WHERE id = :id"""), {"id": user.id})
+    assert version() == 1
+    db.execute(text("""UPDATE "User" SET role = 'admin' WHERE id = :id"""), {"id": user.id})
+    assert version() == 2

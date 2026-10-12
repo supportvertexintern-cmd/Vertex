@@ -182,10 +182,14 @@ export type SecurityAction =
   // Sensitive reads (G21): who opened which candidate document, and when.
   | "document_link_issued"
   | "document_downloaded"
-  | "document_link_rejected";
+  | "document_link_rejected"
+  // Sessions (G19): ended by the user, an admin or the kill switch, and a
+  // spent refresh token presented again (likely theft; raises an alert).
+  | "sessions_revoked"
+  | "refresh_token_reused";
 
 // Routine, expected events log at info; everything else at warn.
-const INFO_ACTIONS = new Set<SecurityAction>(["login_succeeded", "logout", "document_link_issued", "document_downloaded"]);
+const INFO_ACTIONS = new Set<SecurityAction>(["login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked"]);
 
 export interface SecurityEvent {
   actorId: string | null;

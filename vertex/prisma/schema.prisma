@@ -60,17 +60,21 @@ enum JobStatus {
 }
 
 model User {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   full_name      String
-  email          String   @unique
+  email          String         @unique
   password_hash  String?
-  google_id      String?  @unique
+  google_id      String?        @unique
   phone          String?
   country        String?
-  role           Role     @default(candidate)
-  email_verified Boolean  @default(false)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  role           Role           @default(candidate)
+  email_verified Boolean        @default(false)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  // Bumped by a database trigger on password or role change (migration
+  // 0005, G19); a session is valid only under the version it was issued for.
+  token_version  Int            @default(0)
+  refresh_tokens RefreshToken[]
 
   // Agent-network structure (SRS FR-1.1, FR-1.3, FR-1.4)
   supervisor_id       String?
@@ -1306,7 +1310,7 @@ model PartnerCandidate {
   passport_expiry    DateTime?
   current_occupation String?
   highest_education  String?
-  home_address       String?  @db.Text
+  home_address       String?   @db.Text
   // Deliberately not collected on the submission form (phone: 2026-08-04;
   // email/whatsapp_number: 2026-08-15) — partners want to keep the
   // candidate's direct contact details private from Vertex, and Vertex
@@ -1333,7 +1337,7 @@ model PartnerCandidate {
   // 500ing on this field's now-Boolean column there; brought in line here
   // too rather than parsing free text at the bridge site.
   prior_eu_visa_applied         Boolean?
-  prior_eu_visa_applied_details String?  @db.Text
+  prior_eu_visa_applied_details String?   @db.Text
 
   // Section 4 — Document Checklist (self-reported, same list as the CIF's)
   documents_available String[]
@@ -1419,4 +1423,26 @@ model EmailTemplate {
   subject    String
   body_html  String   @db.Text
   updated_at DateTime @default(now()) @updatedAt
+}
+
+// Server-side refresh tokens (G19, migration 0005). Only the SHA-256 of a
+// token is stored. Each refresh rotates it: the old row gets used_at and a
+// new row joins the same family_id, which is the "session" users see and
+// revoke. Reusing a used token revokes the family (lib/session.ts).
+model RefreshToken {
+  id            String    @id @default(cuid())
+  user_id       String
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  family_id     String
+  token_hash    String    @unique
+  token_version Int
+  device_info   String?
+  created_at    DateTime  @default(now())
+  expires_at    DateTime
+  used_at       DateTime?
+  revoked_at    DateTime?
+  revoke_reason String?
+
+  @@index([user_id])
+  @@index([family_id])
 }

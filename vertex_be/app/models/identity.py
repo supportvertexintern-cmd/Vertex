@@ -53,6 +53,9 @@ class User(Base):
     email_verified: Mapped[bool] = flag(False)
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
+    # Bumped by a database trigger on password or role change; sessions
+    # carry the version they were issued under (migration 0005, G19).
+    token_version: Mapped[int] = mapped_column(default=0, server_default="0")
 
     # Agent-network structure (SRS FR-1.1, FR-1.3, FR-1.4). regional_recruiter
     # and country_supervisor use assigned_country_id; inhouse_supervisor uses
@@ -104,3 +107,24 @@ class InhouseCountryAssignment(Base):
 
     inhouse_supervisor: Mapped[User] = relationship(back_populates="inhouse_country_assignments")
     country: Mapped[Country] = relationship()
+
+
+class RefreshToken(Base):
+    """A server-side refresh token (G19). Only the SHA-256 of the token is
+    stored. Each refresh rotates it: the old row gets used_at and a new row
+    joins the same family_id, which is the session the user sees. Owned by
+    the Next.js app; FastAPI has no grants on it."""
+
+    __tablename__ = "RefreshToken"
+
+    id: Mapped[str] = pk()
+    user_id: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)
+    family_id: Mapped[str] = mapped_column(index=True)
+    token_hash: Mapped[str] = mapped_column(unique=True)
+    token_version: Mapped[int]
+    device_info: Mapped[str | None]
+    created_at: Mapped[datetime] = created_at_col()
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+    revoked_at: Mapped[datetime | None]
+    revoke_reason: Mapped[str | None]

@@ -17,7 +17,7 @@ let candidateInA: string;
 let candidateInB: string;
 
 function actor(userId: string, role: JwtPayload["role"]): JwtPayload {
-  return { userId, email: `${userId}@test.local`, role };
+  return { userId, email: `${userId}@test.local`, role, sid: "test", ver: 0 };
 }
 
 beforeAll(async () => {

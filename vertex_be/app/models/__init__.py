@@ -13,7 +13,7 @@ from app.models.cases import (
     FeePolicy,
     RetentionFollowUp,
 )
-from app.models.identity import Country, InhouseCountryAssignment, Region, User
+from app.models.identity import Country, InhouseCountryAssignment, RefreshToken, Region, User
 from app.models.jobs import EmployerClient, Job, JobMilestonePrice, JobPaymentStage, JobPosition, JobSector
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import ConsultationBooking, Payment
@@ -79,6 +79,7 @@ __all__ = [
     "ReferralAgentTarget",
     "ReferralCommission",
     "ReferralCommissionRule",
+    "RefreshToken",
     "Region",
     "Report",
     "RetentionFollowUp",

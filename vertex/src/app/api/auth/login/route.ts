@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { comparePassword } from "@/lib/auth";
-import { signToken } from "@/lib/jwt";
+import { setSessionCookies, startSession } from "@/lib/session";
 import { loginSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
@@ -81,11 +81,7 @@ export async function POST(req: NextRequest) {
     detail: { method: "password", role: user.role },
   });
 
-  const token = signToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-  });
+  const session = await startSession(user, req);
 
   const res = NextResponse.json({
     message: "Login successful",
@@ -96,14 +92,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
     },
   });
-
-  res.cookies.set("auth_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-    path: "/",
-  });
+  setSessionCookies(res, session);
 
   return res;
 }
