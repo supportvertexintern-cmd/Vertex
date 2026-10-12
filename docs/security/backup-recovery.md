@@ -245,5 +245,5 @@ This used a throwaway S3-compatible bucket (MinIO), configured like the real one
 |---|---|
 | Single disk: D: failure or loss of the PC loses the data and every backup | **Exception E5, being closed.** The off-site copy is built and rehearsed (§9). It needs the owner's bucket and keys (§9.1) and the first real off-site restore |
 | Key not yet escrowed | **Owner action** (§4). Without the escrowed key, an off-site copy can't be read after losing this PC |
-| Two old unencrypted dumps of real data in `D:\VertexData\backups\2026-10-10` and `\2026-10-11` | Access-restricted now. **Owner decision:** recommended to delete them, since encrypted backups now restore successfully (§7) |
+| ~~Two old unencrypted dumps of real data~~ | **Closed 2026-10-12.** The pre-migration originals are kept, encrypted, in `legacy\pre-migration-dumps-20261010.tar.gpg` (decryption verified); the plaintext was deleted |
 | Tasks run only while the owner is logged on | Missed runs catch up at the next logon. The hourly health check alerts on gaps |

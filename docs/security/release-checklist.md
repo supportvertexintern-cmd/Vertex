@@ -45,12 +45,12 @@ Phase 12 (local release readiness), prepared 2026-10-12.
 
 ## 3. Exceptions (need the owner's approval)
 
-Since 2026-10-12, these are handled under the owner's implementation plan. Fixes, acceptance conditions with evidence, and the **register to sign** are in [exceptions.md](exceptions.md).
+Since 2026-10-12, these are handled under the owner's implementation plan. Fixes, acceptance conditions with evidence, and the **register (signed off by the owner, 2026-10-12)** are in [exceptions.md](exceptions.md).
 
 | ID | Exception | Decision | Status (2026-10-12) |
 |---|---|---|---|
 | E1 | 5 high advisories in the ESLint toolchain (`braces`), dev-only, no fix | Accept with conditions | All conditions in place; CI and the image build enforce them |
-| E2 | MinIO: 6 advisories in its last community release | Accept with conditions | No ports, internal network only, unique credentials. vertex-main holds 0 documents today. **Expiry = S3 cutover date: owner to set** |
+| E2 | MinIO: 6 advisories in its last community release | Accept with conditions | No ports, internal network only, unique credentials. vertex-main holds 0 documents today (hourly guard). **Expiry 2027-01-10, or the first real document on main** |
 | E3 | CSP allowed `'unsafe-inline'` for scripts | **Fix** | Nonce policy built (report-only first, then `CSP_MODE=enforce`); verified in Chromium ([csp.md](csp.md)) |
 | E4 | Backend image: 44 Debian findings, none fixable | Accept with conditions | 0 KEV matches, none reachable, backend now non-root, weekly rebuild and scan, CI fails on fixable HIGH/CRITICAL |
 | E5 | Backups only on D: | **Fix** | Off-site immutable copy built and rehearsed; needs the owner's bucket and the first real off-site restore ([backup-recovery.md](backup-recovery.md) §9) |
@@ -60,7 +60,7 @@ These fixes are **not part of this release** (`283075f`). They follow in the nex
 
 ## 4. Release steps
 
-1. **Before:** fresh backup of main.
+1. **Before:** fresh backup of main. **Done 2026-10-12:** `vertex-main/20261012T125230Z`, restore-drilled with the release images: PASSED (1,256 rows, 0001 → 0004, all 39 models).
    ```sh
    bash deploy/backup/backup.sh vertex-main .env.main
    ```
@@ -129,7 +129,7 @@ Then deploy `4a55ab8` as in A.2. `restore.sh` takes its own safety backup first.
   ```
   Store the value in a password manager.
 - **Rotate the dev `vertex_api` database password.** It was printed into a working session once: change `DB_API_PASSWORD` in `.env.dev`, and the next dev deploy applies it.
-- **Decide on the two old unencrypted dumps** in `D:\VertexData\backups\2026-10-10` and `\2026-10-11`.
+- ~~Decide on the two old unencrypted dumps.~~ **Done 2026-10-12.** Encrypted with the backup key into `D:\VertexData\backups\legacy\pre-migration-dumps-20261010.tar.gpg` (decryption verified, SHA-256 identical); the plaintext folders were deleted.
 
 ## 8. Phase 13 handover (deferred until production access)
 

@@ -33,7 +33,7 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 | Dev/staging only, no real candidate data | ⚠ **Partly.** MinIO also runs in **vertex-main**, the local stack that holds real data. Today it stores **0 documents**: the newest main backup has 0 objects and 0 `Document` rows, against 46 candidates. The first document uploaded on main breaks this condition | backup manifest of vertex-main, 2026-10-12 |
 | No published ports; internal Docker network only | ✅ dev, staging and main MinIO publish no port and sit only on the stack's internal `data` network. The only MinIO with a port is the end-to-end test instance on `127.0.0.1:9311`, which holds test data only | `docker ps`; `verify-stack.sh` |
 | Unique, non-default root credentials in secrets, not compose files | ✅ Compose requires them from the env file (`${MINIO_ROOT_PASSWORD:?}`). Each stack has a different 40-character password, none default. Compared by hash only; nothing printed | env files (not in Git) |
-| Expiry = S3 production cutover date; MinIO removed that day | **Owner to set the date** (§4) | — |
+| Expiry = S3 production cutover date; MinIO removed that day | ✅ Set (§4): **2027-01-10, or the first real document on vertex-main, whichever comes first**. The hourly health check alerts on that first document | `backup-health.sh` |
 
 **Recommendation for main.** Either move vertex-main's documents to S3 before anyone uploads a real document there, or explicitly accept MinIO on main until the cutover. The exposure is limited: no port, internal network only, and the vulnerable features (OIDC, LDAP) are not configured.
 
@@ -68,17 +68,20 @@ Fresh scan on 2026-10-12: backend image `dev-56de2b9`, Debian 13.7, Trivy 0.67.2
 - `D:\VertexData\security-scans\e4-20261012\trivy-backend-distroless.json`: the rejected distroless trial.
 - `D:\VertexData\security-scans\kev-20261012\known_exploited_vulnerabilities.json`: the KEV catalog used.
 
-## 4. Exception register (for the owner's sign-off)
+## 4. Exception register (signed off 2026-10-12)
 
 Every open exception needs a named owner, a compensating control and an expiry date. **The accountable risk owner signs, not the implementer.**
 
 | ID | Decision | Compensating control | Owner | Expiry / review | Signed off by |
 |---|---|---|---|---|---|
-| E6 | Fix: blocks Phase 2 close | Fixed in code: 15-min access tokens, per-request session check, kill switch. Closes when deployed and `verify-stack.sh` passes the G19 rows | | on deploy | |
-| E3 | Fix | Report-only nonce policy running; no `'unsafe-eval'`; CI regression test | | report-only start + 2 weeks | |
-| E5 | Fix | Local encrypted D: copy, hourly health alerts, monthly drills, until the off-site copy lands | | bucket + first off-site restore | |
-| E1 | Accept | Dev-only, never shipped (build and CI enforce it); re-checked on every lockfile change | | fix released, or review in 90 days | |
-| E2 | Accept | Non-production use, internal network only, unique credentials; **main: no documents yet** | | **S3 cutover date (owner to set)** | |
-| E4 | Accept | No KEV matches; none reachable by the app; non-root; weekly rebuild and scan; CI fails on fixable HIGH/CRITICAL | | review in 90 days | |
+| E6 | Fix: blocks Phase 2 close | Fixed in code: 15-min access tokens, per-request session check, kill switch. Closes when deployed to main and `verify-stack.sh` passes the G19 rows | Brook | 2026-10-26 (deploy + verify) | Brook, 2026-10-12 |
+| E3 | Fix | Report-only nonce policy running; no `'unsafe-eval'`; CI regression test | Brook | Enforce 2 weeks after report-only starts on staging; latest 2026-11-09 | Brook, 2026-10-12 |
+| E5 | Fix | Local encrypted D: copy, hourly health alerts, monthly drills, until the off-site copy lands | Brook | 2026-11-12 (bucket + first off-site restore) | Brook, 2026-10-12 |
+| E1 | Accept | Dev-only, never shipped (build and CI enforce it); re-checked on every lockfile change | Brook | 2027-01-10, or earlier when a fix ships | Brook, 2026-10-12 |
+| E2 | Accept | Non-production use, internal network only, unique credentials; vertex-main holds 0 documents (hourly guard alerts on the first one) | Brook | **2027-01-10, or the first real document stored on vertex-main, whichever comes first.** The S3 cutover must happen before then | Brook, 2026-10-12 |
+| E4 | Accept | No KEV matches; none reachable by the app; backend non-root; weekly rebuild and scan; CI fails on fixable HIGH/CRITICAL | Brook | 2027-01-10 | Brook, 2026-10-12 |
 
-**Open question:** what is the S3 cutover date? It sets E2's expiry.
+Sign-off: the owner (Brook) approved this register in the working session on 2026-10-12. The implementer (Claude) recorded it. Each row is reviewed by its date; an exception that passes its date without a review is treated as a failed release check.
+
+**E2 expiry:** the S3 cutover date wasn't fixed yet, so the owner chose the recommended rule. That rule is a 90-day review, brought forward by the first real document on vertex-main. `backup-health.sh` checks it every hour.
+

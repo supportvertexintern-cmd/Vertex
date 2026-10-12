@@ -42,6 +42,16 @@ else
   echo "off-site: not configured ($CONF missing; exception E5 still open)"
 fi
 
+# Exception E2 (docs/security/exceptions.md): MinIO is accepted only while
+# vertex-main stores no real documents in it. The first one breaks the
+# condition: move main to S3 (or re-decide E2) before anything else.
+n=$(newest vertex-main)
+if [ -n "$n" ]; then
+  docs=$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['documents']['files'])" "$ROOT/vertex-main/$n/manifest.json" 2>/dev/null || echo 0)
+  echo "E2: vertex-main documents in MinIO: $docs (must be 0 until the S3 cutover)"
+  if [ "${docs:-0}" -gt 0 ]; then bash "$HERE/alert.sh" e2_condition_broken "vertex-main now stores $docs document(s) in MinIO; exception E2 no longer holds" "move vertex-main to S3 or re-decide E2 (exceptions.md)"; problems=1; fi
+fi
+
 d=$(ls "$ROOT/drills"/vertex-main-*.md 2>/dev/null | sort | tail -1)
 if [ -n "$d" ]; then
   s=$(basename "$d" .md); s=${s#vertex-main-}
