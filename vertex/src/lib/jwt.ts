@@ -2,7 +2,9 @@ import { hkdfSync } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { Role } from "@prisma/client";
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+// Access tokens are short-lived; sessions last through refresh tokens
+// (lib/session.ts, G19). Fixed in code: a long value would reopen the gap.
+const ACCESS_TOKEN_EXPIRES_IN = "15m";
 const EMAIL_TOKEN_EXPIRES_IN = process.env.EMAIL_TOKEN_EXPIRES_IN || "24h";
 
 // Pinned explicitly rather than left to jsonwebtoken's default inference
@@ -82,6 +84,10 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: Role;
+  // The session (refresh-token family) and the user's token_version at
+  // issue; both are checked against the database on every request.
+  sid: string;
+  ver: number;
 }
 
 export interface EmailTokenPayload {
@@ -110,7 +116,7 @@ export interface CifUploadTokenPayload {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return sign("session", payload, JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"]);
+  return sign("session", payload, ACCESS_TOKEN_EXPIRES_IN);
 }
 
 export function signEmailToken(payload: EmailTokenPayload): string {
@@ -123,8 +129,11 @@ export function signDocumentToken(payload: DocumentTokenPayload, expiresInSecond
   return sign("document", payload, expiresInSeconds);
 }
 
+// Tokens from before G19 (no sid/ver) are rejected: those users sign in again.
 export function verifyToken(token: string): JwtPayload {
-  return verify<JwtPayload>("session", token, ["userId", "email", "role"]);
+  const payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"]);
+  if (!Number.isInteger(payload.ver)) throw new jwt.JsonWebTokenError("session token is missing ver");
+  return payload;
 }
 
 // The caller says which kind it expects: verification and reset links are

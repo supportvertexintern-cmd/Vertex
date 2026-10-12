@@ -79,6 +79,12 @@ def test_only_the_web_service_reads_the_audit_trail(conn):
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
 
 
+def test_only_the_web_service_touches_sessions(conn):
+    # G19: refresh tokens belong to the service that signs users in.
+    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "RefreshToken"') is None
+    assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "RefreshToken"') == INSUFFICIENT_PRIVILEGE
+
+
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 @pytest.mark.parametrize(
     "sql",
@@ -94,6 +100,8 @@ def test_only_the_web_service_reads_the_audit_trail(conn):
         'ALTER TABLE "AuditLog" DISABLE TRIGGER audit_log_no_update',
         'DROP TRIGGER audit_log_no_delete ON "AuditLog"',
         "CREATE OR REPLACE FUNCTION prevent_auditlog_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$",
+        'ALTER TABLE "User" DISABLE TRIGGER user_token_version_bump',
+        "CREATE OR REPLACE FUNCTION bump_user_token_version() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$",
         "SELECT * FROM alembic_version",
         "UPDATE alembic_version SET version_num = version_num",
         "CREATE ROLE role_probe",

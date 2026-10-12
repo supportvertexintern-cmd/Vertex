@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
-import { List, X, SignOut } from "@phosphor-icons/react";
+import { List, X, SignOut, Devices } from "@phosphor-icons/react";
+import SessionsPanel from "./SessionsPanel";
 
 export interface PortalNavItem {
   href: string;
@@ -29,6 +30,7 @@ export default function PortalShell({ roleLabel, navItems, children }: PortalShe
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -90,6 +92,13 @@ export default function PortalShell({ roleLabel, navItems, children }: PortalShe
 
         <div className="shrink-0 px-3 pt-6">
           <button
+            onClick={() => setSessionsOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-ivory-50/50 hover:text-ivory-50 hover:bg-white/5 transition-colors"
+          >
+            <Devices size={18} weight="regular" />
+            Active sessions
+          </button>
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-ivory-50/50 hover:text-ivory-50 hover:bg-white/5 transition-colors"
           >
@@ -124,6 +133,16 @@ export default function PortalShell({ roleLabel, navItems, children }: PortalShe
           <NavList />
           <div className="mt-auto px-3 pt-6">
             <button
+              onClick={() => {
+                setMobileOpen(false);
+                setSessionsOpen(true);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-ivory-50/50 hover:text-ivory-50 hover:bg-white/5 transition-colors"
+            >
+              <Devices size={18} weight="regular" />
+              Active sessions
+            </button>
+            <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-ivory-50/50 hover:text-ivory-50 hover:bg-white/5 transition-colors"
             >
@@ -133,6 +152,8 @@ export default function PortalShell({ roleLabel, navItems, children }: PortalShe
           </div>
         </div>
       )}
+
+      {sessionsOpen && <SessionsPanel onClose={() => setSessionsOpen(false)} />}
 
       {/* Content */}
       <main className="flex-1 min-w-0 pt-16 lg:pt-0">

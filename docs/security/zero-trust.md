@@ -288,4 +288,4 @@ expiry date) agreed by the project owner. Undocumented exceptions are defects.
 |---|---|---|---|---|
 | §3 rate limits are trustworthy | limits are per-process and keyed on a client-supplied `X-Forwarded-For` | gaps G5, G14 | — | end of Phase 4 |
 | §2 identity: OAuth sign-in verifies the request it answers | Google sign-in `state` carries the redirect path, not an anti-forgery value (login CSRF) | gap G13 | — | end of Phase 4 |
-| §8 revocable sessions; 5.2 revoked credentials denied | 7-day JWT, no revocation; role and identity read only from the token, so demotion, deletion and password changes don't take effect until expiry | gaps G4, G19 (tracked by strict expected-failure tests) | — | end of Phase 4 |
+| §8 revocable sessions; 5.2 revoked credentials denied | 15-minute access tokens + rotating server-side refresh tokens; every request checks the session in the database ([session-management.md](session-management.md)) | G19 **fixed 2026-10-12**; G4 as tracked | — | end of Phase 4 |

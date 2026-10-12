@@ -17,7 +17,7 @@ vi.mock("next/headers", () => ({
 import { NextRequest } from "next/server";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { signToken } from "@/lib/jwt";
+import { sessionToken } from "@/lib/test-session";
 import { GET as getApplication } from "@/app/api/applications/[id]/route";
 import { GET as getCase } from "@/app/api/cases/[id]/route";
 import { GET as getDocumentUrl } from "@/app/api/documents/[id]/signed-url/route";
@@ -32,7 +32,7 @@ const ids: Record<string, string> = {};
 const people: Record<string, Who> = {};
 
 async function call(handler: Handler, who: Who | null, id: string): Promise<number> {
-  state.token = who ? signToken(who) : "";
+  state.token = who ? await sessionToken(who) : "";
   const res = await handler(new NextRequest(`http://localhost/api/x/${id}`), { params: Promise.resolve({ id }) });
   return res.status;
 }

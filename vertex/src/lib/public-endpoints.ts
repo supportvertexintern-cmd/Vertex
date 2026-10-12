@@ -12,13 +12,16 @@
  *  - "rate-limit"       must call limitByIp/rateLimit
  *  - "signed-token"     needs a signed, expiring single-purpose token
  *  - "signature"        needs the sender's cryptographic signature
+ *  - "refresh-token"    needs a live server-side refresh token (lib/session.ts)
  *  - "none-needed"      has no effect without a session (e.g. logout)
  */
-export type PublicProtection = "rate-limit" | "signed-token" | "signature" | "none-needed";
+export type PublicProtection = "rate-limit" | "signed-token" | "signature" | "refresh-token" | "none-needed";
 
 export const PUBLIC_ENDPOINTS: Record<string, { purpose: string; protection: PublicProtection[] }> = {
   "POST /api/auth/login": { purpose: "sign in", protection: ["rate-limit"] },
-  "POST /api/auth/logout": { purpose: "sign out (clears the cookie)", protection: ["none-needed"] },
+  "POST /api/auth/logout": { purpose: "sign out: revokes this browser's session, clears the cookies", protection: ["none-needed"] },
+  "POST /api/auth/refresh": { purpose: "renew an expired 15-minute access token (G19)", protection: ["rate-limit", "refresh-token"] },
+  "GET /api/auth/refresh": { purpose: "renew the access token on a page navigation, then redirect back", protection: ["rate-limit", "refresh-token"] },
   "GET /api/auth/register": { purpose: "look up an account-setup invite link", protection: ["rate-limit"] },
   "POST /api/auth/register": { purpose: "create a candidate account", protection: ["rate-limit"] },
   "POST /api/auth/forgot-password": { purpose: "request a reset email; same reply for unknown accounts", protection: ["rate-limit"] },

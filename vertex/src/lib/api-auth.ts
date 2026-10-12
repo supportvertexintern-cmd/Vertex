@@ -4,21 +4,38 @@ import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
 import { recordSecurityEventLater } from "@/lib/audit";
 import { log } from "@/lib/log";
+import { ACCESS_COOKIE, loadSession } from "@/lib/session";
 
+/**
+ * The signed-in caller, or null. Zero trust (G19): the access token's
+ * signature is not enough. The user must still exist, their token_version
+ * must match the token's, and the token's session must still be live, so
+ * revocation, deletion, and password or role changes take effect on the
+ * next request. Role and email come from the database, not the token.
+ * Any failure, including the database being unreachable, means null.
+ */
 export async function getAuthUser(req: NextRequest): Promise<JwtPayload | null> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get(ACCESS_COOKIE)?.value;
     if (!token) return null;
+    let claims: JwtPayload;
     try {
-      return verifyToken(token);
+      claims = verifyToken(token);
     } catch (err) {
       // Expired sessions land here routinely; a run of bad signatures is
       // what to look for.
       log.info("auth.invalid_token", { reason: err instanceof Error ? err.name : "unknown" });
       return null;
     }
-  } catch {
+    const { user, reason } = await loadSession(claims.userId, claims.sid, claims.ver);
+    if (!user) {
+      log.info("auth.session_rejected", { reason, user_id: claims.userId, sid: claims.sid });
+      return null;
+    }
+    return { userId: user.id, email: user.email, role: user.role, sid: claims.sid, ver: user.token_version };
+  } catch (err) {
+    log.warn("auth.session_check_failed", { err });
     return null;
   }
 }
@@ -65,7 +82,7 @@ export function forbidden(body: unknown = { error: { code: "forbidden", message:
   const pending = cookies();
   void pending
     .then((store) => {
-      const token = store.get("auth_token")?.value;
+      const token = store.get(ACCESS_COOKIE)?.value;
       let actor: JwtPayload | null = null;
       try {
         actor = token ? verifyToken(token) : null;

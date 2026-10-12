@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AIChatWidget from "@/components/AIChatWidget";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import WelcomePopup from "@/components/WelcomePopup";
+import SessionRefresh from "@/components/SessionRefresh";
 
 const font = Outfit({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={font.variable}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
+        <SessionRefresh />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
