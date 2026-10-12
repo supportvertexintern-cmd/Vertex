@@ -62,7 +62,10 @@ inter-service trust is the shared database, governed by the Phase 1 roles.
 
 **FastAPI:** no authentication or authorization yet. It exposes only `/`,
 `/api/v1/health`, `/docs`, `/redoc` and the OpenAPI schema, all public by design
-for now (Phases 4–5 add auth; production must disable the docs).
+for now (Phases 4–5 add auth; production must disable the docs). *Update
+2026-10-12:* default deny is in place (`app/core/access.py`): any new route
+that isn't in the public register or behind an auth guard is refused (401),
+and CI fails on it.
 
 **Platform:** least-privilege database roles, secret scanning in pre-commit
 and CI, CI-built images, dev/staging isolation.
@@ -74,12 +77,12 @@ and CI, CI-built images, dev/staging isolation.
 | G1 | `GET /api/admin/emails` has **no authentication**: anyone can list all email templates | High | handler reads `emailTemplate.findMany()` with no user check; its `PUT` requires admin | Phase 2 (quick fix) |
 | G2 | `GET /api/admin/knowledge` has **no authentication** | Medium | same pattern; the chatbot reads the table directly, so the endpoint needn't be public | Phase 2 (quick fix) |
 | G3 | `POST /api/chat` is **public with no rate limit** and calls Gemini | Medium | no `getAuthUser`, no `rateLimit` | Phase 2 (rate limit) |
-| G4 | Sessions **can't be revoked**: logout only clears the cookie; a stolen token stays valid for 7 days | High | no session/denylist table; `JWT_EXPIRES_IN` defaults to `7d` | Phase 4 |
+| G4 | Sessions **can't be revoked**: logout only clears the cookie; a stolen token stays valid for 7 days | High | no session/denylist table; `JWT_EXPIRES_IN` defaults to `7d` | Phase 4. **Fixed 2026-10-12** (E6): 15-minute access tokens, server-side revocable refresh tokens ([session-management.md](session-management.md)) |
 | G5 | Rate limits live **in process memory**: reset on restart, not shared across instances | Medium | `new Map()` in `lib/rate-limit.ts` | Phase 4 |
 | G6 | Authorization is **opt-in per handler**: nothing fails a build when a new route forgets its guard (G1/G2 are exactly this) | High | 155 handlers each call their own guard | Phase 2 (default-deny test) |
 | G7 | Authorization decisions are **not audited**: denials leave no record | Medium | `AuditLog` records data changes only | Phase 2 design, Phase 5 build |
 | G8 | Two systems hold business logic over one database (Next.js/Prisma and FastAPI) | High (architecture) | both roles can write the same tables | Phase 2 decision (plan Phase 4) |
-| G9 | FastAPI has no auth; its docs/OpenAPI are public | Low now (no data endpoints) | `/api/v1/openapi.json` | Phases 4–5 |
+| G9 | FastAPI has no auth; its docs/OpenAPI are public | Low now (no data endpoints) | `/api/v1/openapi.json` | Phases 4–5. Default deny added 2026-10-12, so nothing new can be public by accident; user authentication still to do |
 | G10 | *(found in step 2)* Public auth flows aren't rate-limited: `forgot-password` (email bombing, account probing), `reset-password`, `verify-email`, Google sign-in; also `apply/options` | Medium | no `rateLimit` in those handlers | Phase 2 |
 | G11 | *(found in step 2)* `GET /api/jobs/[id]` (public) returns the full job row for **any** status, including drafts and closed jobs and `employer_client_id`; the public list correctly limits fields and status | Medium | `getPublicJobById` uses `findUnique` with no `select` or status filter | Phase 2 |
 

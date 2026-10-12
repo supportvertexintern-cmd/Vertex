@@ -62,7 +62,7 @@ Next.js and FastAPI share is the database, each through its own role.
 | | |
 |---|---|
 | Caller → receiver | Browser → Next.js container (`vertex-<env>-nextjs-1`) or Vercel |
-| Identity | Session JWT in cookie `auth_token` (`httpOnly`, `sameSite=strict`, `secure` in production), HS256, 7 days, audience `vertex:session` (G17). Anonymous for the 18 public endpoints in `lib/public-endpoints.ts` |
+| Identity | Session JWT in cookie `auth_token` (`httpOnly`, `sameSite=strict`, `secure` in production), HS256, **15 minutes**, audience `vertex:session` (G17), carrying the session id and `token_version`; renewed through a rotating refresh token (`refresh_token`, path `/api/auth`, stored hashed) and re-checked against the database on every request (G19, [session-management.md](session-management.md)). Anonymous for the 18 public endpoints in `lib/public-endpoints.ts` |
 | Authentication | Pages: `src/proxy.ts` (redirect to login). API: `getAuthUser` in each handler (`lib/api-auth.ts`); token verified with the session key only |
 | Authorization | Per handler: `requireRole`/`requireAdmin` (role from the token), then record checks (`canAccessCandidate`, `canAccessCase`, scope filters). Default deny enforced by `route-guards.test.ts` |
 | Secrets | `JWT_SECRET` (per-purpose keys derived from it) |

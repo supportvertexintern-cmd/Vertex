@@ -125,7 +125,7 @@ Each stack is separate: its own Compose project, networks, database volume and o
 |---|---|
 | Lost or corrupted database volume | as above |
 | Bad release | roll back the images (release checklist); restore only if data was changed |
-| Whole PC lost or disk failed | **Not recoverable today:** backups exist only on D: (accepted, §9). Once off-site copies exist: new host, Docker, repo, `.env.main` from the owner's records, the escrowed key (`backup-key.ps1` with the key re-imported), then step 3 |
+| Whole PC lost or disk failed | **Not recoverable until the off-site bucket exists** (E5: built and rehearsed, §9; waiting for the owner's bucket and keys). Then: fetch the newest off-site copy (`offsite.py fetch`), and on the new host: new host, Docker, repo, `.env.main` from the owner's records, the escrowed key (`backup-key.ps1` with the key re-imported), then step 3 |
 | Lost backup key | Existing backups are unreadable without the escrowed copy. Create a new key (`init`) and take a fresh backup at once |
 
 ## 7. Tests run on 2026-10-11
