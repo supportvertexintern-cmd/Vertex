@@ -35,8 +35,14 @@ export const metadata: Metadata = {
 };
 
 import Script from "next/script";
+import { headers } from "next/headers";
+import { NONCE_HEADER } from "@/lib/csp";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Reading the request's CSP nonce (set by src/proxy.ts) also makes every
+// page render per request, which nonces require: a page prerendered at
+// build time would carry no nonce (E3).
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
   return (
     <html lang="en" className={font.variable}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
@@ -49,17 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WelcomePopup />
 
         <div id="google_translate_element" style={{ display: 'none' }}></div>
-        <Script id="google-translate-config" strategy="afterInteractive">
-          {`
-            function googleTranslateElementInit() {
-              new window.google.translate.TranslateElement({
-                pageLanguage: 'en',
-                autoDisplay: false
-              }, 'google_translate_element');
-            }
-          `}
-        </Script>
-        <Script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" strategy="afterInteractive" />
+        <Script src="/js/google-translate.js" strategy="afterInteractive" nonce={nonce} />
       </body>
     </html>
   );

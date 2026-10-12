@@ -38,4 +38,5 @@ export const PUBLIC_ENDPOINTS: Record<string, { purpose: string; protection: Pub
   "POST /api/chat": { purpose: "website AI assistant over public knowledge", protection: ["rate-limit"] },
   "GET /api/documents/file": { purpose: "download one file named in a short-lived signed URL", protection: ["signed-token"] },
   "POST /api/webhooks/stripe": { purpose: "payment events from Stripe", protection: ["signature"] },
+  "POST /api/csp-report": { purpose: "browsers' CSP violation reports (E3); logged only, fields clipped", protection: ["rate-limit"] },
 };
