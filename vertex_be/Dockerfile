@@ -24,6 +24,12 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY . /app
 
+# Not root (E4): the remaining OS findings are local privilege escalations
+# in tools the service never runs (mount, nsenter, ...); a non-root process
+# can't use most of them anyway. The app writes nothing to disk.
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin vertex
+USER vertex
+
 EXPOSE 8000
 
 # Apply pending migrations, then serve.
