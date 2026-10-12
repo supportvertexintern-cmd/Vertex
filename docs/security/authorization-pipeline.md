@@ -112,4 +112,4 @@ test.
 | Tokens accepted only for their own purpose | `jwt.test.ts` |
 | ID swapping denied (stage 5) | `resource-authorization.integration.test.ts` |
 | Exports audited | `route-guards.test.ts`, `audit-access.integration.test.ts` |
-| Revocation gap stays visible | `session-revocation.integration.test.ts` (strict expected failures) |
+| Sessions are revocable (G19, fixed 2026-10-12) | `session-revocation.integration.test.ts` (plain tests since the fix) |
