@@ -33,6 +33,9 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=build /app/package.json /app/next.config.ts ./
+# `next start` compiles next.config.ts again, so every file it imports must
+# be here too (next-config-imports.test.ts checks this list).
+COPY --from=build /app/src/lib/csp.ts ./src/lib/csp.ts
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
