@@ -143,3 +143,26 @@ Then deploy `4a55ab8` as in A.2. `restore.sh` takes its own safety backup first.
 | 6. Network, TLS, monitoring, alerting | Structured logs, request IDs, alert rules and email | TLS termination, log shipping (e.g. CloudWatch), alert email to a monitored inbox |
 | 7. Pre-deployment security review | ZAP, Semgrep, Trivy, dependency scans: all scripted | Authorized review against the production setup |
 | 8. Approval and rollback plan | This document's structure | Explicit sign-off before the first production deploy |
+
+## 9. Second release: sessions, CSP, off-site backups (2026-10-13)
+
+| | |
+|---|---|
+| **Merged to `main`** | PR #8 (`security/csp-nonce`, includes everything in PR #5), PR #9 (Next.js image fix), PR #10. `main` = `3ba47af` |
+| **Database** | vertex-main migrates `0001` → `0005` on backend start (`0004` drift fix, `0005` sessions) |
+| **Effect on users** | Everyone signs in once after the deploy (older tokens carry no session) |
+
+| Check | Result |
+|---|---|
+| dev on `a378352` | `verify-stack.sh dev`: 51 ✅; only red rows: owner's pgAdmin. Migrated `0004` → `0005` |
+| staging on `a378352` | `verify-stack.sh staging`: **54/54** |
+| Kill switch on staging | Session ended, same cookies → 401, refresh → 401, audit row with reason, new sign-in works ([session-management.md](session-management.md) §7) |
+| Defect found on dev | `next start` crashed: the image lacked `src/lib/csp.ts`, imported by `next.config.ts`. Fixed in `a378352` with a CI test; would have taken main down |
+| Fresh backup of main | `vertex-main/20261013T044556Z`: 1,256 rows, 46 tables, 0 documents |
+| Restore drill, release images (`a378352`) | **PASSED in 26 s**: `0001` → `0005`, `alembic check` clean, all 40 Prisma models read, no secrets |
+| 0005 rollback on main's data | 0005 → 0004 → 0001 → head, 1,255 rows at every step |
+| CI on `3ba47af` | ❌ All 8 jobs failed within 1–2 s (runner not started: GitHub Actions minutes or spending limit, not code). Re-run once restored |
+| Deploy on `main` | ⏳ Owner, after CI is green |
+| `verify-stack.sh main` | ⏳ Agent, after the deploy. Every row must pass with pgAdmin off, including the G19 rows |
+
+**Rollback.** `docker exec vertex-main-backend-1 alembic downgrade 0001`, then redeploy `main-4a55ab8…` (§6 A). Or restore `20261013T044556Z` (§6 B). Rolling back 0005 only signs everyone out.
