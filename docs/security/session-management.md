@@ -120,5 +120,8 @@ Effects:
 | 2026-10-12 | Next.js tests (throwaway Postgres + MinIO, CI layout) | 327 passed; 1 ClamAV timeout under parallel load, passes alone |
 | 2026-10-12 | Local production build in real Chromium (with E3, [csp.md](csp.md) §6) | The following all passed: UI sign-in; cookie flags (`HttpOnly`, `SameSite=Strict`, refresh cookie path `/api/auth`); 15-minute access cookie; silent refresh on page navigation and on an API call; refresh token rotated; spent token replayed → 401; log out everywhere → sign-in, and portal pages stay closed |
 | 2026-10-12 | Kill-switch SQL on a throwaway database | 3 sessions / 2 users ended, 0 live tokens left, reason stored verbatim (quoting-safe) |
+| 2026-10-13 | Migration `0005` on vertex-dev and vertex-staging (deploy of `a378352`) | Applied on start; `verify-stack.sh`: staging 54/54, dev 51 (only red rows: the owner's pgAdmin); G19 rows 401 |
+| 2026-10-13 | **Kill switch on vertex-staging** (`sessions-kill-switch.sh`, throwaway account) | Signed in → `/api/auth/me` 200; switch ended 1 session; same cookies → 401, refresh → 401, 0 live tokens; audit row `sessions_revoked` with the reason; new sign-in → 200; account removed |
+| 2026-10-13 | Rollback of `0005` on a copy of vertex-main's pre-release backup | 0005 → 0004 → 0001 → head; 1,255 rows at every step, `alembic check` clean. Effect of a rollback: everyone signs in again |
 
 **Deployment note.** Access tokens issued before this change have no session ID, so they are refused, and everyone signs in once after the deploy.

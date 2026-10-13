@@ -80,7 +80,7 @@ Fix each real violation at its source. Ignore reports from browser extensions: t
 
 ## 4. Rollout
 
-1. **Now:** deploy with the default (report-only) to dev and staging, then main after approval.
+1. **Now:** deploy with the default (report-only) to dev and staging, then main after approval. **Report-only began on staging and dev on 2026-10-13** (deploy of `a378352`). Enforce on staging from 2026-10-20 if the reports are clean; **due 2026-11-09 at the latest**.
 2. **1–2 weeks:** watch the reports (§3). Exit criterion: no violations from the app's own pages.
 3. **Enforce:** set `CSP_MODE=enforce` in the stack's env file and redeploy. Reporting stays on. Do staging first, then main. This closes E3.
 4. **Follow-up:** `style-src 'unsafe-inline'`. Move the 27 style attributes to classes, then drop it.
