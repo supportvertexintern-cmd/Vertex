@@ -26,7 +26,7 @@ import {
 } from "./jwt";
 
 const signers: Record<string, () => string> = {
-  session: () => signToken({ userId: "u1", email: "a@test.invalid", role: "admin" }),
+  session: () => signToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }),
   email_verification: () => signEmailToken({ userId: "u1", email: "a@test.invalid", type: "email_verification" }),
   password_reset: () => signEmailToken({ userId: "u1", email: "a@test.invalid", type: "password_reset" }),
   candidate_invite: () => signCandidateInviteToken("c1"),
@@ -74,6 +74,20 @@ describe("token purposes (gap G17)", () => {
     const key = keyUnder(SECRET, "session");
     const noUser = jwt.sign({ email: "a@test.invalid", role: "admin" }, key, { algorithm: "HS256", issuer: "vertex-web", audience: "vertex:session" });
     expect(() => verifyToken(noUser)).toThrow(/missing userId/);
+  });
+
+  it("a session token from before G19 (no session id or version) is rejected", () => {
+    const key = keyUnder(SECRET, "session");
+    const opts = { algorithm: "HS256" as const, issuer: "vertex-web", audience: "vertex:session" };
+    const legacy = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin" }, key, opts);
+    expect(() => verifyToken(legacy)).toThrow(/missing sid/);
+    const noVersion = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1" }, key, opts);
+    expect(() => verifyToken(noVersion)).toThrow(/missing ver/);
+  });
+
+  it("session access tokens last 15 minutes", () => {
+    const claims = jwt.decode(signToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 })) as { iat: number; exp: number };
+    expect(claims.exp - claims.iat).toBe(900);
   });
 
   it("a token from another environment (different JWT_SECRET) is rejected", () => {

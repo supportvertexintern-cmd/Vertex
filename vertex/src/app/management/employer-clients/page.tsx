@@ -138,7 +138,7 @@ export default function EmployerClientsPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-8">{error}</div>}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="card p-6 mb-8 grid sm:grid-cols-2 gap-4">
+        <form method="post" onSubmit={handleCreate} className="card p-6 mb-8 grid sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="employer-name" className="block text-xs font-medium text-midnight-900/60 mb-1.5">Client Name</label>
             <input id="employer-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="e.g. Nordic Logistics AB" />

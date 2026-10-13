@@ -157,7 +157,7 @@ export default function EditJobPage({ params }: { params: Promise<{ id: string }
         <div className="card p-6 md:p-8 max-w-3xl">
           {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm">{error}</div>}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form method="post" onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Job Title</label>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { updateCasePaymentReceiptSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 
@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const allowed = await canAccessCase(user!, payment.case.application.candidate);
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   if (parsed.data.receipt_document_id) {
     const replacementDocument = await prisma.document.findUnique({ where: { id: parsed.data.receipt_document_id } });

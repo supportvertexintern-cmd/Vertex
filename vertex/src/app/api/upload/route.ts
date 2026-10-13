@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { saveUploadedFile, deleteUploadedFile } from "@/lib/upload";
-import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { auditedPrisma, auditSecurityEvent } from "@/lib/audit";
+import { deleteUploadedFile, saveUploadedDocument, MalwareDetectedError } from "@/lib/upload";
+import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { isStaffRole } from "@/lib/rbac";
 import { verifyCifUploadToken } from "@/lib/jwt";
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This upload link has expired. Please refresh and resubmit the form." }, { status: 401 });
     }
     if (payload.type !== "cif_upload" || payload.candidateId !== targetCandidateId) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return forbidden({ error: "Forbidden." });
     }
     candidate = await prisma.candidate.findUnique({
       where: { id: targetCandidateId },
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         user!.role === "finance" ||
         user!.role === "hr";
       if (!canUploadOnBehalf) {
-        return NextResponse.json({ error: "Only staff can upload on behalf of a candidate." }, { status: 403 });
+        return forbidden({ error: "Only staff can upload on behalf of a candidate." });
       }
       const full = await prisma.candidate.findUnique({
         where: { id: targetCandidateId },
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
       }
       if (!(await canAccessCandidate(user!, full))) {
-        return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+        return forbidden({ error: "Forbidden." });
       }
       candidate = full;
     } else {
@@ -123,13 +123,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Candidate profile not found." }, { status: 404 });
   }
 
-  let storagePath: string;
+  let saved: Awaited<ReturnType<typeof saveUploadedDocument>>;
   try {
-    storagePath = await saveUploadedFile(file, fileType);
+    saved = await saveUploadedDocument(file, fileType);
   } catch (err: unknown) {
+    if (err instanceof MalwareDetectedError) {
+      // Never stored. Record who, which candidate, which signature: not the file.
+      await auditSecurityEvent(actorId, "Candidate", candidate.id, "malware_rejected", {
+        signature: err.signature,
+        document_type: fileType,
+      });
+      return NextResponse.json({ error: err.message }, { status: 422 });
+    }
     const message = err instanceof Error ? err.message : "Upload failed.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
+  const storagePath = saved.storagePath;
 
   const db = auditedPrisma(actorId);
 
@@ -153,6 +162,8 @@ export async function POST(req: NextRequest) {
       type: fileType,
       storage_path: storagePath,
       label,
+      scan_status: saved.scanStatus,
+      scanned_at: saved.scannedAt,
     },
   });
 

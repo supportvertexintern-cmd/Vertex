@@ -1,7 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { signDocumentToken, verifyDocumentToken } from "./jwt";
+import { scanBuffer, scannerConfigured } from "./malware-scan";
+import { onScannerUnavailable } from "./security-monitor";
 
+import { log } from "./log";
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -62,11 +65,6 @@ function getStorageClient(): S3Client {
 
 const storageBucket = () => resolveStorageConfig().bucket;
 
-function contentTypeForPath(storagePath: string): string {
-  const ext = (storagePath.split(".").pop() || "").toLowerCase();
-  return CONTENT_TYPES[ext] || "application/octet-stream";
-}
-
 export class DocumentNotFoundError extends Error {}
 
 /**
@@ -75,10 +73,27 @@ export class DocumentNotFoundError extends Error {}
  * getSignedDocumentUrl to view it; the object itself is only ever read back
  * through the app's own token-gated proxy route, never a direct R2 URL).
  */
-export async function saveUploadedFile(
-  file: File,
-  type: string
-): Promise<string> {
+export class MalwareDetectedError extends Error {
+  constructor(readonly signature: string) {
+    super("This file was rejected by the malware scanner.");
+  }
+}
+
+export interface SavedDocument {
+  storagePath: string;
+  // "unscanned" when the scanner couldn't be reached (fail-open policy);
+  // such files are scanned when next opened (lib/document-access.ts).
+  scanStatus: "clean" | "unscanned";
+  scannedAt: Date | null;
+}
+
+export async function saveUploadedDocument(file: File, type: string): Promise<SavedDocument> {
+  // The storage folder is a document-type key; never let a caller's input
+  // shape the object path.
+  if (!/^[a-z0-9_]{1,64}$/.test(type)) {
+    throw new Error("Invalid document type.");
+  }
+
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
     throw new Error("Invalid file type. Only PDF, JPEG, and PNG are allowed.");
   }
@@ -87,22 +102,61 @@ export async function saveUploadedFile(
     throw new Error(`File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB.`);
   }
 
-  const ext = file.name.split(".").pop() || "bin";
-  const uniqueName = `${uuidv4()}.${ext}`;
-  const storagePath = `${type}/${uniqueName}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(`File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB.`);
+  }
+
+  // Scan everything that arrives, before any other judgement about it.
+  const scan = await scanBuffer(buffer);
+  if (scan.status === "infected") {
+    throw new MalwareDetectedError(scan.signature);
+  }
+  if (scan.status === "unavailable" && scannerConfigured()) onScannerUnavailable(scan.reason);
+
+  // The browser's declared type is only a claim: the bytes decide. The
+  // extension comes from the detected type, never the user's filename.
+  const detected = detectFileType(buffer);
+  if (!detected || !sameFileFamily(detected.mime, file.type)) {
+    throw new Error("File content does not match an allowed type (PDF, JPEG, PNG).");
+  }
+
+  const storagePath = `${type}/${uuidv4()}.${detected.ext}`;
 
   const r2 = getStorageClient();
-  const buffer = Buffer.from(await file.arrayBuffer());
   await r2.send(
     new PutObjectCommand({
       Bucket: storageBucket(),
       Key: storagePath,
       Body: buffer,
-      ContentType: contentTypeForPath(storagePath),
+      ContentType: detected.mime,
     })
   );
 
-  return storagePath;
+  const clean = scan.status === "clean";
+  return { storagePath, scanStatus: clean ? "clean" : "unscanned", scannedAt: clean ? new Date() : null };
+}
+
+/** Stores a document and returns only its storage key. */
+export async function saveUploadedFile(file: File, type: string): Promise<string> {
+  return (await saveUploadedDocument(file, type)).storagePath;
+}
+
+/**
+ * Identifies an allowed document type from its first bytes (magic numbers),
+ * independent of the filename or the browser's declared MIME type.
+ */
+export function detectFileType(bytes: Uint8Array): { mime: string; ext: string } | null {
+  const starts = (sig: number[]) => bytes.length >= sig.length && sig.every((b, i) => bytes[i] === b);
+  if (starts([0x25, 0x50, 0x44, 0x46, 0x2d])) return { mime: "application/pdf", ext: "pdf" }; // %PDF-
+  if (starts([0xff, 0xd8, 0xff])) return { mime: "image/jpeg", ext: "jpg" };
+  if (starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { mime: "image/png", ext: "png" };
+  return null;
+}
+
+function sameFileFamily(detected: string, declared: string): boolean {
+  const normalise = (m: string) => (m === "image/jpg" ? "image/jpeg" : m);
+  return normalise(detected) === normalise(declared);
 }
 
 /**
@@ -149,9 +203,9 @@ export async function getStorageContent(storagePath: string): Promise<ResolvedDo
  * from R2. Throws if the token is invalid/expired or the object doesn't
  * exist.
  */
-export async function resolveDocumentContent(token: string): Promise<ResolvedDocument> {
+export async function resolveDocumentContent(token: string): Promise<ResolvedDocument & { storagePath: string }> {
   const { storagePath } = verifyDocumentToken(token);
-  return getStorageContent(storagePath);
+  return { ...(await getStorageContent(storagePath)), storagePath };
 }
 
 export async function deleteUploadedFile(storagePath: string): Promise<void> {
@@ -159,6 +213,6 @@ export async function deleteUploadedFile(storagePath: string): Promise<void> {
   try {
     await r2.send(new DeleteObjectCommand({ Bucket: storageBucket(), Key: storagePath }));
   } catch (err) {
-    console.error("R2 delete failed for", storagePath, err);
+    log.error("storage.delete_failed", { storage_path: storagePath, err });
   }
 }

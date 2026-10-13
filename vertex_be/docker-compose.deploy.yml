@@ -18,6 +18,17 @@
 #    can't reach the internet. Flutter's static server sits alone on
 #    `static`. Postgres is unpublished unless docker-compose.db-port.yml is
 #    added (deploy.sh does that when POSTGRES_HOST_PORT is set).
+#
+# Logs (Phase 10): every service writes JSON lines to stdout; Docker keeps
+# them, rotated, on the host (only host admins can read them). Security
+# alerts also go by email: on this PC to the stack's Mailpit (UI on
+# 127.0.0.1:MAIL_UI_PORT); on a server, point SMTP_* at a real relay.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
 services:
 
@@ -54,6 +65,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
   db:
     image: postgres:15-alpine
@@ -78,6 +90,7 @@ services:
 
     networks: [ data ]
     restart: unless-stopped
+    logging: *default-logging
 
   flutter-web:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -93,6 +106,7 @@ services:
 
     networks: [ static ]
     restart: unless-stopped
+    logging: *default-logging
 
   nextjs:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -104,18 +118,23 @@ services:
       DATABASE_URL: postgresql://vertex_web:${DB_WEB_PASSWORD:?DB_WEB_PASSWORD is required}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-}
       EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-}
+      # Unset = this stack's Mailpit (nothing leaves the PC).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_SECURE: ${SMTP_SECURE:-}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Security alerts (lib/security-monitor.ts): comma-separated; unset =
+      # every admin user.
+      SECURITY_ALERT_EMAILS: ${SECURITY_ALERT_EMAILS:-}
+      APP_ENV: ${APP_ENV}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
       PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
       CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
@@ -133,12 +152,20 @@ services:
       S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      # Malware scanning: the shared ClamAV on the host (docker-compose.av.yml).
+      # If it can't be reached, uploads are accepted as "unscanned" and
+      # scanned on first access (owner's fail-open policy).
+      CLAMD_HOST: ${CLAMD_HOST:-host.docker.internal}
+      CLAMD_PORT: ${CLAMD_PORT:-3310}
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-}
       INTAKE_MODE: ${INTAKE_MODE:-}
 
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${NEXTJS_PORT}:3000"
+    # Docker Desktop provides this name; on a Linux host it must be mapped.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     # The backend applies migrations; Next.js only reads/writes the schema.
     depends_on:
@@ -149,6 +176,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
   minio:
     image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -167,6 +195,20 @@ services:
       - ${MINIO_DATA_DIR:?MINIO_DATA_DIR is required}:/data
     networks: [ data ]
     restart: unless-stopped
+    logging: *default-logging
+
+  mailpit:
+    # Local mail catcher: the app's email, security alerts included, lands
+    # here instead of real inboxes. Web UI on 127.0.0.1 only; it never relays
+    # anything onward.
+    image: axllent/mailpit:v1.31.4
+    environment:
+      MP_MAX_MESSAGES: "5000"
+    ports:
+      - "127.0.0.1:${MAIL_UI_PORT:-8025}:8025"
+    networks: [ data, edge ]
+    restart: unless-stopped
+    logging: *default-logging
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -203,6 +245,7 @@ services:
 
     networks: [ data, edge ]
     restart: unless-stopped
+    logging: *default-logging
 
 volumes:
   postgres_data:

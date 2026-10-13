@@ -132,7 +132,7 @@ export default function AdminSettings() {
         <h2 className="font-semibold text-midnight-900 mb-4">Knowledge Base Articles</h2>
         <p className="text-sm text-midnight-900/50 mb-6">These articles are displayed in the Help Center and configure the AI Assistant's knowledge.</p>
 
-        <form onSubmit={addKnowledge} className="bg-ivory-100 p-4 rounded-xl border border-midnight-900/10 mb-6 space-y-4">
+        <form method="post" onSubmit={addKnowledge} className="bg-ivory-100 p-4 rounded-xl border border-midnight-900/10 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900 text-sm">Add New Instruction / FAQ</h3>
           <div className="grid grid-cols-2 gap-4">
             <input required placeholder="Article Title (e.g. How to pay?)" value={newKbTitle} onChange={e => setNewKbTitle(e.target.value)} className="input-field" />
@@ -162,7 +162,7 @@ export default function AdminSettings() {
         <h2 className="font-semibold text-midnight-900 mb-4">Automated Email Templates</h2>
         <p className="text-sm text-midnight-900/50 mb-6">Override the default HTML emails sent to candidates. Select an event ID to override.</p>
 
-        <form onSubmit={saveEmail} className="bg-ivory-100 p-4 rounded-xl border border-midnight-900/10 mb-6 space-y-4">
+        <form method="post" onSubmit={saveEmail} className="bg-ivory-100 p-4 rounded-xl border border-midnight-900/10 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900 text-sm">Edit Template</h3>
           <SearchableSelect
             value={editEmailEvent}

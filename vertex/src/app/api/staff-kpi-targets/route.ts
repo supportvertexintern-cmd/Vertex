@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { upsertStaffKpiTargetSchema } from "@/lib/validations";
 import { computeStaffKpiTargetsVsActuals } from "@/server/services/kpi";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   if (!staff) return NextResponse.json({ error: { code: "not_found", message: "Staff member not found." } }, { status: 404 });
 
   const allowed = user!.userId === staffId || (await callerCanManage(user!, staff));
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   const data = await computeStaffKpiTargetsVsActuals(staffId, cycle);
   return NextResponse.json({ data });
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (!(await callerCanManage(user!, staff))) {
-    return NextResponse.json({ error: { code: "forbidden", message: "You can only set targets for your own direct reports." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "You can only set targets for your own direct reports." } });
   }
 
   const db = auditedPrisma(user!.userId);

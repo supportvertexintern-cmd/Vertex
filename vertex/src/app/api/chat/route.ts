@@ -2,7 +2,9 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
+import { z } from "zod";
 
+import { log } from "@/lib/log";
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
@@ -57,11 +59,35 @@ CONTACT:
 - Company Registration Number: 16943308
 `;
 
+// Only the visitor's own turns and the assistant's replies: a client-sent
+// "system" message would let anyone rewrite the assistant's instructions.
+const chatSchema = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+    .min(1)
+    .max(30),
+});
+
 export async function POST(req: Request) {
   const limited = limitByIp(req, "chat", { windowMs: 10 * 60_000, max: 30 });
   if (limited) return limited;
+
+  let body: unknown;
   try {
-    const { messages } = await req.json();
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const parsed = chatSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
+  }
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return Response.json({ error: "AI Assistant is currently offline." }, { status: 503 });
+  }
+
+  try {
+    const { messages } = parsed.data;
 
     // 1. Check if AI is enabled (fail open if DB unavailable)
     let aiEnabled: any = null;
@@ -112,7 +138,7 @@ ${kbText || FALLBACK_KB}`;
 
     return Response.json({ text });
   } catch (error) {
-    console.error("Chat API Error:", error);
+    log.error("api.chat_api_error", { err: error });
     return Response.json(
       { error: "An error occurred while processing your request." },
       { status: 500 }

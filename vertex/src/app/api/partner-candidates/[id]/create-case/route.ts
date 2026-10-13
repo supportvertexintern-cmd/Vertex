@@ -6,6 +6,7 @@ import { HR_ROLES } from "@/lib/rbac";
 import { createCaseForApprovedApplication } from "@/server/services/caseLifecycle";
 import { sendPartnerCaseCreatedEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // PATCH /api/partner-candidates/:id/create-case — the HR review action
 // (SRS FR-5.1, 2026-07-31 per the Operational Workflow SOP): HR reviews a
 // partner's submission and, on approval, opens a real Case for it, which
@@ -24,7 +25,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
 
   const partnerCandidate = await prisma.partnerCandidate.findUnique({
-    where: { id },
+    where: { id, status: { not: "draft" } },
     include: { partner: { select: { name: true, contact_email: true } } },
   });
   if (!partnerCandidate) {
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // never emails that candidate directly, mirroring the earlier decision
   // not to collect their phone number at all).
   after(async () => {
-    await sendPartnerCaseCreatedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, candidate.full_name).catch(console.error);
+    await sendPartnerCaseCreatedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, candidate.full_name).catch((err) => log.error("email.send_failed", { err }));
   });
 
   return NextResponse.json({ data: { partnerCandidate: updated, case: newCase } });

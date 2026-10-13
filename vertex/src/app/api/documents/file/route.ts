@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveDocumentContent, DocumentNotFoundError } from "@/lib/upload";
+import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
+import { recordSecurityEvent } from "@/lib/audit";
 
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -22,14 +24,26 @@ export async function GET(req: NextRequest) {
 
   let buffer: Buffer;
   let extension: string;
+  let storagePathForAudit = "";
   try {
-    ({ buffer, extension } = await resolveDocumentContent(token));
+    let storagePath: string;
+    ({ buffer, extension, storagePath } = await resolveDocumentContent(token));
+    storagePathForAudit = storagePath;
+    // The link holder has no session; the token is the grant.
+    await assertDocumentReadable(storagePath, buffer, null);
   } catch (err) {
+    if (err instanceof DocumentBlockedError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     if (err instanceof DocumentNotFoundError) {
       return NextResponse.json({ error: "Document not found." }, { status: 404 });
     }
+    await recordSecurityEvent("document_link_rejected", { actorId: null, entityType: "Document", entityId: "invalid_link", detail: {} });
     return NextResponse.json({ error: "Invalid or expired document link." }, { status: 401 });
   }
+  // The link holder is anonymous; the issuing user is on the matching
+  // document_link_issued row.
+  await recordSecurityEvent("document_downloaded", { actorId: null, entityType: "DocumentFile", entityId: storagePathForAudit, detail: { bytes: buffer.length } });
 
   const contentType = CONTENT_TYPES[extension] || "application/octet-stream";
 

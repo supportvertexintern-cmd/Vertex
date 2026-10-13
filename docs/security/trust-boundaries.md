@@ -62,14 +62,14 @@ Next.js and FastAPI share is the database, each through its own role.
 | | |
 |---|---|
 | Caller → receiver | Browser → Next.js container (`vertex-<env>-nextjs-1`) or Vercel |
-| Identity | Session JWT in cookie `auth_token` (`httpOnly`, `sameSite=strict`, `secure` in production), HS256, 7 days, audience `vertex:session` (G17). Anonymous for the 18 public endpoints in `lib/public-endpoints.ts` |
+| Identity | Session JWT in cookie `auth_token` (`httpOnly`, `sameSite=strict`, `secure` in production), HS256, **15 minutes**, audience `vertex:session` (G17), carrying the session id and `token_version`; renewed through a rotating refresh token (`refresh_token`, path `/api/auth`, stored hashed) and re-checked against the database on every request (G19, [session-management.md](session-management.md)). Anonymous for the 18 public endpoints in `lib/public-endpoints.ts` |
 | Authentication | Pages: `src/proxy.ts` (redirect to login). API: `getAuthUser` in each handler (`lib/api-auth.ts`); token verified with the session key only |
 | Authorization | Per handler: `requireRole`/`requireAdmin` (role from the token), then record checks (`canAccessCandidate`, `canAccessCase`, scope filters). Default deny enforced by `route-guards.test.ts` |
 | Secrets | `JWT_SECRET` (per-purpose keys derived from it) |
 | Network exposure | `127.0.0.1:3001` (dev), `:3002` (staging); not the LAN (G15). Vercel: public internet |
-| Audit | Data writes through `auditedPrisma` (who, what, before/after); bulk exports via `auditAccess` (G16). **Not audited: logins, failed logins, logouts, denials (G7, G20), document views (G21)** |
+| Audit | Data writes through `auditedPrisma` (who, what, before/after); bulk exports via `auditAccess` (G16). Since Phase 10: sign-ins, failures, logouts, resets, denials and document views too, each with the request's `X-Request-ID` ([audit-logging-monitoring.md](audit-logging-monitoring.md)) |
 | Failure behavior | Missing/invalid/expired/wrong-purpose token → `null` user → 401/403 or redirect: fails closed. Missing `JWT_SECRET` → every verify fails (closed). Rate limits are per process and reset on restart (G5); keyed on `X-Forwarded-For` (G14) |
-| Known limits | Role comes from the token; demotion, deletion and password change take effect only at expiry (G19) |
+| Known limits | None for sessions since G19 was fixed (2026-10-12): role comes from the database, and demotion, deletion and password change take effect on the next request |
 
 ### P2 Next.js server → FastAPI — N/A
 

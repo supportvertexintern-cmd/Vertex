@@ -24,6 +24,7 @@ Each environment is one Docker Compose project built from
 | pgadmin (on demand) | `dpage/pgadmin4`  | http://localhost:5050    | http://localhost:5151    | http://localhost:5353    |
 | db           | `postgres:15-alpine`     | not published            | not published            | not published            |
 | minio (object storage) | `vertex-minio` (built from source) | not published | not published | not published |
+| mailpit (mail catcher) | `axllent/mailpit` | http://localhost:8026 | http://localhost:8027 | http://localhost:8028 |
 | env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` | `vertex_be/.env.main`    |
 
 vertex-main holds the main data (restored 2026-10-10 from the old

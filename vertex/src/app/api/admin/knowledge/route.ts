@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireAdmin, requireAuth } from "@/lib/api-auth";
+import { getAuthUser, requireAdmin, requireAuth, forbidden } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-  if (user!.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (user!.role !== "admin") return forbidden({ error: "Unauthorized" });
 
   const body = await req.json();
   if (!body.title || !body.content) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -33,7 +33,7 @@ export async function DELETE(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-  if (user!.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (user!.role !== "admin") return forbidden({ error: "Unauthorized" });
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

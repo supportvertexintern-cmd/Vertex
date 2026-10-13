@@ -51,6 +51,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('AuditLog', 'before',                                    'exclude'), -- audit log holds personal-data snapshots
   ('AuditLog', 'after',                                     'exclude'), -- audit log holds personal-data snapshots
   ('AuditLog', 'created_at',                                'exclude'), -- audit log holds personal-data snapshots
+  ('AuditLog', 'request_id',                                'exclude'), -- audit log holds personal-data snapshots
   ('Campaign', 'id',                                        'grant'),   -- identifier/link
   ('Campaign', 'name',                                      'exclude'), -- personal data
   ('Campaign', 'criteria',                                  'exclude'), -- free text/JSON: may hold personal data
@@ -108,6 +109,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('Case', 'id',                                            'grant'),   -- identifier/link
   ('Case', 'application_id',                                'grant'),   -- identifier/link
   ('Case', 'current_stage',                                 'exclude'), -- personal data
+  ('Case', 'stage_deadline',                                'exclude'), -- personal data (one person's case timeline)
   ('Case', 'created_at',                                    'grant'),   -- business timestamp
   ('Case', 'updated_at',                                    'grant'),   -- business timestamp
   ('Case', 'ops_review_status',                             'grant'),   -- status/type value
@@ -128,6 +130,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('CasePayment', 'recorded_by',                            'exclude'), -- free text/JSON: may hold personal data
   ('CasePayment', 'recorded_at',                            'grant'),   -- business timestamp
   ('CasePayment', 'status',                                 'grant'),   -- status/type value
+  ('CasePayment', 'type',                                   'grant'),   -- status/type value
   ('CasePayment', 'stripe_payment_link_id',                 'grant'),   -- identifier/link
   ('CasePayment', 'stripe_payment_link_url',                'exclude'), -- free text/JSON: may hold personal data
   ('CasePayment', 'stripe_checkout_session_id',             'exclude'), -- secret-like
@@ -183,6 +186,8 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('Document', 'verified_at',                               'grant'),   -- business timestamp
   ('Document', 'uploaded_at',                               'grant'),   -- business timestamp
   ('Document', 'label',                                     'exclude'), -- free text/JSON: may hold personal data
+  ('Document', 'scan_status',                               'grant'),   -- status/type value
+  ('Document', 'scanned_at',                                'grant'),   -- business timestamp
   ('DocumentRequirementType', 'id',                         'grant'),   -- reference data
   ('DocumentRequirementType', 'key',                        'exclude'), -- secret-like
   ('DocumentRequirementType', 'label',                      'grant'),   -- reference data
@@ -283,6 +288,14 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('JobPaymentStage', 'synced_amount_gbp',                  'grant'),   -- reference data
   ('JobPaymentStage', 'created_at',                         'grant'),   -- reference data
   ('JobPaymentStage', 'updated_at',                         'grant'),   -- reference data
+  ('JobMilestonePrice', 'id',                                     'grant'),   -- reference data
+  ('JobMilestonePrice', 'job_id',                                 'grant'),   -- reference data
+  ('JobMilestonePrice', 'type',                                   'grant'),   -- reference data
+  ('JobMilestonePrice', 'amount_gbp',                             'grant'),   -- reference data
+  ('JobMilestonePrice', 'stripe_product_id',                      'grant'),   -- reference data
+  ('JobMilestonePrice', 'stripe_price_id',                        'grant'),   -- reference data
+  ('JobMilestonePrice', 'created_at',                             'grant'),   -- reference data
+  ('JobMilestonePrice', 'updated_at',                             'grant'),   -- reference data
   ('JobPosition', 'id',                                     'grant'),   -- reference data
   ('JobPosition', 'job_sector_id',                          'grant'),   -- reference data
   ('JobPosition', 'title',                                  'grant'),   -- reference data
@@ -498,4 +511,17 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('User', 'created_at',                                    'grant'),   -- business timestamp
   ('User', 'updated_at',                                    'grant'),   -- business timestamp
   ('User', 'supervisor_id',                                 'grant'),   -- identifier/link
-  ('User', 'assigned_country_id',                           'grant');   -- identifier/link
+  ('User', 'assigned_country_id',                           'grant'),   -- identifier/link
+  ('User', 'token_version',                                 'exclude'), -- session security state
+  -- Sessions (0005, G19): token hashes and devices, never for browsing.
+  ('RefreshToken', 'id',                                    'exclude'), -- session security state
+  ('RefreshToken', 'user_id',                               'exclude'), -- session security state
+  ('RefreshToken', 'family_id',                             'exclude'), -- session security state
+  ('RefreshToken', 'token_hash',                            'exclude'), -- secret-like
+  ('RefreshToken', 'token_version',                         'exclude'), -- session security state
+  ('RefreshToken', 'device_info',                           'exclude'), -- personal data (browser)
+  ('RefreshToken', 'created_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'expires_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'used_at',                               'exclude'), -- session security state
+  ('RefreshToken', 'revoked_at',                            'exclude'), -- session security state
+  ('RefreshToken', 'revoke_reason',                         'exclude'); -- session security state

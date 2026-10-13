@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { createCampaignTargetSchema } from "@/lib/validations";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: { code: "no_country", message: "You must be assigned a country first." } }, { status: 422 });
     }
     if (parsed.data.region_id || (parsed.data.country_id && !countryIds.includes(parsed.data.country_id))) {
-      return NextResponse.json({ error: { code: "forbidden", message: "You can only set targets for one of your own assigned countries." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "You can only set targets for one of your own assigned countries." } });
     }
     // A single-country supervisor can omit country_id (defaults to their
     // one country, preserving prior behavior); with several assigned

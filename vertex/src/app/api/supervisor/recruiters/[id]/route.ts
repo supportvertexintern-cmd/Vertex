@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { computeAgentSignups, computeConversionRates, computeRecruiterTargetsVsActuals } from "@/server/services/kpi";
 
 // GET /api/supervisor/recruiters/:id?period_start=...&period_end=... — a
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: { code: "not_found", message: "Recruiter not found." } }, { status: 404 });
   }
   if (user!.role !== "admin" && recruiter.supervisor_id !== user!.userId) {
-    return NextResponse.json({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } });
   }
 
   const now = new Date();
