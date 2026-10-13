@@ -2,11 +2,12 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { caseRejectSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 import type { Role } from "@prisma/client";
 
+import { log } from "@/lib/log";
 // PATCH /api/cases/:id/reject — a real, terminal case-level rejection
 // (2026-08-16), distinct from PATCH /api/cases/:id/ops-review's
 // documentation-confirmation flag: that one never actually closed
@@ -64,7 +65,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     country_id: caseRecord.application.candidate.country_id,
     partner_id: caseRecord.application.candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
 
   if (caseRecord.status === "rejected") {
     return NextResponse.json({ error: { code: "already_rejected", message: "This case has already been rejected." } }, { status: 409 });
@@ -116,13 +117,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await Promise.all(
       hrUsers.map((hrUser: (typeof hrUsers)[number]) =>
         sendCaseRejectedEmail(hrUser.email, hrUser.full_name, candidateName, jobTitle, parsed.data.reason).catch((err) =>
-          console.error("Failed to send HR case-rejected email.", err)
+          log.error("api.failed_to_send_hr_case_rejected_email", { err })
         )
       )
     );
     if (partner) {
       await sendPartnerCaseRejectedEmail(partner.contact_email, partner.name, candidateName, jobTitle, parsed.data.reason).catch((err) =>
-        console.error("Failed to send partner case-rejected email.", err)
+        log.error("api.failed_to_send_partner_case_rejected_email", { err })
       );
     }
   });

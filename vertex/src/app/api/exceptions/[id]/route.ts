@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { updateExceptionSchema } from "@/lib/validations";
 import { nextEscalationLevel, roleCanActOnLevel } from "@/server/services/exceptionWorkflow";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: { code: "already_closed", message: "This exception is already closed." } }, { status: 422 });
   }
   if (!(await canActOn(user!, exception))) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   const db = auditedPrisma(user!.userId);

@@ -101,7 +101,7 @@ export default function CandidateEditDetails({ candidateId, initial, onSaved }: 
   }
 
   return (
-    <form onSubmit={submit} className="bg-ivory-100 border border-midnight-900/10 rounded-lg p-3 space-y-2 max-w-xs">
+    <form method="post" onSubmit={submit} className="bg-ivory-100 border border-midnight-900/10 rounded-lg p-3 space-y-2 max-w-xs">
       <input
         placeholder="Full name"
         value={form.full_name}

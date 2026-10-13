@@ -41,7 +41,7 @@ function LoginForm() {
 
   return (
     <div className="space-y-5">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form method="post" onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Email Address *</label>
           <input id="login-email" name="email" type="email" value={form.email} onChange={handleChange} required className="input-field" placeholder="john@example.com" />

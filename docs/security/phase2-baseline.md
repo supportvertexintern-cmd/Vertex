@@ -62,7 +62,10 @@ inter-service trust is the shared database, governed by the Phase 1 roles.
 
 **FastAPI:** no authentication or authorization yet. It exposes only `/`,
 `/api/v1/health`, `/docs`, `/redoc` and the OpenAPI schema, all public by design
-for now (Phases 4–5 add auth; production must disable the docs).
+for now (Phases 4–5 add auth; production must disable the docs). *Update
+2026-10-12:* default deny is in place (`app/core/access.py`): any new route
+that isn't in the public register or behind an auth guard is refused (401),
+and CI fails on it.
 
 **Platform:** least-privilege database roles, secret scanning in pre-commit
 and CI, CI-built images, dev/staging isolation.
@@ -74,12 +77,12 @@ and CI, CI-built images, dev/staging isolation.
 | G1 | `GET /api/admin/emails` has **no authentication**: anyone can list all email templates | High | handler reads `emailTemplate.findMany()` with no user check; its `PUT` requires admin | Phase 2 (quick fix) |
 | G2 | `GET /api/admin/knowledge` has **no authentication** | Medium | same pattern; the chatbot reads the table directly, so the endpoint needn't be public | Phase 2 (quick fix) |
 | G3 | `POST /api/chat` is **public with no rate limit** and calls Gemini | Medium | no `getAuthUser`, no `rateLimit` | Phase 2 (rate limit) |
-| G4 | Sessions **can't be revoked**: logout only clears the cookie; a stolen token stays valid for 7 days | High | no session/denylist table; `JWT_EXPIRES_IN` defaults to `7d` | Phase 4 |
+| G4 | Sessions **can't be revoked**: logout only clears the cookie; a stolen token stays valid for 7 days | High | no session/denylist table; `JWT_EXPIRES_IN` defaults to `7d` | Phase 4. **Fixed 2026-10-12** (E6): 15-minute access tokens, server-side revocable refresh tokens ([session-management.md](session-management.md)) |
 | G5 | Rate limits live **in process memory**: reset on restart, not shared across instances | Medium | `new Map()` in `lib/rate-limit.ts` | Phase 4 |
 | G6 | Authorization is **opt-in per handler**: nothing fails a build when a new route forgets its guard (G1/G2 are exactly this) | High | 155 handlers each call their own guard | Phase 2 (default-deny test) |
 | G7 | Authorization decisions are **not audited**: denials leave no record | Medium | `AuditLog` records data changes only | Phase 2 design, Phase 5 build |
 | G8 | Two systems hold business logic over one database (Next.js/Prisma and FastAPI) | High (architecture) | both roles can write the same tables | Phase 2 decision (plan Phase 4) |
-| G9 | FastAPI has no auth; its docs/OpenAPI are public | Low now (no data endpoints) | `/api/v1/openapi.json` | Phases 4–5 |
+| G9 | FastAPI has no auth; its docs/OpenAPI are public | Low now (no data endpoints) | `/api/v1/openapi.json` | Phases 4–5. Default deny added 2026-10-12, so nothing new can be public by accident; user authentication still to do |
 | G10 | *(found in step 2)* Public auth flows aren't rate-limited: `forgot-password` (email bombing, account probing), `reset-password`, `verify-email`, Google sign-in; also `apply/options` | Medium | no `rateLimit` in those handlers | Phase 2 |
 | G11 | *(found in step 2)* `GET /api/jobs/[id]` (public) returns the full job row for **any** status, including drafts and closed jobs and `employer_client_id`; the public list correctly limits fields and status | Medium | `getPublicJobById` uses `findUnique` with no `select` or status filter | Phase 2 |
 
@@ -93,7 +96,7 @@ and CI, CI-built images, dev/staging isolation.
 | G17 | *(found checking 5.5)* One `JWT_SECRET` signs every token type: sessions, password-reset/verification, invites, account setup, CIF upload and document-download links. Stealing it forges an admin session and any document link. **Worse, it was exploitable without the secret:** no verifier checked a token's purpose, so the CIF upload token any anonymous applicant receives was accepted as a session cookie; with no `userId` in it, Prisma dropped the `user_id` filter (verified on vertex-dev: `GET /api/auth/me` 200, `GET /api/payments/me` 200 with the filter gone, i.e. every user's payments) | Critical | `lib/jwt.ts` used one secret for all `sign*Token`; `verifyToken` checked only the signature | Phase 2 (fixed) |
 | G18 | *(found checking 5.5)* No service-to-service authentication: any container on the network can call FastAPI | Low today (FastAPI has no data endpoints), High once it does | no service credential exists | Phase 2 step 6, before FastAPI serves data |
 
-| G19 | *(found reviewing 5.2)* **A session outlives the decisions behind it.** Identity and role come only from the signed token (7-day expiry), never the database: a **demoted admin keeps admin rights**, a **deleted user keeps access**, and a **password change doesn't end existing sessions**. Accounts also can't be disabled at all (no active flag), only deleted | High | `getAuthUser` returns the token payload; no DB check; `User` has no status field | Phase 4 (`token_version` checked per request, bumped on role change/deletion/password change; short-lived access tokens) — made visible now by strict expected-failure tests in `session-revocation.integration.test.ts` |
+| G19 | *(found reviewing 5.2)* **A session outlives the decisions behind it.** Identity and role come only from the signed token (7-day expiry), never the database: a **demoted admin keeps admin rights**, a **deleted user keeps access**, and a **password change doesn't end existing sessions**. Accounts also can't be disabled at all (no active flag), only deleted | High | `getAuthUser` returns the token payload; no DB check; `User` has no status field | Phase 4 (`token_version` checked per request, bumped on role change/deletion/password change; short-lived access tokens) — made visible now by strict expected-failure tests in `session-revocation.integration.test.ts`. **Fixed 2026-10-12** (E6): [session-management.md](session-management.md) |
 
 | G20 | *(found mapping trust boundaries)* Authentication events aren't audited: logins, failed logins, Google sign-ins, logouts | Medium | no audit call in `auth/login`, `auth/google/callback`, `auth/logout` | With G7 (Phase 5) |
 | G21 | *(found mapping trust boundaries)* Document views aren't audited: issuing a signed link and downloading a passport or CV leave no record | Medium | no audit call in `documents/[id]/signed-url` or `documents/file` | Phase 2 candidate |
@@ -113,6 +116,16 @@ and CI, CI-built images, dev/staging isolation.
 | G15 | published ports bind to `127.0.0.1` (`BIND_ADDRESS` override); database network shared only by services that need it | verified from the LAN address after deploy |
 | G16 | `auditAccess()` writes an audit entry (who, what, how many rows, filter names with only allowlisted values; never the data) before an export is returned | `audit-access.integration.test.ts`; `route-guards.test.ts` fails CI on any unaudited export/backup route (mutation-checked) |
 | G17 | one key per token purpose, derived from `JWT_SECRET` with HKDF-SHA256 (`vertex/jwt/<purpose>/v<n>`); each token carries issuer `vertex-web` and audience `vertex:<purpose>`, and its verifier requires both plus the fields its purpose needs (a session needs `userId`, `email`, `role`); verification and reset links use different keys; `JWT_SECRET` must be at least 32 characters. Per-purpose versions let one token type be invalidated alone. All existing sessions and links became invalid on deploy | `jwt.test.ts`: 7×6 cross-purpose matrix, pre-G17 tokens, missing `userId`, another environment's secret, `alg:none`, expiry; mutation-checked (collapsing to one key fails 8 tests) |
+
+### Fixed in Phase 10 (branch `security/audit-logging-monitoring`)
+
+See [audit-logging-monitoring.md](audit-logging-monitoring.md).
+
+| Gap | Fix | Test |
+|---|---|---|
+| G7 | Every role denial (`requireRole`) and record/scope denial (`forbidden()`, 65 call sites) is recorded as `access_denied`, in the background so an audit failure can't change the answer; repeated denials alert | `security-events.integration.test.ts` |
+| G20 | Password and Google sign-ins (success and every failure reason), rate-limited logins, logouts and password resets are recorded; failures keep a fingerprint of the address, never what was typed; brute force alerts | `security-events.integration.test.ts` |
+| G21 | Issuing a signed document link (who, which document) and every download or refused link are recorded | `security-events.integration.test.ts` |
 
 **Policy questions (not confirmed bugs, need an owner's answer):**
 

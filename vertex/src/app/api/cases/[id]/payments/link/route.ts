@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { stripe } from "@/lib/stripe";
 import { generateCasePaymentLinkSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCase } from "@/server/scope";
 import { FINANCE_ROLES } from "@/lib/rbac";
 import { sendMilestonePaymentLinkEmail } from "@/lib/email";
 import { computeMilestoneSplit } from "@/lib/fees";
 
+import { log } from "@/lib/log";
 // POST /api/cases/:id/payments/link — Finance generates a real Stripe
 // Payment Link for one of a case's 3 milestones (Director/Admin retain
 // override, 2026-07-31), referencing the opportunity's pre-provisioned
@@ -56,17 +57,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     country_id: candidate.country_id,
     partner_id: candidate.partner_id,
   });
-  if (!allowed) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  if (!allowed) return forbidden({ error: "Forbidden." });
 
   // Stripe restricted to self-applicants (2026-07-31) — the UI already
   // hides "Send Payment Link" for a partner/recruiter-sourced candidate,
   // but the API is the real authorization boundary, same as every other
   // capability gate in this codebase.
   if (candidate.source !== "self_registered") {
-    return NextResponse.json(
-      { error: "Stripe payment links are only available for self-applicants. Record this payment manually with a receipt instead." },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: "Stripe payment links are only available for self-applicants. Record this payment manually with a receipt instead." }, { status: 403 });
   }
 
   const countryId = candidate.country_id;
@@ -120,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       metadata: { case_id: id, type: parsed.data.type },
     });
   } catch (err) {
-    console.error(`Failed to create Stripe payment link for case ${id}.`, err);
+    log.error("api.failed_to_create_stripe_payment_link_for", { message: `Failed to create Stripe payment link for case ${id}.`, err });
     return NextResponse.json(
       { error: { code: "stripe_link_failed", message: err instanceof Error ? err.message : "Failed to create Stripe payment link." } },
       { status: 502 }
@@ -148,7 +146,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendMilestonePaymentLinkEmail(recipientEmail, recipientName, candidateName, programmeTitle, paymentLink.url, parsed.data.type, fullPlan).catch(console.error);
+  await sendMilestonePaymentLinkEmail(recipientEmail, recipientName, candidateName, programmeTitle, paymentLink.url, parsed.data.type, fullPlan).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: { payment, url: paymentLink.url } }, { status: 201 });
 }

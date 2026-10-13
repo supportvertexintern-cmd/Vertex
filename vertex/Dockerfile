@@ -13,12 +13,20 @@ RUN npm ci
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && npm prune --omit=dev
+# Only production dependencies ship (equivalent to `npm ci --omit=dev`).
+# The dev-only ESLint chain's `braces` (exception E1) must not be among them.
+RUN npm run build && npm prune --omit=dev  && if [ -e node_modules/braces ]; then echo "E1: braces in the production image" >&2; exit 1; fi
 
 
 FROM node:22-alpine
 
-RUN apk add --no-cache openssl
+# Current Alpine security fixes, and no npm/npx/yarn at runtime: the app
+# doesn't need a package manager, and npm's own bundled packages were most
+# of the image's findings (Trivy, Phase 12).
+RUN apk upgrade --no-cache && apk add --no-cache openssl \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 
 WORKDIR /app
 ENV NODE_ENV=production \
@@ -35,7 +43,7 @@ EXPOSE 3000
 
 # The schema is owned by the backend's Alembic migrations; this container
 # never runs `prisma migrate`.
-CMD ["npm", "run", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \
     CMD wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { signContractSchema } from "@/lib/validations";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 
 // POST /api/cases/:id/contract/sign — candidate signs their own contract
 // (SRS FR-4.3). This is a real, legally-recognized "simple electronic
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!caseRecord) return NextResponse.json({ error: "Case not found." }, { status: 404 });
 
   if (caseRecord.application.candidate.user_id !== user!.userId) {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return forbidden({ error: "Forbidden." });
   }
 
   if (!caseRecord.contract) return NextResponse.json({ error: "No contract to sign yet." }, { status: 404 });

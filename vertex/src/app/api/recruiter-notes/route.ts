@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { createRecruiterNoteSchema } from "@/lib/validations";
 
 // GET /api/recruiter-notes?recruiter_id=... — a recruiter reads their own
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   let recruiterId: string;
   if (user!.role === "regional_recruiter") {
     if (requestedRecruiterId && requestedRecruiterId !== user!.userId) {
-      return NextResponse.json({ error: { code: "forbidden", message: "You can only read your own notes." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "You can only read your own notes." } });
     }
     recruiterId = user!.userId;
   } else {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     if (user!.role === "country_supervisor") {
       const recruiter = await prisma.user.findUnique({ where: { id: requestedRecruiterId }, select: { supervisor_id: true } });
       if (recruiter?.supervisor_id !== user!.userId) {
-        return NextResponse.json({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } }, { status: 403 });
+        return forbidden({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } });
       }
     }
     recruiterId = requestedRecruiterId;
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   if (user!.role === "country_supervisor") {
     const recruiter = await prisma.user.findUnique({ where: { id: parsed.data.recruiter_id }, select: { supervisor_id: true } });
     if (recruiter?.supervisor_id !== user!.userId) {
-      return NextResponse.json({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } }, { status: 403 });
+      return forbidden({ error: { code: "forbidden", message: "This recruiter is not under your supervision." } });
     }
   }
 

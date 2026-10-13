@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
 import { canSetLifecycleStatus, type LifecycleStatus } from "@/server/services/candidateLifecycle";
 import { createCaseForApprovedApplication } from "@/server/services/caseLifecycle";
@@ -9,6 +9,7 @@ import { screenAndInvite } from "@/server/services/screening";
 import { updateCandidateStatusSchema } from "@/lib/validations";
 import { sendCandidateApprovedEmail } from "@/lib/email";
 
+import { log } from "@/lib/log";
 // PATCH /api/candidates/:id/status — role-gated lifecycle transition
 // (SRS FR-2.4), screening-gate enforced on screened (FR-2.5 — evaluated
 // against the Candidate Information Form itself, since no account or
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const allowedToTouch = await canAccessCandidate(user!, candidate);
   if (!allowedToTouch) {
-    return NextResponse.json({ error: { code: "forbidden", message: "Forbidden." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }
 
   // Conflict-of-interest guard, same principle as document verification:
@@ -132,7 +133,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const recipientEmail = candidate.user?.email ?? candidate.email;
     const recipientName = candidate.user?.full_name ?? candidate.full_name;
     if (recipientEmail && recipientName) {
-      await sendCandidateApprovedEmail(recipientEmail, recipientName).catch(console.error);
+      await sendCandidateApprovedEmail(recipientEmail, recipientName).catch((err) => log.error("email.send_failed", { err }));
     }
   }
 

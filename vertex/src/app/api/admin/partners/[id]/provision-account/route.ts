@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { sendAccountSetupInviteEmail } from "@/lib/email";
 import { provisionPartnerAccountSchema } from "@/lib/validations";
 
+import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
 // POST /api/admin/partners/:id/provision-account — same manager tier as
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch(console.error);
+  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updatedPartner }, { status: 201 });
 }

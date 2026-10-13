@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { updateCampaignSchema } from "@/lib/validations";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
@@ -74,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (!CROSS_CAMPAIGN_ROLES.includes(user!.role as (typeof CROSS_CAMPAIGN_ROLES)[number]) && existing.created_by !== user!.userId) {
-    return NextResponse.json({ error: { code: "forbidden", message: "You can only edit campaigns you created." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "You can only edit campaigns you created." } });
   }
 
   const { start_date, end_date, ...rest } = parsed.data;
@@ -104,7 +104,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   if (!CROSS_CAMPAIGN_ROLES.includes(user!.role as (typeof CROSS_CAMPAIGN_ROLES)[number]) && existing.created_by !== user!.userId) {
-    return NextResponse.json({ error: { code: "forbidden", message: "You can only delete campaigns you created." } }, { status: 403 });
+    return forbidden({ error: { code: "forbidden", message: "You can only delete campaigns you created." } });
   }
 
   await auditedPrisma(user!.userId).campaign.delete({ where: { id } });

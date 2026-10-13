@@ -364,7 +364,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   const errCls = "text-xs text-red-600 mt-1";
 
   return (
-    <form onSubmit={handleSubmit} className={compact ? "space-y-4" : "space-y-6"}>
+    <form method="post" onSubmit={handleSubmit} className={compact ? "space-y-4" : "space-y-6"}>
       <section>
         <h2 className="font-bold text-slate-800 mb-1">Section 1 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
@@ -556,6 +556,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                     <input
                       type="file"
                       accept="application/pdf,image/*"
+                      data-testid={`cif-doc-${doc.key}-input`}
                       onChange={(e) => setDocumentFiles((f) => ({ ...f, [doc.key]: e.target.files?.[0] ?? null }))}
                       className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs"
                     />

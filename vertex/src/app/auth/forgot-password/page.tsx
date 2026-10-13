@@ -54,7 +54,7 @@ export default function ForgotPasswordPage() {
               <Link href="/auth/login" className="btn-secondary">Back to Login</Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form method="post" onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Email Address *</label>
                 <input

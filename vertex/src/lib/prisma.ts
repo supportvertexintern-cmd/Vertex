@@ -26,3 +26,9 @@ export const prisma =
       }));
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma as any;
+
+// Prisma's "record to update/delete does not exist" (P2025): an unknown ID
+// is a 404 for the caller, not a server error (ZAP 90022, Phase 12).
+export function isNotFound(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2025";
+}

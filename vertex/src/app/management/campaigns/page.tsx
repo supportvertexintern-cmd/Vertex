@@ -165,7 +165,7 @@ export default function CampaignsPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
 
       {showCreate && (
-        <form onSubmit={createCampaign} className="card p-6 mb-6 space-y-4">
+        <form method="post" onSubmit={createCampaign} className="card p-6 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900">New campaign</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             <input required placeholder="Campaign name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="input-field sm:col-span-3" />

@@ -167,3 +167,15 @@ body {
   box-shadow: none !important;
   color: inherit !important;
 }
+
+/* Loader animations (app/loading.tsx). Here rather than in an inline
+   <style> element, so the page needs no inline style blocks (E3, CSP). */
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+@keyframes progress-shimmer {
+  0% { transform: translateX(-100%); width: 20%; }
+  50% { transform: translateX(50%); width: 80%; }
+  100% { transform: translateX(250%); width: 20%; }
+}

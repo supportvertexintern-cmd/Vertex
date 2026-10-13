@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import { getPayPalAccessToken } from "@/lib/paypal";
 
+import { log } from "@/lib/log";
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
@@ -49,13 +50,13 @@ export async function POST(req: NextRequest) {
     const order = await res.json();
     
     if (!res.ok) {
-      console.error("PayPal Create Order Error:", order);
+      log.error("api.paypal_create_order_error", { err: order });
       return NextResponse.json({ error: "Failed to initialize PayPal order." }, { status: 500 });
     }
     
     return NextResponse.json({ id: order.id });
   } catch (err) {
-    console.error("PayPal Error:", err);
+    log.error("api.paypal_error", { err });
     return NextResponse.json({ error: "An unexpected error occurred with PayPal." }, { status: 500 });
   }
 }

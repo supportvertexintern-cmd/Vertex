@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
-import { prisma } from "@/lib/prisma";
+import { isNotFound, prisma } from "@/lib/prisma";
 import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { getPublicJobById } from "@/server/services/publicJobs";
 import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
+import { log } from "@/lib/log";
 export const dynamic = "force-dynamic";
 
 // Editing any of these silently leaves Stripe pricing stale otherwise —
@@ -40,10 +41,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }
 
-  const job = await prisma.job.update({ where: { id }, data: parsed.data });
+  let job;
+  try {
+    job = await prisma.job.update({ where: { id }, data: parsed.data });
+  } catch (err) {
+    if (isNotFound(err)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    throw err;
+  }
 
   if (FEE_RELEVANT_FIELDS.some((field) => field in parsed.data)) {
-    syncJobMilestonePricing(job.id).catch((err) => console.error(`Failed to re-sync Stripe pricing for job ${job.id}.`, err));
+    syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_re_sync_stripe_pricing_for", { message: `Failed to re-sync Stripe pricing for job ${job.id}.`, err }));
   }
 
   return NextResponse.json(job);
@@ -56,6 +63,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const guardRes = requireRole(user, [...JOB_MANAGER_ROLES]);
   if (guardRes) return guardRes;
 
-  await prisma.job.delete({ where: { id } });
+  try {
+    await prisma.job.delete({ where: { id } });
+  } catch (err) {
+    if (isNotFound(err)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    throw err;
+  }
   return NextResponse.json({ message: "Job deleted." });
 }

@@ -231,7 +231,7 @@ export default function RecruiterReportsPage() {
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
 
       {showForm && (
-        <form onSubmit={submit} className="card p-6 mb-6 space-y-4">
+        <form method="post" onSubmit={submit} className="card p-6 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900">New report</h3>
           <div className={`grid gap-4 ${type === "monthly" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
             <SearchableSelect
