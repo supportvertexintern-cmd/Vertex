@@ -161,8 +161,12 @@ Then deploy `4a55ab8` as in A.2. `restore.sh` takes its own safety backup first.
 | Fresh backup of main | `vertex-main/20261013T044556Z`: 1,256 rows, 46 tables, 0 documents |
 | Restore drill, release images (`a378352`) | **PASSED in 26 s**: `0001` → `0005`, `alembic check` clean, all 40 Prisma models read, no secrets |
 | 0005 rollback on main's data | 0005 → 0004 → 0001 → head, 1,255 rows at every step |
-| CI on `3ba47af` | ❌ All 8 jobs failed within 1–2 s (runner not started: GitHub Actions minutes or spending limit, not code). Re-run once restored |
-| Deploy on `main` | ⏳ Owner, after CI is green |
-| `verify-stack.sh main` | ⏳ Agent, after the deploy. Every row must pass with pgAdmin off, including the G19 rows |
+| CI on `3ba47af` | ❌ Not run: GitHub refused every job ("recent account payments have failed or your spending limit needs to be increased"). The repo is private on GitHub Free, and October's 2,000 Actions minutes were used up on 2026-10-13. They reset on 2026-11-01. The code was tested: CI passed on `a378352` (staging PR and Deploy), and main differs from it only in docs |
+| Deploy on `main` | ✅ **2026-10-13, by hand, approved by the owner** (option C, so E6 meets its 26 Oct deadline without Actions minutes). `ENV_FILE=.env.main SKIP_PULL=1 deploy.sh vertex-main staging-a378352…`: the exact images that passed CI and run on staging. Fresh backup first: `20261013T094427Z`, restore drill with these images PASSED (25 s). Migrated `0001` → `0005`; all services healthy |
+| `verify-stack.sh main` | ✅ **54/54**, including the G19 rows. Data: 1,255 business rows before and after (plus one audit row from the check itself); every `CasePayment` has a type |
 
 **Rollback.** `docker exec vertex-main-backend-1 alembic downgrade 0001`, then redeploy `main-4a55ab8…` (§6 A). Or restore `20261013T044556Z` (§6 B). Rolling back 0005 only signs everyone out.
+
+**Images on main.** vertex-main runs the images tagged `staging-a378352…` until the next Deploy workflow run on `main` (after 2026-11-01), which builds and tags `main-<sha>` as usual. Rollback is unchanged (§6), with backup `20261013T094427Z`.
+
+**Actions minutes.** From this release, docs-only changes skip CI and Deploy, and a newer push to a pull request cancels the older CI run (`ci.yml`, `deploy.yml`). Measured cost before: CI about 22 minutes, Deploy about 31, so one change through dev → staging → main took about 160 of the 2,000 monthly minutes.
