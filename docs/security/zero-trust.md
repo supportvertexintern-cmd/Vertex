@@ -127,6 +127,10 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
   classified `grant` or `exclude`, CI fails on any unclassified column, and
   nothing becomes readable without a decision. Secrets, the audit log and
   personal data (names, contact details, documents, free text) are excluded.
+- **One writer per table.** Every table has exactly one service that writes
+  it, enforced by database grants; FastAPI takes over area by area. Who owns
+  what, and the order: [data-ownership.md](../architecture/data-ownership.md)
+  (G8, decided 2026-10-13).
 - **Tests never touch a stack's database.** Locally they run against a
   throwaway Postgres (`vertex_be/scripts/test.sh`), like CI; neither dev's
   nor staging's Postgres is published to the host.

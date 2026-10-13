@@ -10,8 +10,8 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 
 | ID | Fix | Status | Detail |
 |---|---|---|---|
-| E6 | Revocable sessions (G19) | **Done, in code and tests.** Live on a stack after deploy | [session-management.md](session-management.md) |
-| E3 | CSP nonces, no `'unsafe-inline'` for scripts | **Report-only phase.** Enforce after 1–2 weeks of clean reports | [csp.md](csp.md) §4 |
+| E6 | Revocable sessions (G19) | **Done, in code and tests. Live on dev and staging since 2026-10-13** (kill switch tested on staging). Merged to `main`; closes when main is deployed and verified | [session-management.md](session-management.md) |
+| E3 | CSP nonces, no `'unsafe-inline'` for scripts | **Report-only since 2026-10-13 on dev and staging.** Enforce after 1–2 weeks of clean reports, by 2026-11-09 | [csp.md](csp.md) §4 |
 | E5 | Off-site, immutable copy | **Built and rehearsed.** Waiting for the owner's bucket and keys and the first real off-site restore | [backup-recovery.md](backup-recovery.md) §9 |
 
 ## 2. Acceptance conditions, checked 2026-10-12
