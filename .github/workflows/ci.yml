@@ -7,9 +7,18 @@ name: CI
 on:
   pull_request:
     branches: [dev, staging, main]
+    # Docs-only changes don't run CI (the repo is private on GitHub Free:
+    # 2,000 Actions minutes a month; October's ran out on 2026-10-13).
+    paths-ignore: ["docs/**", "**/*.md"]
   push:
     branches: [main]
+    paths-ignore: ["docs/**", "**/*.md"]
   workflow_call:
+
+# A newer push to the same pull request cancels the older run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
