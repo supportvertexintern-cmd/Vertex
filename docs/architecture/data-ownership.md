@@ -1,6 +1,6 @@
 # Data ownership map (G8, backend migration Phase 1)
 
-**Status: proposed, 2026-10-13. Needs the owner's approval before Phase 4 starts.**
+**Status: approved by the owner, 2026-10-13** (order in §5 and table decisions; see §7).
 
 This map lists every table in the database, which service writes it today,
 and the order in which each area moves to FastAPI. It goes with the
@@ -38,10 +38,14 @@ could. As a result, two of the plan's Phase 2 tests would fail today:
 - "vertex_api cannot write `RefreshToken` or `User.token_version`": it can write `User`.
 - "one writer per table": both roles can write 45 tables.
 
-**Proposal (Phase 2 step 2):**
-- Reduce `vertex_api` to `SELECT` on the tables FastAPI needs, plus `INSERT` on `AuditLog`.
-- At each area handover (Phase 4 step 7), FastAPI **gains** write grants on the area's tables in the same change that removes them from `vertex_web`.
-- `test_db_roles.py` asserts, for every table, that exactly one of the two roles can write it. The expected owner comes from a machine-readable copy of this map.
+**Proposed:** reduce `vertex_api` to `SELECT` plus audit `INSERT`, and grant writes only at each handover.
+
+**Owner's decision (2026-10-13): leave `vertex_api`'s grants as they are.**
+Consequences:
+- The one-writer rule is enforced **on the website's side only**: at each handover (Phase 4 step 7), `vertex_web` loses its write grants on the area's tables, and `test_db_roles.py` proves it can no longer write them.
+- For tables Next.js still owns, the rule stays a convention on FastAPI's side: FastAPI code must not write them. Code review checks this, and FastAPI writes only through the audited write helper (Phase 2 step 6).
+- The plan's Phase 2 test "vertex_api cannot write `User.token_version`" can't pass under this decision and is dropped. "vertex_api cannot write `RefreshToken`" still holds and stays.
+- **Residual risk, accepted:** a compromised backend container could change any business table, including `User` roles. The decision can be revisited at any time; the change is a few lines in `db-roles.sql`.
 
 ### 2.2 The candidate pipeline is one unit, not three
 
@@ -87,7 +91,7 @@ Users and sessions moves **last**, so when Partners moves:
 `Candidate`. After the pipeline moves, it creates the `Candidate` through
 FastAPI.
 
-### 2.4 Seven tables have no writer
+### 2.4 Seven tables have no writer in the code
 
 `JobPosition`, `JobSector`, `JobPaymentStage`, `ReferralAgent`,
 `ReferralAgentTarget`, `ReferralCommission` and `ReferralCommissionRule`
@@ -97,7 +101,9 @@ no writer**. Live foreign keys point at them:
 - `Candidate.referral_agent_id` → `ReferralAgent`;
 - `CasePayment.job_payment_stage_id` → `JobPaymentStage` (`ON DELETE RESTRICT`).
 
-They are assigned to areas below with FastAPI as the target owner. **The owner decides whether they stay (as planned features) or are dropped by a migration.** Either way, `vertex_web` can lose its write grants on them now: it never uses them.
+Three of them **hold data on main** (backup `20261013T044556Z`): `JobPaymentStage` 96 rows, `JobPosition` 78, `JobSector` 30. The four referral tables are empty.
+
+**Owner's decision (2026-10-13): keep all seven.** They belong to the areas in §3, with FastAPI as the owner when their area moves. Until then, nothing writes them.
 
 ### 2.5 Shared, append-only: `AuditLog`
 
@@ -264,13 +270,15 @@ updated.
 |---|---|---|
 | `AuditLog` | `lib/audit.ts` (create)<br>`lib/security-monitor.ts` (create) | `/api/cases/[id]/audit-log`, `lib/security-monitor.ts` |
 
-## 7. Decisions needed from the owner
+## 7. Owner's decisions (2026-10-13)
 
-1. **Approve the order in §5**, including the three differences from the plan.
-2. **The seven tables with no writer (§2.4):** keep them as planned features with FastAPI as owner, or drop them by migration.
-3. **Tighten `vertex_api` (§2.1):** `SELECT` plus audit `INSERT`, with write grants added only at each handover. Recommended as part of Phase 2 step 2.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Order in §5, including the three differences from the plan | **Approved** |
+| 2 | The seven tables with no writer in the code (§2.4) | **Keep all seven** |
+| 3 | Reduce `vertex_api` to read-only until each handover (§2.1) | **No: leave as is.** Enforcement at handover is on `vertex_web`'s side; residual risk accepted |
 
 ## 8. Keeping this map current
 
 - Every area handover (Phase 4 step 10) updates §3 and §6.
-- Once Phase 2 step 2 lands, `test_db_roles.py` reads the expected owner of each table and fails if the grants and this map disagree.
+- From the first handover, `test_db_roles.py` reads the list of moved tables and fails if `vertex_web` can still write any of them.
