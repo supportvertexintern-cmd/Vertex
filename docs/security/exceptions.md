@@ -10,7 +10,7 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 
 | ID | Fix | Status | Detail |
 |---|---|---|---|
-| E6 | Revocable sessions (G19) | **Done, in code and tests. Live on dev and staging since 2026-10-13** (kill switch tested on staging). Merged to `main`; closes when main is deployed and verified | [session-management.md](session-management.md) |
+| E6 | Revocable sessions (G19) | **Closed 2026-10-13.** Live on dev, staging and **main** (`verify-stack.sh main` 54/54, G19 rows pass); kill switch tested on staging | [session-management.md](session-management.md) |
 | E3 | CSP nonces, no `'unsafe-inline'` for scripts | **Report-only since 2026-10-13 on dev and staging.** Enforce after 1–2 weeks of clean reports, by 2026-11-09 | [csp.md](csp.md) §4 |
 | E5 | Off-site, immutable copy | **Built and rehearsed.** Waiting for the owner's bucket and keys and the first real off-site restore | [backup-recovery.md](backup-recovery.md) §9 |
 
@@ -74,7 +74,7 @@ Every open exception needs a named owner, a compensating control and an expiry d
 
 | ID | Decision | Compensating control | Owner | Expiry / review | Signed off by |
 |---|---|---|---|---|---|
-| E6 | Fix: blocks Phase 2 close | Fixed in code: 15-min access tokens, per-request session check, kill switch. Closes when deployed to main and `verify-stack.sh` passes the G19 rows | Brook | 2026-10-26 (deploy + verify) | Brook, 2026-10-12 |
+| E6 | Fix: blocks Phase 2 close | Fixed in code: 15-min access tokens, per-request session check, kill switch. **Closed 2026-10-13:** deployed to main (by hand, release-checklist §9), `verify-stack.sh main` passes the G19 rows | Brook | 2026-10-26 (met 2026-10-13) | Brook, 2026-10-12 |
 | E3 | Fix | Report-only nonce policy running; no `'unsafe-eval'`; CI regression test | Brook | Enforce 2 weeks after report-only starts on staging; latest 2026-11-09 | Brook, 2026-10-12 |
 | E5 | Fix | Local encrypted D: copy, hourly health alerts, monthly drills, until the off-site copy lands | Brook | 2026-11-12 (bucket + first off-site restore) | Brook, 2026-10-12 |
 | E1 | Accept | Dev-only, never shipped (build and CI enforce it); re-checked on every lockfile change | Brook | 2027-01-10, or earlier when a fix ships | Brook, 2026-10-12 |

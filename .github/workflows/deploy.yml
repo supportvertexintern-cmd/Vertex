@@ -14,6 +14,8 @@ name: Deploy
 on:
   push:
     branches: [dev, staging]
+    # Docs-only changes have nothing to deploy.
+    paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:
 
 concurrency:
