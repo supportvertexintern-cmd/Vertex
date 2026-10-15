@@ -60,7 +60,12 @@ export default function HrPartnerSubmissionsPage() {
   const [status, setStatus] = useState(() => urlState.get("status"));
   const [country, setCountry] = useState(() => urlState.get("country"));
   const [programme, setProgramme] = useState(() => urlState.get("programme"));
-  const [filterOptions, setFilterOptions] = useState<{ countries: string[]; programmes: string[] }>({ countries: [], programmes: [] });
+  const [programmeCountry, setProgrammeCountry] = useState(() => urlState.get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<{ countries: string[]; programmes: string[]; programme_countries: string[] }>({
+    countries: [],
+    programmes: [],
+    programme_countries: [],
+  });
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "submitted_at"));
@@ -80,6 +85,7 @@ export default function HrPartnerSubmissionsPage() {
     if (status) params.set("status", status);
     if (country) params.set("country", country);
     if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     fetch(`/api/partner-candidates?${params}`)
       .then((r) => r.json())
       .then((res) => {
@@ -97,28 +103,29 @@ export default function HrPartnerSubmissionsPage() {
   useEffect(() => {
     if (isFirstRun.current) { isFirstRun.current = false; return; }
     setPage(1);
-  }, [q, status, country, programme]);
+  }, [q, status, country, programme, programmeCountry]);
 
   useEffect(() => {
     if (!hasInitializedFromUrl.current) {
       hasInitializedFromUrl.current = true;
       return;
     }
-    urlState.set({ page, q, status, country, programme, sortBy, sortDir });
+    urlState.set({ page, q, status, country, programme, programmeCountry, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, status, country, programme, sortBy, sortDir]);
+  }, [page, q, status, country, programme, programmeCountry, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, country, programme, page, sortBy, sortDir]);
+  }, [q, status, country, programme, programmeCountry, page, sortBy, sortDir]);
 
-  const hasClearableFilters = Boolean(q || country || programme);
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
   const clearFilters = () => {
     setQ("");
     setCountry("");
     setProgramme("");
+    setProgrammeCountry("");
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -131,6 +138,7 @@ export default function HrPartnerSubmissionsPage() {
     if (status) params.set("status", status);
     if (country) params.set("country", country);
     if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     if (sortBy !== "submitted_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     const qs = params.toString();
@@ -192,6 +200,16 @@ export default function HrPartnerSubmissionsPage() {
           aria-label="Programme"
           options={[{ value: "", label: "All Programmes" }, ...filterOptions.programmes.map((p) => ({ value: p, label: p }))]}
         />
+        <SearchableSelect
+          value={programmeCountry}
+          onChange={setProgrammeCountry}
+          className="input-field w-56"
+          aria-label="Programme Country"
+          options={[
+            { value: "", label: "All Programme Countries" },
+            ...(filterOptions.programme_countries ?? []).map((c) => ({ value: c, label: c })),
+          ]}
+        />
         <button
           type="button"
           onClick={clearFilters}
@@ -208,7 +226,7 @@ export default function HrPartnerSubmissionsPage() {
         <p className="text-midnight-900/50">Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || status || country || programme ? "No submissions match your filters." : "No partner submissions yet."}
+          {q || status || country || programme || programmeCountry ? "No submissions match your filters." : "No partner submissions yet."}
         </div>
       ) : (
         <div className="card overflow-x-auto">

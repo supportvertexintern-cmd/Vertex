@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const status = req.nextUrl.searchParams.get("status")?.trim();
   const country = req.nextUrl.searchParams.get("country")?.trim();
+  const programmeCountry = req.nextUrl.searchParams.get("programmeCountry")?.trim();
   const programme = req.nextUrl.searchParams.get("programme")?.trim();
   const page = Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.nextUrl.searchParams.get("pageSize")) || 15));
@@ -59,18 +60,29 @@ export async function GET(req: NextRequest) {
       ? { submitted_at: sortDir }
       : { updated_at: sortDir };
 
-  // Country/Programme filter options come from the opportunities actually
+  // Programme filter options come from the opportunities actually
   // attached to non-draft submissions (not the whole Job catalog), so
   // every option yields at least one row under the default status filter.
   const submittedJobs = await prisma.job.findMany({
     where: { partner_candidates: { some: { status: { not: "draft" } } } },
     select: { id: true, title: true, country: true },
   });
+  // Country lists every country in the system (the Country reference
+  // table, plus any job country missing from it), whether or not it has a
+  // programme. Programme Country lists only countries whose programmes
+  // actually have submissions, so every option returns results — a
+  // catalog programme nobody has submitted for yet (e.g. Albania) would
+  // otherwise only ever show an empty table.
+  const allCountries = await prisma.country.findMany({ select: { name: true } });
   const sortedUnique = (values: string[]) =>
     Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
   const filterOptions = {
-    countries: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country)),
+    countries: sortedUnique([
+      ...allCountries.map((c: (typeof allCountries)[number]) => c.name),
+      ...submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country),
+    ]),
     programmes: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => programmeFromJobTitle(j.title))),
+    programme_countries: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country)),
   };
   // Resolved to exact job ids rather than a title substring match, so a
   // programme name that happens to be contained in another one (e.g.
@@ -104,6 +116,7 @@ export async function GET(req: NextRequest) {
     AND: [
       { status: { not: "draft" } },
       ...(country ? [{ job: { country } }] : []),
+      ...(programmeCountry ? [{ job: { country: programmeCountry } }] : []),
       ...(programmeJobIds ? [{ job_id: { in: programmeJobIds } }] : []),
     ],
   };
