@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
       ? { partner: { name: sortDir } }
       : sortBy === "status"
       ? { status: sortDir }
+      : sortBy === "submitted_at"
+      ? { submitted_at: sortDir }
       : { updated_at: sortDir };
 
   const where: Prisma.PartnerCandidateWhereInput = {
@@ -71,7 +73,11 @@ export async function GET(req: NextRequest) {
         partner: { select: { id: true, name: true, contact_email: true } },
         job: { select: { title: true, country: true, city: true } },
       },
-      orderBy,
+      // id tie-breaker: many rows share a submitted_at/updated_at (e.g.
+      // seeded/bulk-entered batches), and without a unique final key
+      // Postgres orders ties arbitrarily per query — rows repeat or vanish
+      // across pages.
+      orderBy: [orderBy, { id: sortDir }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

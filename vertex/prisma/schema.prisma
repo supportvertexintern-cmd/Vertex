@@ -113,6 +113,8 @@ model User {
   fee_policies_updated        FeePolicy[]        @relation("FeePolicyUpdater")
   contracts_created           Contract[]         @relation("ContractCreator")
   partner_candidates_reviewed PartnerCandidate[] @relation("PartnerCandidateReviewer")
+  partner_candidates_drafted   PartnerCandidate[] @relation("PartnerCandidateDrafter")
+  partner_candidates_submitted PartnerCandidate[] @relation("PartnerCandidateSubmitter")
   recruiter_targets_received  RecruiterTarget[]  @relation("RecruiterTargetRecruiter")
   recruiter_targets_set       RecruiterTarget[]  @relation("RecruiterTargetSetter")
   recruiter_notes_received    RecruiterNote[]    @relation("RecruiterNoteRecipient")
@@ -1536,8 +1538,19 @@ model PartnerCandidate {
   // draft is finalized into a real submission — see finalizeSubmission().
   documents Document[]
 
-  submitted_at DateTime @default(now())
-  updated_at   DateTime @updatedAt
+  // Draft vs. final submission are stamped separately (2026-10-14).
+  // drafted_at/drafted_by are set when the row is first saved via "Save as
+  // Draft"; submitted_at/submitted_by only when "Submit Candidate" actually
+  // finalizes it (finalizeSubmission()). A draft therefore has a null
+  // submitted_at. Rows from before this change have null *_by — the audit
+  // log didn't capture their actor.
+  drafted_at   DateTime?
+  drafted_by   String?
+  drafter      User?     @relation("PartnerCandidateDrafter", fields: [drafted_by], references: [id], onDelete: SetNull)
+  submitted_at DateTime?
+  submitted_by String?
+  submitter    User?     @relation("PartnerCandidateSubmitter", fields: [submitted_by], references: [id], onDelete: SetNull)
+  updated_at   DateTime  @updatedAt
 
   @@index([partner_id])
   @@index([status])

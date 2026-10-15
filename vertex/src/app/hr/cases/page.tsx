@@ -81,7 +81,7 @@ export default function HrCasesPage() {
   const [sourceFilter, setSourceFilter] = useState(() => get("source"));
   const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
   const [page, setPage] = useState(() => getNumber("page", 1));
-  const [sortBy, setSortBy] = useState(() => get("sortBy") || "updated_at");
+  const [sortBy, setSortBy] = useState(() => get("sortBy") || "created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (get("sortDir") === "asc" ? "asc" : "desc"));
   const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false);
 
@@ -115,7 +115,7 @@ export default function HrCasesPage() {
     if (partnerId) currentParams.set("partner_id", partnerId);
     if (sourceFilter) currentParams.set("source", sourceFilter);
     if (caseStatus !== "active") currentParams.set("status", caseStatus);
-    if (sortBy !== "updated_at") currentParams.set("sortBy", sortBy);
+    if (sortBy !== "created_at") currentParams.set("sortBy", sortBy);
     if (sortDir !== "desc") currentParams.set("sortDir", sortDir);
     
     const currentUrl = currentParams.toString();
@@ -155,7 +155,7 @@ export default function HrCasesPage() {
     if (partnerId) params.set("partner_id", partnerId);
     if (sourceFilter) params.set("source", sourceFilter);
     if (caseStatus !== "active") params.set("status", caseStatus);
-    if (sortBy !== "updated_at") params.set("sortBy", sortBy);
+    if (sortBy !== "created_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     const qs = params.toString();
     return qs ? `/hr/cases?${qs}` : "/hr/cases";
@@ -202,7 +202,7 @@ export default function HrCasesPage() {
                 <th className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Source</th>
                 <th className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Partner</th>
                 <SortableTh label="Submitted" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden 2xl:table-cell" />
-                <th className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Updated</th>
+                <SortableTh label="Updated" sortKey="updated_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden 2xl:table-cell" />
                 <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="w-[30%] md:w-[24%] xl:w-[18%] 2xl:w-[16%] px-2 sm:px-3 lg:px-5" />
                 <th className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Documentation</th>
                 <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Status</th>
@@ -227,8 +227,8 @@ export default function HrCasesPage() {
                     <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{country}</td>
                     <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/60">{source}</td>
                     <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
-                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.updated_at).toLocaleDateString()}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-midnight-900/70 wrap-break-word">
                       <ExpandableStageText text={`Stage ${CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of ${CASE_STAGE_ORDER.length}: ${CASE_STAGE_LABELS[c.current_stage]}`} />
                     </td>

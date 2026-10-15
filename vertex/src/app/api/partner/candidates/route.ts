@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   }
 
   const db = auditedPrisma(user!.userId);
-  const result = await finalizeSubmission({ db, partner, data: parsed.data });
+  const result = await finalizeSubmission({ db, partner, data: parsed.data, submittedBy: user!.userId });
   if (!result.ok) {
     return NextResponse.json({ error: { code: result.code, message: result.message } }, { status: result.status });
   }

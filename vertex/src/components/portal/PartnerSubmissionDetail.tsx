@@ -46,7 +46,7 @@ interface PartnerCandidateDetail {
   preferred_contact_channel: string | null;
   rejection_reason: string | null;
   bridged_candidate_id: string | null;
-  submitted_at: string;
+  submitted_at: string | null;
   partner: { id: string; name: string; contact_email: string; contact_name: string; contact_phone: string };
   job: {
     id: string;
@@ -265,7 +265,7 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
         <div>
           <h1 className="section-title text-3xl md:text-4xl mb-2">{data.full_name}.</h1>
           <p className="text-midnight-900/55 font-light max-w-2xl">
-            Submitted by {data.partner.name} on {new Date(data.submitted_at).toLocaleDateString()}
+            Submitted by {data.partner.name}{data.submitted_at ? ` on ${new Date(data.submitted_at).toLocaleDateString()}` : ""}
           </p>
         </div>
         <div className="text-right space-y-1.5">

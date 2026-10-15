@@ -98,7 +98,8 @@ export async function GET(req: NextRequest) {
         // list derives a Status column from these, no schema change needed.
         payments: { select: { status: true, sent_to_email: true } },
       },
-      orderBy,
+      // id tie-breaker — keeps pagination stable when sort values tie.
+      orderBy: [orderBy, { id: sortDir as "asc" | "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

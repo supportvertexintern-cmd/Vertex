@@ -37,7 +37,9 @@ interface PartnerCandidateRow {
   full_name: string | null;
   email: string | null;
   status: string;
-  submitted_at: string;
+  // Null while still a draft (2026-10-14) — drafted_at is set instead.
+  submitted_at: string | null;
+  drafted_at: string | null;
   job: { title: string; country: string; city: string } | null;
   has_rejected_document: boolean;
   awaiting_partner_reply: boolean;
@@ -94,7 +96,7 @@ export default function PartnerPortalPage() {
     });
     return [...rows].sort((a, b) => {
       const diff =
-        sortBy === "status" ? a.status.localeCompare(b.status) : new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
+        sortBy === "status" ? a.status.localeCompare(b.status) : new Date(a.submitted_at ?? a.drafted_at ?? 0).getTime() - new Date(b.submitted_at ?? b.drafted_at ?? 0).getTime();
       return sortDir === "asc" ? diff : -diff;
     });
   }, [candidates, q, status, sortBy, sortDir]);
@@ -225,7 +227,15 @@ export default function PartnerPortalPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-midnight-900/60">{new Date(c.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-5 py-4 text-midnight-900/60">
+                      {c.submitted_at ? (
+                        new Date(c.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                      ) : c.drafted_at ? (
+                        <span className="text-midnight-900/40">Draft saved {new Date(c.drafted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-5 py-4">
                       {isDraft && (
                         <button
