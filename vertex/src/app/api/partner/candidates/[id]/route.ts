@@ -59,16 +59,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // precedent as the 2026-08-04 HR/Operations editing batch.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["partner"]);
+  // HR/Operations/admin may re-save a draft they're entering on a
+  // partner's behalf (same roles POST /api/partner/candidates/draft
+  // allows) — but only while it's still a draft. Once submitted, staff
+  // corrections go through their own review routes, not this one.
+  const guardRes = requireRole(user, ["partner", "hr", "operations_team", "operations_director", "admin"]);
   if (guardRes) return guardRes;
+  const isStaff = user!.role !== "partner";
 
-  const partner = await prisma.partner.findUnique({ where: { user_id: user!.userId } });
-  if (!partner) return NextResponse.json({ error: { code: "not_found", message: "Partner record not found." } }, { status: 404 });
+  const partner = isStaff ? null : await prisma.partner.findUnique({ where: { user_id: user!.userId } });
+  if (!isStaff && !partner) return NextResponse.json({ error: { code: "not_found", message: "Partner record not found." } }, { status: 404 });
 
   const { id } = await params;
 
-  const existing = await prisma.partnerCandidate.findUnique({ where: { id, status: { not: "draft" } } });
-  if (!existing || existing.partner_id !== partner.id) {
+  const existing = await prisma.partnerCandidate.findUnique({ where: { id } });
+  if (!existing || (isStaff ? existing.status !== "draft" : existing.partner_id !== partner!.id)) {
     return NextResponse.json({ error: { code: "not_found", message: "Submission not found." } }, { status: 404 });
   }
 

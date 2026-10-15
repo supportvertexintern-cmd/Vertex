@@ -17,7 +17,7 @@ interface PartnerCandidateRow {
   full_name: string;
   email: string | null;
   status: string;
-  submitted_at: string;
+  submitted_at: string | null;
   updated_at: string;
   bridged_candidate_id: string | null;
   partner: { id: string; name: string; contact_email: string };
@@ -60,7 +60,7 @@ export default function HrPartnerSubmissionsPage() {
   const [status, setStatus] = useState(() => urlState.get("status"));
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
-  const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "updated_at"));
+  const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "submitted_at"));
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (urlState.get("sortDir") === "asc" ? "asc" : "desc"));
   const isFirstRun = useRef(true);
   const hasInitializedFromUrl = useRef(false);
@@ -116,7 +116,7 @@ export default function HrPartnerSubmissionsPage() {
     if (page > 1) params.set("page", String(page));
     if (q) params.set("q", q);
     if (status) params.set("status", status);
-    if (sortBy !== "updated_at") params.set("sortBy", sortBy);
+    if (sortBy !== "submitted_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     const qs = params.toString();
     return qs ? `/hr?${qs}` : "/hr";
@@ -230,7 +230,7 @@ export default function HrPartnerSubmissionsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{row.submitted_at ? new Date(row.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "—"}</td>
                   <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[row.status] ?? "bg-slate-100 text-slate-700"}`}>

@@ -65,12 +65,16 @@ export async function POST(req: NextRequest) {
     const user = await getAuthUser(req);
     const guardRes = requireAuth(user);
     if (guardRes) return guardRes;
-    if (user!.role !== "partner") {
-      return NextResponse.json({ error: "Only the owning partner can upload to a draft." }, { status: 403 });
+    // Staff entering a partner's backlog on its behalf (HR/Operations/admin
+    // — the same roles POST /api/partner/candidates/draft lets create a
+    // draft) can attach files to any draft; a partner only to its own.
+    const isDraftStaff = ["hr", "operations_team", "operations_director", "admin"].includes(user!.role);
+    if (user!.role !== "partner" && !isDraftStaff) {
+      return NextResponse.json({ error: "Only the owning partner or HR/Operations can upload to a draft." }, { status: 403 });
     }
-    const partner = await prisma.partner.findUnique({ where: { user_id: user!.userId } });
+    const partner = isDraftStaff ? null : await prisma.partner.findUnique({ where: { user_id: user!.userId } });
     const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { id: targetPartnerCandidateId } });
-    if (!partnerCandidate || !partner || partnerCandidate.partner_id !== partner.id) {
+    if (!partnerCandidate || (!isDraftStaff && (!partner || partnerCandidate.partner_id !== partner.id))) {
       return NextResponse.json({ error: "Draft not found." }, { status: 404 });
     }
     if (partnerCandidate.status !== "draft") {

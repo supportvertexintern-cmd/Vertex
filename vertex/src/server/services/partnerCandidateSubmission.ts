@@ -24,11 +24,15 @@ export async function finalizeSubmission({
   partner,
   data,
   existingPartnerCandidateId,
+  submittedBy,
 }: {
   db: ReturnType<typeof auditedPrisma>;
   partner: Partner;
   data: SubmitData;
   existingPartnerCandidateId?: string;
+  // The logged-in user who clicked "Submit Candidate" — the partner
+  // themselves, or HR/Operations entering on the partner's behalf.
+  submittedBy: string;
 }): Promise<FinalizeResult> {
   const [job, currentLocationCountry] = await Promise.all([
     prisma.job.findUnique({ where: { id: data.job_id } }),
@@ -179,6 +183,8 @@ export async function finalizeSubmission({
       partner_id: partner.id,
       bridged_candidate_id: candidate.id,
       status: "submitted" as const,
+      submitted_at: new Date(),
+      submitted_by: submittedBy,
       full_name: data.full_name,
       nationality: data.nationality,
       date_of_birth: new Date(data.date_of_birth),

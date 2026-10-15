@@ -129,7 +129,7 @@ interface PartnerCandidateDetail {
   preferred_contact_channel: string | null;
   rejection_reason: string | null;
   bridged_candidate_id: string | null;
-  submitted_at: string;
+  submitted_at: string | null;
   job_position_id: string | null;
   job: {
     id: string;
@@ -402,7 +402,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
         <div>
           <h1 className="section-title text-3xl md:text-4xl mb-2">{data.full_name}.</h1>
           <p className="text-midnight-900/55 font-light max-w-2xl">
-            Submitted {new Date(data.submitted_at).toLocaleDateString()}
+            {data.submitted_at ? `Submitted ${new Date(data.submitted_at).toLocaleDateString()}` : "Not yet submitted"}
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -26,8 +26,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
 
-  console.log("Draft payload:", body);
-
   const parsed = savePartnerCandidateDraftSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -63,6 +61,8 @@ export async function POST(req: NextRequest) {
     data: {
       partner_id: partner.id,
       status: "draft",
+      drafted_at: new Date(),
+      drafted_by: user!.userId,
       full_name: parsed.data.full_name,
       nationality: parsed.data.nationality,
       date_of_birth: parsed.data.date_of_birth ? new Date(parsed.data.date_of_birth) : undefined,
