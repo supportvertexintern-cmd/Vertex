@@ -8,6 +8,16 @@ import { getCandidateAttentionSignals } from "@/server/services/candidateSignals
 
 const MAX_PAGE_SIZE = 100;
 
+// "Belgium — Warehouse Programme (Credit Service)" → "Warehouse Programme".
+// Job has no separate programme field — the title is "<Country> — <Programme>
+// (<variant>)" across every seeded opportunity, so the programme is derived
+// from it for the Programme filter rather than adding a schema column.
+function programmeFromJobTitle(title: string): string {
+  const sep = title.indexOf(" — ");
+  const rest = sep >= 0 ? title.slice(sep + 3) : title;
+  return rest.replace(/\s*\([^)]*\)\s*$/, "").trim() || title;
+}
+
 async function candidateSignals(candidateId: string) {
   const { awaiting_reply, ...rest } = await getCandidateAttentionSignals(candidateId, "partner");
   return { ...rest, awaiting_hr_reply: awaiting_reply };
@@ -20,7 +30,8 @@ async function candidateSignals(candidateId: string) {
 // Case gets created for them (PATCH .../create-case). Operations also gets
 // read visibility here (confirmed) so they can see what's coming before HR
 // approves it — write actions (create-case, reject) stay HR-exclusive.
-// Paginated/searchable/filterable by status.
+// Paginated/searchable/filterable by status, opportunity country, and
+// programme — all applied in the DB query so totals/pagination stay exact.
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...HR_ROLES, "operations_team", "operations_director"]);
@@ -28,6 +39,8 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const status = req.nextUrl.searchParams.get("status")?.trim();
+  const country = req.nextUrl.searchParams.get("country")?.trim();
+  const programme = req.nextUrl.searchParams.get("programme")?.trim();
   const page = Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.nextUrl.searchParams.get("pageSize")) || 15));
 
@@ -46,6 +59,28 @@ export async function GET(req: NextRequest) {
       ? { submitted_at: sortDir }
       : { updated_at: sortDir };
 
+  // Country/Programme filter options come from the opportunities actually
+  // attached to non-draft submissions (not the whole Job catalog), so
+  // every option yields at least one row under the default status filter.
+  const submittedJobs = await prisma.job.findMany({
+    where: { partner_candidates: { some: { status: { not: "draft" } } } },
+    select: { id: true, title: true, country: true },
+  });
+  const sortedUnique = (values: string[]) =>
+    Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const filterOptions = {
+    countries: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country)),
+    programmes: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => programmeFromJobTitle(j.title))),
+  };
+  // Resolved to exact job ids rather than a title substring match, so a
+  // programme name that happens to be contained in another one (e.g.
+  // "Unskilled Worker") can't pull in unrelated programmes.
+  const programmeJobIds = programme
+    ? submittedJobs
+        .filter((j: (typeof submittedJobs)[number]) => programmeFromJobTitle(j.title) === programme)
+        .map((j: (typeof submittedJobs)[number]) => j.id)
+    : null;
+
   const where: Prisma.PartnerCandidateWhereInput = {
     // Drafts (unsubmitted, possibly half-empty) aren't part of this app's
     // review flow; ?status=draft can't bring them back.
@@ -57,13 +92,20 @@ export async function GET(req: NextRequest) {
             { full_name: { contains: q, mode: "insensitive" } },
             { email: { contains: q, mode: "insensitive" } },
             { partner: { name: { contains: q, mode: "insensitive" } } },
+            // Programme name lives inside Job.title (see programmeFromJobTitle),
+            // so a title match covers searching by programme.
+            { job: { title: { contains: q, mode: "insensitive" } } },
           ],
         }
       : {}),
     // A draft is never reachable from HR/Operations' queue (2026-09-09) —
     // unconditional, not just the no-filter default, so an explicit
     // ?status=draft can't surface one either.
-    AND: [{ status: { not: "draft" } }],
+    AND: [
+      { status: { not: "draft" } },
+      ...(country ? [{ job: { country } }] : []),
+      ...(programmeJobIds ? [{ job_id: { in: programmeJobIds } }] : []),
+    ],
   };
 
   const [rows, total] = await Promise.all([
@@ -123,5 +165,5 @@ export async function GET(req: NextRequest) {
     awaiting_reply_count: allSignals.filter((s) => s.awaiting_hr_reply).length,
   };
 
-  return NextResponse.json({ data: withSignals, total, page, pageSize, summary });
+  return NextResponse.json({ data: withSignals, total, page, pageSize, summary, filter_options: filterOptions });
 }

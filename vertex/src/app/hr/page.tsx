@@ -58,6 +58,9 @@ export default function HrPartnerSubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(() => urlState.get("q"));
   const [status, setStatus] = useState(() => urlState.get("status"));
+  const [country, setCountry] = useState(() => urlState.get("country"));
+  const [programme, setProgramme] = useState(() => urlState.get("programme"));
+  const [filterOptions, setFilterOptions] = useState<{ countries: string[]; programmes: string[] }>({ countries: [], programmes: [] });
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "submitted_at"));
@@ -75,12 +78,15 @@ export default function HrPartnerSubmissionsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
     fetch(`/api/partner-candidates?${params}`)
       .then((r) => r.json())
       .then((res) => {
         setRows(res.data ?? []);
         setTotal(res.total ?? 0);
         setSummary(res.summary ?? { pending_review_count: 0, awaiting_reply_count: 0 });
+        if (res.filter_options) setFilterOptions(res.filter_options);
       })
       .catch(() => setError("Failed to load partner submissions."))
       .finally(() => setLoading(false));
@@ -89,24 +95,31 @@ export default function HrPartnerSubmissionsPage() {
   // Skipped on first mount so restoring page from the URL (returning from
   // a detail page) doesn't get immediately reset back to 1.
   useEffect(() => {
-    if (isFirstRun.current) return;
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
     setPage(1);
-  }, [q, status]);
+  }, [q, status, country, programme]);
 
   useEffect(() => {
     if (!hasInitializedFromUrl.current) {
       hasInitializedFromUrl.current = true;
       return;
     }
-    urlState.set({ page, q, status, sortBy, sortDir });
+    urlState.set({ page, q, status, country, programme, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, status, sortBy, sortDir]);
+  }, [page, q, status, country, programme, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, page, sortBy, sortDir]);
+  }, [q, status, country, programme, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -116,6 +129,8 @@ export default function HrPartnerSubmissionsPage() {
     if (page > 1) params.set("page", String(page));
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
     if (sortBy !== "submitted_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     const qs = params.toString();
@@ -161,8 +176,30 @@ export default function HrPartnerSubmissionsPage() {
         </div>
       </div>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate or partner name…">
-        <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} />
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, partner, or programme…">
+        <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} aria-label="Status" />
+        <SearchableSelect
+          value={country}
+          onChange={setCountry}
+          className="input-field w-56"
+          aria-label="Country"
+          options={[{ value: "", label: "All Countries" }, ...filterOptions.countries.map((c) => ({ value: c, label: c }))]}
+        />
+        <SearchableSelect
+          value={programme}
+          onChange={setProgramme}
+          className="input-field w-72"
+          aria-label="Programme"
+          options={[{ value: "", label: "All Programmes" }, ...filterOptions.programmes.map((p) => ({ value: p, label: p }))]}
+        />
+        <button
+          type="button"
+          onClick={clearFilters}
+          disabled={!hasClearableFilters}
+          className="text-xs font-semibold text-midnight-900/60 hover:text-gold-600 disabled:opacity-40 disabled:hover:text-midnight-900/60 px-2 py-2"
+        >
+          Clear Filters
+        </button>
       </FilterBar>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
@@ -171,7 +208,7 @@ export default function HrPartnerSubmissionsPage() {
         <p className="text-midnight-900/50">Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || status ? "No submissions match your filters." : "No partner submissions yet."}
+          {q || status || country || programme ? "No submissions match your filters." : "No partner submissions yet."}
         </div>
       ) : (
         <div className="card overflow-x-auto">
