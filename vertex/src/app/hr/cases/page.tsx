@@ -8,6 +8,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
 import ExpandableStageText from "@/components/portal/ExpandableStageText";
@@ -80,6 +81,10 @@ export default function HrCasesPage() {
   const [partnerId, setPartnerId] = useState(() => get("partner_id"));
   const [sourceFilter, setSourceFilter] = useState(() => get("source"));
   const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
+  const [country, setCountry] = useState(() => get("country"));
+  const [programme, setProgramme] = useState(() => get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => getNumber("page", 1));
   const [sortBy, setSortBy] = useState(() => get("sortBy") || "created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (get("sortDir") === "asc" ? "asc" : "desc"));
@@ -100,7 +105,7 @@ export default function HrCasesPage() {
   useEffect(() => {
     if (!hasInitializedFromUrl) return;
     setPage(1);
-  }, [q, stage, partnerId, sourceFilter, caseStatus, hasInitializedFromUrl]);
+  }, [q, stage, partnerId, sourceFilter, caseStatus, country, programme, programmeCountry, hasInitializedFromUrl]);
 
   useEffect(() => {
     if (!hasInitializedFromUrl) {
@@ -115,34 +120,49 @@ export default function HrCasesPage() {
     if (partnerId) currentParams.set("partner_id", partnerId);
     if (sourceFilter) currentParams.set("source", sourceFilter);
     if (caseStatus !== "active") currentParams.set("status", caseStatus);
+    if (country) currentParams.set("country", country);
+    if (programme) currentParams.set("programme", programme);
+    if (programmeCountry) currentParams.set("programmeCountry", programmeCountry);
     if (sortBy !== "created_at") currentParams.set("sortBy", sortBy);
     if (sortDir !== "desc") currentParams.set("sortDir", sortDir);
     
     const currentUrl = currentParams.toString();
     if (currentUrl !== window.location.search.slice(1)) {
-      setUrlState({ page, q, stage, partner_id: partnerId, source: sourceFilter, status: caseStatus, sortBy, sortDir });
+      setUrlState({ page, q, stage, partner_id: partnerId, source: sourceFilter, status: caseStatus, country, programme, programmeCountry, sortBy, sortDir });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, stage, partnerId, sourceFilter, caseStatus, sortBy, sortDir, hasInitializedFromUrl]);
+  }, [page, q, stage, partnerId, sourceFilter, caseStatus, country, programme, programmeCountry, sortBy, sortDir, hasInitializedFromUrl]);
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir, status: caseStatus });
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir, status: caseStatus, filterOptions: "true" });
     if (q) params.set("q", q);
     if (stage) params.set("stage", stage);
     if (partnerId) params.set("partner_id", partnerId);
     if (sourceFilter) params.set("source", sourceFilter);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     const timeout = setTimeout(() => {
       fetch(`/api/cases?${params}`)
         .then((r) => r.json())
         .then((res) => {
           setCases(res.data ?? []);
           setTotal(res.total ?? 0);
+          if (res.filter_options) setFilterOptions(res.filter_options);
         })
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(timeout);
-  }, [q, stage, partnerId, sourceFilter, caseStatus, page, sortBy, sortDir]);
+  }, [q, stage, partnerId, sourceFilter, caseStatus, country, programme, programmeCountry, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -154,6 +174,9 @@ export default function HrCasesPage() {
     if (stage) params.set("stage", stage);
     if (partnerId) params.set("partner_id", partnerId);
     if (sourceFilter) params.set("source", sourceFilter);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     if (caseStatus !== "active") params.set("status", caseStatus);
     if (sortBy !== "created_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
@@ -173,7 +196,7 @@ export default function HrCasesPage() {
         created by mistake. Stage and document updates are Operations' own lane.
       </p>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate name or email…">
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">
         <SearchableSelect value={stage} onChange={setStage} className="input-field w-56" options={STAGE_OPTIONS} />
         <SearchableSelect
           value={partnerId}
@@ -184,13 +207,24 @@ export default function HrCasesPage() {
         />
         <SearchableSelect value={sourceFilter} onChange={setSourceFilter} className="input-field w-56" options={SOURCE_OPTIONS} />
         <SearchableSelect value={caseStatus} onChange={setCaseStatus} className="input-field w-48" options={CASE_STATUS_OPTIONS} />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {loading ? (
         <p className="text-midnight-900/50">Loading…</p>
       ) : cases.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || stage || partnerId || sourceFilter ? "No cases match your filters." : "No active cases yet."}
+          {q || stage || partnerId || sourceFilter || country || programme || programmeCountry ? "No cases match your filters." : "No active cases yet."}
         </div>
       ) : (
         <div className="card overflow-hidden">

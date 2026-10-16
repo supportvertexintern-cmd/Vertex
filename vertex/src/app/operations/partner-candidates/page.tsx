@@ -8,6 +8,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
@@ -55,6 +56,10 @@ export default function OperationsPartnerSubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(() => urlState.get("q"));
   const [status, setStatus] = useState(() => urlState.get("status"));
+  const [country, setCountry] = useState(() => urlState.get("country"));
+  const [programme, setProgramme] = useState(() => urlState.get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => urlState.get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "updated_at"));
@@ -72,11 +77,15 @@ export default function OperationsPartnerSubmissionsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     fetch(`/api/partner-candidates?${params}`)
       .then((r) => r.json())
       .then((res) => {
         setRows(res.data ?? []);
         setTotal(res.total ?? 0);
+        if (res.filter_options) setFilterOptions(res.filter_options);
       })
       .catch(() => setError("Failed to load partner submissions."))
       .finally(() => setLoading(false));
@@ -85,24 +94,32 @@ export default function OperationsPartnerSubmissionsPage() {
   // Skipped on first mount so restoring page from the URL (returning from
   // a detail page) doesn't get immediately reset back to 1.
   useEffect(() => {
-    if (isFirstRun.current) return;
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
     setPage(1);
-  }, [q, status]);
+  }, [q, status, country, programme, programmeCountry]);
 
   useEffect(() => {
     if (!hasInitializedFromUrl.current) {
       hasInitializedFromUrl.current = true;
       return;
     }
-    urlState.set({ page, q, status, sortBy, sortDir });
+    urlState.set({ page, q, status, country, programme, programmeCountry, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, status, sortBy, sortDir]);
+  }, [page, q, status, country, programme, programmeCountry, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, page, sortBy, sortDir]);
+  }, [q, status, country, programme, programmeCountry, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -112,6 +129,9 @@ export default function OperationsPartnerSubmissionsPage() {
     if (page > 1) params.set("page", String(page));
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     if (sortBy !== "updated_at") params.set("sortBy", sortBy);
     if (sortDir !== "desc") params.set("sortDir", sortDir);
     const qs = params.toString();
@@ -135,8 +155,19 @@ export default function OperationsPartnerSubmissionsPage() {
         creation are handled by HR.
       </p>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate or partner name…">
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, partner, or programme…">
         <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
@@ -145,7 +176,7 @@ export default function OperationsPartnerSubmissionsPage() {
         <p className="text-midnight-900/50">Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || status ? "No submissions match your filters." : "No partner submissions yet."}
+          {q || status || country || programme || programmeCountry ? "No submissions match your filters." : "No partner submissions yet."}
         </div>
       ) : (
         <div className="card overflow-x-auto">

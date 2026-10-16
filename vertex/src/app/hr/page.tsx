@@ -8,6 +8,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { CheckCircle, WarningCircle, ChatCircleDots, Clock } from "@phosphor-icons/react";
@@ -61,11 +62,7 @@ export default function HrPartnerSubmissionsPage() {
   const [country, setCountry] = useState(() => urlState.get("country"));
   const [programme, setProgramme] = useState(() => urlState.get("programme"));
   const [programmeCountry, setProgrammeCountry] = useState(() => urlState.get("programmeCountry"));
-  const [filterOptions, setFilterOptions] = useState<{ countries: string[]; programmes: string[]; programme_countries: string[] }>({
-    countries: [],
-    programmes: [],
-    programme_countries: [],
-  });
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "submitted_at"));
@@ -186,38 +183,17 @@ export default function HrPartnerSubmissionsPage() {
 
       <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, partner, or programme…">
         <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} aria-label="Status" />
-        <SearchableSelect
-          value={country}
-          onChange={setCountry}
-          className="input-field w-56"
-          aria-label="Country"
-          options={[{ value: "", label: "All Countries" }, ...filterOptions.countries.map((c) => ({ value: c, label: c }))]}
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
         />
-        <SearchableSelect
-          value={programme}
-          onChange={setProgramme}
-          className="input-field w-72"
-          aria-label="Programme"
-          options={[{ value: "", label: "All Programmes" }, ...filterOptions.programmes.map((p) => ({ value: p, label: p }))]}
-        />
-        <SearchableSelect
-          value={programmeCountry}
-          onChange={setProgrammeCountry}
-          className="input-field w-56"
-          aria-label="Programme Country"
-          options={[
-            { value: "", label: "All Programme Countries" },
-            ...(filterOptions.programme_countries ?? []).map((c) => ({ value: c, label: c })),
-          ]}
-        />
-        <button
-          type="button"
-          onClick={clearFilters}
-          disabled={!hasClearableFilters}
-          className="text-xs font-semibold text-midnight-900/60 hover:text-gold-600 disabled:opacity-40 disabled:hover:text-midnight-900/60 px-2 py-2"
-        >
-          Clear Filters
-        </button>
       </FilterBar>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
