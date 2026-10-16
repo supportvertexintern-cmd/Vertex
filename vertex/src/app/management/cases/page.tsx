@@ -8,6 +8,7 @@ import { MANAGEMENT_NAV_ITEMS } from "@/components/portal/managementNav";
 import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
 import ExpandableStageText from "@/components/portal/ExpandableStageText";
@@ -79,6 +80,10 @@ export default function ManagementCasesPage() {
   const [partnerId, setPartnerId] = useState(() => get("partner_id"));
   const [source, setSource] = useState(() => get("source"));
   const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
+  const [country, setCountry] = useState(() => get("country"));
+  const [programme, setProgramme] = useState(() => get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => getNumber("page", 1));
   const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false);
 
@@ -92,7 +97,7 @@ export default function ManagementCasesPage() {
   useEffect(() => {
     if (!hasInitializedFromUrl) return;
     setPage(1);
-  }, [q, stage, partnerId, source, caseStatus, hasInitializedFromUrl]);
+  }, [q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, hasInitializedFromUrl]);
 
   useEffect(() => {
     if (!hasInitializedFromUrl) {
@@ -107,32 +112,47 @@ export default function ManagementCasesPage() {
     if (partnerId) currentParams.set("partner_id", partnerId);
     if (source) currentParams.set("source", source);
     if (caseStatus !== "active") currentParams.set("status", caseStatus);
+    if (country) currentParams.set("country", country);
+    if (programme) currentParams.set("programme", programme);
+    if (programmeCountry) currentParams.set("programmeCountry", programmeCountry);
     
     const currentUrl = currentParams.toString();
     if (currentUrl !== window.location.search.slice(1)) {
-      setUrlState({ page, q, stage, partner_id: partnerId, source, status: caseStatus });
+      setUrlState({ page, q, stage, partner_id: partnerId, source, status: caseStatus, country, programme, programmeCountry });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, stage, partnerId, source, caseStatus, hasInitializedFromUrl]);
+  }, [page, q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, hasInitializedFromUrl]);
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status: caseStatus });
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status: caseStatus, filterOptions: "true" });
     if (q) params.set("q", q);
     if (stage) params.set("stage", stage);
     if (partnerId) params.set("partner_id", partnerId);
     if (source) params.set("source", source);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     const timeout = setTimeout(() => {
       fetch(`/api/cases?${params}`)
         .then((r) => r.json())
         .then((res) => {
           setCases(res.data ?? []);
           setTotal(res.total ?? 0);
+          if (res.filter_options) setFilterOptions(res.filter_options);
         })
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(timeout);
-  }, [q, stage, partnerId, source, caseStatus, page]);
+  }, [q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, page]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -147,7 +167,7 @@ export default function ManagementCasesPage() {
         Every active case across every region and country — offer through permit, visa, and travel (SRS FR-4.1).
       </p>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate name or email…">
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">
         <SearchableSelect value={stage} onChange={setStage} className="input-field w-56" options={STAGE_OPTIONS} />
         <SearchableSelect
           value={partnerId}
@@ -158,13 +178,24 @@ export default function ManagementCasesPage() {
         />
         <SearchableSelect value={source} onChange={setSource} className="input-field w-56" options={SOURCE_OPTIONS} />
         <SearchableSelect value={caseStatus} onChange={setCaseStatus} className="input-field w-48" options={CASE_STATUS_OPTIONS} />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {loading ? (
         <p className="text-midnight-900/50">Loading…</p>
       ) : cases.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || stage || partnerId || source ? "No cases match your filters." : "No active cases yet."}
+          {q || stage || partnerId || source || country || programme || programmeCountry ? "No cases match your filters." : "No active cases yet."}
         </div>
       ) : (
         <div className="card overflow-hidden">

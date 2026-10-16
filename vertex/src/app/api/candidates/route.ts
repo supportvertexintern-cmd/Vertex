@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { scopeCandidatesToRequester } from "@/server/scope";
 import { getCandidateAttentionSignals } from "@/server/services/candidateSignals";
+import { readOpportunityFilterParams, resolveOpportunityFilters } from "@/server/services/opportunityFilters";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin", "hr"] as const;
 const MAX_PAGE_SIZE = 100;
@@ -98,6 +99,19 @@ export async function GET(req: NextRequest) {
   // Country filter (Portal Improvement Requirements item 3, 2026-08-18) —
   // the list already shows a Country column, this just makes it filterable.
   const countryId = req.nextUrl.searchParams.get("country_id")?.trim();
+  // Country / Programme / Programme Country (2026-10-15) — matched against
+  // the candidate's application's opportunity; see opportunityFilters.ts.
+  // Options are opt-in (?filterOptions=true) so the many other consumers
+  // of this shared list don't pay for them.
+  const opportunityParams = readOpportunityFilterParams(req);
+  const wantsFilterOptions = req.nextUrl.searchParams.get("filterOptions") === "true";
+  const opportunityFilters =
+    wantsFilterOptions || opportunityParams.country || opportunityParams.programme || opportunityParams.programmeCountry
+      ? await resolveOpportunityFilters(
+          { applications: { some: source ? { candidate: { source: { in: source.split(",") as never } } } : {} } },
+          opportunityParams
+        )
+      : null;
   const page = Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.nextUrl.searchParams.get("pageSize")) || 15));
 
@@ -119,6 +133,7 @@ export async function GET(req: NextRequest) {
     // Referral Agent System's "no new parallel pipeline" decision.
     ...(source ? { source: { in: source.split(",") } as never } : {}),
     ...(countryId ? { country_id: countryId } : {}),
+    ...(opportunityFilters?.jobWhere ? { applications: { some: { job: opportunityFilters.jobWhere } } } : {}),
     ...(q
       ? {
           OR: [
@@ -127,10 +142,14 @@ export async function GET(req: NextRequest) {
             { phone: { contains: q, mode: "insensitive" } },
             { user: { full_name: { contains: q, mode: "insensitive" } } },
             { user: { email: { contains: q, mode: "insensitive" } } },
+            // Programme name lives inside Job.title (opportunityFilters.ts).
+            { applications: { some: { job: { title: { contains: q, mode: "insensitive" } } } } },
           ],
         }
       : {}),
   };
+
+  const filterOptionsField = wantsFilterOptions && opportunityFilters ? { filter_options: opportunityFilters.options } : {};
 
   const [candidates, total] = await Promise.all([
     prisma.candidate.findMany({
@@ -178,10 +197,10 @@ export async function GET(req: NextRequest) {
       awaiting_reply_count: allSignals.filter((s) => s.awaiting_reply).length,
     };
 
-    return NextResponse.json({ data: withSignals, total, page, pageSize, summary });
+    return NextResponse.json({ data: withSignals, total, page, pageSize, summary, ...filterOptionsField });
   }
 
-  return NextResponse.json({ data: candidates, total, page, pageSize });
+  return NextResponse.json({ data: candidates, total, page, pageSize, ...filterOptionsField });
 }
 
 // POST /api/candidates has been retired — a candidate (recruiter-sourced

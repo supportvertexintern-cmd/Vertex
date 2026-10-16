@@ -5,18 +5,9 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { HR_ROLES } from "@/lib/rbac";
 import { evaluateDocumentCompletenessForCandidateId } from "@/server/services/documentCompleteness";
 import { getCandidateAttentionSignals } from "@/server/services/candidateSignals";
+import { readOpportunityFilterParams, resolveOpportunityFilters } from "@/server/services/opportunityFilters";
 
 const MAX_PAGE_SIZE = 100;
-
-// "Belgium — Warehouse Programme (Credit Service)" → "Warehouse Programme".
-// Job has no separate programme field — the title is "<Country> — <Programme>
-// (<variant>)" across every seeded opportunity, so the programme is derived
-// from it for the Programme filter rather than adding a schema column.
-function programmeFromJobTitle(title: string): string {
-  const sep = title.indexOf(" — ");
-  const rest = sep >= 0 ? title.slice(sep + 3) : title;
-  return rest.replace(/\s*\([^)]*\)\s*$/, "").trim() || title;
-}
 
 async function candidateSignals(candidateId: string) {
   const { awaiting_reply, ...rest } = await getCandidateAttentionSignals(candidateId, "partner");
@@ -39,9 +30,6 @@ export async function GET(req: NextRequest) {
 
   const q = req.nextUrl.searchParams.get("q")?.trim();
   const status = req.nextUrl.searchParams.get("status")?.trim();
-  const country = req.nextUrl.searchParams.get("country")?.trim();
-  const programmeCountry = req.nextUrl.searchParams.get("programmeCountry")?.trim();
-  const programme = req.nextUrl.searchParams.get("programme")?.trim();
   const page = Math.max(1, Number(req.nextUrl.searchParams.get("page")) || 1);
   const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(req.nextUrl.searchParams.get("pageSize")) || 15));
 
@@ -60,38 +48,13 @@ export async function GET(req: NextRequest) {
       ? { submitted_at: sortDir }
       : { updated_at: sortDir };
 
-  // Programme filter options come from the opportunities actually
-  // attached to non-draft submissions (not the whole Job catalog), so
-  // every option yields at least one row under the default status filter.
-  const submittedJobs = await prisma.job.findMany({
-    where: { partner_candidates: { some: { status: { not: "draft" } } } },
-    select: { id: true, title: true, country: true },
-  });
-  // Country lists every country in the system (the Country reference
-  // table, plus any job country missing from it), whether or not it has a
-  // programme. Programme Country lists only countries whose programmes
-  // actually have submissions, so every option returns results — a
-  // catalog programme nobody has submitted for yet (e.g. Albania) would
-  // otherwise only ever show an empty table.
-  const allCountries = await prisma.country.findMany({ select: { name: true } });
-  const sortedUnique = (values: string[]) =>
-    Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b));
-  const filterOptions = {
-    countries: sortedUnique([
-      ...allCountries.map((c: (typeof allCountries)[number]) => c.name),
-      ...submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country),
-    ]),
-    programmes: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => programmeFromJobTitle(j.title))),
-    programme_countries: sortedUnique(submittedJobs.map((j: (typeof submittedJobs)[number]) => j.country)),
-  };
-  // Resolved to exact job ids rather than a title substring match, so a
-  // programme name that happens to be contained in another one (e.g.
-  // "Unskilled Worker") can't pull in unrelated programmes.
-  const programmeJobIds = programme
-    ? submittedJobs
-        .filter((j: (typeof submittedJobs)[number]) => programmeFromJobTitle(j.title) === programme)
-        .map((j: (typeof submittedJobs)[number]) => j.id)
-    : null;
+  // Country / Programme / Programme Country (2026-10-15) — options come
+  // from the opportunities on non-draft submissions; see
+  // opportunityFilters.ts for the shared rules.
+  const { options: filterOptions, jobWhere } = await resolveOpportunityFilters(
+    { partner_candidates: { some: { status: { not: "draft" } } } },
+    readOpportunityFilterParams(req)
+  );
 
   const where: Prisma.PartnerCandidateWhereInput = {
     // Drafts (unsubmitted, possibly half-empty) aren't part of this app's
@@ -104,7 +67,7 @@ export async function GET(req: NextRequest) {
             { full_name: { contains: q, mode: "insensitive" } },
             { email: { contains: q, mode: "insensitive" } },
             { partner: { name: { contains: q, mode: "insensitive" } } },
-            // Programme name lives inside Job.title (see programmeFromJobTitle),
+            // Programme name lives inside Job.title (see opportunityFilters.ts),
             // so a title match covers searching by programme.
             { job: { title: { contains: q, mode: "insensitive" } } },
           ],
@@ -115,9 +78,7 @@ export async function GET(req: NextRequest) {
     // ?status=draft can't surface one either.
     AND: [
       { status: { not: "draft" } },
-      ...(country ? [{ job: { country } }] : []),
-      ...(programmeCountry ? [{ job: { country: programmeCountry } }] : []),
-      ...(programmeJobIds ? [{ job_id: { in: programmeJobIds } }] : []),
+      ...(jobWhere ? [{ job: jobWhere }] : []),
     ],
   };
 
