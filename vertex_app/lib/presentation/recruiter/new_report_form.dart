@@ -86,9 +86,15 @@ class _NewReportFormState extends State<NewReportForm> {
     _summaryController.dispose();
     _keyAchievementController.dispose();
     _tomorrowPriorityController.dispose();
-    for (final k in _kpis) k.dispose();
-    for (final c in _candidateActivityRows) c.dispose();
-    for (final c in _issueRows) c.dispose();
+    for (final k in _kpis) {
+      k.dispose();
+    }
+    for (final c in _candidateActivityRows) {
+      c.dispose();
+    }
+    for (final c in _issueRows) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -197,7 +203,7 @@ class _NewReportFormState extends State<NewReportForm> {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 13),
                     child: DropdownButtonFormField<ReportType>(
-                      value: _type,
+                      initialValue: _type,
                       isExpanded: true,
                       style: const TextStyle(
                           color: VertexColors.gold600,
@@ -231,7 +237,7 @@ class _NewReportFormState extends State<NewReportForm> {
             Padding(
               padding: const EdgeInsets.only(bottom: 13),
               child: DropdownButtonFormField<String>(
-                value: _overallStatus,
+                initialValue: _overallStatus,
                 isExpanded: true,
                 style: const TextStyle(
                     color: VertexColors.gold600,
@@ -262,7 +268,7 @@ class _NewReportFormState extends State<NewReportForm> {
               padding: const EdgeInsets.only(bottom: 13),
               child: IgnorePointer(
                 child: DropdownButtonFormField<String>(
-                  value: null,
+                  initialValue: null,
                   isExpanded: true,
                   style: const TextStyle(
                       color: VertexColors.gray400,

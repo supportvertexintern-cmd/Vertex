@@ -35,7 +35,18 @@ BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = r.role) THEN
       EXECUTE format('CREATE ROLE %I', r.role);
     END IF;
-    EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT', r.role);
+    IF (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
+      EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT', r.role);
+    ELSE
+      -- Managed Postgres (the demo database on Neon): the owner isn't a
+      -- superuser, so it may not even name SUPERUSER, REPLICATION or
+      -- BYPASSRLS, and it can't grant them either: roles it creates never
+      -- have them. Refuse if one somehow does.
+      IF EXISTS (SELECT FROM pg_roles WHERE rolname = r.role AND (rolsuper OR rolreplication OR rolbypassrls)) THEN
+        RAISE EXCEPTION 'role % has superuser, replication or bypassrls', r.role;
+      END IF;
+      EXECUTE format('ALTER ROLE %I LOGIN NOCREATEDB NOCREATEROLE NOINHERIT', r.role);
+    END IF;
     pw := current_setting(r.setting);
     IF pw <> '' THEN
       EXECUTE format('ALTER ROLE %I PASSWORD %L', r.role, pw);
