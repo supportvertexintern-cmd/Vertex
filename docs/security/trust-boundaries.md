@@ -52,7 +52,7 @@ Next.js and FastAPI share is the database, each through its own role.
 | P6 | Background workers → databases / APIs | **N/A**: no scheduler, queue or cron; reminders are manual by design. The only timer is the in-memory rate-limit sweep |
 | P7 | Administrative tools → protected endpoints | ✅ admin API routes (P1), pgAdmin, `psql` via `docker exec` |
 | P8 | File storage (upload, download, delete) | ✅ Next.js → Cloudflare R2 |
-| P9 | CI/CD → deployment and migrations | ✅ GitHub Actions + self-hosted runner; Vercel Git deploys now off |
+| P9 | CI/CD → deployment and migrations | ✅ GitHub Actions + self-hosted runner. Vercel builds `main` only, for the customer demo (demo data, [demo-site.md](../demo-site.md)) |
 | P10 | Third parties ↔ Next.js | ✅ Stripe webhook in; Google OAuth, Stripe, PayPal, SMTP, Gemini out |
 
 ## 3. Paths in detail
@@ -169,7 +169,7 @@ Files are never public; every read goes through a signed, short-lived link.
 | CI (`ci.yml`, GitHub-hosted) | `GITHUB_TOKEN`, `contents: read` | Read code; tests use throwaway trust-auth databases | None real | GitHub cloud | Actions logs | Any failed job blocks the deploy |
 | Image build/push (`deploy.yml` build job) | `GITHUB_TOKEN`, `packages: write` | Push `ghcr.io/brookteferi/vertex-*` | — | GitHub cloud | Actions logs, GHCR | Push fails → no deploy |
 | Deploy (self-hosted runner `vertex-pc`) | `GITHUB_TOKEN`, now **`packages: read`** (was write, fixed here); local Docker | Pull images, run `deploy.sh`: provision roles as superuser, start the stack, migrations as `vertex_migrator` | Reads `.env.<env>` from disk (all of that environment's secrets) | Outbound only (polls GitHub); no inbound port | Actions logs; GitHub environment `dev`/`staging` | `set -eu`, health waits, network repair after each stage; the job fails and reports, but containers already recreated stay on the new version, so a service can be left down (happened 2026-10-09; no automatic rollback) |
-| Vercel | Vercel GitHub app | Built and deployed `main` to production, previews for other branches | Vercel env vars | Public | Vercel dashboard | **Off since 2026-10-10** (`git.deploymentEnabled: false`) |
+| Vercel | Vercel GitHub app | Builds `main` only (`ignoreCommand`), for the customer demo site | Vercel env vars: `vertex_web` on the Neon demo database, a demo-only `JWT_SECRET` | Public | Vercel dashboard | **On again from 2026-10-13, demo data only** ([demo-site.md](../demo-site.md)). Off 2026-10-10 to 2026-10-13 |
 
 Who can deploy: anyone who can push to `dev` or `staging`. The runner
 account can read both environments' env files and control Docker, so it is
