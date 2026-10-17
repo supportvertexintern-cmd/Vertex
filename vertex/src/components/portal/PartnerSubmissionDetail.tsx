@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
@@ -9,7 +9,9 @@ import CandidateMessages from "@/components/CandidateMessages";
 import CandidateEditDetails from "./CandidateEditDetails";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CandidateDocumentUpload from "./CandidateDocumentUpload";
+import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
+import { summarizePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { CheckCircle, WarningCircle, Trash } from "@phosphor-icons/react";
 
 interface PartnerCandidateDetail {
@@ -44,11 +46,24 @@ interface PartnerCandidateDetail {
   preferred_contact_channel: string | null;
   rejection_reason: string | null;
   bridged_candidate_id: string | null;
-  submitted_at: string;
+  submitted_at: string | null;
   partner: { id: string; name: string; contact_email: string; contact_name: string; contact_phone: string };
-  job: { id: string; title: string; country: string; city: string; service_fee_gbp: number | null } | null;
+  job: {
+    id: string;
+    title: string;
+    country: string;
+    city: string;
+    service_fee_gbp: number | null;
+    is_credit_service: boolean;
+    payment_stages: PaymentStageOption[];
+  } | null;
+  job_position_id: string | null;
+  job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
   reviewer: { full_name: string } | null;
-  bridged_candidate: { id: string; documents: { id: string; type: string; verification_status: string; uploaded_at: string }[] } | null;
+  bridged_candidate: {
+    id: string;
+    documents: { id: string; type: string; label: string | null; verification_status: string; uploaded_at: string }[];
+  } | null;
   document_completeness: { complete: boolean; missingTypes: string[] } | null;
   required_document_types: string[];
 }
@@ -94,6 +109,8 @@ interface Props {
  */
 export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const backUrl = searchParams.get("back") || backHref;
   const [data, setData] = useState<PartnerCandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,6 +122,12 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   const [canEditAndUpload, setCanEditAndUpload] = useState(false);
   const [docTypeLabels, setDocTypeLabels] = useState<Record<string, string>>({});
   const [deleting, setDeleting] = useState(false);
+
+  // Overturn-rejection flow (2026-09-28, HR-only) — similar to CaseDetail
+  const [showOverturnForm, setShowOverturnForm] = useState(false);
+  const [overturnStatus, setOverturnStatus] = useState("");
+  const [submittingOverturn, setSubmittingOverturn] = useState(false);
+  const [overturnedTo, setOverturnedTo] = useState("");
 
   const load = () => {
     fetch(`/api/partner-candidates/${id}`)
@@ -186,9 +209,29 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
         alert(body.error?.message ?? "Failed to delete.");
         return;
       }
-      router.push(backHref ?? "/hr");
+      router.push(backUrl ?? "/hr");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const overturnRejection = async () => {
+    if (!overturnStatus) return;
+    setSubmittingOverturn(true);
+    try {
+      const res = await fetch(`/api/partner-candidates/${id}/overturn`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: overturnStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      setOverturnedTo(overturnStatus);
+      setShowOverturnForm(false);
+      setOverturnStatus("");
+      load();
+    } finally {
+      setSubmittingOverturn(false);
     }
   };
 
@@ -200,18 +243,19 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   }
 
   const uploadedByType = new Map((data.bridged_candidate?.documents ?? []).map((d) => [d.type, d]));
-  const extraDocs = (data.bridged_candidate?.documents ?? []).filter((d) => !data.required_document_types.includes(d.type));
+  const otherDocs = (data.bridged_candidate?.documents ?? []).filter((d) => d.type === "other");
+  const extraDocs = (data.bridged_candidate?.documents ?? []).filter(
+    (d) => !data.required_document_types.includes(d.type) && d.type !== "other"
+  );
 
   return (
     <div>
-      {backHref && (
-        // router.back() (not a fixed Link) so returning here lands on the
-        // list's exact previous page/filters, not a reset to page 1 (CRM
-        // Comments follow-up, 2026-08-12) — falls back to the bare list
-        // path if there's no history to go back to (e.g. a direct link).
+      {backUrl && (
+        // Navigate to the back URL (from query param) which includes page/filters
+        // Falls back to router.back() if no back URL provided
         <button
           type="button"
-          onClick={() => (window.history.length > 1 ? router.back() : router.push(backHref))}
+          onClick={() => backUrl ? router.push(backUrl) : (window.history.length > 1 ? router.back() : router.push("/hr"))}
           className="text-xs text-midnight-900/45 hover:text-gold-600 mb-2 inline-block"
         >
           ← Back to submissions
@@ -221,7 +265,7 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
         <div>
           <h1 className="section-title text-3xl md:text-4xl mb-2">{data.full_name}.</h1>
           <p className="text-midnight-900/55 font-light max-w-2xl">
-            Submitted by {data.partner.name} on {new Date(data.submitted_at).toLocaleDateString()}
+            Submitted by {data.partner.name}{data.submitted_at ? ` on ${new Date(data.submitted_at).toLocaleDateString()}` : ""}
           </p>
         </div>
         <div className="text-right space-y-1.5">
@@ -257,6 +301,38 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
       {data.status === "rejected" && data.rejection_reason && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm mb-6">
           <strong>Rejected:</strong> {data.rejection_reason}
+          {canAct && (
+            <div className="mt-3">
+              {showOverturnForm ? (
+                <div className="space-y-3">
+                  <select
+                    value={overturnStatus}
+                    onChange={(e) => setOverturnStatus(e.target.value)}
+                    className="input-field text-sm w-full"
+                  >
+                    <option value="">Select status...</option>
+                    <option value="submitted">Submitted</option>
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button onClick={overturnRejection} disabled={submittingOverturn || !overturnStatus} className="btn-primary text-xs disabled:opacity-50">
+                      {submittingOverturn ? "Overturning…" : "Confirm Overturn"}
+                    </button>
+                    <button onClick={() => { setShowOverturnForm(false); setOverturnStatus(""); }} className="btn-secondary text-xs">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowOverturnForm(true)} className="text-xs font-semibold text-gold-600 hover:underline mt-2">
+                  Overturn Rejection
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {overturnedTo && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-4 text-sm mb-6">
+          Status changed to <strong>Submitted</strong>.
         </div>
       )}
 
@@ -265,9 +341,34 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-midnight-900/70 uppercase tracking-wider mb-4">Opportunity</h3>
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Programme" value={data.job?.title} />
+              <Field
+                label="Programme"
+                value={
+                  data.job?.title ? (
+                    <span className="inline-flex items-center gap-2">
+                      {data.job.title}
+                      {data.job.is_credit_service && (
+                        <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Credit Service
+                        </span>
+                      )}
+                    </span>
+                  ) : null
+                }
+              />
               <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
-              <Field label="Service Fee" value={data.job?.service_fee_gbp != null ? `£${data.job.service_fee_gbp.toLocaleString()}` : null} />
+              <Field
+                label="Position"
+                value={data.job_position ? (data.job_position.city ? `${data.job_position.title} — ${data.job_position.city}` : data.job_position.title) : null}
+              />
+              {data.job?.service_fee_gbp != null && data.job.payment_stages.length > 0 ? (
+                <Field
+                  label={data.job.is_credit_service ? "Credit Service Terms" : "Service Fee"}
+                  value={summarizePaymentStages(data.job.service_fee_gbp, data.job.payment_stages)}
+                />
+              ) : (
+                <Field label="Service Fee" value={data.job?.service_fee_gbp != null ? `£${data.job.service_fee_gbp.toLocaleString()}` : null} />
+              )}
               <Field label="Earliest Travel Date" value={new Date(data.earliest_travel_date).toLocaleDateString()} />
             </div>
           </div>
@@ -323,6 +424,8 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                   candidateId={data.bridged_candidate_id}
                   initial={{
                     job_id: data.job?.id ?? null,
+                    job_position_id: data.job_position_id,
+                    job_sector_name: data.job_position?.job_sector.sector ?? null,
                     earliest_travel_date: data.earliest_travel_date,
                     current_location_country_name: data.current_location_country?.name ?? data.current_location_country_name,
                     prior_eu_visa_applied: data.prior_eu_visa_applied,
@@ -409,6 +512,14 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Lets HR/Operations/Director attach a document that isn't one
+                of this destination's required types (2026-09-14) — previously
+                this page only offered Replace/Upload for the fixed required-
+                type list above, with no way to add anything outside it. */}
+            {canEditAndUpload && data.bridged_candidate_id && (
+              <SupportingDocumentUpload candidateId={data.bridged_candidate_id} documents={otherDocs} onUploaded={load} />
             )}
           </div>
 

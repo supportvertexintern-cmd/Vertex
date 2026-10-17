@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import CandidateMessages from "@/components/CandidateMessages";
@@ -32,7 +32,9 @@ interface ApplicationRow {
   application_status: string;
   submitted_at: string;
   job_id: string | null;
+  job_position_id: string | null;
   job: { title: string; country: string; city: string } | null;
+  job_position: { title: string; city: string | null; job_sector: { sector: string } } | null;
   preferred_country_1: { id: string; name: string } | null;
   preferred_country_2: { id: string; name: string } | null;
   preferred_country_3: { id: string; name: string } | null;
@@ -83,6 +85,8 @@ interface CandidateData {
   user: { full_name: string; email: string; phone: string | null } | null;
   recruiter: { id: string; full_name: string } | null;
   country: { id: string; name: string } | null;
+  referral_agent: { id: string; full_name: string; referral_code: string } | null;
+  referral_duplicate_flag: boolean;
   documents: { id: string; type: string; verification_status: string; uploaded_at: string; label: string | null }[];
   applications: ApplicationRow[];
   required_document_types: string[];
@@ -143,6 +147,8 @@ interface Props {
  */
 export default function CandidateDetail({ candidateId, backHref, canVerify = false, canApprove = false, canVerifyDocuments = false, hrMode = false }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const backUrl = searchParams.get("back") || backHref;
   const [data, setData] = useState<CandidateData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -182,7 +188,7 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
         alert(body.error?.message ?? "Failed to delete.");
         return;
       }
-      router.push(backHref);
+      router.push(backUrl);
     } finally {
       setDeleting(false);
     }
@@ -227,6 +233,15 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
     if (res.ok) load();
   };
 
+  const clearReferralFlag = async () => {
+    const res = await fetch(`/api/candidates/${candidateId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referral_duplicate_flag: false }),
+    });
+    if (res.ok) load();
+  };
+
   const saveDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -262,7 +277,7 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               path if there's no history to go back to (e.g. a direct link). */}
           <button
             type="button"
-            onClick={() => (window.history.length > 1 ? router.back() : router.push(backHref))}
+            onClick={() => backUrl ? router.push(backUrl) : (window.history.length > 1 ? router.back() : router.push(backHref))}
             className="text-xs text-midnight-900/45 hover:text-gold-600 mb-2 inline-block"
           >
             ← Back to candidates
@@ -295,6 +310,21 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
       {data.return_reason && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
           <span className="font-semibold">Returned:</span> {data.return_reason}
+        </div>
+      )}
+
+      {data.referral_agent && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 text-sm">
+          <span className="font-semibold">Referred by:</span> {data.referral_agent.full_name} ({data.referral_agent.referral_code})
+        </div>
+      )}
+
+      {data.referral_duplicate_flag && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm flex items-center justify-between gap-4">
+          <span><span className="font-semibold">Possible duplicate:</span> a candidate with matching email, phone, or passport number already exists on file.</span>
+          <button type="button" onClick={clearReferralFlag} className="text-xs font-semibold hover:underline shrink-0">
+            Clear flag
+          </button>
         </div>
       )}
 
@@ -441,6 +471,8 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               candidateId={data.id}
               initial={{
                 job_id: app.job_id,
+                job_position_id: app.job_position_id,
+                job_sector_name: app.job_position?.job_sector.sector ?? null,
                 earliest_travel_date: app.earliest_travel_date,
                 current_location_country_name: app.current_location_country?.name ?? app.current_location_country_name,
                 prior_eu_visa_applied: app.prior_eu_visa_applied,
@@ -463,6 +495,10 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
               <>
                 <Field label="Opportunity" value={app.job.title} />
                 <Field label="Destination" value={`${app.job.city}, ${app.job.country}`} />
+                <Field
+                  label="Position"
+                  value={app.job_position ? (app.job_position.city ? `${app.job_position.title} — ${app.job_position.city}` : app.job_position.title) : undefined}
+                />
               </>
             ) : (
               <>

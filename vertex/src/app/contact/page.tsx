@@ -112,9 +112,8 @@ export default function ContactPage() {
                   <div>
                     <h3 className="font-semibold text-midnight-900 tracking-tight">Registered Offices</h3>
                     <p className="text-midnight-900/60 text-sm mt-2 leading-relaxed max-w-sm">
-                      5 Brayford Square, London, E1 0SG, United Kingdom
-                      <br />
-                      International House, Kingsfield Court, Chester, United Kingdom
+                     
+                      Regus House, Herons Way, Chester Business Park, Chester, Cheshire CH4 9QR, United Kingdom
                     </p>
                     <p className="text-midnight-900/40 text-xs mt-2 uppercase tracking-[0.1em]">
                       Company No. 16943308

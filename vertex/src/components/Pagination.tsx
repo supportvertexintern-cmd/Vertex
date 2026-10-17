@@ -19,7 +19,7 @@ export default function Pagination({ page, totalPages, onPageChange, total, page
       : `Page ${page} of ${totalPages}`;
 
   return (
-    <div className="flex items-center justify-between gap-4 pt-4 mt-2 border-t border-midnight-900/10">
+    <div className="flex items-center justify-between gap-4 pt-4 pb-4 mt-2 border-t border-midnight-900/10">
       <span className="text-xs text-midnight-900/45">{rangeLabel}</span>
       <div className="flex items-center gap-2">
         <button

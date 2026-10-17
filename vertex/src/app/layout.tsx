@@ -13,7 +13,6 @@ const font = Outfit({
   variable: "--font-sans",
   display: "swap",
 });
-
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vertex-omega-kohl.vercel.app";
 
 export const metadata: Metadata = {

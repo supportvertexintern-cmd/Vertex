@@ -4,6 +4,7 @@
 // is create the Case, so every status badge/filter shows "Case Created"
 // instead of the raw enum text.
 export const PARTNER_CANDIDATE_STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
   submitted: "Submitted",
   under_review: "Under Review",
   job_assigned: "Case Created",

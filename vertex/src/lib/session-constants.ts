@@ -7,4 +7,4 @@ export const REFRESH_COOKIE = "refresh_token";
 export const REFRESH_COOKIE_PATH = "/api/auth";
 
 // Portal pages: signed-in users only.
-export const PROTECTED_PATHS = ["/dashboard", "/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance"];
+export const PROTECTED_PATHS = ["/dashboard", "/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/referral-agent"];

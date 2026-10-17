@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Airplane, TrayArrowDown, Globe, DownloadSimple } from "@phosphor-icons/react";
+import { Airplane, TrayArrowDown, Globe, DownloadSimple, XCircle } from "@phosphor-icons/react";
 
 // HR's portal (2026-07-31, per the Operational Workflow SOP) — reviews
 // partner-submitted candidates and creates the Case that hands them to
@@ -12,6 +12,7 @@ import { Airplane, TrayArrowDown, Globe, DownloadSimple } from "@phosphor-icons/
 // roles are ever involved for this source). A recruiter-sourced candidate
 // never appears in either queue — that pipeline is unchanged.
 export const HR_NAV_ITEMS: PortalNavItem[] = [
+ 
   { href: "/hr", label: "Partner Submissions", icon: TrayArrowDown },
   { href: "/hr/self-applications", label: "Self Applications", icon: Globe },
   // Cases (2026-08-16) — a direct list of every case HR has handed off,
@@ -20,5 +21,6 @@ export const HR_NAV_ITEMS: PortalNavItem[] = [
   // it. Read-only browsing + Reject Case only, same capabilities as the
   // existing /hr/cases/[id] detail view.
   { href: "/hr/cases", label: "Cases", icon: Airplane },
+  { href: "/hr/rejected-submissions", label: "Rejected Submissions", icon: XCircle },
   { href: "/hr/backup", label: "Backup", icon: DownloadSimple },
 ];
