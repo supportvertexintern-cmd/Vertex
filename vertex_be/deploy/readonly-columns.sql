@@ -365,6 +365,9 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('PartnerCandidate', 'rejection_reason',                  'exclude'), -- free text/JSON: may hold personal data
   ('PartnerCandidate', 'bridged_candidate_id',              'grant'),   -- identifier/link
   ('PartnerCandidate', 'submitted_at',                      'grant'),   -- business timestamp
+  ('PartnerCandidate', 'drafted_at',                        'grant'),   -- business timestamp
+  ('PartnerCandidate', 'drafted_by',                        'exclude'), -- free text/JSON: may hold personal data
+  ('PartnerCandidate', 'submitted_by',                      'exclude'), -- free text/JSON: may hold personal data
   ('PartnerCandidate', 'updated_at',                        'grant'),   -- business timestamp
   ('Payment', 'id',                                         'grant'),   -- identifier/link
   ('Payment', 'user_id',                                    'grant'),   -- identifier/link

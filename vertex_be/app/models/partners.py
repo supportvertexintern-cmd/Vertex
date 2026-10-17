@@ -113,14 +113,21 @@ class PartnerCandidate(Base):
         fk("Candidate.id", "SET NULL"), unique=True
     )
 
-    submitted_at: Mapped[datetime] = created_at_col()
+    # Draft audit (0006): drafted_* when first saved as a draft,
+    # submitted_* only on final submission, so a draft has no submitted_at.
+    drafted_at: Mapped[datetime | None]
+    drafted_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
+    submitted_at: Mapped[datetime | None]
+    submitted_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     updated_at: Mapped[datetime] = updated_at_col()
 
     partner: Mapped[Partner] = relationship(back_populates="partner_candidates")
     job: Mapped[Job | None] = relationship()
     job_position: Mapped[JobPosition | None] = relationship()
     current_location_country: Mapped[Country | None] = relationship()
-    reviewer: Mapped[User | None] = relationship()
+    reviewer: Mapped[User | None] = relationship(foreign_keys=[reviewed_by])
+    drafter: Mapped[User | None] = relationship(foreign_keys=[drafted_by])
+    submitter: Mapped[User | None] = relationship(foreign_keys=[submitted_by])
     bridged_candidate: Mapped[Candidate | None] = relationship(
         back_populates="partner_candidate_origin"
     )
