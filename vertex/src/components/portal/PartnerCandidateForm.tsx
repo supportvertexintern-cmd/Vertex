@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
+import PaymentStagesPreview, { type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -20,11 +21,64 @@ interface DocumentTypeOption {
   is_universal: boolean;
 }
 
+interface JobPositionOption {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorOption {
+  id: string;
+  sector: string;
+  positions: JobPositionOption[];
+}
+
 interface JobOption {
   id: string;
   title: string;
   country: string;
   city: string;
+  category: string | null;
+  sectors: JobSectorOption[];
+  service_fee_gbp: number | null;
+  is_credit_service: boolean;
+  payment_stages: PaymentStageOption[];
+}
+
+// A position flattened out of whichever Job it belongs to (2026-09-02,
+// Country -> Sector -> Position). Unlike the public ApplicationForm.tsx,
+// this form's job list mixes standard and partner-only Credit Service
+// programmes for the same country/sector — isCreditService rides along so
+// the Position label can flag it (see positionOptions below), rather than
+// silently merging two different pricing models into one indistinguishable
+// list. jobId carries which Job to derive form.job_id from once a
+// position is chosen.
+interface FlatPositionOption extends JobPositionOption {
+  jobId: string;
+  isCreditService: boolean;
+}
+
+// Canonical sector order (2026-08-31) — same list ApplicationForm.tsx
+// uses, matching the business's own Positions by Country & Sector
+// reference sheet naming. Includes the partner-only Credit Service
+// programmes too — /api/jobs?audience=partner is the one place they're
+// ever visible, and they carry the same renamed categories as every
+// other Job (e.g. Albania's Credit Service programme is Construction &
+// Trades, Italy's is Agriculture).
+const SECTOR_ORDER = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+];
+
+interface UploadedDoc {
+  id: string;
+  name: string;
 }
 
 interface Props {
@@ -35,6 +89,15 @@ interface Props {
   // rather than by the partner themselves. The partner picker itself
   // lives in the calling page, not this form.
   partnerId?: string;
+  // Resume an existing draft (2026-09-09) — when set, the form prefills
+  // from GET /api/partner/candidates/:id instead of starting blank, and
+  // "Submit Candidate" finalizes that draft rather than creating a new
+  // submission.
+  draftId?: string;
+  // Fired after a successful Save-as-Draft (in addition to onSubmitted,
+  // which only fires on final submission) — lets the calling page refresh
+  // its list in the background without closing the modal.
+  onDraftSaved?: () => void;
 }
 
 const emptyForm = {
@@ -51,6 +114,7 @@ const emptyForm = {
   marital_status: "",
 
   job_id: "",
+  job_position_id: "",
   earliest_travel_date: "",
   prior_eu_visa_applied: null as boolean | null,
   prior_eu_visa_applied_details: "",
@@ -76,9 +140,27 @@ const emptyForm = {
  * that), so — unlike ApplicationForm.tsx — there's no Candidate
  * Declaration/consent section here.
  */
-export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) {
+export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: initialDraftId, onDraftSaved }: Props) {
   const [countries, setCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [draftId, setDraftId] = useState<string | undefined>(initialDraftId);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftJustSaved, setDraftJustSaved] = useState(false);
+  const [prefillLoading, setPrefillLoading] = useState(!!initialDraftId);
+  // Documents already attached to the draft — either uploaded immediately
+  // in this session (once draftId exists, see uploadDocumentToDraft) or
+  // fetched back when resuming an existing draft. Keyed by checklist type;
+  // "other" documents (which can accumulate more than one) are tracked
+  // separately below.
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>({});
+  const [uploadingType, setUploadingType] = useState<string | null>(null);
+  const [otherUploadedDocs, setOtherUploadedDocs] = useState<(UploadedDoc & { label: string })[]>([]);
+  // Country and Sector are client-side filters only (2026-09-02, business
+  // request to lead with Country rather than Sector) — neither is
+  // submitted directly; job_id is derived once a Position is picked (see
+  // positionOptions below).
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [sector, setSector] = useState("");
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeOption[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<{ country_id: string; document_type: string }[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -104,17 +186,85 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
         setDocumentRequirements(res.documentRequirements ?? []);
       })
       .catch(() => {});
-    fetch("/api/jobs?limit=50")
+    fetch("/api/jobs?limit=50&audience=partner")
       .then((r) => r.json())
       .then((res) => setJobs(res.jobs ?? []))
       .catch(() => {});
   }, []);
 
+  // Resume an existing draft (2026-09-09) — prefill every field it already
+  // has, and record which documents are already attached so Section 4
+  // shows them as attached rather than empty inputs.
+  useEffect(() => {
+    if (!initialDraftId) return;
+    fetch(`/api/partner/candidates/${initialDraftId}`)
+      .then((r) => r.json())
+      .then((res) => {
+        const d = res.data;
+        if (!d) return;
+        setForm((f) => ({
+          ...f,
+          full_name: d.full_name ?? "",
+          nationality: d.nationality ?? "",
+          date_of_birth: d.date_of_birth ? String(d.date_of_birth).slice(0, 10) : "",
+          gender: d.gender ?? "",
+          passport_number: d.passport_number ?? "",
+          passport_expiry: d.passport_expiry ? String(d.passport_expiry).slice(0, 10) : "",
+          second_nationality: d.second_nationality ?? "",
+          current_occupation: d.current_occupation ?? "",
+          highest_education: d.highest_education ?? "",
+          home_address: d.home_address ?? "",
+          marital_status: d.marital_status ?? "",
+          job_id: d.job_id ?? "",
+          job_position_id: d.job_position_id ?? "",
+          earliest_travel_date: d.earliest_travel_date ? String(d.earliest_travel_date).slice(0, 10) : "",
+          prior_eu_visa_applied: d.prior_eu_visa_applied ?? null,
+          prior_eu_visa_applied_details: d.prior_eu_visa_applied_details ?? "",
+          documents_available: d.documents_available ?? [],
+          payment_plan_acknowledged: d.payment_plan_acknowledged ?? false,
+          current_location_country_name: d.current_location_country_name ?? "",
+          holds_schengen_visa: d.holds_schengen_visa ?? null,
+          holds_schengen_visa_details: d.holds_schengen_visa_details ?? "",
+          prior_visa_refusals: d.prior_visa_refusals ?? null,
+          prior_visa_refusals_details: d.prior_visa_refusals_details ?? "",
+          available_for_embassy_appointment: d.available_for_embassy_appointment ?? false,
+          willing_to_start_within_30_days: d.willing_to_start_within_30_days ?? false,
+        }));
+        const docs: { id: string; type: string; label: string | null }[] = d.documents ?? [];
+        const checklistMap: Record<string, UploadedDoc> = {};
+        const others: (UploadedDoc & { label: string })[] = [];
+        for (const doc of docs) {
+          if (doc.type === "other") others.push({ id: doc.id, name: doc.label || "Attached document", label: doc.label ?? "" });
+          else checklistMap[doc.type] = { id: doc.id, name: doc.label || doc.type };
+        }
+        setUploadedDocs(checklistMap);
+        setOtherUploadedDocs(others);
+      })
+      .catch(() => setMessage("Failed to load the saved draft."))
+      .finally(() => setPrefillLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDraftId]);
+
+  // Section 2's Country/Sector are UI-only filter state derived from
+  // job_id/job_position_id (see countryOptions/sectorOptions above) — once
+  // a prefilled draft's job_id resolves against the now-loaded jobs list,
+  // back-derive those filters so the dropdowns show the right value
+  // instead of appearing blank.
+  useEffect(() => {
+    if (!form.job_id || jobs.length === 0) return;
+    const job = jobs.find((j) => j.id === form.job_id);
+    if (!job) return;
+    setSelectedCountry((current) => current || (job.is_credit_service ? `${job.country}::credit` : job.country));
+    const matchingSector = job.sectors.find((s) => s.positions.some((p) => p.id === form.job_position_id));
+    if (matchingSector) setSector((current) => current || matchingSector.sector);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.job_id, jobs]);
+
   // Section 4's checklist — admin-managed (DocumentRequirementType) rather
   // than hardcoded, same list as the Candidate Information Form's since
   // Vertex's document requirements don't differ by intake path.
   const documentChecklist = useMemo(
-    () => documentTypes.filter((t) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key)),
+    () => documentTypes.filter((t) => !isNonProgrammeTypeKey(t.key)),
     [documentTypes]
   );
   const requiredForByType = useMemo(() => {
@@ -135,6 +285,73 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
   // document-review step, so a required type needs a real attached file,
   // not just a checked box, before Submit unlocks.
   const selectedJob = useMemo(() => jobs.find((j) => j.id === form.job_id), [jobs, form.job_id]);
+
+  // Country/Programme list (2026-09-03) — a country with both a standard
+  // and a partner-only Credit Service Job now gets two distinct entries
+  // ("Italy" and "Italy (Credit Service)") so a partner picks which
+  // programme they're going for right at the first step, rather than
+  // discovering it only once positions are mixed together further down.
+  // Sector names themselves stay untouched (business preference) — the
+  // programme split happens here, at Country, instead. value encodes
+  // both country + programme so the two never collide.
+  const countryOptions = useMemo(() => {
+    const options: { value: string; label: string; countryName: string; isCreditService: boolean }[] = [];
+    for (const countryName of [...new Set(jobs.map((j) => j.country))].sort()) {
+      if (jobs.some((j) => j.country === countryName && !j.is_credit_service)) {
+        options.push({ value: countryName, label: countryName, countryName, isCreditService: false });
+      }
+      if (jobs.some((j) => j.country === countryName && j.is_credit_service)) {
+        options.push({
+          value: `${countryName}::credit`,
+          label: `${countryName} (Credit Service)`,
+          countryName,
+          isCreditService: true,
+        });
+      }
+    }
+    return options;
+  }, [jobs]);
+  const selectedCountryChoice = useMemo(
+    () => countryOptions.find((o) => o.value === selectedCountry) ?? null,
+    [countryOptions, selectedCountry]
+  );
+  // Jobs matching BOTH the chosen country AND programme, so Sector/Position
+  // never mix a standard and a Credit Service Job together.
+  const jobsInCountry = useMemo(
+    () =>
+      selectedCountryChoice
+        ? jobs.filter((j) => j.country === selectedCountryChoice.countryName && j.is_credit_service === selectedCountryChoice.isCreditService)
+        : [],
+    [jobs, selectedCountryChoice]
+  );
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobsInCountry]);
+  // Position options — aggregated across every Job in the selected
+  // country/programme whose sector matches the selected sector. jobsInCountry
+  // is already scoped to one programme, so this can never mix a standard
+  // and a Credit Service Job's positions.
+  const positionOptions = useMemo<FlatPositionOption[]>(() => {
+    if (!selectedCountry || !sector) return [];
+    return jobsInCountry.flatMap((j) =>
+      j.sectors
+        .filter((s) => s.sector === sector)
+        .flatMap((s) => s.positions.map((p) => ({ ...p, jobId: j.id, isCreditService: j.is_credit_service })))
+    );
+  }, [jobsInCountry, sector, selectedCountry]);
+
+  // Auto-selects Position (and derives job_id from it) whenever the
+  // current Country/Sector narrows to exactly one option — preserves the
+  // old one-click behavior for the common single-position case.
+  useEffect(() => {
+    if (positionOptions.length === 1 && !form.job_position_id) {
+      set("job_position_id", positionOptions[0].id);
+      set("job_id", positionOptions[0].jobId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positionOptions]);
+
   const requiredTypesForSelectedJob = useMemo(() => {
     if (!selectedJob) return [];
     const checklistKeys = new Set(documentChecklist.map((t) => t.key));
@@ -145,7 +362,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
       : [];
     return [...new Set([...universal, ...extras])];
   }, [selectedJob, documentTypes, countries, documentRequirements, documentChecklist]);
-  const missingRequiredDocs = requiredTypesForSelectedJob.filter((key) => !(documentFiles[key] instanceof File));
+  const missingRequiredDocs = requiredTypesForSelectedJob.filter((key) => !(documentFiles[key] instanceof File) && !uploadedDocs[key]);
 
   const set = <K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -158,59 +375,163 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
         : [...f.documents_available, type],
     }));
 
+  // Strips untouched fields down to undefined (so JSON.stringify omits
+  // them entirely) rather than sending empty strings — the draft/update
+  // schemas' min-length validators (e.g. full_name.min(2)) reject "" the
+  // same as any other too-short value, so an untouched field must be
+  // absent, not blank.
+  const cleanForm = (f: typeof form) => {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(f)) {
+      if (value === "" || value === null) continue;
+      out[key] = value;
+    }
+    return out;
+  };
+
+  // Takes the target draft id explicitly rather than reading the `draftId`
+  // state variable — saveDraft() needs to upload against a just-created
+  // draft in the same call that creates it, before the setDraftId(...)
+  // state update has actually landed (React state updates aren't
+  // synchronous, so reading `draftId` right after calling setDraftId would
+  // still see the old, empty value).
+  const uploadDocumentToDraft = async (id: string, type: string, file: File, label?: string) => {
+    setUploadingType(type);
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    if (label) uploadData.append("label", label);
+    try {
+      const res = await fetch(`/api/upload?type=${type}&partner_candidate_id=${id}`, { method: "POST", body: uploadData });
+      const data = await res.json();
+      if (res.ok) {
+        if (type === "other") {
+          setOtherUploadedDocs((prev) => [...prev, { id: data.documentId, name: file.name, label: label ?? "" }]);
+          setOtherDocumentFile(null);
+          setOtherDocumentLabel("");
+        } else {
+          setUploadedDocs((prev) => ({ ...prev, [type]: { id: data.documentId, name: file.name } }));
+          setDocumentFiles((f) => ({ ...f, [type]: null }));
+        }
+      } else {
+        setStatus("error");
+        setMessage(data.error || "Failed to upload document.");
+      }
+    } catch {
+      setStatus("error");
+      setMessage("Failed to upload document.");
+    } finally {
+      setUploadingType(null);
+    }
+  };
+
+  const saveDraft = async () => {
+    setDraftSaving(true);
+    setDraftJustSaved(false);
+    setMessage("");
+    setFieldErrors({});
+    const payload = { ...cleanForm(form), ...(partnerId ? { partner_id: partnerId } : {}) };
+    const res = await fetch(draftId ? `/api/partner/candidates/${draftId}` : "/api/partner/candidates/draft", {
+      method: draftId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      // First save (no draftId yet): a partner may already have picked
+      // files for checked checklist items before ever clicking Save as
+      // Draft — those live only in local documentFiles/otherDocumentFile
+      // state so far, since there was no id to upload them against until
+      // just now. Flush them immediately against the newly-created draft,
+      // or they'd silently vanish next time this component unmounts
+      // (closing the modal, navigating away) despite the checkbox and
+      // documents_available having been saved correctly.
+      if (!draftId) {
+        const newDraftId = data.data.id;
+        setDraftId(newDraftId);
+        const pending = Object.entries(documentFiles).filter((entry): entry is [string, File] => entry[1] !== null);
+        for (const [type, file] of pending) {
+          await uploadDocumentToDraft(newDraftId, type, file);
+        }
+        if (otherDocumentFile) {
+          await uploadDocumentToDraft(newDraftId, "other", otherDocumentFile, otherDocumentLabel.trim() || undefined);
+        }
+      }
+      setDraftSaving(false);
+      setDraftJustSaved(true);
+      onDraftSaved?.();
+    } else {
+      setDraftSaving(false);
+      setStatus("error");
+      setMessage(data.error?.message === "Validation failed" ? "Please check the highlighted fields." : (data.error?.message || "Failed to save draft."));
+      setFieldErrors(data.error?.details ?? {});
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
     setMessage("");
     setFieldErrors({});
 
-    const res = await fetch("/api/partner/candidates", {
+    const body = {
+      ...form,
+      ...(partnerId ? { partner_id: partnerId } : {}),
+      job_position_id: form.job_position_id || undefined,
+      prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
+      holds_schengen_visa: form.holds_schengen_visa ?? undefined,
+      prior_visa_refusals: form.prior_visa_refusals ?? undefined,
+    };
+    // Finalizing an existing draft upgrades it in place (its already-
+    // uploaded documents are reparented server-side) rather than creating
+    // a second submission — a fresh, never-saved-as-draft submit still
+    // goes straight to the original endpoint, unchanged.
+    const res = await fetch(draftId ? `/api/partner/candidates/${draftId}/submit` : "/api/partner/candidates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        partner_id: partnerId || undefined,
-        prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
-        holds_schengen_visa: form.holds_schengen_visa ?? undefined,
-        prior_visa_refusals: form.prior_visa_refusals ?? undefined,
-      }),
+      body: JSON.stringify(body),
     });
 
     const data = await res.json();
     if (res.ok) {
-      // Real document uploads, not just the self-reported checklist above —
-      // the candidate now exists (data.data.candidateId), so attach
-      // whichever files the partner actually picked in Section 4.
-      const candidateId = data.data.candidateId as string;
-      const filesToUpload = Object.entries(documentFiles).filter(
-        (entry): entry is [string, File] => entry[1] !== null
-      );
+      // Real document uploads, not just the self-reported checklist above.
+      // When this was a fresh (never-drafted) submission, the candidate
+      // only exists now (data.data.candidateId) — upload whichever files
+      // the partner picked in Section 4 against it. When it came from a
+      // draft, every checklist/other file was already uploaded immediately
+      // against the draft (see uploadDocumentToDraft) and the backend just
+      // reparented them — there's nothing left to upload here.
       let uploadFailures = 0;
-      for (const [type, file] of filesToUpload) {
-        const uploadData = new FormData();
-        uploadData.append("file", file);
-        try {
-          const uploadRes = await fetch(`/api/upload?type=${type}&candidate_id=${candidateId}`, {
-            method: "POST",
-            body: uploadData,
-          });
-          if (!uploadRes.ok) uploadFailures++;
-        } catch {
-          uploadFailures++;
+      if (!draftId) {
+        const candidateId = data.data.candidateId as string;
+        const filesToUpload = Object.entries(documentFiles).filter(
+          (entry): entry is [string, File] => entry[1] !== null
+        );
+        for (const [type, file] of filesToUpload) {
+          const uploadData = new FormData();
+          uploadData.append("file", file);
+          try {
+            const uploadRes = await fetch(`/api/upload?type=${type}&candidate_id=${candidateId}`, {
+              method: "POST",
+              body: uploadData,
+            });
+            if (!uploadRes.ok) uploadFailures++;
+          } catch {
+            uploadFailures++;
+          }
         }
-      }
-      if (otherDocumentFile && otherDocumentLabel.trim()) {
-        const uploadData = new FormData();
-        uploadData.append("file", otherDocumentFile);
-        uploadData.append("label", otherDocumentLabel.trim());
-        try {
-          const uploadRes = await fetch(`/api/upload?type=other&candidate_id=${candidateId}`, {
-            method: "POST",
-            body: uploadData,
-          });
-          if (!uploadRes.ok) uploadFailures++;
-        } catch {
-          uploadFailures++;
+        if (otherDocumentFile && otherDocumentLabel.trim()) {
+          const uploadData = new FormData();
+          uploadData.append("file", otherDocumentFile);
+          uploadData.append("label", otherDocumentLabel.trim());
+          try {
+            const uploadRes = await fetch(`/api/upload?type=other&candidate_id=${candidateId}`, {
+              method: "POST",
+              body: uploadData,
+            });
+            if (!uploadRes.ok) uploadFailures++;
+          } catch {
+            uploadFailures++;
+          }
         }
       }
 
@@ -237,6 +558,10 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
         <p className="text-green-700 text-sm">{message}</p>
       </div>
     );
+  }
+
+  if (prefillLoading) {
+    return <p className="text-slate-500 text-sm py-8 text-center">Loading your draft…</p>;
   }
 
   const labelCls = "block text-sm font-medium text-slate-700 mb-1.5";
@@ -321,34 +646,75 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-1">Section 2 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Select the specific opportunity the candidate is going for — the required document checklist below adjusts
-          to match its destination country.
+          Choose the country, then the sector, then the exact position the candidate is going for — the required
+          document checklist below adjusts to match its destination country.
         </p>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="job_id" className={labelCls}>Opportunity <span className="text-red-500">*</span></label>
+            <label htmlFor="selected_country" className={labelCls}>Country <span className="text-red-500">*</span></label>
             <SearchableSelect
-              id="job_id"
-              value={form.job_id}
-              onChange={(value) => set("job_id", value)}
+              id="selected_country"
+              value={selectedCountry}
+              onChange={(value) => {
+                setSelectedCountry(value);
+                setSector("");
+                set("job_position_id", "");
+                set("job_id", "");
+              }}
               required
-              placeholder="Select an opportunity…"
-              options={jobs.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
+              placeholder="Select a country…"
+              options={countryOptions.map((o) => ({ value: o.value, label: o.label }))}
             />
-            {err("job_id") && <p className={errCls}>{err("job_id")}</p>}
           </div>
           <div>
-            <label htmlFor="earliest_travel_date" className={labelCls}>Candidate's Earliest Possible Travel Date <span className="text-red-500">*</span></label>
-            <input
-              id="earliest_travel_date"
-              type="date"
-              value={form.earliest_travel_date}
-              onChange={(e) => set("earliest_travel_date", e.target.value)}
+            <label htmlFor="sector" className={labelCls}>Sector <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="sector"
+              value={sector}
+              onChange={(value) => {
+                setSector(value);
+                set("job_position_id", "");
+                set("job_id", "");
+              }}
               required
-              className="input-field"
+              disabled={!selectedCountry}
+              placeholder={selectedCountry ? "Select a sector…" : "Select a country first…"}
+              options={sectorOptions.map((s) => ({ value: s, label: s }))}
             />
-            {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
           </div>
+          <div>
+            <label htmlFor="job_position_id" className={labelCls}>Position <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="job_position_id"
+              value={form.job_position_id}
+              onChange={(value) => {
+                const pos = positionOptions.find((p) => p.id === value);
+                set("job_position_id", value);
+                set("job_id", pos?.jobId ?? "");
+              }}
+              required
+              disabled={!sector}
+              placeholder={sector ? "Select a position…" : "Select a sector first…"}
+              options={positionOptions.map((p) => ({
+                value: p.id,
+                label: p.city ? `${p.title} — ${p.city}` : p.title,
+              }))}
+            />
+            {err("job_position_id") && <p className={errCls}>{err("job_position_id")}</p>}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="earliest_travel_date" className={labelCls}>Candidate's Earliest Possible Travel Date <span className="text-red-500">*</span></label>
+          <input
+            id="earliest_travel_date"
+            type="date"
+            value={form.earliest_travel_date}
+            onChange={(e) => set("earliest_travel_date", e.target.value)}
+            required
+            className="input-field max-w-xs"
+          />
+          {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
         </div>
 
         <div className="mt-4">
@@ -397,6 +763,8 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
           {documentChecklist.map((doc) => {
             const checked = form.documents_available.includes(doc.key);
             const file = documentFiles[doc.key];
+            const uploaded = uploadedDocs[doc.key];
+            const isUploading = uploadingType === doc.key;
             return (
               <div key={doc.key}>
                 <label className="flex items-start gap-2 text-sm text-slate-700">
@@ -426,11 +794,21 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
                     <input
                       type="file"
                       accept="application/pdf,image/*"
-                      onChange={(e) => setDocumentFiles((f) => ({ ...f, [doc.key]: e.target.files?.[0] ?? null }))}
+                      disabled={isUploading}
+                      onChange={(e) => {
+                        const picked = e.target.files?.[0] ?? null;
+                        if (!picked) return;
+                        if (draftId) uploadDocumentToDraft(draftId, doc.key, picked);
+                        else setDocumentFiles((f) => ({ ...f, [doc.key]: picked }));
+                      }}
                       className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs"
                       data-testid={`upload-${doc.key}-input`}
                     />
-                    {file && <span className="block text-[11px] text-emerald-700 mt-0.5">{file.name} ready to upload</span>}
+                    {isUploading && <span className="block text-[11px] text-slate-500 mt-0.5">Uploading…</span>}
+                    {!isUploading && uploaded && (
+                      <span className="block text-[11px] text-emerald-700 mt-0.5">{uploaded.name} attached — choose a file again to replace it</span>
+                    )}
+                    {!isUploading && !uploaded && file && <span className="block text-[11px] text-emerald-700 mt-0.5">{file.name} ready to upload</span>}
                   </div>
                 )}
               </div>
@@ -444,6 +822,16 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
             Anything not covered by the list above — a reference letter, extra certificate, etc. Give it a label so
             it's clear what it is.
           </p>
+          {otherUploadedDocs.length > 0 && (
+            <ul className="mb-2 space-y-0.5">
+              {otherUploadedDocs.map((doc) => (
+                <li key={doc.id} className="text-[11px] text-emerald-700">
+                  {doc.label ? `${doc.label} — ` : ""}
+                  {doc.name} attached
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <input
               value={otherDocumentLabel}
@@ -454,9 +842,16 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
             <input
               type="file"
               accept="application/pdf,image/*"
-              onChange={(e) => setOtherDocumentFile(e.target.files?.[0] ?? null)}
+              disabled={uploadingType === "other"}
+              onChange={(e) => {
+                const picked = e.target.files?.[0] ?? null;
+                if (!picked) return;
+                if (draftId) uploadDocumentToDraft(draftId, "other", picked, otherDocumentLabel.trim() || undefined);
+                else setOtherDocumentFile(picked);
+              }}
               className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs"
             />
+            {uploadingType === "other" && <span className="block text-[11px] text-slate-500 mt-0.5">Uploading…</span>}
             {otherDocumentFile && <span className="block text-[11px] text-emerald-700 mt-0.5">{otherDocumentFile.name} ready to upload</span>}
           </div>
         </div>
@@ -464,24 +859,17 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
 
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-3">Section 5 — Payment Plan Acknowledgement</h2>
-        <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
-            <div className="text-slate-500">On engagement — documentation stage</div>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
-            <div className="text-slate-500">After the work permit is issued</div>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
-            <div className="text-slate-500">After the visa is granted</div>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 mb-3">
-          Air tickets and embassy fees are not included in any programme price and are payable separately.
-          Accommodation is provided in every programme and may be deducted from salary by the employer.
-        </p>
+        {selectedJob?.service_fee_gbp != null && selectedJob.payment_stages.length > 0 && (
+          <>
+            <PaymentStagesPreview totalGbp={selectedJob.service_fee_gbp} stages={selectedJob.payment_stages} className="mb-4" />
+            <p className="text-xs text-slate-500 mb-3">
+              Total {selectedJob.is_credit_service ? "Credit Service Fee" : "Service Fee"}: £{selectedJob.service_fee_gbp.toLocaleString()}.{" "}
+              {selectedJob.is_credit_service
+                ? "International airfare is not included unless a different arrangement is confirmed in writing; the consular fee is per embassy requirements and payable separately where required."
+                : "Air tickets and embassy fees are not included in any programme price and are payable separately. Accommodation is provided in every programme and may be deducted from salary by the employer."}
+            </p>
+          </>
+        )}
         <label className="flex items-start gap-2 text-sm text-slate-700 font-medium">
           <input
             type="checkbox"
@@ -608,13 +996,27 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId }: Props) 
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={status === "loading" || (!!selectedJob && missingRequiredDocs.length > 0)}
-        className="btn-gold w-full text-base py-3.5 disabled:opacity-60"
-      >
-        {status === "loading" ? "Submitting…" : "Submit Candidate"}
-      </button>
+      {draftJustSaved && !draftSaving && (
+        <p className="text-xs text-emerald-700 text-center">Draft saved — you can come back and finish this later.</p>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          type="button"
+          onClick={saveDraft}
+          disabled={draftSaving || status === "loading"}
+          className="btn-secondary flex-1 text-base py-3.5 disabled:opacity-60"
+        >
+          {draftSaving ? "Saving…" : "Save as Draft"}
+        </button>
+        <button
+          type="submit"
+          disabled={status === "loading" || (!!selectedJob && missingRequiredDocs.length > 0)}
+          className="btn-gold flex-1 text-base py-3.5 disabled:opacity-60"
+        >
+          {status === "loading" ? "Submitting…" : "Submit Candidate"}
+        </button>
+      </div>
     </form>
   );
 }

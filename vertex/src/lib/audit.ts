@@ -33,6 +33,10 @@ const AUDITED_MODELS = new Set([
   "CandidateMessage",
   "InhouseCountryAssignment",
   "StaffKpiTarget",
+  "ReferralAgent",
+  "ReferralCommission",
+  "ReferralCommissionRule",
+  "ReferralAgentTarget",
 ]);
 const AUDITED_OPERATIONS = new Set(["create", "update", "delete"]);
 

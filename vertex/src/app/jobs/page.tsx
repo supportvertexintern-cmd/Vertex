@@ -4,6 +4,8 @@ import { MapPin, Tag, CurrencyCircleDollar, Users, ArrowRight, MagnifyingGlass }
 import JobsCategoryFilter from "@/components/JobsCategoryFilter";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
 import { getPublicJobsList } from "@/server/services/publicJobs";
+import { getAuthUser } from "@/lib/api-auth";
+import { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -25,12 +27,15 @@ interface Job {
   visa_type: string | null;
   duration_permit: string | null;
   service_fee_gbp: number | null;
+  partner_only: boolean;
+  is_credit_service: boolean;
+  payment_stages: PaymentStageOption[];
   _count: { applications: number };
 }
 
 // Calls the same query the API route uses directly (in-process), rather
 // than self-fetching /api/jobs over HTTP — see server/services/publicJobs.ts.
-async function getJobs(searchParams: { page?: string; country?: string; category?: string; q?: string }) {
+async function getJobs(searchParams: { page?: string; country?: string; category?: string; q?: string }, includePartnerOnly: boolean) {
   try {
     return await getPublicJobsList({
       page: Number(searchParams.page || 1),
@@ -38,6 +43,11 @@ async function getJobs(searchParams: { page?: string; country?: string; category
       country: searchParams.country || undefined,
       category: searchParams.category || undefined,
       q: searchParams.q || undefined,
+      includePartnerOnly,
+      // A closed programme stays visible here (marked closed, no Apply —
+      // see job.status === "active" gating below) rather than vanishing;
+      // "public" still excludes drafts. See publicJobs.ts.
+      status: "public",
     });
   } catch {
     return { jobs: [], total: 0, pages: 1 };
@@ -50,14 +60,18 @@ export default async function JobsPage({
   searchParams: Promise<{ page?: string; country?: string; category?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const { jobs, total, pages } = await getJobs(params);
+  const user = await getAuthUser();
+  const includePartnerOnly = user?.role === "partner";
+  const { jobs, total, pages } = await getJobs(params, includePartnerOnly);
   const currentPage = Number(params.page || 1);
 
-  // Matches the Sector list seeded in prisma/seed.ts — every work-permit
-  // programme's category is one of these.
+  // Matches the sector naming seeded in prisma/seed.ts (2026-08-31, renamed
+  // to match the business's own Positions by Country & Sector reference
+  // sheet) — every work-permit programme's category is one of these.
   const categories = [
-    "Warehouse & Logistics", "Agriculture", "Hospitality & Hotel",
-    "Driving", "Construction", "Manufacturing", "General Labour"
+    "Agriculture", "Logistics & Warehousing", "Manufacturing & Production",
+    "Construction & Trades", "Hospitality", "Healthcare", "Transport & Delivery",
+    "General / Unskilled",
   ];
 
   return (
@@ -144,6 +158,11 @@ export default async function JobsPage({
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      {job.is_credit_service && (
+                        <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Credit Service
+                        </span>
+                      )}
                       {job.tier && (
                         <span className="inline-flex items-center rounded-full bg-midnight-900/5 text-midnight-900/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
                           {job.tier}
@@ -157,18 +176,28 @@ export default async function JobsPage({
                     {job.job_description || "Click to view full description and requirements for this role."}
                   </p>
 
-                  {job.service_fee_gbp != null && (
+                  {job.service_fee_gbp != null && job.payment_stages.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2 mb-6">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/10 text-gold-700 border border-gold-500/30 px-3 py-1 text-xs font-semibold">
-                        Service fee: {job.service_fee_gbp.toLocaleString()} GBP
-                      </span>
+                      {(() => {
+                        const resolved = resolvePaymentStages(job.service_fee_gbp, job.payment_stages);
+                        const first = resolved[0];
+                        const summary =
+                          job.is_credit_service && resolved.length > 1
+                            ? `${first.label} £${first.amount.toLocaleString()} · ${resolved.length - 1} more stage${resolved.length - 1 === 1 ? "" : "s"}`
+                            : `Service fee: ${job.service_fee_gbp!.toLocaleString()} GBP`;
+                        return (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/10 text-gold-700 border border-gold-500/30 px-3 py-1 text-xs font-semibold">
+                            {summary}
+                          </span>
+                        );
+                      })()}
                       {job.duration_permit && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-midnight-900/5 text-midnight-900/60 px-3 py-1 text-xs font-medium">
                           {job.duration_permit}
                         </span>
                       )}
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="flex items-center justify-between pt-6 border-t border-midnight-900/10 mt-auto">
                     <div className="flex items-center gap-5 text-xs text-midnight-900/40 uppercase tracking-[0.1em]">
@@ -185,10 +214,10 @@ export default async function JobsPage({
                       </Link>
                       {job.status === "active" && (
                         <Link
-                          href={`/apply?job=${job.id}`}
+                          href={job.partner_only ? "/partner" : `/apply?job=${job.id}`}
                           className="btn-primary text-xs py-2.5 px-5"
                         >
-                          Apply
+                          {job.partner_only ? "Submit a Candidate" : "Apply"}
                         </Link>
                       )}
                     </div>

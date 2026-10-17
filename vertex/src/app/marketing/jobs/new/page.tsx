@@ -6,6 +6,7 @@ import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
 import SearchableSelect from "@/components/SearchableSelect";
+import PaymentStageBuilder, { type PaymentStageDraft } from "@/components/portal/PaymentStageBuilder";
 
 interface EmployerClient {
   id: string;
@@ -32,7 +33,10 @@ export default function CreateJobPage() {
     processing_time: "",
     service_fee_gbp: "",
     visa_success_rates: "",
+    is_credit_service: false,
+    partner_only: false,
   });
+  const [paymentStages, setPaymentStages] = useState<PaymentStageDraft[]>([]);
 
   useEffect(() => {
     fetch("/api/admin/employer-clients")
@@ -41,16 +45,37 @@ export default function CreateJobPage() {
       .catch(() => {});
   }, []);
 
+  // The real work-permit programme sectors (2026-08-31), matching the
+  // business's own Positions by Country & Sector reference sheet and the
+  // Candidate Information Form's Section 1 sector picker exactly — was
+  // previously a stale, unrelated placeholder list.
   const categories = [
-    "Technology", "Healthcare", "Engineering", "Operations",
-    "Sales & Marketing", "Finance", "Education", "Other"
+    "Agriculture", "Logistics & Warehousing", "Manufacturing & Production",
+    "Construction & Trades", "Hospitality", "Healthcare", "Transport & Delivery",
+    "General / Unskilled",
   ];
+
+  const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) || 0), 0);
+
+  // Turn the server's field-level validation details (zod flatten) into a
+  // readable error string — otherwise "Validation failed" alone gives no
+  // clue which field is wrong (e.g. description under 50 chars).
+  const formatJobError = (data: { error?: string; details?: Record<string, string[]> }): string => {
+    if (!data.details) return data.error || "Failed to create job.";
+    const fieldLines = Object.entries(data.details).map(([field, messages]) => `- ${field}: ${messages.join(", ")}`);
+    return `${data.error || "Validation failed"}\n${fieldLines.join("\n")}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
+    if (formData.service_fee_gbp && (paymentStages.length === 0 || Math.round(stagesTotal) > 100)) {
+      setError("Payment stages must not exceed 100% when a service fee is set.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/jobs", {
         method: "POST",
@@ -63,6 +88,9 @@ export default function CreateJobPage() {
           processing_time: formData.processing_time || undefined,
           visa_success_rates: formData.visa_success_rates || undefined,
           service_fee_gbp: formData.service_fee_gbp ? Number(formData.service_fee_gbp) : undefined,
+          payment_stages: formData.service_fee_gbp
+            ? paymentStages.map((s) => ({ order: s.order, label: s.label, percent: Number(s.percent), trigger_stage: s.trigger_stage }))
+            : undefined,
         }),
       });
 
@@ -70,7 +98,7 @@ export default function CreateJobPage() {
         router.push("/marketing/jobs");
       } else {
         const data = await res.json();
-        setError(data.error || "Failed to create job.");
+        setError(formatJobError(data));
       }
     } catch {
       setError("An unexpected error occurred.");
@@ -99,9 +127,9 @@ export default function CreateJobPage() {
       </div>
 
       <div className="card p-6 md:p-8 max-w-3xl">
-        {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm">{error}</div>}
+        {error && <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 text-sm whitespace-pre-line">{error}</div>}
 
-        <form method="post" onSubmit={handleSubmit} className="space-y-6">
+        <form method="post" onSubmit={handleSubmit} noValidate className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="col-span-1 md:col-span-2">
               <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Job Title</label>
@@ -172,6 +200,42 @@ export default function CreateJobPage() {
             <div className="col-span-1 md:col-span-2">
               <label className="block text-sm font-medium text-midnight-900/70 mb-1.5">Visa Success Rates</label>
               <input type="text" name="visa_success_rates" value={formData.visa_success_rates} onChange={handleChange} className="input-field w-full" placeholder="e.g. Asia: 70–80% · Africa: 85–95% · South America: above 95%" />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 border-t border-midnight-900/10 pt-6 mt-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-midnight-900/40 mb-4">
+                Payment Stages <span className="font-normal normal-case">(Required when a Service Fee is set — must not exceed 100%)</span>
+              </p>
+            </div>
+
+            <div className="col-span-1 md:col-span-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="is_credit_service"
+                checked={formData.is_credit_service}
+                onChange={(e) => setFormData({ ...formData, is_credit_service: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <label htmlFor="is_credit_service" className="text-sm font-medium text-midnight-900/70">
+                Display as a Credit Service Programme (grouping/badge only — doesn&apos;t affect the payment math below)
+              </label>
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <PaymentStageBuilder stages={paymentStages} onChange={setPaymentStages} />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="partner_only"
+                checked={formData.partner_only}
+                onChange={(e) => setFormData({ ...formData, partner_only: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <label htmlFor="partner_only" className="text-sm font-medium text-midnight-900/70">
+                Partner-only — hide from the public /jobs site and self-service Candidate Information Form
+              </label>
             </div>
 
             <div className="col-span-1 md:col-span-2">

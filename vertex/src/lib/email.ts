@@ -2,9 +2,7 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import { signEmailToken, signCandidateInviteToken, signAccountSetupToken } from "./jwt";
-import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
-import type { MilestonePaymentType } from "@prisma/client";
 import { prisma } from "./prisma";
 
 import { log } from "./log";
@@ -560,6 +558,178 @@ export async function sendPartnerResubmissionRequestEmail(to: string, contactNam
   }
 }
 
+// --- Referral Agent System (2026-08-29) ------------------------------
+
+export async function sendReferralAgentApplicationReceivedEmail(to: string, fullName: string, verifyUrl: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Application received",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, thanks for applying to become a Vertex Referral Agent.`)}
+      ${p(`Please verify your email address to continue — this is required before we can review your application.`)}
+      ${goldButton(verifyUrl, "Verify Email")}
+      ${small("Once verified, our team will review your application and let you know the outcome.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Verify your email — Vertex Referral Agent application", html });
+  } catch (error) {
+    log.error("email.error_sending_referral_agent_application_received_email", { err: error });
+  }
+}
+
+export async function sendReferralAgentAdminNotificationEmail(fullName: string, country: string) {
+  const to = process.env.REFERRAL_AGENT_NOTIFY_EMAIL;
+  if (!to) {
+    log.info("email.referral_agent_notify_email_not_configured");
+    return;
+  }
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "New referral agent application",
+    bodyHtml: `
+      ${p(`<strong>${fullName}</strong> (${country}) applied to become a Referral Agent.`)}
+      ${small("Sign in to the Management portal to review it once their email is verified.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `New referral agent application: ${fullName}`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_agent_admin_notification", { err: error });
+  }
+}
+
+export async function sendReferralAgentApprovedEmail(to: string, fullName: string, referralCode: string, referralLink: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "You're approved!",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, your Vertex Referral Agent application has been approved.`)}
+      ${p(`Your referral code: <strong>${referralCode}</strong>`)}
+      ${p(`Your referral link: <a href="${referralLink}">${referralLink}</a>`)}
+      ${small("A separate email is on its way with a link to set your password and access your dashboard.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "You're approved as a Vertex Referral Agent", html });
+  } catch (error) {
+    log.error("email.error_sending_referral_agent_approved_email", { err: error });
+  }
+}
+
+export async function sendReferralAgentRejectedEmail(to: string, fullName: string, reason: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Application update",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, thanks for your interest in becoming a Vertex Referral Agent.`)}
+      ${p(`We're unable to approve your application at this time.`)}
+      ${p(`<strong>Reason:</strong> ${reason}`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Update on your Vertex Referral Agent application", html });
+  } catch (error) {
+    log.error("email.error_sending_referral_agent_rejected_email", { err: error });
+  }
+}
+
+export async function sendReferralAgentSuspendedEmail(to: string, fullName: string, reason: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Account suspended",
+    bodyHtml: `
+      ${p(`Hi ${fullName}, your Vertex Referral Agent account has been suspended.`)}
+      ${p(`<strong>Reason:</strong> ${reason}`)}
+      ${small("Contact Vertex if you believe this is a mistake.")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: "Your Vertex Referral Agent account has been suspended", html });
+  } catch (error) {
+    log.error("email.error_sending_referral_agent_suspended_email", { err: error });
+  }
+}
+
+export async function sendReferralCandidateRegisteredEmail(to: string, agentName: string, candidateName: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "New referral registered",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, <strong>${candidateName}</strong> just registered using your referral link.`)}
+      ${goldButton(`${APP_URL}/referral-agent`, "View Your Referrals")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `New referral: ${candidateName}`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_candidate_registered_email", { err: error });
+  }
+}
+
+export async function sendReferralCandidateQualifiedEmail(to: string, agentName: string, candidateName: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Your referral qualified",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, <strong>${candidateName}</strong> passed initial screening.`)}
+      ${goldButton(`${APP_URL}/referral-agent`, "View Your Referrals")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `${candidateName} qualified`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_candidate_qualified_email", { err: error });
+  }
+}
+
+export async function sendReferralCommissionEarnedEmail(to: string, agentName: string, candidateName: string, milestone: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission earned",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, you've earned a commission for <strong>${candidateName}</strong> reaching the "${milestone}" milestone.`)}
+      ${p(`<strong>${currency} ${amount.toLocaleString()}</strong> — pending approval.`)}
+      ${goldButton(`${APP_URL}/referral-agent/commissions`, "View Commissions")}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission earned — ${candidateName}`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_commission_earned_email", { err: error });
+  }
+}
+
+export async function sendReferralCommissionApprovedEmail(to: string, agentName: string, candidateName: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission approved",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, your commission of <strong>${currency} ${amount.toLocaleString()}</strong> for <strong>${candidateName}</strong> has been approved and is being processed for payment.`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission approved — ${candidateName}`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_commission_approved_email", { err: error });
+  }
+}
+
+export async function sendReferralCommissionPaidEmail(to: string, agentName: string, candidateName: string, amount: number, currency: string) {
+  const html = emailLayout({
+    eyebrow: "Referral Agent",
+    title: "Commission paid",
+    bodyHtml: `
+      ${p(`Hi ${agentName}, your commission of <strong>${currency} ${amount.toLocaleString()}</strong> for <strong>${candidateName}</strong> has been paid.`)}
+    `,
+  });
+  try {
+    await transporter.sendMail({ from: FROM, to, subject: `Commission paid — ${candidateName}`, html });
+  } catch (error) {
+    log.error("email.error_sending_referral_commission_paid_email", { err: error });
+  }
+}
+
 // Operations sending a manual reminder for a delayed document or payment
 // (POST /api/cases/:id/remind, 2026-07-31 per the Operational Workflow
 // SOP) — deliberately not an automated scheduler, matching this
@@ -598,30 +768,34 @@ export async function sendCaseReminderEmail(
 
 // Sent to whichever party is financially responsible (the candidate or
 // their sourcing partner) when a director/admin generates a Stripe Payment
-// Link for one of a case's 3 milestones (POST /api/cases/:id/payments/link).
+// Link for one of a case's payment stages (POST /api/cases/:id/payments/link).
 // Best-effort — the CasePayment row and the link URL itself already exist
 // regardless of whether this send succeeds, so staff can always share the
 // URL manually from CaseDetail's own copy button.
-// Stage position/percentage/plain-English timing, matching the wording
-// already used in CaseDetail.tsx's own milestone-type dropdown, so a
-// recipient sees the exact same framing staff do.
-const MILESTONE_STAGE_INFO: Record<MilestonePaymentType, { position: string; percent: string; timing: string }> = {
-  documentation: { position: "Stage 1 of 3", percent: "25%", timing: "On engagement, before documentation begins" },
-  permit: { position: "Stage 2 of 3", percent: "25%", timing: "After the work permit is issued" },
-  visa: { position: "Stage 3 of 3", percent: "50%", timing: "After the visa is granted" },
-};
+// Exclusively used by the Stripe Payment Link flow below, which is
+// restricted to self-registered candidates (2026-07-31).
+//
+// Generalized (2026-09-16, flexible per-Job payment stages) from a
+// hardcoded 3-value documentation/permit/visa shape to whatever stages the
+// Job actually defines — each stage already carries its own human label
+// and trigger stage, so there's no fixed lookup table left to maintain.
+interface MilestonePlanStage {
+  id: string;
+  label: string;
+  percent: number;
+  amount: number;
+  triggerStageLabel: string;
+}
 
-function milestonePlanRow(type: MilestonePaymentType, amount: number, isCurrent: boolean) {
-  const info = MILESTONE_STAGE_INFO[type];
-  const label = MILESTONE_DESCRIPTIONS[type];
+function milestonePlanRow(stage: MilestonePlanStage, position: string, isCurrent: boolean) {
   return `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid ${BRAND.ivory100};vertical-align:top;">
-        <div style="font-size:13px;font-weight:700;color:${isCurrent ? BRAND.gold600 : BRAND.midnight900};">${label} <span style="font-weight:500;color:rgba(6,33,25,0.4);">· ${info.position} · ${info.percent}</span></div>
-        <div style="font-size:12px;color:rgba(6,33,25,0.5);margin-top:2px;">${info.timing}</div>
+        <div style="font-size:13px;font-weight:700;color:${isCurrent ? BRAND.gold600 : BRAND.midnight900};">${stage.label} <span style="font-weight:500;color:rgba(6,33,25,0.4);">· ${position} · ${Math.round(stage.percent)}%</span></div>
+        <div style="font-size:12px;color:rgba(6,33,25,0.5);margin-top:2px;">Due from: ${stage.triggerStageLabel}</div>
       </td>
       <td style="padding:10px 0;border-bottom:1px solid ${BRAND.ivory100};vertical-align:top;text-align:right;white-space:nowrap;">
-        <div style="font-size:14px;font-weight:700;color:${BRAND.midnight900};">${amount.toLocaleString()} GBP</div>
+        <div style="font-size:14px;font-weight:700;color:${BRAND.midnight900};">${stage.amount.toLocaleString()} GBP</div>
         ${isCurrent ? `<div style="font-size:11px;font-weight:700;color:${BRAND.gold600};text-transform:uppercase;letter-spacing:0.05em;">Due now</div>` : `<div style="font-size:11px;color:rgba(6,33,25,0.35);">Upcoming</div>`}
       </td>
     </tr>
@@ -638,14 +812,14 @@ export async function sendMilestonePaymentLinkEmail(
   candidateName: string,
   programmeTitle: string,
   paymentUrl: string,
-  type: MilestonePaymentType,
-  fullPlan: { documentation: number; permit: number; visa: number }
+  currentStageId: string,
+  allStages: MilestonePlanStage[] // full ordered plan, already filtered to amount > 0
 ) {
-  const milestoneLabel = MILESTONE_DESCRIPTIONS[type];
-  const amountGbp = fullPlan[type];
-  const planRows = (["documentation", "permit", "visa"] as const)
-    .map((t) => milestonePlanRow(t, fullPlan[t], t === type))
-    .join("");
+  const currentIndex = allStages.findIndex((s) => s.id === currentStageId);
+  const current = allStages[currentIndex];
+  const milestoneLabel = current.label;
+  const amountGbp = current.amount;
+  const planRows = allStages.map((s, i) => milestonePlanRow(s, `Stage ${i + 1} of ${allStages.length}`, i === currentIndex)).join("");
 
   const html = emailLayout({
     eyebrow: "Payment Due",

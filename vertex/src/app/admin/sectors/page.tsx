@@ -7,7 +7,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { Briefcase, Plus, Trash, FileText, Files } from "@phosphor-icons/react";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 
 interface Sector {
   id: string;
@@ -71,7 +71,7 @@ export default function SectorsPage() {
   // they either apply everywhere already or have no country-requirement
   // concept at all.
   const requirementEligibleTypes = documentTypes.filter(
-    (t) => !t.is_universal && !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key)
+    (t) => !t.is_universal && !isNonProgrammeTypeKey(t.key)
   );
 
   useEffect(() => {

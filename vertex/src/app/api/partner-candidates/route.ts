@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { HR_ROLES } from "@/lib/rbac";
 import { evaluateDocumentCompletenessForCandidateId } from "@/server/services/documentCompleteness";
 import { getCandidateAttentionSignals } from "@/server/services/candidateSignals";
+import { readOpportunityFilterParams, resolveOpportunityFilters } from "@/server/services/opportunityFilters";
 
 const MAX_PAGE_SIZE = 100;
 
@@ -20,7 +21,8 @@ async function candidateSignals(candidateId: string) {
 // Case gets created for them (PATCH .../create-case). Operations also gets
 // read visibility here (confirmed) so they can see what's coming before HR
 // approves it — write actions (create-case, reject) stay HR-exclusive.
-// Paginated/searchable/filterable by status.
+// Paginated/searchable/filterable by status, opportunity country, and
+// programme — all applied in the DB query so totals/pagination stay exact.
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...HR_ROLES, "operations_team", "operations_director"]);
@@ -42,12 +44,19 @@ export async function GET(req: NextRequest) {
       ? { partner: { name: sortDir } }
       : sortBy === "status"
       ? { status: sortDir }
-      : { submitted_at: sortDir };
+      : sortBy === "submitted_at"
+      ? { submitted_at: sortDir }
+      : { updated_at: sortDir };
+
+  // Country / Programme / Programme Country (2026-10-15) — options come
+  // from the opportunities on non-draft submissions; see
+  // opportunityFilters.ts for the shared rules.
+  const { options: filterOptions, jobWhere } = await resolveOpportunityFilters(
+    { partner_candidates: { some: { status: { not: "draft" } } } },
+    readOpportunityFilterParams(req)
+  );
 
   const where: Prisma.PartnerCandidateWhereInput = {
-    // Drafts (unsubmitted, possibly half-empty) aren't part of this app's
-    // review flow; ?status=draft can't bring them back.
-    AND: [{ status: { not: "draft" } }],
     ...(status ? { status: status as never } : {}),
     ...(q
       ? {
@@ -55,9 +64,19 @@ export async function GET(req: NextRequest) {
             { full_name: { contains: q, mode: "insensitive" } },
             { email: { contains: q, mode: "insensitive" } },
             { partner: { name: { contains: q, mode: "insensitive" } } },
+            // Programme name lives inside Job.title (see opportunityFilters.ts),
+            // so a title match covers searching by programme.
+            { job: { title: { contains: q, mode: "insensitive" } } },
           ],
         }
       : {}),
+    // A draft is never reachable from HR/Operations' queue (2026-09-09) —
+    // unconditional, not just the no-filter default, so an explicit
+    // ?status=draft can't surface one either.
+    AND: [
+      { status: { not: "draft" } },
+      ...(jobWhere ? [{ job: jobWhere }] : []),
+    ],
   };
 
   const [rows, total] = await Promise.all([
@@ -67,7 +86,11 @@ export async function GET(req: NextRequest) {
         partner: { select: { id: true, name: true, contact_email: true } },
         job: { select: { title: true, country: true, city: true } },
       },
-      orderBy,
+      // id tie-breaker: many rows share a submitted_at/updated_at (e.g.
+      // seeded/bulk-entered batches), and without a unique final key
+      // Postgres orders ties arbitrarily per query — rows repeat or vanish
+      // across pages.
+      orderBy: [orderBy, { id: sortDir }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -113,5 +136,5 @@ export async function GET(req: NextRequest) {
     awaiting_reply_count: allSignals.filter((s) => s.awaiting_hr_reply).length,
   };
 
-  return NextResponse.json({ data: withSignals, total, page, pageSize, summary });
+  return NextResponse.json({ data: withSignals, total, page, pageSize, summary, filter_options: filterOptions });
 }

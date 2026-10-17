@@ -19,6 +19,7 @@ export const PORTAL_ACCESS: Record<string, Role[]> = {
   "/operations": ["operations_team", "operations_director", "admin"],
   "/finance": ["finance", "admin"],
   "/admin": ["admin"],
+  "/referral-agent": ["referral_agent", "admin"],
 };
 
 // Where each role lands after login / when redirected away from a portal it can't access.
@@ -35,6 +36,7 @@ export const ROLE_HOME: Record<Role, string> = {
   operations_director: "/operations",
   finance: "/finance",
   admin: "/admin",
+  referral_agent: "/referral-agent",
 };
 
 // Roles that manage other staff (used for supervisor-assignment validation,
@@ -71,6 +73,12 @@ export const OPERATIONS_ROLES: Role[] = ["operations_team", "operations_director
 export const FINANCE_ROLES: Role[] = ["finance", "director", "admin"];
 export const HR_ROLES: Role[] = ["hr", "director", "admin"];
 
+// Referral Agent System admin controls (2026-08-29) — deliberately
+// director/admin only, unlike PARTNER_MANAGER_ROLES which also includes
+// inhouse_supervisor. Confirmed with the business: these controls belong
+// in the Director/Management portal, not the operational in-house tier.
+export const REFERRAL_AGENT_MANAGER_ROLES: Role[] = ["director", "admin"];
+
 export function canAccessPortal(role: Role, pathname: string): boolean {
   const prefix = Object.keys(PORTAL_ACCESS).find((p) => pathname.startsWith(p));
   if (!prefix) return true; // not a portal-gated path
@@ -85,7 +93,7 @@ export function homeFor(role: Role): string {
 // rebuilt on PortalShell 2026-07-13 to match the others) renders its own
 // chrome and should NOT also get the public marketing Navbar/Footer/chat
 // widgets.
-const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard"];
+const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard", "/referral-agent"];
 
 export function isInternalPortalPath(pathname: string): boolean {
   return INTERNAL_PORTAL_PREFIXES.some((p) => pathname.startsWith(p));

@@ -18,6 +18,7 @@ interface PortalShellProps {
   roleLabel: string;
   navItems: PortalNavItem[];
   children: React.ReactNode;
+  wideContent?: boolean;
 }
 
 /**
@@ -26,7 +27,7 @@ interface PortalShellProps {
  * the public site (midnight/gold/ivory, Outfit, Phosphor) rather than
  * inventing a separate visual language for internal pages.
  */
-export default function PortalShell({ roleLabel, navItems, children }: PortalShellProps) {
+export default function PortalShell({ roleLabel, navItems, children, wideContent = true }: PortalShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -157,7 +158,7 @@ export default function PortalShell({ roleLabel, navItems, children }: PortalShe
 
       {/* Content */}
       <main className="flex-1 min-w-0 pt-16 lg:pt-0">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-10">{children}</div>
+        <div className={`${wideContent ? "max-w-[1600px]" : "max-w-6xl"} mx-auto px-4 sm:px-6 lg:px-10 py-8 lg:py-10`}>{children}</div>
       </main>
     </div>
   );
