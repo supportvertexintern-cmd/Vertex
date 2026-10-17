@@ -8,9 +8,10 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
-import { CheckCircle, ChatCircleDots, Clock } from "@phosphor-icons/react";
+import { CheckCircle, ChatCircleDots, Clock, WarningCircle } from "@phosphor-icons/react";
 
 interface SelfApplicationRow {
   id: string;
@@ -23,6 +24,8 @@ interface SelfApplicationRow {
   pending_documents_count: number;
   message_count: number;
   awaiting_hr_reply: boolean;
+  referral_agent: { id: string; full_name: string; referral_code: string } | null;
+  referral_duplicate_flag: boolean;
 }
 
 const PAGE_SIZE = 15;
@@ -63,11 +66,16 @@ export default function HrSelfApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(() => urlState.get("q"));
   const [status, setStatus] = useState(() => urlState.get("status"));
+  const [country, setCountry] = useState(() => urlState.get("country"));
+  const [programme, setProgramme] = useState(() => urlState.get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => urlState.get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "created_at"));
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (urlState.get("sortDir") === "asc" ? "asc" : "desc"));
   const isFirstRun = useRef(true);
+  const hasInitializedFromUrl = useRef(false);
 
   const handleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -77,8 +85,12 @@ export default function HrSelfApplicationsPage() {
   const load = () => {
     setLoading(true);
     const params = new URLSearchParams({
-      source: "self_registered",
+      // Widened (2026-08-29) to include referral_sourced — a referred
+      // candidate lands in this same HR queue, per the Referral Agent
+      // System's "no new parallel pipeline" decision.
+      source: "self_registered,referral_sourced",
       signals: "true",
+      filterOptions: "true",
       page: String(page),
       pageSize: String(PAGE_SIZE),
       sortBy,
@@ -86,11 +98,15 @@ export default function HrSelfApplicationsPage() {
     });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     fetch(`/api/candidates?${params}`)
       .then((r) => r.json())
       .then((res) => {
         setRows(res.data ?? []);
         setTotal(res.total ?? 0);
+        if (res.filter_options) setFilterOptions(res.filter_options);
         setSummary(res.summary ?? { ready_for_approval_count: 0, awaiting_reply_count: 0 });
       })
       .catch(() => setError("Failed to load self applications."))
@@ -100,23 +116,49 @@ export default function HrSelfApplicationsPage() {
   // Skipped on first mount so restoring page from the URL (returning from
   // a detail page) doesn't get immediately reset back to 1.
   useEffect(() => {
-    if (isFirstRun.current) return;
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
     setPage(1);
-  }, [q, status]);
+  }, [q, status, country, programme, programmeCountry]);
 
   useEffect(() => {
-    urlState.set({ page, q, status, sortBy, sortDir });
+    if (!hasInitializedFromUrl.current) {
+      hasInitializedFromUrl.current = true;
+      return;
+    }
+    urlState.set({ page, q, status, country, programme, programmeCountry, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, status, sortBy, sortDir]);
+  }, [page, q, status, country, programme, programmeCountry, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
-    isFirstRun.current = false;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, page, sortBy, sortDir]);
+  }, [q, status, country, programme, programmeCountry, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Build the current URL with all state for back navigation
+  const currentUrl = (() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
+    if (sortBy !== "created_at") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    const qs = params.toString();
+    return qs ? `/hr/self-applications?${qs}` : "/hr/self-applications";
+  })();
 
   return (
     <PortalShell roleLabel="Human Resources" navItems={HR_NAV_ITEMS}>
@@ -155,8 +197,19 @@ export default function HrSelfApplicationsPage() {
         </div>
       </div>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate name or email…">
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, or programme…">
         <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
@@ -165,7 +218,7 @@ export default function HrSelfApplicationsPage() {
         <p className="text-midnight-900/50">Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || status ? "No submissions match your filters." : "No self-submitted applications yet."}
+          {q || status || country || programme || programmeCountry ? "No submissions match your filters." : "No self-submitted applications yet."}
         </div>
       ) : (
         <div className="card overflow-x-auto">
@@ -176,6 +229,7 @@ export default function HrSelfApplicationsPage() {
                 <th className="px-5 py-3 font-semibold">Opportunity</th>
                 <th className="px-5 py-3 font-semibold">Documents</th>
                 <th className="px-5 py-3 font-semibold">Messages</th>
+                <th className="px-5 py-3 font-semibold">Duplicate?</th>
                 <SortableTh label="Submitted" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <SortableTh label="Status" sortKey="lifecycle_status" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
               </tr>
@@ -188,7 +242,7 @@ export default function HrSelfApplicationsPage() {
                 return (
                   <tr key={row.id} className="border-b border-midnight-900/5 last:border-0">
                     <td className="px-5 py-4">
-                      <Link href={`/hr/self-applications/${row.id}`} className="block">
+                      <Link href={`/hr/self-applications/${row.id}?back=${encodeURIComponent(currentUrl)}`} className="block">
                         <div className="font-medium text-midnight-900 hover:text-gold-600">{name}</div>
                         <div className="text-xs text-midnight-900/45">{contact}</div>
                       </Link>
@@ -216,7 +270,16 @@ export default function HrSelfApplicationsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.created_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-4">
+                      {row.referral_duplicate_flag ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600">
+                          <WarningCircle size={13} weight="fill" /> Possible duplicate
+                        </span>
+                      ) : (
+                        <span className="text-xs text-midnight-900/35">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[row.lifecycle_status] ?? "bg-slate-100 text-slate-700"}`}>
                         {formatCandidateLifecycleStatus(row.lifecycle_status)}

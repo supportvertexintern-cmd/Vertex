@@ -25,7 +25,9 @@ import {
   Package,
   Phone,
   Plus,
+  QrCode,
   SealCheck,
+  ShareNetwork,
   ShieldCheck,
   Users,
   Wrench,
@@ -540,6 +542,61 @@ export default function HomeClient({ jobs }: { jobs: any[] }) {
                 <span className="font-semibold">Ready? Start your application</span>
                 <ArrowRight size={20} weight="bold" className="text-gold-300 transition-transform group-hover:translate-x-1" />
               </Link>
+            </FadeIn>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Referral Agents ===== */}
+      <section className="bg-midnight-900 text-ivory-50 py-20 md:py-28">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+            <FadeIn>
+              <p className="eyebrow-dark mb-4">
+                <span className="eyebrow-rule" />
+                Referral Agents
+              </p>
+              <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">
+                Know someone ready to work abroad?
+                <br />
+                Earn by referring them to Vertex.
+              </h2>
+              <p className="text-ivory-50/50 font-light leading-relaxed mb-8 max-w-lg">
+                Register as a Vertex Referral Agent, get your own referral link and QR code, and earn a
+                commission as the candidates you refer progress through our work permit and visa programmes —
+                from registration all the way to deployment.
+              </p>
+              <Link href="/become-a-referral-agent" className="btn-gold px-8 py-3.5 inline-flex items-center gap-2">
+                Become a Referral Agent
+                <ArrowRight size={18} weight="bold" />
+              </Link>
+            </FadeIn>
+
+            <FadeIn delay={0.1}>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors">
+                  <ShareNetwork size={24} weight="light" className="text-gold-300 mb-4" />
+                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">Your own referral link</h3>
+                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
+                    A unique code and link you can share anywhere.
+                  </p>
+                </div>
+                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors">
+                  <QrCode size={24} weight="light" className="text-gold-300 mb-4" />
+                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">A QR code to scan</h3>
+                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
+                    Print it, post it, or send it — instant attribution.
+                  </p>
+                </div>
+                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors col-span-2">
+                  <HandCoins size={24} weight="light" className="text-gold-300 mb-4" />
+                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">Milestone-based commission</h3>
+                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
+                    Earn as each referral progresses — from registration through to deployment — tracked live
+                    on your own dashboard.
+                  </p>
+                </div>
+              </div>
             </FadeIn>
           </div>
         </div>

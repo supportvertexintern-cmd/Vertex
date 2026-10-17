@@ -26,6 +26,14 @@ const PUBLIC_JOB_LIST_SELECT = {
   visa_type: true,
   duration_permit: true,
   service_fee_gbp: true,
+  partner_only: true,
+  is_credit_service: true,
+  payment_stages: { orderBy: { order: "asc" as const } },
+  // Sector -> Opportunity -> Position (2026-09-02) — both application
+  // forms already eagerly fetch this full list once and filter
+  // client-side, so the nested sectors/positions ride along here rather
+  // than needing a separate round-trip per job.
+  sectors: { select: { id: true, sector: true, positions: { select: { id: true, title: true, city: true } } } },
   _count: { select: { applications: true } },
 } as const;
 
@@ -36,13 +44,23 @@ export interface PublicJobsListParams {
   category?: string;
   q?: string;
   // Only ever set by the route's own staff-auth branch (Marketing/Admin
-  // managing their own postings, 2026-08-18) — every public caller
-  // (homepage, /jobs listing) leaves this unset and gets the original
-  // "active" cap. Marketing needs its own draft/closed postings visible
-  // too, and "all" opts out of the status filter entirely.
-  status?: "draft" | "active" | "closed" | "all";
+  // managing their own postings, 2026-08-18) — every public caller other
+  // than the /jobs listing/detail pages leaves this unset and gets the
+  // original "active" cap (an application form should never let someone
+  // pick a closed programme). Marketing needs its own draft/closed
+  // postings visible too, and "all" opts out of the status filter
+  // entirely. "public" (2026-09-14) is for the /jobs listing/detail pages
+  // specifically — a closed programme should stay visible there (marked
+  // closed, no Apply) rather than vanish, while a draft one still never
+  // should.
+  status?: "draft" | "active" | "closed" | "all" | "public";
   sortBy?: "created_at" | "title" | "applications";
   sortDir?: "asc" | "desc";
+  // Only ever set true by the route's own role-checked branch (a partner,
+  // or staff submitting on a partner's behalf) — every public caller
+  // (homepage, /jobs listing, self-service/walk-in ApplicationForm) leaves
+  // this unset and never sees a partner-only Job.
+  includePartnerOnly?: boolean;
 }
 
 export async function getPublicJobsList(params: PublicJobsListParams = {}) {
@@ -50,13 +68,20 @@ export async function getPublicJobsList(params: PublicJobsListParams = {}) {
   // The 50-row cap only ever applied to the public listing (a sane
   // ceiling for a public page-size param) — Marketing's own management
   // list passes its own real limit and needs every posting reachable,
-  // not silently truncated at 50.
-  const maxLimit = params.status ? 200 : 50;
+  // not silently truncated at 50. "public" is still the public listing
+  // (just widened to include closed jobs), so it keeps the 50-row cap too.
+  const maxLimit = params.status && params.status !== "public" ? 200 : 50;
   const limit = Math.min(maxLimit, Math.max(1, params.limit ?? 10));
   const skip = (page - 1) * limit;
 
   const where = {
-    ...(params.status && params.status !== "all" ? { status: params.status } : params.status === "all" ? {} : { status: "active" as const }),
+    ...(params.status === "public"
+      ? { status: { in: ["active", "closed"] as const } }
+      : params.status && params.status !== "all"
+      ? { status: params.status }
+      : params.status === "all"
+      ? {}
+      : { status: "active" as const }),
     ...(params.country ? { country: { contains: params.country, mode: "insensitive" as const } } : {}),
     ...(params.category ? { category: { equals: params.category } } : {}),
     ...(params.q
@@ -67,6 +92,7 @@ export async function getPublicJobsList(params: PublicJobsListParams = {}) {
           ],
         }
       : {}),
+    ...(params.includePartnerOnly ? {} : { partner_only: false }),
   };
 
   const sortDir = params.sortDir ?? "desc";
@@ -98,13 +124,15 @@ const PUBLIC_JOB_DETAIL_SELECT = {
   requirements: true,
   processing_time: true,
   visa_success_rates: true,
+  payment_stages: { orderBy: { order: "asc" } },
 } as const;
 
 // Public = active or closed (closed jobs stay reachable from old links and
 // show "No longer accepting applications"). Drafts are never public.
-export async function getPublicJobById(id: string) {
+// Partner-only opportunities are hidden unless the caller may see them.
+export async function getPublicJobById(id: string, includePartnerOnly = false) {
   return prisma.job.findFirst({
-    where: { id, status: { in: ["active", "closed"] } },
+    where: { id, status: { in: ["active", "closed"] }, ...(includePartnerOnly ? {} : { partner_only: false }) },
     select: PUBLIC_JOB_DETAIL_SELECT,
   });
 }

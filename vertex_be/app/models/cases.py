@@ -123,10 +123,9 @@ class CasePayment(Base):
 
     id: Mapped[str] = pk()
     case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"), index=True)
-    # Nullable since 0004: the Next.js app records the milestone `type`
-    # and doesn't set a stage.
-    job_payment_stage_id: Mapped[str | None] = mapped_column(fk("JobPaymentStage.id", "RESTRICT"))
-    type: Mapped[MilestonePaymentType] = enum_col(MilestonePaymentType)
+    job_payment_stage_id: Mapped[str] = mapped_column(fk("JobPaymentStage.id", "RESTRICT"))
+    # Unused since 0006 (payments are per stage again); kept, nothing dropped.
+    type: Mapped[MilestonePaymentType | None] = enum_col(MilestonePaymentType)
     amount: Mapped[float]
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     receipt_reference: Mapped[str | None]
@@ -142,7 +141,7 @@ class CasePayment(Base):
     sent_to_email: Mapped[str | None]
 
     case: Mapped[Case] = relationship(back_populates="payments")
-    job_payment_stage: Mapped[JobPaymentStage | None] = relationship()
+    job_payment_stage: Mapped[JobPaymentStage] = relationship()
     receipt_document: Mapped[Document | None] = relationship()
     recorder: Mapped[User] = relationship()
 

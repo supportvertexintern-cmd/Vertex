@@ -20,6 +20,7 @@ const FOOTER_LINKS = {
   Partners: [
     { href: "/contact", label: "Agencies & Manpower Suppliers" },
     { href: "/contact", label: "Travel & Visa Partners" },
+    { href: "/become-a-referral-agent", label: "Become a Referral Agent" },
   ],
   Legal: [
     { href: "/privacy", label: "Privacy Policy" },

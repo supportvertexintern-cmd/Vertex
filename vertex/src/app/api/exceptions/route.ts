@@ -21,6 +21,10 @@ const RAISE_LEVEL_BY_ROLE: Record<Role, EscalationLevel> = {
   admin: "management",
   marketing: "regional",
   partner: "regional",
+  // Unreachable in practice (this route is gated to STAFF_ROLES, and
+  // referral_agent is deliberately excluded from it, same as partner) —
+  // present only so this Record stays exhaustive over the full Role enum.
+  referral_agent: "regional",
   candidate: "regional",
   // Separation-of-duties directorates (2026-07-31) sit outside the regional
   // recruiter -> country_supervisor -> inhouse_supervisor chain this

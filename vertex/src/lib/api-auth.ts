@@ -13,8 +13,11 @@ import { ACCESS_COOKIE, loadSession } from "@/lib/session";
  * revocation, deletion, and password or role changes take effect on the
  * next request. Role and email come from the database, not the token.
  * Any failure, including the database being unreachable, means null.
+ *
+ * req is optional so Server Components (which have no NextRequest) can
+ * call this too; the session always comes from next/headers's cookies().
  */
-export async function getAuthUser(req: NextRequest): Promise<JwtPayload | null> {
+export async function getAuthUser(req?: NextRequest): Promise<JwtPayload | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(ACCESS_COOKIE)?.value;

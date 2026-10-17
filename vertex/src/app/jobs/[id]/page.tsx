@@ -6,8 +6,9 @@ import {
   IdentificationCard, Clock, ShieldCheck, CheckCircle, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPublicJobById } from "@/server/services/publicJobs";
-import { computeMilestoneSplit } from "@/lib/fees";
+import { getAuthUser } from "@/lib/api-auth";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
+import PaymentStagesPreview, { type PaymentStageOption } from "@/components/PaymentStagesPreview";
 export const dynamic = "force-dynamic";
 
 interface Job {
@@ -27,26 +28,17 @@ interface Job {
   processing_time: string | null;
   service_fee_gbp: number | null;
   visa_success_rates: string | null;
+  partner_only: boolean;
+  is_credit_service: boolean;
+  payment_stages: PaymentStageOption[];
   _count: { applications: number };
 }
 
-// Display-shape wrapper around the shared computeMilestoneSplit (lib/fees.ts)
-// — the one place the 25/25/50 split is actually computed now, so this
-// page and CaseDetail.tsx's payment recorder can't drift apart.
-const feeStages = (totalGbp: number) => {
-  const split = computeMilestoneSplit(totalGbp);
-  return [
-    { label: "Stage 1 · 25%", note: "On engagement — documentation", amount: split.documentation },
-    { label: "Stage 2 · 25%", note: "After the work permit is issued", amount: split.permit },
-    { label: "Stage 3 · 50%", note: "After the visa is granted", amount: split.visa },
-  ];
-};
-
 // Calls the same query the API route uses directly (in-process), rather
 // than self-fetching /api/jobs/[id] over HTTP — see server/services/publicJobs.ts.
-async function getJob(id: string): Promise<Job | null> {
+async function getJob(id: string, includePartnerOnly: boolean): Promise<Job | null> {
   try {
-    return await getPublicJobById(id);
+    return await getPublicJobById(id, includePartnerOnly);
   } catch {
     return null;
   }
@@ -54,7 +46,8 @@ async function getJob(id: string): Promise<Job | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const job = await getJob(id);
+  const user = await getAuthUser();
+  const job = await getJob(id, user?.role === "partner");
   if (!job) return { title: "Job Not Found" };
   return {
     title: `${job.title} — ${job.city}, ${job.country}`,
@@ -64,16 +57,24 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const job = await getJob(id);
+  const user = await getAuthUser();
+  const includePartnerOnly = user?.role === "partner";
+  const job = await getJob(id, includePartnerOnly);
   if (!job) notFound();
 
   const isActive = job.status === "active";
 
   const ApplyButton = ({ className }: { className?: string }) =>
     isActive ? (
-      <Link href={`/apply?job=${job.id}`} className={`btn-gold ${className ?? ""}`}>
-        Apply Now <ArrowRight size={16} weight="bold" />
-      </Link>
+      job.partner_only ? (
+        <Link href="/partner" className={`btn-gold ${className ?? ""}`}>
+          Submit a Candidate <ArrowRight size={16} weight="bold" />
+        </Link>
+      ) : (
+        <Link href={`/apply?job=${job.id}`} className={`btn-gold ${className ?? ""}`}>
+          Apply Now <ArrowRight size={16} weight="bold" />
+        </Link>
+      )
     ) : (
       <div className="bg-midnight-900/5 text-midnight-900/50 rounded-full px-6 py-3.5 text-sm text-center">
         No longer accepting applications
@@ -107,6 +108,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             <span className={`badge-${job.status} flex-shrink-0`}>{job.status}</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-6 text-ivory-50/55 text-sm font-light">
+            {job.is_credit_service && (
+              <span className="inline-flex items-center rounded-full bg-gold-500/20 text-gold-300 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                Credit Service Programme
+              </span>
+            )}
             {job.category && (
               <span className="inline-flex items-center gap-1.5">
                 <Tag size={15} weight="regular" /> {job.category}
@@ -213,32 +219,27 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </p>
             </div>
 
-            {job.service_fee_gbp != null && (
+            {job.service_fee_gbp != null && job.payment_stages.length > 0 ? (
               <div className="bg-midnight-950 text-ivory-50 rounded-2xl p-6">
-                <ServiceFeeNotice variant="dark" />
+                {job.is_credit_service ? (
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-gold-300 mb-3">Credit Service Programme</p>
+                ) : (
+                  <ServiceFeeNotice variant="dark" />
+                )}
                 <div className="flex items-baseline justify-between gap-2 mb-5 pt-1 border-t border-white/10">
-                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ivory-50/60">Total</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-ivory-50/60">Total{job.is_credit_service ? " Credit Service Fee" : ""}</span>
                   <span className="text-2xl font-semibold text-gold-300">
                     {job.service_fee_gbp.toLocaleString()} <span className="text-sm font-medium">GBP</span>
                   </span>
                 </div>
-                <div className="space-y-2.5 mb-5">
-                  {feeStages(job.service_fee_gbp).map((stage) => (
-                    <div key={stage.label} className="flex items-center justify-between gap-3 bg-white/5 rounded-lg px-3.5 py-2.5">
-                      <div>
-                        <div className="text-xs font-semibold text-gold-300">{stage.label}</div>
-                        <div className="text-ivory-50/45 text-xs mt-0.5">{stage.note}</div>
-                      </div>
-                      <div className="font-semibold text-ivory-50 whitespace-nowrap">{stage.amount.toLocaleString()} GBP</div>
-                    </div>
-                  ))}
-                </div>
+                <PaymentStagesPreview totalGbp={job.service_fee_gbp} stages={job.payment_stages} variant="dark" className="mb-5" />
                 <p className="text-xs text-ivory-50/40 leading-relaxed">
-                  Air tickets and embassy fees are not included and are payable separately. Accommodation is
-                  provided (may be deducted from salary).
+                  {job.is_credit_service
+                    ? "International airfare is not included unless a different arrangement is confirmed in writing; the consular fee is per embassy requirements and payable separately where required."
+                    : "Air tickets and embassy fees are not included and are payable separately. Accommodation is provided (may be deducted from salary)."}
                 </p>
               </div>
-            )}
+            ) : null}
           </aside>
         </div>
       </section>
