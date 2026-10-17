@@ -53,6 +53,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       { status: 409 }
     );
   }
+  // Defensive (2026-09-09) — the UI never offers a reject action on a
+  // draft (it isn't in HR's queue at all, see GET /api/partner-candidates),
+  // but guard the direct API too: a draft was never actually submitted, so
+  // "rejecting" one is meaningless.
+  if (partnerCandidate.status === "draft") {
+    return NextResponse.json(
+      { error: { code: "invalid_state", message: "This submission is still a draft and has not been submitted." } },
+      { status: 409 }
+    );
+  }
 
   const updated = await auditedPrisma(user!.userId).partnerCandidate.update({
     where: { id },
@@ -62,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Awaited, not fire-and-forget — on serverless (Vercel) the function
   // instance can freeze right after the response is sent, silently
   // killing an un-awaited async send before it completes.
-  await sendPartnerCandidateRejectedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, partnerCandidate.full_name, parsed.data.rejection_reason).catch((err) => log.error("email.send_failed", { err }));
+  await sendPartnerCandidateRejectedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, partnerCandidate.full_name ?? "the candidate", parsed.data.rejection_reason).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updated });
 }

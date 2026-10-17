@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import SearchableSelect from "@/components/SearchableSelect";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import PaymentStagesPreview, { type PaymentStageOption } from "@/components/PaymentStagesPreview";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
@@ -21,12 +22,53 @@ interface DocumentTypeOption {
   is_universal: boolean;
 }
 
+interface JobPositionOption {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorOption {
+  id: string;
+  sector: string;
+  positions: JobPositionOption[];
+}
+
 interface JobOption {
   id: string;
   title: string;
   country: string;
   city: string;
+  category: string | null;
+  sectors: JobSectorOption[];
+  service_fee_gbp: number | null;
+  payment_stages: PaymentStageOption[];
 }
+
+// A position flattened out of whichever Job it belongs to (2026-09-02,
+// Country -> Sector -> Position) — a country/sector pair can span more
+// than one Job (e.g. Canada's 3 separate city-based jobs), so Position
+// options are aggregated across every Job in the selected country/sector
+// rather than scoped to a single pre-picked Opportunity. jobId carries
+// which Job to derive form.job_id from once a position is chosen.
+interface FlatPositionOption extends JobPositionOption {
+  jobId: string;
+}
+
+// Canonical sector order (2026-08-31) — matches the business's own
+// Positions by Country & Sector reference sheet naming exactly, so a
+// candidate sees the same sector vocabulary staff/partners use. A sector
+// with no active Job under it simply never appears in the picker.
+const SECTOR_ORDER = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+];
 
 interface Props {
   /** Present when staff is submitting on behalf of an existing candidate record (SRS FR-2.1). */
@@ -97,10 +139,19 @@ interface Props {
    * explicitly here would 403.
    */
   signedInCandidate?: boolean;
+  /**
+   * Referral Agent attribution (2026-08-29) — the code captured from
+   * /apply's ?ref= param (or a prior visit's localStorage copy). Resolved
+   * server-side against a real, active ReferralAgent in
+   * POST /api/applications; an invalid/unknown code never blocks
+   * submission, it just falls through to source: "self_registered".
+   */
+  referralCode?: string;
 }
 
 const emptyForm = {
   job_id: "",
+  job_position_id: "",
   earliest_travel_date: "",
   prior_eu_visa_applied: null as boolean | null,
   prior_eu_visa_applied_details: "",
@@ -158,10 +209,16 @@ const emptyForm = {
  * three submit through the same POST /api/applications (or, while the CRM
  * isn't live yet for public traffic, POST /api/public-intake/application).
  */
-export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, useEmailIntakeIfConfigured, signedInCandidate }: Props) {
+export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, useEmailIntakeIfConfigured, signedInCandidate, referralCode }: Props) {
   const [countries, setCountries] = useState<Option[]>([]);
   const [locationCountries, setLocationCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
+  // Country and Sector are client-side filters only (2026-09-02, business
+  // request to lead with Country rather than Sector) — neither is
+  // submitted directly; job_id is derived once a Position is picked (see
+  // positionOptions below), exactly as job_position_id already was.
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [sector, setSector] = useState("");
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeOption[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<{ country_id: string; document_type: string }[]>([]);
   // Defaults "email" so that if useEmailIntakeIfConfigured is set and
@@ -219,13 +276,65 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   // Admin-managed (DocumentRequirementType) rather than hardcoded, so a
   // type/requirement admin adds shows up here immediately.
   const documentChecklist = useMemo(
-    () => documentTypes.filter((t) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key)),
+    () => documentTypes.filter((t) => !isNonProgrammeTypeKey(t.key)),
     [documentTypes]
   );
   // "Required for" hints scoped to the selected Job's own destination
   // country (2026-07-31) — replaces the old all-countries breakdown, since
   // Section 1 is a single Job pick now rather than 3 country alternates.
   const selectedJob = useMemo(() => jobs.find((j) => j.id === form.job_id), [jobs, form.job_id]);
+
+  // Country list — every distinct destination among active Jobs, not the
+  // separate admin-managed Country list, so only countries with a real
+  // bookable programme ever appear (same reasoning as sectorOptions).
+  const countryOptions = useMemo(() => [...new Set(jobs.map((j) => j.country))].sort(), [jobs]);
+  const jobsInCountry = useMemo(
+    () => (selectedCountry ? jobs.filter((j) => j.country === selectedCountry) : []),
+    [jobs, selectedCountry]
+  );
+  // Sector list, ordered per SECTOR_ORDER — scoped to the selected
+  // country's own Jobs, only sectors with at least one active Job
+  // actually appear.
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobsInCountry]);
+  // Position options — aggregated across every Job in the selected
+  // country whose sector matches the selected sector (a country/sector
+  // pair can span more than one Job, e.g. Canada's 3 city-based jobs), not
+  // scoped to a single pre-picked Opportunity. Requires both country and
+  // sector; empty otherwise.
+  const positionOptions = useMemo<FlatPositionOption[]>(() => {
+    if (!selectedCountry || !sector) return [];
+    return jobsInCountry.flatMap((j) =>
+      j.sectors.filter((s) => s.sector === sector).flatMap((s) => s.positions.map((p) => ({ ...p, jobId: j.id })))
+    );
+  }, [jobsInCountry, sector, selectedCountry]);
+
+  // Seeds Country/Sector from a preselected jobId (arriving via
+  // /apply?job=...) once jobs finish loading — only fires while nothing's
+  // been picked yet, so it never overrides the user's own later choices.
+  useEffect(() => {
+    if (!jobId || selectedCountry) return;
+    const preselectedJob = jobs.find((j) => j.id === jobId);
+    if (!preselectedJob) return;
+    setSelectedCountry(preselectedJob.country);
+    if (preselectedJob.sectors[0]) setSector(preselectedJob.sectors[0].sector);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs]);
+
+  // Auto-selects Position (and derives job_id from it) whenever the
+  // current Country/Sector narrows to exactly one option — preserves the
+  // old one-click behavior for the common single-position case, whether
+  // that's from the preselection effect above or the user's own picks.
+  useEffect(() => {
+    if (positionOptions.length === 1 && !form.job_position_id) {
+      set("job_position_id", positionOptions[0].id);
+      set("job_id", positionOptions[0].jobId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positionOptions]);
+
   const requiredForSelectedJob = useMemo(() => {
     if (!selectedJob) return new Set<string>();
     const country = countries.find((c) => c.name.toLowerCase() === selectedJob.country.toLowerCase());
@@ -319,6 +428,8 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       body: JSON.stringify({
         ...form,
         candidate_id: candidateId,
+        referral_code: referralCode,
+        job_position_id: form.job_position_id || undefined,
         preferred_contact_channel: form.preferred_contact_channel || undefined,
         holds_schengen_visa: form.holds_schengen_visa ?? undefined,
         prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
@@ -368,34 +479,75 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section>
         <h2 className="font-bold text-slate-800 mb-1">Section 1 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Select the specific opportunity you're applying for — the document checklist below adjusts to match its
-          destination country.
+          Choose the country you're applying to, then the sector, then the exact position — the document checklist
+          below adjusts to match its destination country.
         </p>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="job_id" className={labelCls}>Opportunity <span className="text-red-500">*</span></label>
+            <label htmlFor="selected_country" className={labelCls}>Country <span className="text-red-500">*</span></label>
             <SearchableSelect
-              id="job_id"
-              value={form.job_id}
-              onChange={(value) => set("job_id", value)}
+              id="selected_country"
+              value={selectedCountry}
+              onChange={(value) => {
+                setSelectedCountry(value);
+                setSector("");
+                set("job_position_id", "");
+                set("job_id", "");
+              }}
               required
-              placeholder="Select an opportunity…"
-              options={jobs.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
+              placeholder="Select a country…"
+              options={countryOptions.map((c) => ({ value: c, label: c }))}
             />
-            {err("job_id") && <p className={errCls}>{err("job_id")}</p>}
           </div>
           <div>
-            <label htmlFor="earliest_travel_date" className={labelCls}>Earliest Possible Travel Date <span className="text-red-500">*</span></label>
-            <input
-              id="earliest_travel_date"
-              type="date"
-              value={form.earliest_travel_date}
-              onChange={(e) => set("earliest_travel_date", e.target.value)}
+            <label htmlFor="sector" className={labelCls}>Sector <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="sector"
+              value={sector}
+              onChange={(value) => {
+                setSector(value);
+                set("job_position_id", "");
+                set("job_id", "");
+              }}
               required
-              className="input-field"
+              disabled={!selectedCountry}
+              placeholder={selectedCountry ? "Select a sector…" : "Select a country first…"}
+              options={sectorOptions.map((s) => ({ value: s, label: s }))}
             />
-            {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
           </div>
+          <div>
+            <label htmlFor="job_position_id" className={labelCls}>Position <span className="text-red-500">*</span></label>
+            <SearchableSelect
+              id="job_position_id"
+              value={form.job_position_id}
+              onChange={(value) => {
+                const pos = positionOptions.find((p) => p.id === value);
+                set("job_position_id", value);
+                set("job_id", pos?.jobId ?? "");
+              }}
+              required
+              disabled={!sector}
+              placeholder={sector ? "Select a position…" : "Select a sector first…"}
+              options={positionOptions.map((p) => ({
+                value: p.id,
+                label: p.city ? `${p.title} — ${p.city}` : p.title,
+              }))}
+            />
+            {err("job_position_id") && <p className={errCls}>{err("job_position_id")}</p>}
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="earliest_travel_date" className={labelCls}>Earliest Possible Travel Date <span className="text-red-500">*</span></label>
+          <input
+            id="earliest_travel_date"
+            type="date"
+            value={form.earliest_travel_date}
+            onChange={(e) => set("earliest_travel_date", e.target.value)}
+            required
+            className="input-field max-w-xs"
+          />
+          {err("earliest_travel_date") && <p className={errCls}>{err("earliest_travel_date")}</p>}
         </div>
 
         <div className="mt-4">
@@ -615,20 +767,9 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-3">Section 4 — Payment Plan Acknowledgement</h2>
         <ServiceFeeNotice variant="plain" />
-        <div className="grid grid-cols-3 gap-2 text-center text-xs mb-4">
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 1 · 25%</div>
-            <div className="text-slate-500">On engagement — documentation stage</div>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 2 · 25%</div>
-            <div className="text-slate-500">After the work permit is issued</div>
-          </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-            <div className="font-bold text-emerald-700 mb-1">Stage 3 · 50%</div>
-            <div className="text-slate-500">After the visa is granted</div>
-          </div>
-        </div>
+        {selectedJob?.service_fee_gbp != null && selectedJob.payment_stages.length > 0 && (
+          <PaymentStagesPreview totalGbp={selectedJob.service_fee_gbp} stages={selectedJob.payment_stages} className="mb-4" />
+        )}
         <p className="text-xs text-slate-500 mb-3">
           Air tickets and embassy fees are not included in any programme price and are payable separately.
           Accommodation is provided in every programme and may be deducted from salary by the employer.

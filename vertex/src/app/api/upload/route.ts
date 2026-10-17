@@ -50,7 +50,82 @@ export async function POST(req: NextRequest) {
   const label = (formData.get("label") as string | null)?.trim() || null;
 
   const targetCandidateId = req.nextUrl.searchParams.get("candidate_id");
+  const targetPartnerCandidateId = req.nextUrl.searchParams.get("partner_candidate_id");
   const cifUploadToken = req.headers.get("X-Upload-Token");
+
+  // A partner attaching a real file to their own still-in-progress draft
+  // (2026-09-09) — no real Candidate exists yet to file it under (that
+  // only gets created at final submission), so the Document is filed
+  // directly against the PartnerCandidate row instead and reparented onto
+  // the real Candidate once the draft is finalized (see
+  // finalizeSubmission()). Handled as its own early branch, distinct from
+  // every other target-resolution path below, since none of those resolve
+  // to a Candidate at all.
+  if (targetPartnerCandidateId) {
+    const user = await getAuthUser(req);
+    const guardRes = requireAuth(user);
+    if (guardRes) return guardRes;
+    // Staff entering a partner's backlog on its behalf (HR/Operations/admin
+    // — the same roles POST /api/partner/candidates/draft lets create a
+    // draft) can attach files to any draft; a partner only to its own.
+    const isDraftStaff = ["hr", "operations_team", "operations_director", "admin"].includes(user!.role);
+    if (user!.role !== "partner" && !isDraftStaff) {
+      return forbidden({ error: "Only the owning partner or HR/Operations can upload to a draft." });
+    }
+    const partner = isDraftStaff ? null : await prisma.partner.findUnique({ where: { user_id: user!.userId } });
+    const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { id: targetPartnerCandidateId } });
+    if (!partnerCandidate || (!isDraftStaff && (!partner || partnerCandidate.partner_id !== partner.id))) {
+      return NextResponse.json({ error: "Draft not found." }, { status: 404 });
+    }
+    if (partnerCandidate.status !== "draft") {
+      // Once submitted/bridged, uploads go through the normal
+      // candidate_id=bridged_candidate_id path instead — same as the
+      // existing "partner uploads on behalf of a candidate it just
+      // bridged" branch further down.
+      return NextResponse.json({ error: "This submission is no longer a draft — upload against its candidate_id instead." }, { status: 409 });
+    }
+
+    let saved: Awaited<ReturnType<typeof saveUploadedDocument>>;
+    try {
+      saved = await saveUploadedDocument(file, fileType);
+    } catch (err: unknown) {
+      if (err instanceof MalwareDetectedError) {
+        // Never stored. Record who, which draft, which signature: not the file.
+        await auditSecurityEvent(user!.userId, "PartnerCandidate", partnerCandidate.id, "malware_rejected", {
+          signature: err.signature,
+          document_type: fileType,
+        });
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const db = auditedPrisma(user!.userId);
+
+    if (fileType !== "other") {
+      const existing = await prisma.document.findFirst({
+        where: { partner_candidate_id: partnerCandidate.id, type: fileType },
+      });
+      if (existing) {
+        await deleteUploadedFile(existing.storage_path);
+        await db.document.delete({ where: { id: existing.id } });
+      }
+    }
+
+    const document = await db.document.create({
+      data: {
+        partner_candidate_id: partnerCandidate.id,
+        type: fileType,
+        storage_path: saved.storagePath,
+        label,
+        scan_status: saved.scanStatus,
+        scanned_at: saved.scannedAt,
+      },
+    });
+
+    return NextResponse.json({ documentId: document.id, message: "File uploaded successfully." });
+  }
 
   let candidate: { id: string; lifecycle_status: string } | null;
   let actorId: string | null;

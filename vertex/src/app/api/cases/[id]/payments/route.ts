@@ -43,6 +43,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!allowed) return forbidden({ error: "Forbidden." });
 
+  // The stage must actually belong to this case's own Job — client-
+  // supplied id, not trusted without checking.
+  const jobPaymentStage = caseRecord.application.job_id
+    ? await prisma.jobPaymentStage.findUnique({ where: { id: parsed.data.job_payment_stage_id } })
+    : null;
+  if (!jobPaymentStage || jobPaymentStage.job_id !== caseRecord.application.job_id) {
+    return NextResponse.json({ error: "Payment stage not found for this case's opportunity." }, { status: 404 });
+  }
+
   const countryId = caseRecord.application.candidate.country_id;
   const [countryPolicy, globalPolicy] = await Promise.all([
     countryId ? prisma.feePolicy.findFirst({ where: { country_id: countryId } }) : Promise.resolve(null),
@@ -57,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const payment = await auditedPrisma(user!.userId).casePayment.create({
     data: {
       case_id: id,
-      type: parsed.data.type,
+      job_payment_stage_id: jobPaymentStage.id,
       amount: parsed.data.amount,
       currency: parsed.data.currency,
       receipt_reference: parsed.data.receipt_reference,

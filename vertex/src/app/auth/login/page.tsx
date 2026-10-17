@@ -29,7 +29,10 @@ function LoginForm() {
       body: JSON.stringify(form),
     });
 
-    const data = await res.json();
+    const contentType = res.headers.get("content-type") ?? "";
+    const data = contentType.includes("application/json")
+      ? await res.json()
+      : { error: "Login failed. The server returned an unexpected response." };
     if (res.ok) {
       router.push(redirect);
       router.refresh();

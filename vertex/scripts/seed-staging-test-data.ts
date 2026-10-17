@@ -177,13 +177,22 @@ async function main() {
   // tests stage-advance-allowed + Finance's "Partially Collected" label.
   const amaraCase = await makeCase(amara.application.id, "confirmed", "document_preparation_legalization");
   const existingAmaraPayments = await prisma.casePayment.count({ where: { case_id: amaraCase.id } });
-  if (existingAmaraPayments === 0) {
-    await prisma.casePayment.create({
-      data: { case_id: amaraCase.id, type: "documentation", amount: 500, status: "collected", recorded_by: adminUserId },
+  if (existingAmaraPayments === 0 && amara.application.job_id) {
+    const amaraJobStages = await prisma.jobPaymentStage.findMany({
+      where: { job_id: amara.application.job_id },
+      orderBy: { order: "asc" },
     });
-    await prisma.casePayment.create({
-      data: { case_id: amaraCase.id, type: "permit", amount: 500, status: "pending", sent_to_email: amara.user.email, recorded_by: adminUserId },
-    });
+    const [stage1, stage2] = amaraJobStages;
+    if (stage1) {
+      await prisma.casePayment.create({
+        data: { case_id: amaraCase.id, job_payment_stage_id: stage1.id, amount: 500, status: "collected", recorded_by: adminUserId },
+      });
+    }
+    if (stage2) {
+      await prisma.casePayment.create({
+        data: { case_id: amaraCase.id, job_payment_stage_id: stage2.id, amount: 500, status: "pending", sent_to_email: amara.user.email, recorded_by: adminUserId },
+      });
+    }
   }
 
   // David (partner-sourced): pending ops review — tests the gate applies

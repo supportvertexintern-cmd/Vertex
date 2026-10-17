@@ -8,7 +8,6 @@ import { FINANCE_ROLES } from "@/lib/rbac";
 import { sendCasePaymentInvoiceEmail } from "@/lib/email";
 import { getStorageContent } from "@/lib/upload";
 import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
-import { MILESTONE_DESCRIPTIONS } from "@/server/services/stripeProvisioning";
 
 import { log } from "@/lib/log";
 const CONTENT_TYPES: Record<string, string> = {
@@ -45,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: {
       application: {
         include: {
-          job: { select: { title: true, category: true } },
+          job: { select: { id: true, title: true, category: true } },
           candidate: {
             include: {
               user: { select: { email: true, full_name: true } },
@@ -114,6 +113,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const programmeTitle = caseRecord.application.job?.title ?? "";
   const sectorName = caseRecord.application.job?.category ?? null;
 
+  // The stage must actually belong to this case's own Job — client-
+  // supplied id, not trusted without checking (same pattern as the
+  // invoice-document ownership check above).
+  const jobPaymentStage = caseRecord.application.job
+    ? await prisma.jobPaymentStage.findUnique({ where: { id: parsed.data.job_payment_stage_id } })
+    : null;
+  if (!jobPaymentStage || jobPaymentStage.job_id !== caseRecord.application.job?.id) {
+    return NextResponse.json({ error: "Payment stage not found for this case's opportunity." }, { status: 404 });
+  }
+
   let fileContent: Awaited<ReturnType<typeof getStorageContent>>;
   try {
     fileContent = await getStorageContent(invoiceDocument.storage_path);
@@ -142,7 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       sectorName,
       {
         buffer: fileContent.buffer,
-        filename: `${MILESTONE_DESCRIPTIONS[parsed.data.type].replace(/\s+/g, "_")}_Invoice.${fileContent.extension}`,
+        filename: `${jobPaymentStage.label.replace(/\s+/g, "_")}_Invoice.${fileContent.extension}`,
         contentType: CONTENT_TYPES[fileContent.extension] || "application/octet-stream",
       }
     );
@@ -157,7 +166,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const payment = await auditedPrisma(user!.userId).casePayment.create({
     data: {
       case_id: id,
-      type: parsed.data.type,
+      job_payment_stage_id: jobPaymentStage.id,
       amount: parsed.data.amount,
       currency: "GBP",
       receipt_reference: parsed.data.invoice_reference,
