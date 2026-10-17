@@ -1294,7 +1294,7 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
       Padding(
         padding: const EdgeInsets.only(bottom: 13),
         child: DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           isExpanded: true,
           style: const TextStyle(
             color: VertexColors.gold600,
