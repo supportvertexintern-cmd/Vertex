@@ -8,6 +8,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { CheckCircle, WarningCircle, ChatCircleDots, Clock } from "@phosphor-icons/react";
@@ -17,7 +18,8 @@ interface PartnerCandidateRow {
   full_name: string;
   email: string | null;
   status: string;
-  submitted_at: string;
+  submitted_at: string | null;
+  updated_at: string;
   bridged_candidate_id: string | null;
   partner: { id: string; name: string; contact_email: string };
   job: { title: string; country: string; city: string } | null;
@@ -57,11 +59,16 @@ export default function HrPartnerSubmissionsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(() => urlState.get("q"));
   const [status, setStatus] = useState(() => urlState.get("status"));
+  const [country, setCountry] = useState(() => urlState.get("country"));
+  const [programme, setProgramme] = useState(() => urlState.get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => urlState.get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
   const [page, setPage] = useState(() => urlState.getNumber("page", 1));
   const [error, setError] = useState("");
   const [sortBy, setSortBy] = useState(() => urlState.get("sortBy", "submitted_at"));
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (urlState.get("sortDir") === "asc" ? "asc" : "desc"));
   const isFirstRun = useRef(true);
+  const hasInitializedFromUrl = useRef(false);
 
   const handleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -73,12 +80,16 @@ export default function HrPartnerSubmissionsPage() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     fetch(`/api/partner-candidates?${params}`)
       .then((r) => r.json())
       .then((res) => {
         setRows(res.data ?? []);
         setTotal(res.total ?? 0);
         setSummary(res.summary ?? { pending_review_count: 0, awaiting_reply_count: 0 });
+        if (res.filter_options) setFilterOptions(res.filter_options);
       })
       .catch(() => setError("Failed to load partner submissions."))
       .finally(() => setLoading(false));
@@ -87,23 +98,49 @@ export default function HrPartnerSubmissionsPage() {
   // Skipped on first mount so restoring page from the URL (returning from
   // a detail page) doesn't get immediately reset back to 1.
   useEffect(() => {
-    if (isFirstRun.current) return;
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
     setPage(1);
-  }, [q, status]);
+  }, [q, status, country, programme, programmeCountry]);
 
   useEffect(() => {
-    urlState.set({ page, q, status, sortBy, sortDir });
+    if (!hasInitializedFromUrl.current) {
+      hasInitializedFromUrl.current = true;
+      return;
+    }
+    urlState.set({ page, q, status, country, programme, programmeCountry, sortBy, sortDir });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, q, status, sortBy, sortDir]);
+  }, [page, q, status, country, programme, programmeCountry, sortBy, sortDir]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250);
-    isFirstRun.current = false;
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, page, sortBy, sortDir]);
+  }, [q, status, country, programme, programmeCountry, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Build the current URL with all state for back navigation
+  const currentUrl = (() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
+    if (sortBy !== "submitted_at") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    const qs = params.toString();
+    return qs ? `/hr?${qs}` : "/hr";
+  })();
 
   return (
     <PortalShell roleLabel="Human Resources" navItems={HR_NAV_ITEMS}>
@@ -144,8 +181,19 @@ export default function HrPartnerSubmissionsPage() {
         </div>
       </div>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate or partner name…">
-        <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} />
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, partner, or programme…">
+        <SearchableSelect value={status} onChange={setStatus} className="input-field w-56" options={STATUS_OPTIONS} aria-label="Status" />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}
@@ -154,7 +202,7 @@ export default function HrPartnerSubmissionsPage() {
         <p className="text-midnight-900/50">Loading…</p>
       ) : rows.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || status ? "No submissions match your filters." : "No partner submissions yet."}
+          {q || status || country || programme || programmeCountry ? "No submissions match your filters." : "No partner submissions yet."}
         </div>
       ) : (
         <div className="card overflow-x-auto">
@@ -167,6 +215,7 @@ export default function HrPartnerSubmissionsPage() {
                 <th className="px-5 py-3 font-semibold">Documents</th>
                 <th className="px-5 py-3 font-semibold">Messages</th>
                 <SortableTh label="Submitted" sortKey="submitted_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
+                <SortableTh label="Updated" sortKey="updated_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
                 <SortableTh label="Status" sortKey="status" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
               </tr>
             </thead>
@@ -174,7 +223,7 @@ export default function HrPartnerSubmissionsPage() {
               {rows.map((row) => (
                 <tr key={row.id} className="border-b border-midnight-900/5 last:border-0">
                   <td className="px-5 py-4">
-                    <Link href={`/hr/${row.id}`} className="block">
+                    <Link href={`/hr/${row.id}?back=${encodeURIComponent(currentUrl)}`} className="block">
                       <div className="font-medium text-midnight-900 hover:text-gold-600">{row.full_name}</div>
                       {row.email && <div className="text-xs text-midnight-900/45">{row.email}</div>}
                     </Link>
@@ -212,7 +261,8 @@ export default function HrPartnerSubmissionsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.submitted_at).toLocaleDateString()}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{row.submitted_at ? new Date(row.submitted_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : "—"}</td>
+                  <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(row.updated_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[row.status] ?? "bg-slate-100 text-slate-700"}`}>
                       {formatPartnerCandidateStatus(row.status)}

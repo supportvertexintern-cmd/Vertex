@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, CandidateSource } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { submitApplicationSchema } from "@/lib/validations";
@@ -10,6 +10,7 @@ import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documen
 import { rateLimit } from "@/lib/rate-limit";
 import { screenAndInvite } from "@/server/services/screening";
 import { signCifUploadToken } from "@/lib/jwt";
+import { checkReferralDuplicate, generateReferralCommissionIfDue } from "@/lib/referralMilestones";
 
 import { log } from "@/lib/log";
 const MAX_PAGE_SIZE = 200;
@@ -201,10 +202,31 @@ export async function POST(req: NextRequest) {
   }
 
   // Section 1 is a single required Job pick (2026-07-31, replacing the old
-  // 3-country-alternates + sector cluster).
+  // 3-country-alternates + sector cluster). A closed programme is already
+  // excluded from every job picker, but a client with a stale/pre-loaded
+  // job list (open before it was closed) or a direct ?job= link could
+  // still attempt this — distinct message from "doesn't exist at all"
+  // (2026-09-15), matching the wording shown elsewhere on the site
+  // (/jobs/[id]'s own "No longer accepting applications" state).
   const job = await prisma.job.findUnique({ where: { id: parsed.data.job_id } });
-  if (!job || job.status !== "active") {
-    return NextResponse.json({ error: "Job not found or no longer active." }, { status: 404 });
+  if (!job) {
+    return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
+  }
+  if (job.status !== "active") {
+    return NextResponse.json({ error: "Applications for this programme are closed." }, { status: 404 });
+  }
+
+  // Sector -> Opportunity -> Position (2026-09-02) — a server-side
+  // consistency check, not just trusting the client's own derived
+  // pairing: the position must actually belong to the submitted job.
+  if (parsed.data.job_position_id) {
+    const jobPosition = await prisma.jobPosition.findUnique({
+      where: { id: parsed.data.job_position_id },
+      include: { job_sector: true },
+    });
+    if (!jobPosition || jobPosition.job_sector.job_id !== job.id) {
+      return NextResponse.json({ error: "Selected position does not belong to this opportunity." }, { status: 422 });
+    }
   }
 
   // Ensure payment is completed if fee required. A candidate with no
@@ -258,10 +280,25 @@ export async function POST(req: NextRequest) {
     // /api/candidates/:id/status), not a country-based recruiter pickup.
     const recruiterId = user?.role === "regional_recruiter" ? user.userId : null;
 
+    // Referral attribution (2026-08-29) — resolves a ?ref= code captured
+    // on /apply (see ApplicationForm.tsx) into a ReferralAgent, only for
+    // a genuine self-service submission (never a staff walk-in). An
+    // invalid, unknown, or non-active code silently falls through to
+    // self_registered — this must never block registration.
+    let source: CandidateSource = isStaffSubmission ? "recruiter_sourced" : "self_registered";
+    let referralAgentId: string | null = null;
+    if (!isStaffSubmission && parsed.data.referral_code) {
+      const agent = await prisma.referralAgent.findUnique({ where: { referral_code: parsed.data.referral_code } });
+      if (agent && agent.status === "active") {
+        source = "referral_sourced";
+        referralAgentId = agent.id;
+      }
+    }
+
     // Non-null assertions below: submitApplicationSchema's superRefine
     // already required these fields since candidate_id was absent (the
     // only way to reach isNewCandidate: true).
-    candidate = await db.candidate.create({
+    const newCandidate = await db.candidate.create({
       data: {
         full_name: parsed.data.full_name!,
         nationality: parsed.data.nationality!,
@@ -279,14 +316,26 @@ export async function POST(req: NextRequest) {
         marital_status: parsed.data.marital_status,
         consent_given: true,
         consent_at: new Date(),
-        source: isStaffSubmission ? "recruiter_sourced" : "self_registered",
+        source,
         recruiter_id: recruiterId,
+        referral_agent_id: referralAgentId,
         country_name: parsed.data.current_location_country_name,
         country_id: currentLocationCountry?.id ?? null,
         lifecycle_status: "identified",
       },
       include: { user: true, documents: { select: { type: true } } },
     });
+    candidate = newCandidate;
+
+    if (referralAgentId) {
+      await checkReferralDuplicate({
+        candidateId: newCandidate.id,
+        email: newCandidate.email,
+        phone: newCandidate.phone,
+        passport_number: newCandidate.passport_number,
+      });
+      await generateReferralCommissionIfDue({ candidateId: newCandidate.id, milestone: "registered", actorId: user?.userId ?? null });
+    }
   } else if (user?.role === "candidate") {
     // Signed-in candidate submitting the CIF for the first time (or
     // reviewing/completing it) — the same Section 2 fields as a brand-new
@@ -324,6 +373,7 @@ export async function POST(req: NextRequest) {
     data: {
       candidate_id: activeCandidate.id,
       job_id: parsed.data.job_id,
+      job_position_id: parsed.data.job_position_id,
       cover_letter: parsed.data.cover_letter,
       earliest_travel_date: new Date(parsed.data.earliest_travel_date),
       prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,

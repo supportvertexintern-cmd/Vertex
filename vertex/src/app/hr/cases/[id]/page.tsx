@@ -19,15 +19,18 @@ export default function HrCaseDetailPage({ params }: { params: Promise<{ id: str
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Case detail.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Case status and document updates are handled by Operations, payments by Finance. Use Reject Case to
-        close a case you created by mistake, or edit the application's own details directly below.
+        Case stage and payments are handled by Operations and Finance — you can still attach a document that
+        wasn't part of the original checklist. Use Reject Case to close a case you created by mistake, or edit
+        the application's own details directly below.
       </p>
       <CaseDetail
         caseId={id}
         capabilities={{
           advanceStage: false,
           manageContract: false,
-          manageDocuments: false,
+          // HR can attach additional documents of any category (2026-09-14)
+          // — previously read-only here, deferring entirely to Operations.
+          manageDocuments: true,
           managePayments: false,
           manageRetention: false,
           sendReminder: false,
@@ -35,6 +38,10 @@ export default function HrCaseDetailPage({ params }: { params: Promise<{ id: str
           manageOpsReview: false,
           rejectCase: true,
           editApplication: true,
+          undoPayments: false,
+          // NEW — HR-only (2026-09-25). Overturns a rejection HR itself
+          // made by mistake and reassigns the case to one or more roles.
+          overturnRejection: true,
         }}
       />
     </PortalShell>

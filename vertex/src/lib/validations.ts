@@ -2,10 +2,31 @@ import { z } from "zod";
 import { MARITAL_STATUS_VALUES } from "@/lib/maritalStatus";
 import { GENDER_VALUES } from "@/lib/gender";
 
-// Treats an empty string as "not provided" before validating an optional
-// field's format — otherwise z.string().email().optional() rejects "" from
-// an untouched form input, since .optional() only short-circuits undefined.
-const optionalEmail = z.preprocess((val) => (val === "" ? undefined : val), z.string().email().optional());
+// The 11 CaseStage enum values, in order — shared by advanceCaseStageSchema
+// (which stage a Case is moving to) and createJobSchema's payment_stages
+// (which stage a payment installment is due at), since both need the same
+// exact literal union.
+const CASE_STAGES = [
+  "registration_document_submission",
+  "document_preparation_legalization",
+  "permit_application_submission",
+  "permit_processing_followup",
+  "permit_authorization_approved",
+  "original_documents_dispatch",
+  "partner_receives_permit",
+  "visa_interview_preparation",
+  "visa_interview_decision",
+  "pre_departure_arrangements",
+  "departure_arrival_support",
+] as const;
+
+// Treats an empty string (or null) as "not provided" before validating an
+// optional field's format — otherwise z.string().email().optional() rejects
+// "" from an untouched form input, since .optional() only short-circuits
+// undefined. null matters for edit forms that echo back a stored value the
+// record never had (e.g. a partner submission's email, no longer collected
+// since 2026-08-15), which broke every "Save Changes" on such a submission.
+const optionalEmail = z.preprocess((val) => (val === "" || val === null ? undefined : val), z.string().email().optional());
 
 // Same "" → undefined treatment for an optional date-input field. Without
 // this, an untouched <input type="date"> sends "" (passes .optional() the
@@ -106,16 +127,82 @@ export const createJobSchema = z.object({
   job_description: z.string().min(50, "Job description must be at least 50 characters"),
   requirements: z.string().min(20, "Requirements must be at least 20 characters"),
   status: z.enum(["active", "closed", "draft"]).default("active"),
-  employer_client_id: z.string().cuid().optional(),
+  // .nullish() (not .optional()) on these five (2026-09-14) — the edit
+  // form always submits the full object, and an intentionally-cleared
+  // field sends an explicit null so PUT can actually null the column out.
+  // .optional() alone can't distinguish "cleared" from "untouched" once
+  // JSON.stringify drops the undefined key entirely; see PUT /api/jobs/:id.
+  // Not z.string().cuid(): seeded EmployerClient rows (e.g. "emp_polish_agro")
+  // use hand-written ids that fail the cuid format, and PUT /api/jobs/:id
+  // always carries this field — a strict cuid check silently 422d every edit
+  // of such jobs. Referential integrity is still enforced by the FK.
+  employer_client_id: z.string().min(1).max(100).nullish(),
   // Work-permit programme / pricing fields (Service & Pricing List) — all
   // optional since a plain employer job posting (SRS FR-5.2) has none of
   // these. service_fee_gbp is the total; the 20/40/40 stage split is
   // derived at render time, not stored (see prisma/seed.ts).
-  visa_type: z.string().optional(),
-  duration_permit: z.string().optional(),
-  processing_time: z.string().optional(),
-  service_fee_gbp: z.number().positive().optional(),
-  visa_success_rates: z.string().optional(),
+  visa_type: z.string().nullish(),
+  duration_permit: z.string().nullish(),
+  processing_time: z.string().nullish(),
+  service_fee_gbp: z.number().positive().nullish(),
+  visa_success_rates: z.string().nullish(),
+  // Display/grouping flag only (2026-09-16) — see Job.is_credit_service in
+  // schema.prisma. No longer drives payment math; that's payment_stages
+  // below now, for every Job regardless of this flag's value.
+  is_credit_service: z.boolean().default(false),
+  // Flexible per-Job payment schedule (2026-09-16, replacing the old fixed
+  // 25/25/50 / two-stage / upfront+installments shapes) — any number of
+  // stages, each an arbitrary percent of service_fee_gbp due once the Case
+  // reaches trigger_stage. Optional at the base-schema level (a plain
+  // employer posting with no service_fee_gbp has none), but POST /api/jobs
+  // and PUT /api/jobs/:id both validate that when stages ARE given, their
+  // percentages total AT MOST 100 — financed/credit programmes list only
+  // the stages actually collected through the platform, so they may total
+  // less than 100% (2026-10-04). That check needs the full array
+  // (impossible to express as a single field's own .refine()), so it lives
+  // at the route call site, same pattern already used for
+  // is_credit_service's own financing_percent/installment_count
+  // requirement before this change.
+  payment_stages: z
+    .array(
+      z.object({
+        order: z.number().int().positive(),
+        label: z.string().min(1).max(100),
+        percent: z.number().positive().max(100),
+        trigger_stage: z.enum(CASE_STAGES),
+      })
+    )
+    .optional(),
+  partner_only: z.boolean().default(false),
+});
+
+// Programme sectors & positions (2026-09-02) — Marketing attaches one of
+// the same 8 canonical sector names already used everywhere else (the
+// Job.category values, both forms' SECTOR_ORDER constant) to a specific
+// Job, not free text.
+const CANONICAL_SECTORS = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+] as const;
+
+export const createJobSectorSchema = z.object({
+  sector: z.enum(CANONICAL_SECTORS),
+});
+
+export const createJobPositionSchema = z.object({
+  title: z.string().min(2, "Title is required").max(150),
+  city: z.string().max(100).optional(),
+});
+
+export const updateJobPositionSchema = z.object({
+  title: z.string().min(2).max(150).optional(),
+  city: z.string().max(100).nullish(),
 });
 
 // Applications — the Candidate Information Form: the first thing a
@@ -137,11 +224,22 @@ export const submitApplicationSchema = z
     // replacing the old 3-country-alternates + sector cluster, for both the
     // public self-submission and the recruiter's own walk-in-lead form).
     job_id: z.string().cuid("Select your opportunity"),
+    // Sector -> Opportunity -> Position (2026-09-02) — optional at the
+    // schema layer (defensive; an old cached page shouldn't hard-fail if
+    // omitted), enforced by the client UI instead. Re-validated server-side
+    // against job_id in the route itself (a position must actually belong
+    // to the submitted job).
+    job_position_id: z.string().cuid().optional(),
     cover_letter: z.string().optional(),
     // Present when staff submits on behalf of an existing candidate record
     // (SRS FR-2.1) — otherwise the authenticated candidate's own profile is
     // used, or (if neither applies) a brand-new Candidate is created.
     candidate_id: z.string().cuid().optional(),
+    // Referral Agent attribution (2026-08-29) — captured from ?ref= on
+    // /apply, never validated against a real ReferralAgent here (that
+    // happens server-side in the route); an invalid/unknown/inactive code
+    // silently produces no attribution rather than a validation error.
+    referral_code: z.string().max(30).optional(),
 
     // Section 2 — Candidate Personal Information. Required only when this
     // submission creates/completes a brand-new Candidate — see the
@@ -336,8 +434,17 @@ export const verifyDocumentSchema = z.object({
 // at submission (Sections 3 + 6), so a partner can actually fix any of it
 // afterward, not just name/email/nationality/passport.
 export const updatePartnerCandidateDetailsSchema = z.object({
+  // Programme Information (2026-09-03) — lets a partner correct their own
+  // submission's Country/Sector/Position choice, same as staff can via
+  // ApplicationEditDetails/PATCH /api/candidates/:id/application. job_id
+  // is required whenever job_position_id is set (enforced in the route,
+  // not here — the route derives job_id from the position server-side to
+  // guard against a mismatched pair, same as POST /api/partner/candidates
+  // does at submission time).
+  job_id: z.string().cuid().optional(),
+  job_position_id: z.string().cuid().nullable().optional(),
   full_name: z.string().min(2).max(150).optional(),
-  email: z.string().email().optional(),
+  email: optionalEmail,
   nationality: z.string().min(2).max(100).optional(),
   second_nationality: z.string().max(100).optional(),
   gender: optionalGender,
@@ -360,6 +467,10 @@ export const updatePartnerCandidateDetailsSchema = z.object({
   available_for_embassy_appointment: z.boolean().optional(),
   willing_to_start_within_30_days: z.boolean().optional(),
   preferred_contact_channel: z.enum(["email", "whatsapp"]).optional(),
+  // Draft-save support (2026-09-09) — lets in-place PATCH edits persist
+  // Section 4/5 progress too, not just personal/programme info.
+  documents_available: z.array(z.string().min(1).max(60)).optional(),
+  payment_plan_acknowledged: z.boolean().optional(),
 });
 
 // CRM Comments follow-up (2026-08-10) — staff correcting the Application-
@@ -372,6 +483,12 @@ export const updateApplicationDetailsSchema = z.object({
   // section... including Programme Information" must be editable, not
   // just Personal Information and Visa/Travel Readiness).
   job_id: z.string().cuid().optional(),
+  // job_position_id (2026-09-03) — added alongside the Sector -> Opportunity
+  // -> Position picker; explicit null (not just undefined/omitted) clears a
+  // stale position that no longer belongs to a newly-picked job_id, since
+  // "field omitted" already means "leave unchanged" for every other field
+  // in this schema.
+  job_position_id: z.string().cuid().nullable().optional(),
   earliest_travel_date: z.string().optional(),
   prior_eu_visa_applied: z.boolean().optional(),
   prior_eu_visa_applied_details: z.string().max(500).optional(),
@@ -402,6 +519,10 @@ export const updateCandidateDetailsSchema = z.object({
   home_address: z.string().max(500).optional(),
   whatsapp_number: z.string().max(30).optional(),
   marital_status: optionalMaritalStatus,
+  // Referral Agent System (2026-08-29) — HR's manual "Clear flag"
+  // affordance after reviewing a duplicate-candidate warning, same
+  // record-through-the-existing-PATCH pattern as consent_given above.
+  referral_duplicate_flag: z.boolean().optional(),
 });
 
 // Candidate lifecycle status transitions (SRS FR-2.4, FR-2.5, FR-2.7)
@@ -720,26 +841,17 @@ export const contactFormSchema = z.object({
 
 // ── Phase 4: Extended Mobility Lifecycle ────────────────────────────────
 
-const CASE_STAGES = [
-  "registration_document_submission",
-  "document_preparation_legalization",
-  "permit_application_submission",
-  "permit_processing_followup",
-  "permit_authorization_approved",
-  "original_documents_dispatch",
-  "partner_receives_permit",
-  "visa_interview_preparation",
-  "visa_interview_decision",
-  "pre_departure_arrangements",
-  "departure_arrival_support",
-] as const;
-
 export const advanceCaseStageSchema = z.object({
   stage: z.enum(CASE_STAGES),
   notes: z.string().max(2000).optional(),
-  // Staff-entered expected completion of the stage being entered (FR-4.4)
-  // — never system-computed from an assumed SLA, since none is specified.
-  stage_deadline: z.string().optional(),
+  // The effective date this stage transition actually took place
+  // (2026-09-15) — becomes the new CaseStageEvent's entered_at, so
+  // Operations can backdate/postdate to match reality (e.g. when a permit
+  // was really issued) rather than whatever day they got to updating the
+  // CRM. Defaults to now() server-side when omitted. Replaces the old
+  // forward-looking stage_deadline field, which this codebase confirmed
+  // wasn't actually how Operations used this input.
+  stage_date: z.string().optional(),
 });
 
 // CRM Comments item 3 (2026-08-10) — Operations/Director's documentation
@@ -761,6 +873,11 @@ export const caseRejectSchema = z.object({
   reason: z.string().min(1, "A reason is required.").max(2000),
 });
 
+// Overturn a rejection and change case status (2026-09-25) — see PATCH /api/cases/[id]/overturn.
+export const overturnRejectionSchema = z.object({
+  status: z.enum(["active", "rejected"]),
+});
+
 export const createContractSchema = z.object({
   content: z.string().min(20).max(20000),
 });
@@ -769,11 +886,12 @@ export const signContractSchema = z.object({
   signed_by_name: z.string().min(2).max(200),
 });
 
-// The 3-stage plan from the Candidate Information Form: documentation
-// (Stage 1 · 25%, on engagement), permit (Stage 2 · 25%, after the work
-// permit is issued), visa (Stage 3 · 50%, after the visa is granted).
+// Which of the Job's own payment_stages this record is for (2026-09-16,
+// flexible per-Job payment stages — any number of stages, any shape, not
+// the old fixed documentation/permit/visa/upfront set). Validated
+// server-side to actually belong to the Case's own Job.
 export const recordCasePaymentSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  job_payment_stage_id: z.string().cuid(),
   amount: z.number().positive(),
   currency: z.string().length(3).default("USD"),
   receipt_reference: z.string().max(200).optional(),
@@ -785,9 +903,9 @@ export const recordCasePaymentSchema = z.object({
 });
 
 // A director/admin generating a Stripe Payment Link for one of a case's
-// 3 milestones, sent to whichever party is financially responsible.
+// payment stages, sent to whichever party is financially responsible.
 export const generateCasePaymentLinkSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  job_payment_stage_id: z.string().cuid(),
   recipient: z.enum(["candidate", "partner"]),
 });
 
@@ -799,7 +917,7 @@ export const generateCasePaymentLinkSchema = z.object({
 // uploaded via the existing /api/upload pipeline first — this just
 // records the amount/recipient and attaches that upload to the email.
 export const sendCaseInvoiceSchema = z.object({
-  type: z.enum(["documentation", "permit", "visa"]),
+  job_payment_stage_id: z.string().cuid(),
   amount: z.number().positive(),
   recipient: z.enum(["candidate", "partner"]),
   invoice_document_id: z.string().cuid("Attach the invoice file first."),
@@ -914,6 +1032,7 @@ export const submitPartnerCandidateSchema = z.object({
   marital_status: optionalMaritalStatus,
 
   job_id: z.string().cuid("Select the candidate's opportunity"),
+  job_position_id: z.string().cuid().optional(),
   earliest_travel_date: z.string().min(1, "Earliest possible travel date is required"),
   prior_eu_visa_applied: z.boolean().optional(),
   prior_eu_visa_applied_details: z.string().max(500).optional(),
@@ -935,6 +1054,16 @@ export const submitPartnerCandidateSchema = z.object({
   // email, or WhatsApp collected, there's no candidate-facing channel for
   // Vertex to pick between; the partner is contacted instead, always.
   preferred_contact_channel: z.enum(["email", "whatsapp"]).optional(),
+});
+
+// Draft-save support (2026-09-09) — a partner can save an in-progress
+// submission with any subset of fields filled in. .partial() applies
+// cleanly since submitPartnerCandidateSchema has no top-level .refine().
+// payment_plan_acknowledged needs an explicit override: .partial() alone
+// would leave it as z.literal(true).optional(), which still rejects an
+// explicit false — a draft must tolerate the checkbox being unticked.
+export const savePartnerCandidateDraftSchema = submitPartnerCandidateSchema.partial().extend({
+  payment_plan_acknowledged: z.boolean().optional(),
 });
 
 // Phase 5: Employer/Client CRM (SRS FR-5.2) — the employer a vacancy is
@@ -972,6 +1101,70 @@ export const contactMessageSchema = z.object({
   // include its registration/licence number; optional since most contact
   // messages aren't from partners at all.
   registration_number: z.string().max(100).optional(),
+});
+
+// Public self-registration for the Referral Agent System (2026-08-29) —
+// mirrors createPartnerSchema's shape/style, but every field beyond the
+// core identity ones is optional (the brief's own promotion/network
+// fields are useful context for approval, not hard requirements to apply).
+export const registerReferralAgentSchema = z.object({
+  full_name: z.string().min(2, "Full name is required").max(150),
+  email: z.string().email("A valid email is required"),
+  phone: z.string().min(3, "Phone number is required").max(30),
+  whatsapp_number: z.string().max(30).optional(),
+  country: z.string().min(2, "Country is required").max(100),
+  city: z.string().max(100).optional(),
+  date_of_birth: z.string().optional(),
+  nationality: z.string().max(100).optional(),
+  preferred_contact_channel: z.enum(["email", "whatsapp", "phone"]).optional(),
+  previous_experience: z.string().max(2000).optional(),
+  current_occupation: z.string().max(150).optional(),
+  network_size: z.coerce.number().int().min(0).optional(),
+  social_media_profiles: z.string().max(1000).optional(),
+  promotion_plan: z.string().max(2000).optional(),
+  payment_details: z.string().max(500).optional(),
+});
+
+// Director/Admin provisions a Referral Agent's own login on approval — same
+// email-override shape as provisionPartnerAccountSchema.
+export const approveReferralAgentSchema = z.object({
+  email: z.string().email().optional(),
+});
+
+// Covers reject (pending_approval -> rejected), suspend (active ->
+// suspended), and reactivate (suspended -> active) in one route — reason
+// is required for reject/suspend (enforced in the route, since it depends
+// on which status is targeted) and ignored for reactivate.
+export const updateReferralAgentStatusSchema = z.object({
+  status: z.enum(["rejected", "suspended", "active"]),
+  reason: z.string().max(2000).optional(),
+});
+
+// Commission-rule grid (2026-08-29) — one row per (country, milestone),
+// amount explicitly allowed to be 0 (some milestones legitimately pay
+// nothing, per the business — z.number().min(0) allows this, it's not
+// treated as "unset").
+export const upsertReferralCommissionRuleSchema = z.object({
+  country_id: z.string().cuid(),
+  milestone: z.enum(["registered", "qualified", "application_submitted", "work_permit_approved", "visa_approved", "deployed"]),
+  amount: z.coerce.number().min(0),
+  currency: z.string().min(1).max(10).default("USD"),
+});
+
+// Commission payout confirmation (2026-08-29) — receipt is optional here,
+// unlike markCasePaymentPaidSchema's required one: the underlying
+// milestone event (the ReferralCommission row itself) is already the
+// record of what happened, so a receipt is a nice-to-have, not the only
+// proof.
+export const markReferralCommissionPaidSchema = z.object({
+  payment_reference: z.string().max(200).optional(),
+  payment_method: z.string().max(100).optional(),
+});
+
+export const createReferralAgentTargetSchema = z.object({
+  period_start: z.string().min(1, "Start date is required"),
+  period_end: z.string().min(1, "End date is required"),
+  target_referrals: z.coerce.number().int().min(0),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

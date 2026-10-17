@@ -5,6 +5,7 @@ import { PencilSimple } from "@phosphor-icons/react";
 import SearchableSelect from "@/components/SearchableSelect";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
+import { describeApiError } from "@/lib/apiError";
 
 interface CandidateEditableDetails {
   date_of_birth: string | null;
@@ -80,7 +81,7 @@ export default function CandidateEditDetails({ candidateId, initial, onSaved }: 
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(body.error?.message ?? "Update failed.");
+        setError(describeApiError(body, "Update failed."));
         return;
       }
       onSaved(body.data);
