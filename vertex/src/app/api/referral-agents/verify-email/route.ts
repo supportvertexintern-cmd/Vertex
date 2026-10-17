@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyReferralAgentEmailVerificationToken } from "@/lib/jwt";
+import { limitByIp } from "@/lib/rate-limit";
 
 // GET /api/referral-agents/verify-email — mirrors /api/auth/verify-email,
 // but updates ReferralAgent.email_verified. No User/session exists yet at
 // this point (the agent isn't approved/provisioned), so this is a public,
 // unauthenticated route gated only by the token itself.
 export async function GET(req: NextRequest) {
+  const limited = limitByIp(req, "referral-agent-verify-email", { windowMs: 15 * 60_000, max: 10 });
+  if (limited) return limited;
+
   const token = req.nextUrl.searchParams.get("token");
 
   if (!token) {

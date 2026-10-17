@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { BACKUP_ROLES } from "@/server/backup/catalog";
 import { buildExport, exportRequestSchema, ExportValidationError } from "@/server/backup/exporter";
+import { log } from "@/lib/log";
+import { auditAccess } from "@/lib/audit";
 
 // A large full backup can take a while to page through every table.
 export const maxDuration = 60;
@@ -33,19 +35,12 @@ export async function POST(req: NextRequest) {
       parsed.data
     );
 
-    await prisma.auditLog.create({
-      data: {
-        entity_type: "DataExport",
-        entity_id: result.filename,
-        action: "export",
-        actor_id: user!.userId,
-        after: {
-          export_type: result.manifest.export_type,
-          role: user!.role,
-          request: parsed.data,
-          sections: result.summary,
-        },
-      },
+    await auditAccess(user!.userId, "DataExport", "export", {
+      filename: result.filename,
+      export_type: result.manifest.export_type,
+      role: user!.role,
+      request: parsed.data,
+      sections: result.summary,
     });
 
     return new NextResponse(new Uint8Array(result.zip), {
@@ -64,7 +59,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof ExportValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
-    console.error("Backup export failed:", err);
+    log.error("api.backup_export_failed", { err });
     return NextResponse.json({ error: "Export failed. Please try again." }, { status: 500 });
   }
 }

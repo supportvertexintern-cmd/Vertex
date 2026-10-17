@@ -57,9 +57,6 @@ export async function GET(req: NextRequest) {
   );
 
   const where: Prisma.PartnerCandidateWhereInput = {
-    // Drafts (unsubmitted, possibly half-empty) aren't part of this app's
-    // review flow; ?status=draft can't bring them back.
-    AND: [{ status: { not: "draft" } }],
     ...(status ? { status: status as never } : {}),
     ...(q
       ? {

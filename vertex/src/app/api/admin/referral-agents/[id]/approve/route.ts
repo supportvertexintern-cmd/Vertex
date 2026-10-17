@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { approveReferralAgentSchema } from "@/lib/validations";
 import { sendAccountSetupInviteEmail, sendReferralAgentApprovedEmail } from "@/lib/email";
+import { log } from "@/lib/log";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -66,8 +67,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   const referralLink = `${APP_URL}/apply?ref=${agent.referral_code}`;
-  await sendReferralAgentApprovedEmail(agent.email, agent.full_name, agent.referral_code, referralLink).catch(console.error);
-  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch(console.error);
+  await sendReferralAgentApprovedEmail(agent.email, agent.full_name, agent.referral_code, referralLink).catch((err) => log.error("email.send_failed", { err }));
+  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updated }, { status: 201 });
 }

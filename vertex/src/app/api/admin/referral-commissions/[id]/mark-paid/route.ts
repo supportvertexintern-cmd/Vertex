@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { markReferralCommissionPaidSchema } from "@/lib/validations";
 import { sendReferralCommissionPaidEmail } from "@/lib/email";
+import { log } from "@/lib/log";
 
 // POST /api/admin/referral-commissions/:id/mark-paid — approved -> paid.
 // Mirrors cases/:id/payments/:paymentId/mark-paid's manual confirmation
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     commission.candidate.full_name ?? "your referral",
     commission.amount,
     commission.currency
-  ).catch(console.error);
+  ).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updated });
 }

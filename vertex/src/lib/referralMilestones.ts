@@ -4,6 +4,7 @@ import type { CandidateLifecycleStatus, ReferralMilestone } from "@prisma/client
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { sendReferralCommissionEarnedEmail } from "@/lib/email";
+import { log } from "@/lib/log";
 
 // The two lifecycle_status transitions (pre-Case) that map to a referral
 // milestone — reuses the exact existing CandidateLifecycleStatus values,
@@ -81,7 +82,7 @@ export async function generateReferralCommissionIfDue({ candidateId, milestone, 
 
   if (amount > 0) {
     after(() =>
-      sendReferralCommissionEarnedEmail(commission.referral_agent.email, commission.referral_agent.full_name, candidate.full_name ?? "your referral", milestone, amount, currency).catch(console.error)
+      sendReferralCommissionEarnedEmail(commission.referral_agent.email, commission.referral_agent.full_name, candidate.full_name ?? "your referral", milestone, amount, currency).catch((err) => log.error("email.send_failed", { err }))
     );
   }
 }

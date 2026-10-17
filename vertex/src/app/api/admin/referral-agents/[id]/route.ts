@@ -5,6 +5,7 @@ import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { updateReferralAgentStatusSchema } from "@/lib/validations";
 import { sendReferralAgentRejectedEmail, sendReferralAgentSuspendedEmail } from "@/lib/email";
+import { log } from "@/lib/log";
 
 // GET /api/admin/referral-agents/:id — detail, including referred
 // candidates and the commission ledger, Director/Admin only.
@@ -103,9 +104,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   if (target === "rejected") {
-    await sendReferralAgentRejectedEmail(existing.email, existing.full_name, reason!).catch(console.error);
+    await sendReferralAgentRejectedEmail(existing.email, existing.full_name, reason!).catch((err) => log.error("email.send_failed", { err }));
   } else if (target === "suspended") {
-    await sendReferralAgentSuspendedEmail(existing.email, existing.full_name, reason!).catch(console.error);
+    await sendReferralAgentSuspendedEmail(existing.email, existing.full_name, reason!).catch((err) => log.error("email.send_failed", { err }));
   }
 
   return NextResponse.json({ data: updated });

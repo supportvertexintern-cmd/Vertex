@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { registerReferralAgentSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
+import { limitByIp } from "@/lib/rate-limit";
 import { generateReferralCode } from "@/lib/referralMilestones";
 import { signReferralAgentEmailVerificationToken } from "@/lib/jwt";
+import { log } from "@/lib/log";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // POST /api/referral-agents/register — public, unauthenticated. Same
 // anonymous-submission rate limit as /api/contact and /api/applications.
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`referral-agent-register:${ip}`, { max: 5, windowMs: 60_000 });
-  if (!rl.success) {
-    return NextResponse.json({ error: "Too many applications. Please try again later." }, { status: 429 });
-  }
+  const limited = limitByIp(req, "referral-agent-register", { max: 5, windowMs: 60_000 });
+  if (limited) return limited;
 
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
@@ -49,10 +47,10 @@ export async function POST(req: NextRequest) {
   after(async () => {
     const { sendReferralAgentApplicationReceivedEmail, sendReferralAgentAdminNotificationEmail } = await import("@/lib/email");
     await sendReferralAgentApplicationReceivedEmail(agent.email, agent.full_name, verifyUrl).catch((err) =>
-      console.error("Failed to send referral agent application received email.", err)
+      log.error("email.failed_to_send_referral_agent_application_received", { err })
     );
     await sendReferralAgentAdminNotificationEmail(agent.full_name, agent.country).catch((err) =>
-      console.error("Failed to send referral agent admin notification email.", err)
+      log.error("email.failed_to_send_referral_agent_admin_notification", { err })
     );
   });
 

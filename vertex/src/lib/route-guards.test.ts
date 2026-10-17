@@ -75,8 +75,13 @@ describe("API route guards", () => {
 
   // Zero-trust §9 / 5.5: bulk reads of personal data must leave an audit trail.
   it("bulk exports and backups are audited", () => {
+    // Reviewed exceptions: no row data leaves these handlers.
+    const NO_ROW_DATA: Record<string, string> = {
+      "GET /api/backup/catalog": "describes tables and columns from the Prisma schema; returns no records",
+    };
     const unaudited = all
       .filter((h) => /\/(export|backup)(\/|$)/.test(h.key))
+      .filter((h) => !(h.key in NO_ROW_DATA))
       .filter((h) => !/auditAccess\(/.test(h.body))
       .map((h) => h.key);
     expect(unaudited, "call auditAccess() before returning exported data").toEqual([]);

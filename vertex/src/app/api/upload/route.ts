@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     // draft) can attach files to any draft; a partner only to its own.
     const isDraftStaff = ["hr", "operations_team", "operations_director", "admin"].includes(user!.role);
     if (user!.role !== "partner" && !isDraftStaff) {
-      return NextResponse.json({ error: "Only the owning partner or HR/Operations can upload to a draft." }, { status: 403 });
+      return forbidden({ error: "Only the owning partner or HR/Operations can upload to a draft." });
     }
     const partner = isDraftStaff ? null : await prisma.partner.findUnique({ where: { user_id: user!.userId } });
     const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { id: targetPartnerCandidateId } });
@@ -85,10 +85,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This submission is no longer a draft — upload against its candidate_id instead." }, { status: 409 });
     }
 
-    let storagePath: string;
+    let saved: Awaited<ReturnType<typeof saveUploadedDocument>>;
     try {
-      storagePath = await saveUploadedFile(file, fileType);
+      saved = await saveUploadedDocument(file, fileType);
     } catch (err: unknown) {
+      if (err instanceof MalwareDetectedError) {
+        // Never stored. Record who, which draft, which signature: not the file.
+        await auditSecurityEvent(user!.userId, "PartnerCandidate", partnerCandidate.id, "malware_rejected", {
+          signature: err.signature,
+          document_type: fileType,
+        });
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
       const message = err instanceof Error ? err.message : "Upload failed.";
       return NextResponse.json({ error: message }, { status: 400 });
     }
@@ -109,8 +117,10 @@ export async function POST(req: NextRequest) {
       data: {
         partner_candidate_id: partnerCandidate.id,
         type: fileType,
-        storage_path: storagePath,
+        storage_path: saved.storagePath,
         label,
+        scan_status: saved.scanStatus,
+        scanned_at: saved.scannedAt,
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
+import { auditAccess } from "@/lib/audit";
 import {
   BACKUP_ROLES,
   canExportModel,
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
   const model = getModel(modelName);
   if (!model || !canExportModel(user!.role, modelName)) {
-    return NextResponse.json({ error: "Table not available for export." }, { status: 403 });
+    return forbidden({ error: "Table not available for export." });
   }
 
   const pk = primaryKey(model);
@@ -84,6 +85,10 @@ export async function GET(req: NextRequest) {
     orderBy: dateField ? { [dateField]: "desc" } : { [pk]: "asc" },
     take: 25,
   });
+
+  // Labels can be personal data (a candidate's name): record who looked up
+  // which table and how many rows came back, never the search text.
+  await auditAccess(user!.userId, modelName, "export", { purpose: "backup_record_picker", rows: rows.length, searched: q !== "" });
 
   return NextResponse.json({
     records: rows.map((row) => {

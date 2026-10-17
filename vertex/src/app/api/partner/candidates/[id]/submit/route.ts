@@ -4,6 +4,7 @@ import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { submitPartnerCandidateSchema } from "@/lib/validations";
 import { finalizeSubmission } from "@/server/services/partnerCandidateSubmission";
+import { log } from "@/lib/log";
 
 // POST /api/partner/candidates/:id/submit — finalize a draft into a real
 // submission (2026-09-09). Full submitPartnerCandidateSchema validation —
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const { sendPartnerCandidateSubmittedEmail } = await import("@/lib/email");
       await sendPartnerCandidateSubmittedEmail(owningPartner.name, partnerCandidate.full_name ?? "the candidate");
     } catch (err) {
-      console.error("Failed to send partner-candidate submission notification.", err);
+      log.error("api.failed_to_send_partner_candidate_submission_notification", { err });
     }
   });
 
