@@ -288,7 +288,7 @@ class _CaseInformationFormState extends State<CaseInformationForm> {
       Padding(
         padding: const EdgeInsets.only(bottom: 13),
         child: DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           isExpanded: true,
           style: const TextStyle(
               color: VertexColors.gold600, fontSize: 14, fontWeight: FontWeight.w600),

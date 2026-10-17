@@ -136,7 +136,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   isExpanded: true,
                   style: const TextStyle(
                       color: VertexColors.gold600,
