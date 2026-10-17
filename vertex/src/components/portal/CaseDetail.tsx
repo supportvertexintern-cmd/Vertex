@@ -1,20 +1,31 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import DocumentLink from "@/components/DocumentLink";
 import DocumentVerifyControls from "@/components/DocumentVerifyControls";
 import SearchableSelect from "@/components/SearchableSelect";
 import CandidateEditDetails from "./CandidateEditDetails";
+import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import ApplicationEditDetails from "./ApplicationEditDetails";
 import CaseStageProgress from "./CaseStageProgress";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseStages";
-import { CASE_UPLOAD_EXCLUDED_KEYS, PAYMENT_RECEIPT_TYPE_KEYS, paymentReceiptTypeKey } from "@/lib/documentTypes";
-import { computeMilestoneSplit } from "@/lib/fees";
-import { UploadSimple } from "@phosphor-icons/react";
+import { isCaseUploadExcludedKey, isPaymentReceiptTypeKey, paymentReceiptTypeKey } from "@/lib/documentTypes";
+import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
+import { isMilestoneDue } from "@/server/services/paymentSchedule";
+import { ArrowLeft, UploadSimple } from "@phosphor-icons/react";
+
+// Mirrors the Prisma `CaseStatus` enum — the statuses a case can be
+// set to after a rejection is overturned (2026-09-25).
+const CASE_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "rejected", label: "Rejected" },
+];
 
 interface Document {
   id: string;
   type: string;
+  label: string | null;
   verification_status: string;
   uploaded_at: string;
 }
@@ -38,7 +49,7 @@ interface Contract {
 
 interface Payment {
   id: string;
-  type: string;
+  job_payment_stage_id: string;
   amount: number;
   currency: string;
   receipt_reference: string | null;
@@ -62,7 +73,8 @@ interface ActivityEntry {
 interface CaseData {
   id: string;
   current_stage: CaseStageKey;
-  stage_deadline: string | null;
+  created_at: string;
+  updated_at: string;
   stage_events: StageEvent[];
   contract: Contract | null;
   payments: Payment[];
@@ -114,7 +126,16 @@ interface CaseData {
       desired_role: string | null;
     };
     job_id: string | null;
-    job: { title: string; country: string; city: string; service_fee_gbp: number | null } | null;
+    job_position_id: string | null;
+    job: {
+      title: string;
+      country: string;
+      city: string;
+      service_fee_gbp: number | null;
+      is_credit_service: boolean;
+      payment_stages: PaymentStageOption[];
+    } | null;
+    job_position: { job_sector: { sector: string } } | null;
     preferred_country_1: { name: string } | null;
     preferred_sector: { name: string } | null;
     current_location_country_name: string | null;
@@ -168,6 +189,17 @@ export interface CaseDetailCapabilities {
   // reachable without navigating back to the original application once
   // a case already exists.
   editApplication: boolean;
+  // Deleting a payment record entirely (2026-09-16) — deliberately
+  // narrower than managePayments (which Director/Admin also get, same as
+  // every other payment action): undoing a mistaken "Record"/"Mark as
+  // Paid" is Finance's own role only, no Director/Admin override, per
+  // explicit business direction.
+  undoPayments: boolean;
+  // NEW — Overturn a rejection and hand the case to one or more roles
+  // (2026-09-25). Kept separate from `rejectCase` so Operations/Director
+  // (who also hold rejectCase) don't automatically gain the ability to
+  // undo HR's own rejection — HR alone gets this per business direction.
+  overturnRejection: boolean;
 }
 
 const NO_CAPABILITIES: CaseDetailCapabilities = {
@@ -181,6 +213,8 @@ const NO_CAPABILITIES: CaseDetailCapabilities = {
   manageOpsReview: false,
   rejectCase: false,
   editApplication: false,
+  undoPayments: false,
+  overturnRejection: false,
 };
 
 interface Props {
@@ -204,6 +238,12 @@ function yesNoWithDetail(value: boolean | null | undefined, detail?: string | nu
 }
 
 export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedReturnTo = searchParams.get("returnTo");
+  const backHref = pathname.slice(0, pathname.lastIndexOf("/")) || "/";
+  const returnTo = requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//") ? requestedReturnTo : null;
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -212,7 +252,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   const [nextStage, setNextStage] = useState("");
   const [stageNotes, setStageNotes] = useState("");
-  const [stageDeadline, setStageDeadline] = useState("");
+  const [stageDate, setStageDate] = useState("");
 
   const [opsReviewNotes, setOpsReviewNotes] = useState("");
   const [showOpsRejectForm, setShowOpsRejectForm] = useState(false);
@@ -222,16 +262,27 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [caseRejectReason, setCaseRejectReason] = useState("");
   const [submittingCaseReject, setSubmittingCaseReject] = useState(false);
 
+  // Overturn-rejection flow (2026-09-25, HR-only) — frontend-only: flips
+  // the case back to active and records the new status. The
+  // rejection record itself (rejected_by/reason/at) is left intact for the
+  // audit trail; only the local `status` is restored optimistically.
+  const [showOverturnForm, setShowOverturnForm] = useState(false);
+  const [overturnStatus, setOverturnStatus] = useState("");
+  const [submittingOverturn, setSubmittingOverturn] = useState(false);
+  // Persisted for the session so the "status changed to" banner survives the
+  // status flip (which would otherwise hide the rejected banner entirely).
+  const [overturnedTo, setOverturnedTo] = useState("");
+
   const [contractContent, setContractContent] = useState("");
   const [signName, setSignName] = useState("");
 
-  const [payType, setPayType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [payStageId, setPayStageId] = useState("");
   const [payAmount, setPayAmount] = useState("");
   const [payReceipt, setPayReceipt] = useState("");
   const [payReceiptDocumentId, setPayReceiptDocumentId] = useState<string | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
-  const [linkType, setLinkType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [linkStageId, setLinkStageId] = useState("");
   const [linkRecipient, setLinkRecipient] = useState<"candidate" | "partner">("candidate");
   const [generatingLink, setGeneratingLink] = useState(false);
   const [checkingPaymentId, setCheckingPaymentId] = useState("");
@@ -241,7 +292,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // available regardless of candidate.source, unlike Send Payment Link
   // above (self-applicants only). Defaults recipient to "partner" when
   // one exists, since that's the common case this was built for.
-  const [invoiceType, setInvoiceType] = useState<"documentation" | "permit" | "visa">("documentation");
+  const [invoiceStageId, setInvoiceStageId] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceRecipient, setInvoiceRecipient] = useState<"candidate" | "partner">("candidate");
   const [invoiceReference, setInvoiceReference] = useState("");
@@ -266,6 +317,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // already has one, in either status.
   const [replacingReceiptFor, setReplacingReceiptFor] = useState("");
   const [deletingReceiptFor, setDeletingReceiptFor] = useState("");
+  const [deletingPaymentFor, setDeletingPaymentFor] = useState("");
 
   const [reminderChannel, setReminderChannel] = useState<"document" | "payment">("document");
   const [reminderRecipient, setReminderRecipient] = useState<"candidate" | "partner">("candidate");
@@ -274,18 +326,78 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [reminderError, setReminderError] = useState("");
   const [reminderSent, setReminderSent] = useState(false);
 
-  // Prefills the amount from the case's own Job.service_fee_gbp (via the
-  // shared computeMilestoneSplit — same 20/40/40 split the public job
-  // page shows) whenever the milestone type changes, but stays a plain
-  // editable input (this app's established "auto-fill but stay editable"
-  // convention) — falls back to fully-manual entry for a general-
-  // programme application with no specific Job.
+  // Every Job's payment plan (any number of stages, any shape) resolves
+  // the same way now (2026-09-16, flexible per-Job payment stages) —
+  // amounts computed once here and reused by the list above, the
+  // Record/Send Link/Send Invoice pickers below, and the due/not-due
+  // filtering, rather than each recomputing its own slice of the old
+  // fixed-type split.
   const jobServiceFee = data?.application.job?.service_fee_gbp;
+  const isCreditServiceJob = !!data?.application.job?.is_credit_service;
+  const jobPaymentStages = data?.application.job?.payment_stages ?? [];
+  // Memoized so these stay referentially stable across re-renders that
+  // don't actually change the underlying data (e.g. typing into the
+  // amount field below) — without this, the auto-fill effects further
+  // down (which depend on resolvedStageById) fired on every keystroke and
+  // silently overwrote Finance's own edited amount back to the stage
+  // default (2026-09-17 fix — the whole reason this amount field is
+  // editable at all is that a partner's actual agreed rate sometimes
+  // differs slightly from the marketed one).
+  const resolvedStages = useMemo(
+    () => (jobServiceFee != null ? resolvePaymentStages(jobServiceFee, jobPaymentStages) : []),
+    [jobServiceFee, jobPaymentStages]
+  );
+  const stageById = useMemo(() => new Map(jobPaymentStages.map((s) => [s.id, s])), [jobPaymentStages]);
+  const resolvedStageById = useMemo(() => new Map(resolvedStages.map((s) => [s.id, s])), [resolvedStages]);
+  const paymentByStageId = useMemo(
+    () => new Map((data?.payments ?? []).map((p) => [p.job_payment_stage_id, p])),
+    [data?.payments]
+  );
+
+  // A stage is offered for a NEW payment (Record/Send Link/Send Invoice)
+  // only once the case has actually reached its trigger stage AND it has
+  // no payment record yet at all (pending or collected) — once one
+  // exists, Mark as Paid/Check Status/receipt controls on that row are
+  // the only further action, not a second Record/Link/Invoice for the
+  // same stage.
+  const dueUnrecordedStages = useMemo(
+    () =>
+      data
+        ? resolvedStages.filter((s) => {
+            const stage = stageById.get(s.id);
+            if (!stage) return false;
+            return isMilestoneDue(stage.trigger_stage as CaseStageKey, data.current_stage) && !paymentByStageId.has(s.id);
+          })
+        : [],
+    [data, resolvedStages, stageById, paymentByStageId]
+  );
+  const stagePickerOptions = useMemo(
+    () => dueUnrecordedStages.map((s) => ({ value: s.id, label: `${s.label} (${Math.round(s.percent)}% · £${s.amount.toLocaleString()})` })),
+    [dueUnrecordedStages]
+  );
+
+  // Prefills the amount from the selected stage's own resolved amount, but
+  // stays a plain editable input (this app's established "auto-fill but
+  // stay editable" convention).
   useEffect(() => {
-    if (jobServiceFee != null) {
-      setPayAmount(String(computeMilestoneSplit(jobServiceFee)[payType]));
-    }
-  }, [payType, jobServiceFee]);
+    if (!payStageId && dueUnrecordedStages[0]) setPayStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, payStageId]);
+  useEffect(() => {
+    const stage = resolvedStageById.get(payStageId);
+    if (stage) setPayAmount(String(stage.amount));
+  }, [payStageId, resolvedStageById]);
+
+  useEffect(() => {
+    if (!linkStageId && dueUnrecordedStages[0]) setLinkStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, linkStageId]);
+
+  useEffect(() => {
+    if (!invoiceStageId && dueUnrecordedStages[0]) setInvoiceStageId(dueUnrecordedStages[0].id);
+  }, [dueUnrecordedStages, invoiceStageId]);
+  useEffect(() => {
+    const stage = resolvedStageById.get(invoiceStageId);
+    if (stage) setInvoiceAmount(String(stage.amount));
+  }, [invoiceStageId, resolvedStageById]);
 
   const [docTypes, setDocTypes] = useState<{ key: string; label: string }[]>([]);
   const [uploadType, setUploadType] = useState("");
@@ -306,7 +418,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     fetch("/api/admin/document-types")
       .then((r) => r.json())
       .then((res) => {
-        const types = (res.data ?? []).filter((t: { key: string }) => !(CASE_UPLOAD_EXCLUDED_KEYS as readonly string[]).includes(t.key));
+        const types = (res.data ?? []).filter((t: { key: string }) => !isCaseUploadExcludedKey(t.key));
         setDocTypes(types);
         setUploadType((prev) => prev || types[0]?.key || "");
       })
@@ -347,11 +459,11 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     const res = await fetch(`/api/cases/${caseId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_deadline: stageDeadline || undefined }),
+      body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_date: stageDate || undefined }),
     });
     const json = await res.json();
     if (!res.ok) { alert(json.error ?? "Failed to update stage."); return; }
-    setNextStage(""); setStageNotes(""); setStageDeadline("");
+    setNextStage(""); setStageNotes(""); setStageDate("");
     load();
   };
 
@@ -393,6 +505,26 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     }
   };
 
+  const overturnRejection = async () => {
+    if (!overturnStatus) return;
+    setSubmittingOverturn(true);
+    try {
+      const res = await fetch(`/api/cases/${caseId}/overturn`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: overturnStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      setOverturnedTo(overturnStatus);
+      setShowOverturnForm(false);
+      setOverturnStatus("");
+      load();
+    } finally {
+      setSubmittingOverturn(false);
+    }
+  };
+
   const generateContract = async () => {
     if (!contractContent.trim()) return;
     const res = await fetch(`/api/cases/${caseId}/contract`, {
@@ -408,12 +540,12 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   const recordPayment = async () => {
     const amount = Number(payAmount);
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0 || !payStageId) return;
     const res = await fetch(`/api/cases/${caseId}/payments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        type: payType,
+        job_payment_stage_id: payStageId,
         amount,
         receipt_reference: payReceipt || undefined,
         receipt_document_id: payReceiptDocumentId || undefined,
@@ -421,7 +553,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     });
     const json = await res.json();
     if (!res.ok) { alert(json.error ?? "Failed to record payment."); return; }
-    setPayAmount(""); setPayReceipt(""); setPayReceiptDocumentId(null);
+    setPayStageId(""); setPayAmount(""); setPayReceipt(""); setPayReceiptDocumentId(null);
     load();
   };
 
@@ -435,7 +567,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(payType)}&candidate_id=${data.application.candidate.id}`, {
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(payStageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -458,7 +590,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       const res = await fetch(`/api/cases/${caseId}/payments/link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: linkType, recipient: linkRecipient }),
+        body: JSON.stringify({ job_payment_stage_id: linkStageId, recipient: linkRecipient }),
       });
       const json = await res.json();
       if (!res.ok) { setLinkError(json.error?.message ?? "Failed to generate payment link."); return; }
@@ -497,7 +629,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(invoiceType)}&candidate_id=${data.application.candidate.id}`, {
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(invoiceStageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -517,7 +649,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // isn't available.
   const sendInvoice = async () => {
     const amount = Number(invoiceAmount);
-    if (!amount || amount <= 0 || !invoiceDocumentId) return;
+    if (!amount || amount <= 0 || !invoiceDocumentId || !invoiceStageId) return;
     setSendingInvoice(true);
     setInvoiceError("");
     try {
@@ -525,7 +657,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: invoiceType,
+          job_payment_stage_id: invoiceStageId,
           amount,
           recipient: invoiceRecipient,
           invoice_document_id: invoiceDocumentId,
@@ -534,6 +666,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       });
       const json = await res.json();
       if (!res.ok) { setInvoiceError(json.error?.message ?? "Failed to send invoice."); return; }
+      setInvoiceStageId("");
       setInvoiceAmount("");
       setInvoiceReference("");
       setInvoiceDocumentId(null);
@@ -552,8 +685,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const milestoneType = (data.payments.find((p) => p.id === paymentId)?.type ?? "documentation") as "documentation" | "permit" | "visa";
-      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(milestoneType)}&candidate_id=${data.application.candidate.id}`, {
+      const stageId = data.payments.find((p) => p.id === paymentId)?.job_payment_stage_id ?? "";
+      const res = await fetch(`/api/upload?type=${paymentReceiptTypeKey(stageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -600,8 +733,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const milestoneType = (data.payments.find((p) => p.id === paymentId)?.type ?? "documentation") as "documentation" | "permit" | "visa";
-      const uploadRes = await fetch(`/api/upload?type=${paymentReceiptTypeKey(milestoneType)}&candidate_id=${data.application.candidate.id}`, {
+      const stageId = data.payments.find((p) => p.id === paymentId)?.job_payment_stage_id ?? "";
+      const uploadRes = await fetch(`/api/upload?type=${paymentReceiptTypeKey(stageId)}&candidate_id=${data.application.candidate.id}`, {
         method: "POST",
         body: formData,
       });
@@ -634,6 +767,24 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       load();
     } finally {
       setDeletingReceiptFor("");
+    }
+  };
+
+  // Undoes a payment record entirely (2026-09-16) — for when "Record" or
+  // "Mark as Paid" was clicked in error and no money actually changed
+  // hands, not just clearing its attached receipt (deletePaymentReceipt
+  // above). Frees the stage back up in the Record/Send Link/Send Invoice
+  // pickers immediately on reload.
+  const deletePayment = async (paymentId: string) => {
+    if (!confirm("Remove this payment record entirely? This cannot be undone — only do this if it was recorded in error and no money actually changed hands.")) return;
+    setDeletingPaymentFor(paymentId);
+    try {
+      const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error?.message ?? "Failed to remove payment."); return; }
+      load();
+    } finally {
+      setDeletingPaymentFor("");
     }
   };
 
@@ -708,25 +859,103 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
 
   return (
     <div className="space-y-6">
+      <button
+        type="button"
+        onClick={() => (returnTo ? router.replace(returnTo) : window.history.length > 1 ? router.back() : router.push(backHref))}
+        className="inline-flex items-center gap-1.5 text-xs text-midnight-900/45 hover:text-gold-600"
+      >
+        <ArrowLeft size={14} weight="bold" /> Back to cases
+      </button>
       {data.status === "rejected" && (
         <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
           <p className="text-sm font-semibold">
             Case rejected{data.rejected_by && <> by {data.rejected_by.full_name}</>}{data.rejected_at && <> on {new Date(data.rejected_at).toLocaleDateString()}</>}
           </p>
           {data.rejection_reason && <p className="text-sm mt-1">{data.rejection_reason}</p>}
+
+          {/* Overturn Rejection (2026-09-25) — HR-only. Lets HR undo a
+              rejection it made by mistake and change the case status. */}
+          {capabilities.overturnRejection && (
+            showOverturnForm ? (
+              <div className="mt-3 pt-3 border-t border-red-200 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-red-700/80">
+                  Case Status
+                </p>
+                <select
+                  value={overturnStatus}
+                  onChange={(e) => setOverturnStatus(e.target.value)}
+                  className="w-full text-xs border border-red-300 rounded px-2 py-1.5 bg-white text-red-900"
+                >
+                  <option value="">Select status...</option>
+                  {CASE_STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    disabled={submittingOverturn || !overturnStatus}
+                    onClick={overturnRejection}
+                    className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50"
+                  >
+                    {submittingOverturn ? "Overturning…" : "Confirm Overturn"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowOverturnForm(false); setOverturnStatus(""); }}
+                    className="text-xs text-midnight-900/50 hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowOverturnForm(true)}
+                className="mt-3 text-xs font-semibold text-emerald-700 hover:underline"
+              >
+                I want to revert
+              </button>
+            )
+          )}
+        </div>
+      )}
+
+      {/* Shown after an overturn (session-local) so the new status is
+          still visible now that the red rejected banner has gone. */}
+      {overturnedTo && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-4">
+          <p className="text-sm font-semibold">Rejection overturned</p>
+          <p className="text-sm mt-1">
+            Status changed to:{" "}
+            {CASE_STATUS_OPTIONS.find((s) => s.value === overturnedTo)?.label ?? overturnedTo}
+          </p>
         </div>
       )}
 
       <div className="card p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-xl font-semibold text-midnight-900">{candidateName}</h2>
+            <h2 className="text-xl font-semibold text-midnight-900 flex items-center gap-2">
+              {candidateName}
+              {isCreditServiceJob && (
+                <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                  Credit Service
+                </span>
+              )}
+            </h2>
             <p className="text-sm text-midnight-900/50">
               {data.application.job
                 ? <>{data.application.job.title} · {data.application.job.city}, {data.application.job.country}</>
                 : <>{data.application.preferred_sector?.name ?? "General Programme"}{data.application.preferred_country_1 && <> · {data.application.preferred_country_1.name}</>}</>}
               {data.application.candidate.recruiter && <> · {data.application.candidate.recruiter.full_name}</>}
               {data.application.candidate.partner && <> · Partner: {data.application.candidate.partner.name}</>}
+            </p>
+            <p className="text-xs text-midnight-900/35 mt-1">
+              Created {new Date(data.created_at).toLocaleDateString()} · Updated {new Date(data.updated_at).toLocaleDateString()}
             </p>
           </div>
           {capabilities.rejectCase && data.status !== "rejected" && (
@@ -773,7 +1002,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 placeholder="Set stage…"
                 options={CASE_STAGE_ORDER.filter((s) => s !== data.current_stage).map((s) => ({ value: s, label: CASE_STAGE_LABELS[s] }))}
               />
-              <input type="date" value={stageDeadline} onChange={(e) => setStageDeadline(e.target.value)} className="input-field text-sm" placeholder="Deadline (optional)" />
+              <input type="date" value={stageDate} onChange={(e) => setStageDate(e.target.value)} className="input-field text-sm" placeholder="Date (optional)" />
               <input value={stageNotes} onChange={(e) => setStageNotes(e.target.value)} className="input-field text-sm" placeholder="Notes (optional)" />
             </div>
             <button onClick={advanceStage} disabled={!nextStage} className="btn-primary mt-3 text-xs disabled:opacity-40">Update Stage</button>
@@ -786,9 +1015,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             <div key={e.id} className="text-sm border-l-2 border-midnight-900/10 pl-3">
               <div className="text-midnight-900/70 font-medium">{CASE_STAGE_LABELS[e.stage]}</div>
               <div className="text-midnight-900/45 text-xs mt-0.5">
-                {new Date(e.entered_at).toLocaleDateString()}
+                {e.owner ? <>Confirmed by {e.owner.full_name} on {new Date(e.entered_at).toLocaleDateString()}</> : new Date(e.entered_at).toLocaleDateString()}
                 {e.completed_at && <> → {new Date(e.completed_at).toLocaleDateString()}</>}
-                {e.owner && <> · {e.owner.full_name}</>}
               </div>
               {e.notes && <div className="text-midnight-900/60 text-xs mt-0.5">{e.notes}</div>}
             </div>
@@ -962,6 +1190,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               candidateId={data.application.candidate.id}
               initial={{
                 job_id: data.application.job_id,
+                job_position_id: data.application.job_position_id,
+                job_sector_name: data.application.job_position?.job_sector.sector ?? null,
                 earliest_travel_date: data.application.earliest_travel_date,
                 current_location_country_name: data.application.current_location_country_name,
                 prior_eu_visa_applied: data.application.prior_eu_visa_applied,
@@ -1002,7 +1232,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               them (2026-08-19). */}
           {(() => {
             const nonPaymentDocs = data.application.candidate.documents.filter(
-              (d) => !(PAYMENT_RECEIPT_TYPE_KEYS as readonly string[]).includes(d.type)
+              (d) => !isPaymentReceiptTypeKey(d.type) && d.type !== "other"
             );
             if (nonPaymentDocs.length === 0) return <p className="text-sm text-midnight-900/40">No documents uploaded yet.</p>;
             return nonPaymentDocs.map((d) => (
@@ -1024,6 +1254,19 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} className="text-sm" />
             <button onClick={uploadDocument} disabled={!uploadFile} className="btn-primary text-xs disabled:opacity-40">Upload</button>
           </div>
+        )}
+
+        {/* "other" is deliberately excluded from the category picker above
+            (CASE_UPLOAD_EXCLUDED_KEYS) since it needs a free-text label to
+            tell multiple "other" uploads apart — same dedicated control
+            already used on the pre-Case candidate/partner-submission review
+            pages (2026-09-14). */}
+        {capabilities.manageDocuments && (
+          <SupportingDocumentUpload
+            candidateId={data.application.candidate.id}
+            documents={data.application.candidate.documents.filter((d) => d.type === "other")}
+            onUploaded={load}
+          />
         )}
       </div>
 
@@ -1098,13 +1341,16 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
           <p className="text-xs text-midnight-900/45">Milestone payments are not enabled for this destination. In-House can enable this under Fee Policy.</p>
         ) : (
           <>
+            {jobServiceFee != null && jobPaymentStages.length > 0 && (
+              <PaymentStagesPreview totalGbp={jobServiceFee} stages={jobPaymentStages} className="mb-4" />
+            )}
             <div className="space-y-2 mb-4">
               {data.payments.length === 0 && <p className="text-sm text-midnight-900/40">No payments recorded yet.</p>}
               {data.payments.map((p) => (
                 <div key={p.id} className="flex flex-col gap-1 text-sm border-b border-midnight-900/5 pb-2">
                   <div className="flex items-center justify-between">
-                    <span className="capitalize text-midnight-900">
-                      {p.type}: {p.currency} {p.amount.toLocaleString()}
+                    <span className="text-midnight-900">
+                      {stageById.get(p.job_payment_stage_id)?.label ?? "Payment"}: {p.currency} {p.amount.toLocaleString()}
                       <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide ${p.status === "collected" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                         {p.status}
                       </span>
@@ -1172,6 +1418,17 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                         </>
                       )}
                       · {p.recorder.full_name}
+                      {capabilities.undoPayments && (
+                        <button
+                          type="button"
+                          onClick={() => deletePayment(p.id)}
+                          disabled={deletingPaymentFor === p.id}
+                          className="text-red-600 hover:underline disabled:opacity-50"
+                          title="Remove this payment record entirely — use if it was recorded/marked paid by mistake"
+                        >
+                          {deletingPaymentFor === p.id ? "Removing…" : "Undo"}
+                        </button>
+                      )}
                     </span>
                   </div>
                   {p.status === "pending" && p.stripe_payment_link_url && (
@@ -1227,18 +1484,23 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 </div>
               ))}
             </div>
-            {capabilities.managePayments && (
+            {capabilities.managePayments && dueUnrecordedStages.length === 0 && (
+              <div className="pt-3 border-t border-midnight-900/10">
+                <p className="text-sm text-midnight-900/60">
+                  {jobPaymentStages.length === 0
+                    ? "This case's opportunity has no payment stages configured."
+                    : "Nothing due right now — every payment stage this case has reached already has a record."}
+                </p>
+              </div>
+            )}
+            {capabilities.managePayments && dueUnrecordedStages.length > 0 && (
               <>
                 <div className="flex items-center gap-2 pt-3 border-t border-midnight-900/10">
                   <SearchableSelect
-                    value={payType}
-                    onChange={(value) => setPayType(value as "documentation" | "permit" | "visa")}
+                    value={payStageId}
+                    onChange={setPayStageId}
                     className="w-auto"
-                    options={[
-                      { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
-                      { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
-                      { value: "visa", label: "Visa (Stage 3 · 50%)" },
-                    ]}
+                    options={stagePickerOptions}
                   />
                   <input type="number" min="0" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} className="input-field text-sm w-28" placeholder="Amount" />
                   <input value={payReceipt} onChange={(e) => setPayReceipt(e.target.value)} className="input-field text-sm" placeholder="Receipt reference" />
@@ -1255,7 +1517,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     {uploadingReceipt && "Uploading…"}
                     {!uploadingReceipt && payReceiptDocumentId && "✓ Receipt attached"}
                   </label>
-                  <button onClick={recordPayment} disabled={!payAmount} className="btn-primary text-xs disabled:opacity-40">Record</button>
+                  <button onClick={recordPayment} disabled={!payAmount || !payStageId} className="btn-primary text-xs disabled:opacity-40">Record</button>
                 </div>
 
                 {/* Stripe restricted to self-applicants (2026-07-31) —
@@ -1265,14 +1527,10 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 {data.application.candidate.source === "self_registered" && (
                   <div className="flex items-center gap-2 pt-3 mt-3 border-t border-midnight-900/10">
                     <SearchableSelect
-                      value={linkType}
-                      onChange={(value) => setLinkType(value as "documentation" | "permit" | "visa")}
+                      value={linkStageId}
+                      onChange={setLinkStageId}
                       className="w-auto"
-                      options={[
-                        { value: "documentation", label: "Documentation (Stage 1 · 25%)" },
-                        { value: "permit", label: "Work Permit (Stage 2 · 25%)" },
-                        { value: "visa", label: "Visa (Stage 3 · 50%)" },
-                      ]}
+                      options={stagePickerOptions}
                     />
                     <SearchableSelect
                       value={linkRecipient}
@@ -1282,7 +1540,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     />
                     <button
                       onClick={generatePaymentLink}
-                      disabled={generatingLink || !data.application.job}
+                      disabled={generatingLink || !data.application.job || !linkStageId}
                       title={!data.application.job ? "This case has no linked opportunity — no Stripe pricing to link to. Use Record instead." : undefined}
                       className="btn-primary text-xs disabled:opacity-40"
                     >
@@ -1304,14 +1562,10 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                   <div className="text-xs font-semibold text-midnight-900/70 mb-2">Send Invoice</div>
                   <div className="flex items-center gap-2 flex-wrap mb-2">
                     <SearchableSelect
-                      value={invoiceType}
-                      onChange={(value) => setInvoiceType(value as "documentation" | "permit" | "visa")}
+                      value={invoiceStageId}
+                      onChange={setInvoiceStageId}
                       className="w-auto"
-                      options={[
-                        { value: "documentation", label: "Documentation (Stage 1)" },
-                        { value: "permit", label: "Work Permit (Stage 2)" },
-                        { value: "visa", label: "Visa (Stage 3)" },
-                      ]}
+                      options={stagePickerOptions}
                     />
                     <input
                       type="number"
@@ -1358,7 +1612,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                     )}
                     <button
                       onClick={sendInvoice}
-                      disabled={sendingInvoice || !invoiceAmount || !invoiceDocumentId}
+                      disabled={sendingInvoice || !invoiceAmount || !invoiceDocumentId || !invoiceStageId}
                       className="btn-primary text-[11px] px-3 py-1.5 disabled:opacity-40 ml-auto"
                       title={!invoiceDocumentId ? "Attach the invoice file first" : undefined}
                     >

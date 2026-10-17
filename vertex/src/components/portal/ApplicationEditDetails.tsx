@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PencilSimple } from "@phosphor-icons/react";
 import SearchableSelect from "@/components/SearchableSelect";
 import YesNoDetailField from "@/components/YesNoDetailField";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
+import { describeApiError } from "@/lib/apiError";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -14,15 +15,50 @@ const CONTACT_CHANNEL_OPTIONS = [
   { value: "phone", label: "Phone" },
 ];
 
+// Same canonical order/list ApplicationForm.tsx and PartnerCandidateForm.tsx
+// use — matches the business's own Positions by Country & Sector sheet.
+const SECTOR_ORDER = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+];
+
+interface JobPositionOption {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorOption {
+  id: string;
+  sector: string;
+  positions: JobPositionOption[];
+}
+
 interface JobOption {
   id: string;
   title: string;
   country: string;
   city: string;
+  is_credit_service: boolean;
+  sectors: JobSectorOption[];
+}
+
+// A position flattened out of whichever Job it belongs to (2026-09-03,
+// Country -> Sector -> Position) — jobId carries which Job to derive
+// form.job_id from once a position is chosen.
+interface FlatPositionOption extends JobPositionOption {
+  jobId: string;
 }
 
 export interface ApplicationEditableDetails {
   job_id: string | null;
+  job_position_id: string | null;
   earliest_travel_date: string | null;
   current_location_country_name: string | null;
   prior_eu_visa_applied: boolean | null;
@@ -34,6 +70,12 @@ export interface ApplicationEditableDetails {
   available_for_embassy_appointment: boolean;
   willing_to_start_within_30_days: boolean;
   preferred_contact_channel: string | null;
+  // Only present when the initial position is already known (2026-09-03) —
+  // Country/is_credit_service are derived from job_id via the fetched
+  // jobs list, but Sector isn't derivable from the job alone (a job can
+  // have multiple sectors), so it rides along here. Absent for a
+  // candidate with no position on file yet.
+  job_sector_name?: string | null;
 }
 
 interface Props {
@@ -45,18 +87,27 @@ interface Props {
 // Staff correcting a candidate's Programme Information and travel/visa-
 // readiness fields after submission (CRM Comments follow-up, 2026-08-10,
 // widened 2026-08-12 to also cover Programme Information — the one
-// section that had no edit path at all) — previously frozen forever
-// regardless of pipeline (self-submitted, recruiter-sourced, partner-
-// sourced). Shared by CandidateDetail.tsx and PartnerSubmissionDetail.tsx
-// rather than duplicated, since the fields and the backing route
+// section that had no edit path at all; widened again 2026-09-03 to the
+// full Country -> Sector -> Position picker, matching the submission
+// forms, and to persist job_position_id alongside job_id rather than
+// leaving it silently mismatched after a programme change). Shared by
+// CandidateDetail.tsx and PartnerSubmissionDetail.tsx rather than
+// duplicated, since the fields and the backing route
 // (PATCH /api/candidates/:id/application) are identical either way.
+// audience=partner is always requested — for a partner-sourced candidate
+// this surfaces the Credit Service programmes their submission may need;
+// for a self-submitted one it's a no-op extra (harmless, gated server-side
+// by the caller's own staff role either way).
 export default function ApplicationEditDetails({ candidateId, initial, onSaved }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [sector, setSector] = useState("");
   const [form, setForm] = useState({
     job_id: initial.job_id ?? "",
+    job_position_id: initial.job_position_id ?? "",
     earliest_travel_date: initial.earliest_travel_date ? initial.earliest_travel_date.slice(0, 10) : "",
     current_location_country_name: initial.current_location_country_name ?? "",
     prior_eu_visa_applied: initial.prior_eu_visa_applied,
@@ -72,11 +123,59 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
 
   useEffect(() => {
     if (!open || jobs.length > 0) return;
-    fetch("/api/jobs?limit=50")
+    fetch("/api/jobs?limit=50&audience=partner")
       .then((r) => r.json())
-      .then((res) => setJobs(res.jobs ?? []))
+      .then((res) => {
+        const list: JobOption[] = res.jobs ?? [];
+        setJobs(list);
+        const currentJob = list.find((j) => j.id === initial.job_id);
+        if (currentJob) {
+          setSelectedCountry(currentJob.is_credit_service ? `${currentJob.country}::credit` : currentJob.country);
+        }
+        if (initial.job_sector_name) setSector(initial.job_sector_name);
+      })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, jobs.length]);
+
+  const countryOptions = useMemo(() => {
+    const options: { value: string; label: string; countryName: string; isCreditService: boolean }[] = [];
+    for (const countryName of [...new Set(jobs.map((j) => j.country))].sort()) {
+      if (jobs.some((j) => j.country === countryName && !j.is_credit_service)) {
+        options.push({ value: countryName, label: countryName, countryName, isCreditService: false });
+      }
+      if (jobs.some((j) => j.country === countryName && j.is_credit_service)) {
+        options.push({
+          value: `${countryName}::credit`,
+          label: `${countryName} (Credit Service)`,
+          countryName,
+          isCreditService: true,
+        });
+      }
+    }
+    return options;
+  }, [jobs]);
+  const selectedCountryChoice = useMemo(
+    () => countryOptions.find((o) => o.value === selectedCountry) ?? null,
+    [countryOptions, selectedCountry]
+  );
+  const jobsInCountry = useMemo(
+    () =>
+      selectedCountryChoice
+        ? jobs.filter((j) => j.country === selectedCountryChoice.countryName && j.is_credit_service === selectedCountryChoice.isCreditService)
+        : [],
+    [jobs, selectedCountryChoice]
+  );
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobsInCountry]);
+  const positionOptions = useMemo<FlatPositionOption[]>(() => {
+    if (!selectedCountry || !sector) return [];
+    return jobsInCountry.flatMap((j) =>
+      j.sectors.filter((s) => s.sector === sector).flatMap((s) => s.positions.map((p) => ({ ...p, jobId: j.id })))
+    );
+  }, [jobsInCountry, sector, selectedCountry]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +188,7 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
         body: JSON.stringify({
           ...form,
           job_id: form.job_id || undefined,
+          job_position_id: form.job_position_id || undefined,
           prior_eu_visa_applied: form.prior_eu_visa_applied ?? undefined,
           holds_schengen_visa: form.holds_schengen_visa ?? undefined,
           prior_visa_refusals: form.prior_visa_refusals ?? undefined,
@@ -97,7 +197,7 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
       });
       const body = await res.json();
       if (!res.ok) {
-        setError(body.error?.message ?? "Update failed.");
+        setError(describeApiError(body, "Update failed."));
         return;
       }
       setOpen(false);
@@ -121,14 +221,50 @@ export default function ApplicationEditDetails({ candidateId, initial, onSaved }
     <form method="post" onSubmit={submit} className="bg-ivory-100 border border-midnight-900/10 rounded-lg p-4 space-y-4">
       <div>
         <div className="text-[11px] font-semibold text-midnight-900/50 uppercase tracking-wider mb-2">Programme Information</div>
-        <label className="block text-xs text-midnight-900/50 mb-1">Opportunity</label>
-        <SearchableSelect
-          value={form.job_id}
-          onChange={(value) => setForm({ ...form, job_id: value })}
-          placeholder="Select an opportunity…"
-          options={jobs.map((j) => ({ value: j.id, label: `${j.title} — ${j.city}, ${j.country}` }))}
-          className="text-sm"
-        />
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs text-midnight-900/50 mb-1">Country</label>
+            <SearchableSelect
+              value={selectedCountry}
+              onChange={(value) => {
+                setSelectedCountry(value);
+                setSector("");
+                setForm({ ...form, job_id: "", job_position_id: "" });
+              }}
+              placeholder="Select a country…"
+              options={countryOptions.map((o) => ({ value: o.value, label: o.label }))}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-midnight-900/50 mb-1">Sector</label>
+            <SearchableSelect
+              value={sector}
+              onChange={(value) => {
+                setSector(value);
+                setForm({ ...form, job_id: "", job_position_id: "" });
+              }}
+              disabled={!selectedCountry}
+              placeholder={selectedCountry ? "Select a sector…" : "Select a country first…"}
+              options={sectorOptions.map((s) => ({ value: s, label: s }))}
+              className="text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-midnight-900/50 mb-1">Position</label>
+            <SearchableSelect
+              value={form.job_position_id}
+              onChange={(value) => {
+                const pos = positionOptions.find((p) => p.id === value);
+                setForm({ ...form, job_position_id: value, job_id: pos?.jobId ?? "" });
+              }}
+              disabled={!sector}
+              placeholder={sector ? "Select a position…" : "Select a sector first…"}
+              options={positionOptions.map((p) => ({ value: p.id, label: p.city ? `${p.title} — ${p.city}` : p.title }))}
+              className="text-sm"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="text-[11px] font-semibold text-midnight-900/50 uppercase tracking-wider">Visa &amp; Travel Readiness</div>

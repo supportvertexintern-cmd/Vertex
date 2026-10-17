@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import PortalShell from "@/components/portal/PortalShell";
 import { PARTNER_NAV_ITEMS } from "@/components/portal/partnerNav";
 import DocumentLink from "@/components/DocumentLink";
@@ -8,12 +8,14 @@ import CandidateMessages from "@/components/CandidateMessages";
 import SearchableSelect from "@/components/SearchableSelect";
 import YesNoDetailField from "@/components/YesNoDetailField";
 import SupportingDocumentUpload from "@/components/portal/SupportingDocumentUpload";
-import { NON_PROGRAMME_TYPE_KEYS } from "@/lib/documentTypes";
+import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
+import { summarizePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
 import { CheckCircle, WarningCircle, CircleNotch, PencilSimple } from "@phosphor-icons/react";
+import { describeApiError } from "@/lib/apiError";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -22,11 +24,55 @@ const CONTACT_CHANNEL_OPTIONS = [
   { value: "whatsapp", label: "WhatsApp" },
 ];
 
+// Same canonical order/list ApplicationForm.tsx and PartnerCandidateForm.tsx
+// use — matches the business's own Positions by Country & Sector sheet.
+const SECTOR_ORDER = [
+  "Agriculture",
+  "Logistics & Warehousing",
+  "Manufacturing & Production",
+  "Construction & Trades",
+  "Hospitality",
+  "Healthcare",
+  "Transport & Delivery",
+  "General / Unskilled",
+];
+
+interface JobPositionOption {
+  id: string;
+  title: string;
+  city: string | null;
+}
+
+interface JobSectorOption {
+  id: string;
+  sector: string;
+  positions: JobPositionOption[];
+}
+
+interface JobOption {
+  id: string;
+  title: string;
+  country: string;
+  city: string;
+  is_credit_service: boolean;
+  sectors: JobSectorOption[];
+}
+
+// A position flattened out of whichever Job it belongs to (2026-09-03,
+// Country -> Sector -> Position, same pattern PartnerCandidateForm.tsx
+// uses at submission time) — jobId carries which Job to derive
+// editForm.job_id from once a position is chosen.
+interface FlatPositionOption extends JobPositionOption {
+  jobId: string;
+}
+
 // Widened (CRM Comments item 1/6, 2026-08-10, per business follow-up:
 // "not capturing all the fields that may need changes, mostly only
 // biodata") — covers everything PartnerCandidateForm collects at
 // submission (Sections 3 + 6), not just name/email/nationality/passport.
 interface EditForm {
+  job_id: string;
+  job_position_id: string;
   full_name: string;
   email: string;
   nationality: string;
@@ -83,8 +129,22 @@ interface PartnerCandidateDetail {
   preferred_contact_channel: string | null;
   rejection_reason: string | null;
   bridged_candidate_id: string | null;
-  submitted_at: string;
-  job: { title: string; country: string; city: string } | null;
+  submitted_at: string | null;
+  job_position_id: string | null;
+  job: {
+    id: string;
+    title: string;
+    country: string;
+    city: string;
+    service_fee_gbp: number | null;
+    is_credit_service: boolean;
+    payment_stages: PaymentStageOption[];
+  } | null;
+  job_position: {
+    title: string;
+    city: string | null;
+    job_sector: { sector: string };
+  } | null;
   bridged_candidate: {
     id: string;
     documents: { id: string; type: string; verification_status: string; uploaded_at: string; label: string | null }[];
@@ -136,9 +196,69 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Country -> Sector -> Position editor state (2026-09-03) — same pattern
+  // as PartnerCandidateForm.tsx's submission-time picker, reused here so a
+  // partner can correct their own submission's programme, not just
+  // personal-info/visa-readiness fields. Fetched once on mount (not gated
+  // on editing) so it's ready the moment "Edit" is clicked.
+  const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [sector, setSector] = useState("");
+
+  useEffect(() => {
+    fetch("/api/jobs?limit=50&audience=partner")
+      .then((r) => r.json())
+      .then((res) => setJobs(res.jobs ?? []))
+      .catch(() => {});
+  }, []);
+
+  const countryOptions = useMemo(() => {
+    const options: { value: string; label: string; countryName: string; isCreditService: boolean }[] = [];
+    for (const countryName of [...new Set(jobs.map((j) => j.country))].sort()) {
+      if (jobs.some((j) => j.country === countryName && !j.is_credit_service)) {
+        options.push({ value: countryName, label: countryName, countryName, isCreditService: false });
+      }
+      if (jobs.some((j) => j.country === countryName && j.is_credit_service)) {
+        options.push({
+          value: `${countryName}::credit`,
+          label: `${countryName} (Credit Service)`,
+          countryName,
+          isCreditService: true,
+        });
+      }
+    }
+    return options;
+  }, [jobs]);
+  const selectedCountryChoice = useMemo(
+    () => countryOptions.find((o) => o.value === selectedCountry) ?? null,
+    [countryOptions, selectedCountry]
+  );
+  const jobsInCountry = useMemo(
+    () =>
+      selectedCountryChoice
+        ? jobs.filter((j) => j.country === selectedCountryChoice.countryName && j.is_credit_service === selectedCountryChoice.isCreditService)
+        : [],
+    [jobs, selectedCountryChoice]
+  );
+  const sectorOptions = useMemo(() => {
+    const present = new Set(jobsInCountry.flatMap((j) => j.sectors.map((s) => s.sector)));
+    return SECTOR_ORDER.filter((s) => present.has(s));
+  }, [jobsInCountry]);
+  const positionOptions = useMemo<FlatPositionOption[]>(() => {
+    if (!selectedCountry || !sector) return [];
+    return jobsInCountry.flatMap((j) =>
+      j.sectors.filter((s) => s.sector === sector).flatMap((s) => s.positions.map((p) => ({ ...p, jobId: j.id })))
+    );
+  }, [jobsInCountry, sector, selectedCountry]);
+
   const startEditing = () => {
     if (!data) return;
+    const currentJob = jobs.find((j) => j.id === data.job?.id);
+    setSelectedCountry(currentJob ? (currentJob.is_credit_service ? `${currentJob.country}::credit` : currentJob.country) : "");
+    setSector(data.job_position?.job_sector.sector ?? "");
     setEditForm({
+      job_id: data.job?.id ?? "",
+      job_position_id: data.job_position_id ?? "",
       full_name: data.full_name,
       email: data.email,
       nationality: data.nationality,
@@ -178,6 +298,8 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...editForm,
+          job_id: editForm.job_id || undefined,
+          job_position_id: editForm.job_position_id || undefined,
           prior_eu_visa_applied: editForm.prior_eu_visa_applied ?? undefined,
           holds_schengen_visa: editForm.holds_schengen_visa ?? undefined,
           prior_visa_refusals: editForm.prior_visa_refusals ?? undefined,
@@ -186,7 +308,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       });
       const json = await res.json();
       if (!res.ok) {
-        setSaveError(json.error?.message ?? "Failed to save changes.");
+        setSaveError(describeApiError(json, "Failed to save changes."));
         return;
       }
       setEditing(false);
@@ -213,7 +335,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
     fetch("/api/apply/options")
       .then((r) => r.json())
       .then((res) => {
-        const types = (res.documentTypes ?? []).filter((t: { key: string }) => !(NON_PROGRAMME_TYPE_KEYS as readonly string[]).includes(t.key));
+        const types = (res.documentTypes ?? []).filter((t: { key: string }) => !isNonProgrammeTypeKey(t.key));
         setDocTypes(types);
         setUploadType((prev) => prev || types[0]?.key || "");
       })
@@ -253,6 +375,22 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       </PortalShell>
     );
   }
+  // This read-only detail view assumes a finished submission (full_name/
+  // passport/etc. all populated) — a draft's fields can be partially or
+  // entirely empty (2026-09-09) and is reached through the "My Candidates"
+  // list's resume-in-modal flow instead, never this page. Guard direct
+  // navigation (a stale link, browser back, etc.) rather than letting a
+  // null field below crash the render.
+  if (data.status === "draft") {
+    return (
+      <PortalShell roleLabel="Partner" navItems={PARTNER_NAV_ITEMS}>
+        <div className="card p-10 text-center text-midnight-900/50">
+          This submission is still a draft — resume it from your{" "}
+          <a href="/partner" className="text-gold-600 underline">candidate list</a>.
+        </div>
+      </PortalShell>
+    );
+  }
 
   return (
     <PortalShell roleLabel="Partner" navItems={PARTNER_NAV_ITEMS}>
@@ -264,7 +402,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
         <div>
           <h1 className="section-title text-3xl md:text-4xl mb-2">{data.full_name}.</h1>
           <p className="text-midnight-900/55 font-light max-w-2xl">
-            Submitted {new Date(data.submitted_at).toLocaleDateString()}
+            {data.submitted_at ? `Submitted ${new Date(data.submitted_at).toLocaleDateString()}` : "Not yet submitted"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -293,11 +431,56 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
         <div className="lg:col-span-2 space-y-6">
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-midnight-900/70 uppercase tracking-wider mb-4">Opportunity</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Programme" value={data.job?.title} />
-              <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
-              {editing && editForm ? (
-                <>
+            {editing && editForm ? (
+              <div className="space-y-4">
+                <div>
+                  <div className="text-[11px] font-semibold text-midnight-900/50 uppercase tracking-wider mb-2">Programme Information</div>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-[11px] text-midnight-900/40 uppercase tracking-wider mb-0.5">Country</div>
+                      <SearchableSelect
+                        value={selectedCountry}
+                        onChange={(value) => {
+                          setSelectedCountry(value);
+                          setSector("");
+                          setEditForm({ ...editForm, job_id: "", job_position_id: "" });
+                        }}
+                        placeholder="Select a country…"
+                        options={countryOptions.map((o) => ({ value: o.value, label: o.label }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-midnight-900/40 uppercase tracking-wider mb-0.5">Sector</div>
+                      <SearchableSelect
+                        value={sector}
+                        onChange={(value) => {
+                          setSector(value);
+                          setEditForm({ ...editForm, job_id: "", job_position_id: "" });
+                        }}
+                        disabled={!selectedCountry}
+                        placeholder={selectedCountry ? "Select a sector…" : "Select a country first…"}
+                        options={sectorOptions.map((s) => ({ value: s, label: s }))}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-midnight-900/40 uppercase tracking-wider mb-0.5">Position</div>
+                      <SearchableSelect
+                        value={editForm.job_position_id}
+                        onChange={(value) => {
+                          const pos = positionOptions.find((p) => p.id === value);
+                          setEditForm({ ...editForm, job_position_id: value, job_id: pos?.jobId ?? "" });
+                        }}
+                        disabled={!sector}
+                        placeholder={sector ? "Select a position…" : "Select a sector first…"}
+                        options={positionOptions.map((p) => ({ value: p.id, label: p.city ? `${p.title} — ${p.city}` : p.title }))}
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <div className="text-[11px] text-midnight-900/40 uppercase tracking-wider mb-0.5">Earliest Travel Date</div>
                     <input
@@ -315,14 +498,40 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
                       options={WORLD_COUNTRY_OPTIONS}
                     />
                   </div>
-                </>
-              ) : (
-                <>
-                  <Field label="Earliest Travel Date" value={new Date(data.earliest_travel_date).toLocaleDateString()} />
-                  <Field label="Current Location" value={data.current_location_country?.name ?? data.current_location_country_name} />
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field
+                  label="Programme"
+                  value={
+                    data.job?.title ? (
+                      <span className="inline-flex items-center gap-2">
+                        {data.job.title}
+                        {data.job.is_credit_service && (
+                          <span className="inline-flex items-center rounded-full bg-gold-500/15 text-gold-700 border border-gold-500/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            Credit Service
+                          </span>
+                        )}
+                      </span>
+                    ) : null
+                  }
+                />
+                <Field label="Destination" value={data.job ? `${data.job.city}, ${data.job.country}` : null} />
+                <Field
+                  label="Position"
+                  value={data.job_position ? (data.job_position.city ? `${data.job_position.title} — ${data.job_position.city}` : data.job_position.title) : null}
+                />
+                {data.job?.service_fee_gbp != null && data.job.payment_stages.length > 0 && (
+                  <Field
+                    label={data.job.is_credit_service ? "Credit Service Terms" : "Service Fee"}
+                    value={summarizePaymentStages(data.job.service_fee_gbp, data.job.payment_stages)}
+                  />
+                )}
+                <Field label="Earliest Travel Date" value={new Date(data.earliest_travel_date).toLocaleDateString()} />
+                <Field label="Current Location" value={data.current_location_country?.name ?? data.current_location_country_name} />
+              </div>
+            )}
           </div>
 
           <div className="card p-6">

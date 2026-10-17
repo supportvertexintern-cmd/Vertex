@@ -148,6 +148,38 @@ export async function canAccessCandidate(
 }
 
 /**
+ * Single-record check for a Document. A document uploaded while its
+ * PartnerCandidate was still a draft has no Candidate yet (only
+ * partner_candidate_id), so canAccessCandidate can't decide it: only the
+ * owning partner and the staff who enter drafts on a partner's behalf may
+ * see it. Anything else is refused.
+ */
+export async function canAccessDocument(
+  user: JwtPayload,
+  document: { candidate: CandidateAccessCheck | null; partner_candidate_id: string | null }
+): Promise<boolean> {
+  if (document.candidate) return canAccessCandidate(user, document.candidate);
+  if (!document.partner_candidate_id) return false;
+  switch (user.role) {
+    case "admin":
+    case "director":
+    case "hr":
+    case "operations_team":
+    case "operations_director":
+      return true;
+    case "partner": {
+      const draft = await prisma.partnerCandidate.findUnique({
+        where: { id: document.partner_candidate_id },
+        select: { partner: { select: { user_id: true } } },
+      });
+      return draft?.partner.user_id === user.userId;
+    }
+    default:
+      return false;
+  }
+}
+
+/**
  * Row-level scoping for Cases (SRS FR-4.2), derived through the existing
  * candidate scope rather than duplicating recruiter_id/country_id onto
  * Case itself — a case is always reached via application -> candidate.

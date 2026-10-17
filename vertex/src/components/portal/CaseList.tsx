@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { WarningCircle } from "@phosphor-icons/react";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "./caseStages";
 import CaseStageProgress from "./CaseStageProgress";
 import OpsReviewBadge from "./OpsReviewBadge";
@@ -14,8 +13,8 @@ import { usePagination } from "@/lib/usePagination";
 interface CaseRow {
   id: string;
   current_stage: CaseStageKey;
-  stage_deadline: string | null;
   created_at: string;
+  updated_at: string;
   status: "active" | "rejected";
   ops_review_status: "pending" | "confirmed" | "rejected";
   contract: { status: string } | null;
@@ -43,26 +42,6 @@ const CASE_STATUS_OPTIONS = [
   { value: "all", label: "All cases" },
 ];
 
-function DeadlineBadge({ deadline }: { deadline: string | null }) {
-  if (!deadline) return null;
-  const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (days < 0) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700">
-        <WarningCircle size={13} weight="fill" /> Overdue {Math.abs(days)}d
-      </span>
-    );
-  }
-  if (days <= 7) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700">
-        <WarningCircle size={13} weight="fill" /> Due in {days}d
-      </span>
-    );
-  }
-  return <span className="text-xs text-midnight-900/40">Due {new Date(deadline).toLocaleDateString()}</span>;
-}
-
 // Fetches the full (already role-scoped, so naturally small) case set
 // unfiltered, then searches/filters/sorts/paginates client-side — same
 // lightweight pattern as the Partner Portal's own case list
@@ -75,7 +54,7 @@ export default function CaseList({ emptyLabel, basePath }: { emptyLabel: string;
   const [q, setQ] = useState("");
   const [stage, setStage] = useState("");
   const [status, setStatus] = useState("active");
-  const [sortBy, setSortBy] = useState<"updated" | "deadline" | "name">("updated");
+  const [sortBy, setSortBy] = useState<"updated" | "name">("updated");
 
   useEffect(() => {
     fetch("/api/cases?status=all")
@@ -100,11 +79,6 @@ export default function CaseList({ emptyLabel, basePath }: { emptyLabel: string;
         const bn = b.application.candidate.user?.full_name ?? b.application.candidate.full_name ?? "";
         return an.localeCompare(bn);
       }
-      if (sortBy === "deadline") {
-        if (!a.stage_deadline) return 1;
-        if (!b.stage_deadline) return -1;
-        return new Date(a.stage_deadline).getTime() - new Date(b.stage_deadline).getTime();
-      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
     return rows;
@@ -122,11 +96,10 @@ export default function CaseList({ emptyLabel, basePath }: { emptyLabel: string;
         <SearchableSelect value={status} onChange={setStatus} className="input-field w-48" options={CASE_STATUS_OPTIONS} />
         <SearchableSelect
           value={sortBy}
-          onChange={(v) => setSortBy(v as "updated" | "deadline" | "name")}
+          onChange={(v) => setSortBy(v as "updated" | "name")}
           className="input-field w-52"
           options={[
             { value: "updated", label: "Sort: Recently Opened" },
-            { value: "deadline", label: "Sort: Deadline" },
             { value: "name", label: "Sort: Candidate Name" },
           ]}
         />
@@ -152,6 +125,9 @@ export default function CaseList({ emptyLabel, basePath }: { emptyLabel: string;
                       : <>{c.application.preferred_sector?.name ?? "General Programme"}{c.application.preferred_country_1 && <> · {c.application.preferred_country_1.name}</>}</>}
                     {c.application.candidate.recruiter && <> · {c.application.candidate.recruiter.full_name}</>}
                   </div>
+                  <div className="text-[11px] text-midnight-900/35 mb-3">
+                    Created {new Date(c.created_at).toLocaleDateString()} · Updated {new Date(c.updated_at).toLocaleDateString()}
+                  </div>
                   <div className="w-72 max-w-full">
                     <CaseStageProgress stage={c.current_stage} />
                   </div>
@@ -160,7 +136,6 @@ export default function CaseList({ emptyLabel, basePath }: { emptyLabel: string;
                   {c.status === "rejected" && (
                     <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</div>
                   )}
-                  <DeadlineBadge deadline={c.stage_deadline} />
                   {c.ops_review_status !== "pending" && <OpsReviewBadge status={c.ops_review_status} />}
                   {c.contract && <div className="text-xs text-midnight-900/40 capitalize">Contract: {c.contract.status}</div>}
                   {c.retention_follow_up && !c.retention_follow_up.completed_at && (

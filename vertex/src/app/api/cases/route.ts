@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { scopeCasesToRequester } from "@/server/scope";
 import type { CaseStage } from "@prisma/client";
+import { readOpportunityFilterParams, resolveOpportunityFilters } from "@/server/services/opportunityFilters";
 
 const CASE_ACCESS_ROLES = ["candidate", "regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin", "partner", "hr", "operations_team", "operations_director", "finance"] as const;
 const MAX_PAGE_SIZE = 200;
@@ -30,6 +31,15 @@ export async function GET(req: NextRequest) {
   // "Self-submitted"/partner/recruiter labeling elsewhere.
   const partnerId = req.nextUrl.searchParams.get("partner_id");
   const source = req.nextUrl.searchParams.get("source");
+  // Country / Programme / Programme Country (2026-10-15) — see
+  // opportunityFilters.ts. Options are opt-in (?filterOptions=true) so the
+  // candidate/partner consumers of this shared endpoint don't pay for them.
+  const opportunityParams = readOpportunityFilterParams(req);
+  const wantsFilterOptions = req.nextUrl.searchParams.get("filterOptions") === "true";
+  const opportunityFilters =
+    wantsFilterOptions || opportunityParams.country || opportunityParams.programme || opportunityParams.programmeCountry
+      ? await resolveOpportunityFilters({ applications: { some: { case: { isNot: null } } } }, opportunityParams)
+      : null;
 
   // Rejected cases (2026-08-16) drop out of the default view — staff
   // shouldn't have to scroll past closed cases on their day-to-day list.
@@ -56,17 +66,24 @@ export async function GET(req: NextRequest) {
       candidateId ? { application: { candidate_id: candidateId } } : {},
       partnerId ? { application: { candidate: { partner_id: partnerId } } } : {},
       source ? { application: { candidate: { source: source as never } } } : {},
+      opportunityFilters?.jobWhere ? { application: { job: opportunityFilters.jobWhere } } : {},
       q
         ? {
             application: {
-              candidate: {
-                OR: [
-                  { full_name: { contains: q, mode: "insensitive" as const } },
-                  { user: { full_name: { contains: q, mode: "insensitive" as const } } },
-                  { user: { email: { contains: q, mode: "insensitive" as const } } },
-                  { partner: { name: { contains: q, mode: "insensitive" as const } } },
-                ],
-              },
+              OR: [
+                {
+                  candidate: {
+                    OR: [
+                      { full_name: { contains: q, mode: "insensitive" as const } },
+                      { user: { full_name: { contains: q, mode: "insensitive" as const } } },
+                      { user: { email: { contains: q, mode: "insensitive" as const } } },
+                      { partner: { name: { contains: q, mode: "insensitive" as const } } },
+                    ],
+                  },
+                },
+                // Programme name lives inside Job.title (opportunityFilters.ts).
+                { job: { title: { contains: q, mode: "insensitive" as const } } },
+              ],
             },
           }
         : {},
@@ -96,14 +113,21 @@ export async function GET(req: NextRequest) {
         retention_follow_up: { select: { due_at: true, completed_at: true } },
         // CRM Comments item 9/13 (2026-08-10) — Finance's Created Cases
         // list derives a Status column from these, no schema change needed.
-        payments: { select: { type: true, status: true, sent_to_email: true } },
+        payments: { select: { status: true, sent_to_email: true } },
       },
-      orderBy,
+      // id tie-breaker — keeps pagination stable when sort values tie.
+      orderBy: [orderBy, { id: sortDir as "asc" | "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
     prisma.case.count({ where }),
   ]);
 
-  return NextResponse.json({ data: cases, total, page, pageSize });
+  return NextResponse.json({
+    data: cases,
+    total,
+    page,
+    pageSize,
+    ...(wantsFilterOptions && opportunityFilters ? { filter_options: opportunityFilters.options } : {}),
+  });
 }

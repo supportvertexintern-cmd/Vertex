@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
-import { canAccessCandidate } from "@/server/scope";
+import { canAccessDocument } from "@/server/scope";
 import { getSignedDocumentUrl } from "@/lib/upload";
 import { recordSecurityEvent } from "@/lib/audit";
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Document not found." }, { status: 404 });
   }
 
-  const allowed = await canAccessCandidate(user!, document.candidate);
+  const allowed = await canAccessDocument(user!, document);
   if (!allowed) {
     return forbidden({ error: "Forbidden." });
   }

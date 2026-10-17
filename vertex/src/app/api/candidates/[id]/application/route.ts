@@ -64,6 +64,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // job_position_id (2026-09-03) — validated against the EFFECTIVE job_id
+  // (the one being set this request, or the application's existing one),
+  // never trusted from the client's own pairing, same guard
+  // POST /api/applications uses at submission time. If job_id changes
+  // without an explicit job_position_id, the old position almost
+  // certainly no longer belongs to the new job, so it's cleared rather
+  // than left silently mismatched.
+  let jobPositionId = parsed.data.job_position_id;
+  if (jobPositionId) {
+    const jobPosition = await prisma.jobPosition.findUnique({ where: { id: jobPositionId }, include: { job_sector: true } });
+    const effectiveJobId = parsed.data.job_id ?? application.job_id;
+    if (!jobPosition || jobPosition.job_sector.job_id !== effectiveJobId) {
+      return NextResponse.json(
+        { error: { code: "validation_error", message: "Selected position does not belong to this opportunity." } },
+        { status: 422 }
+      );
+    }
+  } else if (jobPositionId === undefined && parsed.data.job_id && parsed.data.job_id !== application.job_id) {
+    jobPositionId = null;
+  }
+
   let currentLocationCountryId: string | undefined;
   if (parsed.data.current_location_country_name) {
     const match = await prisma.country.findFirst({ where: { name: { equals: parsed.data.current_location_country_name, mode: "insensitive" } } });
@@ -76,6 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     where: { id: application.id },
     data: {
       job_id: parsed.data.job_id,
+      job_position_id: jobPositionId,
       earliest_travel_date: parsed.data.earliest_travel_date ? new Date(parsed.data.earliest_travel_date) : undefined,
       prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,
       prior_eu_visa_applied_details: parsed.data.prior_eu_visa_applied_details,
@@ -97,6 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: partnerCandidate.id },
       data: {
         job_id: parsed.data.job_id,
+        job_position_id: jobPositionId,
         earliest_travel_date: parsed.data.earliest_travel_date ? new Date(parsed.data.earliest_travel_date) : undefined,
         prior_eu_visa_applied: parsed.data.prior_eu_visa_applied,
         prior_eu_visa_applied_details: parsed.data.prior_eu_visa_applied_details,

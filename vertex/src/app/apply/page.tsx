@@ -51,6 +51,21 @@ function ApplyPageInner() {
   // — jobId itself preselects ApplicationForm's Section 1 job picker; this
   // is only for the confirmation banner's title text.
   const [opportunity, setOpportunity] = useState<OpportunityJob | null>(null);
+  // Referral Agent attribution (2026-08-29) — persisted to localStorage so
+  // a candidate who followed a referral link earlier still carries
+  // attribution on a later visit, same precedent as WelcomePopup's
+  // vertex_welcome_accepted key.
+  const [referralCode, setReferralCode] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const refParam = searchParams.get("ref");
+    if (refParam) {
+      localStorage.setItem("vertex_referral_code", refParam);
+      setReferralCode(refParam);
+    } else {
+      setReferralCode(localStorage.getItem("vertex_referral_code") || undefined);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -122,6 +137,7 @@ function ApplyPageInner() {
               onSubmitted={() => {}}
               jobId={jobId}
               useEmailIntakeIfConfigured
+              referralCode={referralCode}
             />
             <p className="text-center text-xs text-slate-400 mt-4">
               Already submitted and have an account? <Link href="/auth/login?redirect=/apply" className="underline">Log in</Link> to check your status.
@@ -144,6 +160,7 @@ function ApplyPageInner() {
                   onSubmitted={() => fetch("/api/candidates/profile").then((r) => r.json()).then(setProfile)}
                   jobId={jobId}
                   useEmailIntakeIfConfigured
+                  referralCode={referralCode}
                   signedInCandidate
                   initialProfile={{
                     full_name: profile.user?.full_name ?? undefined,

@@ -32,7 +32,8 @@ export type TokenPurpose =
   | "candidate_invite"
   | "account_setup"
   | "cif_upload"
-  | "document";
+  | "document"
+  | "referral_agent_email_verification";
 
 const KEY_VERSION: Record<TokenPurpose, number> = {
   session: 1,
@@ -42,6 +43,7 @@ const KEY_VERSION: Record<TokenPurpose, number> = {
   account_setup: 1,
   cif_upload: 1,
   document: 1,
+  referral_agent_email_verification: 1,
 };
 
 const keys = new Map<TokenPurpose, Buffer>();
@@ -113,6 +115,11 @@ export interface AccountSetupTokenPayload {
 export interface CifUploadTokenPayload {
   candidateId: string;
   type: "cif_upload";
+}
+
+export interface ReferralAgentEmailVerificationTokenPayload {
+  referralAgentId: string;
+  type: "referral_agent_email_verification";
 }
 
 export function signToken(payload: JwtPayload): string {
@@ -190,4 +197,23 @@ export function signCifUploadToken(candidateId: string): string {
 
 export function verifyCifUploadToken(token: string): CifUploadTokenPayload {
   return verify<CifUploadTokenPayload>("cif_upload", token, ["candidateId"]);
+}
+
+// Verifies a public Referral Agent applicant's email address before admin
+// can approve them (2026-08-29) — no User/session exists yet at this point,
+// same no-account-required shape as signCandidateInviteToken. 24h, matching
+// EMAIL_TOKEN_EXPIRES_IN's existing email-verification precedent rather
+// than the 7-day invite-token TTL, since this is sent immediately after a
+// registration the applicant just submitted themselves (not a delayed
+// staff-initiated invite).
+export function signReferralAgentEmailVerificationToken(referralAgentId: string): string {
+  return sign(
+    "referral_agent_email_verification",
+    { referralAgentId, type: "referral_agent_email_verification" },
+    EMAIL_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"]
+  );
+}
+
+export function verifyReferralAgentEmailVerificationToken(token: string): ReferralAgentEmailVerificationTokenPayload {
+  return verify<ReferralAgentEmailVerificationTokenPayload>("referral_agent_email_verification", token, ["referralAgentId"]);
 }

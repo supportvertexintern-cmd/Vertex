@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { OPERATIONS_NAV_ITEMS } from "@/components/portal/operationsNav";
@@ -8,16 +8,19 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import SortableTh from "@/components/SortableTh";
 import FilterBar from "@/components/portal/FilterBar";
+import OpportunityFilters, { EMPTY_OPPORTUNITY_FILTER_OPTIONS, type OpportunityFilterOptions } from "@/components/portal/OpportunityFilters";
 import { CASE_STAGE_ORDER, CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
-import DeadlineCell from "@/components/portal/DeadlineCell";
 import OpsReviewBadge from "@/components/portal/OpsReviewBadge";
+import ExpandableStageText from "@/components/portal/ExpandableStageText";
 import { ArrowRight } from "@phosphor-icons/react";
+import { useUrlListState } from "@/lib/useUrlListState";
 
 interface CaseRow {
   id: string;
   current_stage: CaseStageKey;
-  stage_deadline: string | null;
   created_at: string;
+  updated_at: string;
+  status: "active" | "rejected";
   ops_review_status: "pending" | "confirmed" | "rejected";
   contract: { status: string } | null;
   retention_follow_up: { due_at: string; completed_at: string | null } | null;
@@ -69,18 +72,24 @@ const SOURCE_OPTIONS = [
 // or partner-sourced), scoped unrestricted (2026-07-31, per the
 // Operational Workflow SOP's confirmed global-access decision).
 export default function OperationsCasesPage() {
+  const { get, getNumber, set: setUrlState } = useUrlListState();
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [stage, setStage] = useState("");
-  const [partnerId, setPartnerId] = useState("");
-  const [source, setSource] = useState("");
-  const [caseStatus, setCaseStatus] = useState("active");
-  const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState("updated_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [q, setQ] = useState(() => get("q"));
+  const [stage, setStage] = useState(() => get("stage"));
+  const [partnerId, setPartnerId] = useState(() => get("partner_id"));
+  const [source, setSource] = useState(() => get("source"));
+  const [caseStatus, setCaseStatus] = useState(() => get("status", "active"));
+  const [country, setCountry] = useState(() => get("country"));
+  const [programme, setProgramme] = useState(() => get("programme"));
+  const [programmeCountry, setProgrammeCountry] = useState(() => get("programmeCountry"));
+  const [filterOptions, setFilterOptions] = useState<OpportunityFilterOptions>(EMPTY_OPPORTUNITY_FILTER_OPTIONS);
+  const [page, setPage] = useState(() => getNumber("page", 1));
+  const [sortBy, setSortBy] = useState(() => get("sortBy") || "updated_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (get("sortDir") === "asc" ? "asc" : "desc"));
+  const [hasInitializedFromUrl, setHasInitializedFromUrl] = useState(false);
 
   const handleSort = (key: string) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -95,32 +104,89 @@ export default function OperationsCasesPage() {
   }, []);
 
   useEffect(() => {
+    if (!hasInitializedFromUrl) return;
     setPage(1);
-  }, [q, stage, partnerId, source, caseStatus]);
+  }, [q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, hasInitializedFromUrl]);
+
+  useEffect(() => {
+    if (!hasInitializedFromUrl) {
+      setHasInitializedFromUrl(true);
+      return;
+    }
+    // Only update URL if values have changed from what's in the URL
+    const currentParams = new URLSearchParams();
+    if (page > 1) currentParams.set("page", String(page));
+    if (q) currentParams.set("q", q);
+    if (stage) currentParams.set("stage", stage);
+    if (partnerId) currentParams.set("partner_id", partnerId);
+    if (source) currentParams.set("source", source);
+    if (caseStatus !== "active") currentParams.set("status", caseStatus);
+    if (country) currentParams.set("country", country);
+    if (programme) currentParams.set("programme", programme);
+    if (programmeCountry) currentParams.set("programmeCountry", programmeCountry);
+    if (sortBy !== "updated_at") currentParams.set("sortBy", sortBy);
+    if (sortDir !== "desc") currentParams.set("sortDir", sortDir);
+    
+    const currentUrl = currentParams.toString();
+    if (currentUrl !== window.location.search.slice(1)) {
+      setUrlState({ page, q, stage, partner_id: partnerId, source, status: caseStatus, country, programme, programmeCountry, sortBy, sortDir });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, sortBy, sortDir, hasInitializedFromUrl]);
 
   useEffect(() => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir, status: caseStatus });
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), sortBy, sortDir, status: caseStatus, filterOptions: "true" });
     if (q) params.set("q", q);
     if (stage) params.set("stage", stage);
     if (partnerId) params.set("partner_id", partnerId);
     if (source) params.set("source", source);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
     const timeout = setTimeout(() => {
       fetch(`/api/cases?${params}`)
         .then((r) => r.json())
         .then((res) => {
           setCases(res.data ?? []);
           setTotal(res.total ?? 0);
+          if (res.filter_options) setFilterOptions(res.filter_options);
         })
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(timeout);
-  }, [q, stage, partnerId, source, caseStatus, page, sortBy, sortDir]);
+  }, [q, stage, partnerId, source, caseStatus, country, programme, programmeCountry, page, sortBy, sortDir]);
+
+  const hasClearableFilters = Boolean(q || country || programme || programmeCountry);
+  const clearFilters = () => {
+    setQ("");
+    setCountry("");
+    setProgramme("");
+    setProgrammeCountry("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Build the current URL with all state for back navigation
+  const currentUrl = (() => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (q) params.set("q", q);
+    if (stage) params.set("stage", stage);
+    if (partnerId) params.set("partner_id", partnerId);
+    if (source) params.set("source", source);
+    if (country) params.set("country", country);
+    if (programme) params.set("programme", programme);
+    if (programmeCountry) params.set("programmeCountry", programmeCountry);
+    if (caseStatus !== "active") params.set("status", caseStatus);
+    if (sortBy !== "updated_at") params.set("sortBy", sortBy);
+    if (sortDir !== "desc") params.set("sortDir", sortDir);
+    const qs = params.toString();
+    return qs ? `/operations?${qs}` : "/operations";
+  })();
+
   return (
-    <PortalShell roleLabel="Operations" navItems={OPERATIONS_NAV_ITEMS}>
+    <PortalShell roleLabel="Operations" navItems={OPERATIONS_NAV_ITEMS} wideContent>
       <p className="eyebrow mb-3">
         <span className="eyebrow-rule" />
         Mobility Lifecycle
@@ -131,7 +197,7 @@ export default function OperationsCasesPage() {
         FR-4.1). Payments are Finance's own lane.
       </p>
 
-      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate name or email…">
+      <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">
         <SearchableSelect value={stage} onChange={setStage} className="input-field w-56" options={STAGE_OPTIONS} />
         <SearchableSelect
           value={partnerId}
@@ -142,28 +208,40 @@ export default function OperationsCasesPage() {
         />
         <SearchableSelect value={source} onChange={setSource} className="input-field w-56" options={SOURCE_OPTIONS} />
         <SearchableSelect value={caseStatus} onChange={setCaseStatus} className="input-field w-48" options={CASE_STATUS_OPTIONS} />
+        <OpportunityFilters
+          options={filterOptions}
+          country={country}
+          onCountryChange={setCountry}
+          programme={programme}
+          onProgrammeChange={setProgramme}
+          programmeCountry={programmeCountry}
+          onProgrammeCountryChange={setProgrammeCountry}
+          onClear={clearFilters}
+          clearDisabled={!hasClearableFilters}
+        />
       </FilterBar>
 
       {loading ? (
         <p className="text-midnight-900/50">Loading…</p>
       ) : cases.length === 0 ? (
         <div className="card p-10 text-center text-midnight-900/50">
-          {q || stage || partnerId || source ? "No cases match your filters." : "No active cases yet."}
+          {q || stage || partnerId || source || country || programme || programmeCountry ? "No cases match your filters." : "No active cases yet."}
         </div>
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="card overflow-hidden">
+          <table className="w-full table-fixed text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-midnight-900/10 text-left text-midnight-900/40 text-xs uppercase tracking-wider">
-                <th className="px-5 py-3 font-semibold">Candidate</th>
-                <th className="px-5 py-3 font-semibold">Country</th>
-                <th className="px-5 py-3 font-semibold">Recruiter</th>
-                <th className="px-5 py-3 font-semibold">Partner</th>
-                <SortableTh label="Submitted" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} />
-                <th className="px-5 py-3 font-semibold">Documentation</th>
-                <th className="px-5 py-3 font-semibold">Deadline</th>
-                <th className="px-5 py-3 font-semibold"></th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Candidate</th>
+                <th className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Country</th>
+                <th className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Recruiter</th>
+                <th className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Partner</th>
+                <SortableTh label="Submitted" sortKey="created_at" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="hidden 2xl:table-cell" />
+                <th className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Updated</th>
+                <SortableTh label="Stage" sortKey="current_stage" activeSort={sortBy} activeDir={sortDir} onSort={handleSort} className="w-[30%] md:w-[24%] xl:w-[18%] 2xl:w-[16%] px-2 sm:px-3 lg:px-5" />
+                <th className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 font-semibold">Documentation</th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold">Status</th>
+                <th className="px-2 sm:px-3 lg:px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
             <tbody>
@@ -172,26 +250,31 @@ export default function OperationsCasesPage() {
                 const country = c.application.candidate.country?.name ?? c.application.preferred_country_1?.name ?? "—";
                 return (
                   <tr key={c.id} className="border-b border-midnight-900/5 last:border-0 hover:bg-ivory-100/60">
-                    <td className="px-5 py-4">
-                      <Link href={`/operations/${c.id}`} className="font-medium text-midnight-900 hover:underline">
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word">
+                      <Link href={`/operations/${c.id}?returnTo=${encodeURIComponent(currentUrl)}`} className="font-medium text-midnight-900 hover:underline">
                         {name}
                       </Link>
                       <div className="text-xs text-midnight-900/40">
                         {c.application.job ? c.application.job.title : c.application.preferred_sector?.name ?? "General Programme"}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-midnight-900/70">{country}</td>
-                    <td className="px-5 py-4 text-midnight-900/60">{c.application.candidate.recruiter?.full_name ?? "—"}</td>
-                    <td className="px-5 py-4 text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
-                    <td className="px-5 py-4 text-xs text-midnight-900/50 whitespace-nowrap">{new Date(c.created_at).toLocaleDateString()}</td>
-                    <td className="px-5 py-4 text-midnight-900/70 whitespace-nowrap">
-                      Stage {CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of {CASE_STAGE_ORDER.length}: {CASE_STAGE_LABELS[c.current_stage]}
+                    <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/70">{country}</td>
+                    <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/60">{c.application.candidate.recruiter?.full_name ?? "—"}</td>
+                    <td className="hidden xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 wrap-break-word text-midnight-900/60">{c.application.candidate.partner?.name ?? "—"}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.created_at).toLocaleDateString()}</td>
+                    <td className="hidden 2xl:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-xs text-midnight-900/50">{new Date(c.updated_at).toLocaleDateString()}</td>
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-midnight-900/70 wrap-break-word">
+                      <ExpandableStageText text={`Stage ${CASE_STAGE_ORDER.indexOf(c.current_stage) + 1} of ${CASE_STAGE_ORDER.length}: ${CASE_STAGE_LABELS[c.current_stage]}`} />
                     </td>
-                    <td className="px-5 py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
-                    <td className="px-5 py-4">
-                      <DeadlineCell deadline={c.stage_deadline} />
+                    <td className="hidden md:table-cell px-2 sm:px-3 lg:px-5 py-3 sm:py-4"><OpsReviewBadge status={c.ops_review_status} /></td>
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4">
+                      {c.status === "rejected" ? (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Rejected</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Active</span>
+                      )}
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-2 sm:px-3 lg:px-5 py-3 sm:py-4 text-right">
                       <Link
                         href={`/operations/${c.id}`}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-gold-600 hover:underline"
