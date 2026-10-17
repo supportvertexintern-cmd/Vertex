@@ -119,19 +119,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   let job;
   try {
     job = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    if (payment_stages) {
-      await tx.jobPaymentStage.deleteMany({ where: { job_id: id } });
-      await tx.jobPaymentStage.createMany({ data: payment_stages.map((s) => ({ ...s, job_id: id })) });
-    }
-    return tx.job.update({ where: { id }, data: jobData });
-  });
+      if (payment_stages) {
+        await tx.jobPaymentStage.deleteMany({ where: { job_id: id } });
+        await tx.jobPaymentStage.createMany({ data: payment_stages.map((s) => ({ ...s, job_id: id })) });
+      }
+      return tx.job.update({ where: { id }, data: jobData });
+    });
   } catch (err) {
     if (isNotFound(err)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
     throw err;
   }
 
   if (payment_stages) {
-    ensurePaymentReceiptDocumentTypes(job.id).catch((err) => console.error(`Failed to provision receipt document types for job ${job.id}.`, err));
+    ensurePaymentReceiptDocumentTypes(job.id).catch((err) => log.error("api.failed_to_provision_receipt_document_types_for_job", { message: `Failed to provision receipt document types for job ${job.id}.`, err }));
   }
   if (FEE_RELEVANT_FIELDS.some((field) => field in parsed.data)) {
     syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_re_sync_stripe_pricing_for", { message: `Failed to re-sync Stripe pricing for job ${job.id}.`, err }));

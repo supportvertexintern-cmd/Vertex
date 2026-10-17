@@ -28,6 +28,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const prices = await prisma.jobMilestonePrice.findMany({ where: { job_id: id } });
+  // Stripe prices live on each payment stage now (JobMilestonePrice is
+  // no longer part of the app's model).
+  const prices = await prisma.jobPaymentStage.findMany({
+    where: { job_id: id },
+    orderBy: { order: "asc" },
+    select: { id: true, order: true, label: true, stripe_product_id: true, stripe_price_id: true, synced_amount_gbp: true },
+  });
   return NextResponse.json({ data: prices });
 }
