@@ -151,7 +151,7 @@ class _ExceptionsScreenState extends State<ExceptionsScreen> {
   Widget build(BuildContext context) {
     final store = context.watch<ExceptionStore>();
 
-    List<RecruiterException> _filter(List<RecruiterException> list) =>
+    List<RecruiterException> filter(List<RecruiterException> list) =>
         list.where((e) {
           final q = _query.toLowerCase();
           final matchesQuery = q.isEmpty ||
@@ -162,8 +162,8 @@ class _ExceptionsScreenState extends State<ExceptionsScreen> {
           return matchesQuery && matchesCategory;
         }).toList();
 
-    final open = _filter(store.openExceptions);
-    final closed = _filter(store.closedExceptions);
+    final open = filter(store.openExceptions);
+    final closed = filter(store.closedExceptions);
 
     return Scaffold(
       backgroundColor: VertexColors.ivory50,
@@ -568,7 +568,7 @@ class _ExceptionsScreenState extends State<ExceptionsScreen> {
   Widget _dropdownField(String label, String value, List<String> options,
           ValueChanged<String?> onChanged) =>
       DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         style: const TextStyle(
             color: VertexColors.gold600,
@@ -793,7 +793,7 @@ class _ExceptionsScreenState extends State<ExceptionsScreen> {
     required ValueChanged<String?> onChanged,
   }) =>
       DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         style: const TextStyle(
             color: VertexColors.gold600,
