@@ -4,6 +4,7 @@ import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { sendReferralCommissionApprovedEmail } from "@/lib/email";
+import { log } from "@/lib/log";
 
 // POST /api/admin/referral-commissions/:id/approve — pending -> approved.
 // A £0 commission never reaches "pending" in the first place (it
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     commission.candidate.full_name ?? "your referral",
     commission.amount,
     commission.currency
-  ).catch(console.error);
+  ).catch((err) => log.error("email.send_failed", { err }));
 
   return NextResponse.json({ data: updated });
 }

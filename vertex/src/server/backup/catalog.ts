@@ -75,6 +75,12 @@ const MODEL_LABELS: Record<string, string> = {
 
 const ALL_MODELS = CATEGORIES.flatMap((c) => c.models);
 
+// Tables kept out of every category on purpose, so no role can export them
+// (canExportModel refuses them, including through a relation).
+export const NEVER_EXPORTED: Record<string, string> = {
+  RefreshToken: "session credentials (refresh-token hashes, G19); not business data",
+};
+
 const CORE_OPERATIONAL = [
   "Candidate",
   "Application",

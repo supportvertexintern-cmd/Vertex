@@ -32,7 +32,8 @@ export type TokenPurpose =
   | "candidate_invite"
   | "account_setup"
   | "cif_upload"
-  | "document";
+  | "document"
+  | "referral_agent_email_verification";
 
 const KEY_VERSION: Record<TokenPurpose, number> = {
   session: 1,
@@ -42,6 +43,7 @@ const KEY_VERSION: Record<TokenPurpose, number> = {
   account_setup: 1,
   cif_upload: 1,
   document: 1,
+  referral_agent_email_verification: 1,
 };
 
 const keys = new Map<TokenPurpose, Buffer>();
@@ -205,12 +207,13 @@ export function verifyCifUploadToken(token: string): CifUploadTokenPayload {
 // registration the applicant just submitted themselves (not a delayed
 // staff-initiated invite).
 export function signReferralAgentEmailVerificationToken(referralAgentId: string): string {
-  return jwt.sign({ referralAgentId, type: "referral_agent_email_verification" }, JWT_SECRET, {
-    expiresIn: EMAIL_TOKEN_EXPIRES_IN,
-    algorithm: ALGORITHM,
-  } as jwt.SignOptions);
+  return sign(
+    "referral_agent_email_verification",
+    { referralAgentId, type: "referral_agent_email_verification" },
+    EMAIL_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"]
+  );
 }
 
 export function verifyReferralAgentEmailVerificationToken(token: string): ReferralAgentEmailVerificationTokenPayload {
-  return jwt.verify(token, JWT_SECRET, { algorithms: [ALGORITHM] }) as ReferralAgentEmailVerificationTokenPayload;
+  return verify<ReferralAgentEmailVerificationTokenPayload>("referral_agent_email_verification", token, ["referralAgentId"]);
 }

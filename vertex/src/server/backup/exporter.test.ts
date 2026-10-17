@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { buildZip } from "@/lib/zip";
 import {
   CATEGORIES,
+  NEVER_EXPORTED,
   allowedModels,
   describeCatalog,
   exportableFields,
@@ -93,13 +94,19 @@ afterAll(async () => {
 describe("backup catalog", () => {
   it("places every Prisma model in a category, so a new table can't silently drop out of full backups", () => {
     const categorized = new Set(CATEGORIES.flatMap((c) => c.models));
-    const missing = Prisma.dmmf.datamodel.models.map((m) => m.name).filter((m) => !categorized.has(m));
+    const missing = Prisma.dmmf.datamodel.models
+      .map((m) => m.name)
+      .filter((m) => !categorized.has(m) && !(m in NEVER_EXPORTED));
     expect(missing).toEqual([]);
   });
 
   it("gives admin/director every table and keeps restricted tables away from HR", () => {
-    expect(allowedModels("admin")).toHaveLength(Prisma.dmmf.datamodel.models.length);
-    expect(allowedModels("director")).toHaveLength(Prisma.dmmf.datamodel.models.length);
+    const exportable = Prisma.dmmf.datamodel.models.length - Object.keys(NEVER_EXPORTED).length;
+    expect(allowedModels("admin")).toHaveLength(exportable);
+    expect(allowedModels("director")).toHaveLength(exportable);
+    for (const role of ["admin", "director"] as const) {
+      for (const model of Object.keys(NEVER_EXPORTED)) expect(allowedModels(role)).not.toContain(model);
+    }
     const hr = allowedModels("hr");
     expect(hr).toEqual(expect.arrayContaining(["Candidate", "PartnerCandidate", "Case", "Document", "User"]));
     for (const restricted of ["AuditLog", "ReferralAgent", "SystemSetting", "StaffScorecard", "EmailTemplate"]) {

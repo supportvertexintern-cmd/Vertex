@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
 
   const candidate = await prisma.partnerCandidate.findUnique({
-    where: { id, status: { not: "draft" } },
+    where: { id },
     include: {
       job: {
         select: {

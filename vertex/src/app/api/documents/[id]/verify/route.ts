@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
-import { canAccessCandidate } from "@/server/scope";
+import { canAccessDocument } from "@/server/scope";
 import { verifyDocumentSchema } from "@/lib/validations";
 import type { Role } from "@prisma/client";
 
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: { code: "not_found", message: "Document not found." } }, { status: 404 });
   }
 
-  const allowed = await canAccessCandidate(user!, document.candidate);
+  const allowed = await canAccessDocument(user!, document);
   if (!allowed) {
     return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
   }

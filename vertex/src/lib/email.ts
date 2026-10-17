@@ -574,14 +574,14 @@ export async function sendReferralAgentApplicationReceivedEmail(to: string, full
   try {
     await transporter.sendMail({ from: FROM, to, subject: "Verify your email — Vertex Referral Agent application", html });
   } catch (error) {
-    console.error("Error sending referral agent application received email:", error);
+    log.error("email.error_sending_referral_agent_application_received_email", { err: error });
   }
 }
 
 export async function sendReferralAgentAdminNotificationEmail(fullName: string, country: string) {
   const to = process.env.REFERRAL_AGENT_NOTIFY_EMAIL;
   if (!to) {
-    console.log(`[referral-agent] ${fullName} (${country}) applied — no REFERRAL_AGENT_NOTIFY_EMAIL configured, skipping notification email.`);
+    log.info("email.referral_agent_notify_email_not_configured");
     return;
   }
   const html = emailLayout({
@@ -595,7 +595,7 @@ export async function sendReferralAgentAdminNotificationEmail(fullName: string, 
   try {
     await transporter.sendMail({ from: FROM, to, subject: `New referral agent application: ${fullName}`, html });
   } catch (error) {
-    console.error("Error sending referral agent admin notification:", error);
+    log.error("email.error_sending_referral_agent_admin_notification", { err: error });
   }
 }
 
@@ -613,7 +613,7 @@ export async function sendReferralAgentApprovedEmail(to: string, fullName: strin
   try {
     await transporter.sendMail({ from: FROM, to, subject: "You're approved as a Vertex Referral Agent", html });
   } catch (error) {
-    console.error("Error sending referral agent approved email:", error);
+    log.error("email.error_sending_referral_agent_approved_email", { err: error });
   }
 }
 
@@ -630,7 +630,7 @@ export async function sendReferralAgentRejectedEmail(to: string, fullName: strin
   try {
     await transporter.sendMail({ from: FROM, to, subject: "Update on your Vertex Referral Agent application", html });
   } catch (error) {
-    console.error("Error sending referral agent rejected email:", error);
+    log.error("email.error_sending_referral_agent_rejected_email", { err: error });
   }
 }
 
@@ -647,7 +647,7 @@ export async function sendReferralAgentSuspendedEmail(to: string, fullName: stri
   try {
     await transporter.sendMail({ from: FROM, to, subject: "Your Vertex Referral Agent account has been suspended", html });
   } catch (error) {
-    console.error("Error sending referral agent suspended email:", error);
+    log.error("email.error_sending_referral_agent_suspended_email", { err: error });
   }
 }
 
@@ -663,7 +663,7 @@ export async function sendReferralCandidateRegisteredEmail(to: string, agentName
   try {
     await transporter.sendMail({ from: FROM, to, subject: `New referral: ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending referral candidate registered email:", error);
+    log.error("email.error_sending_referral_candidate_registered_email", { err: error });
   }
 }
 
@@ -679,7 +679,7 @@ export async function sendReferralCandidateQualifiedEmail(to: string, agentName:
   try {
     await transporter.sendMail({ from: FROM, to, subject: `${candidateName} qualified`, html });
   } catch (error) {
-    console.error("Error sending referral candidate qualified email:", error);
+    log.error("email.error_sending_referral_candidate_qualified_email", { err: error });
   }
 }
 
@@ -696,7 +696,7 @@ export async function sendReferralCommissionEarnedEmail(to: string, agentName: s
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Commission earned — ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending referral commission earned email:", error);
+    log.error("email.error_sending_referral_commission_earned_email", { err: error });
   }
 }
 
@@ -711,7 +711,7 @@ export async function sendReferralCommissionApprovedEmail(to: string, agentName:
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Commission approved — ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending referral commission approved email:", error);
+    log.error("email.error_sending_referral_commission_approved_email", { err: error });
   }
 }
 
@@ -726,7 +726,7 @@ export async function sendReferralCommissionPaidEmail(to: string, agentName: str
   try {
     await transporter.sendMail({ from: FROM, to, subject: `Commission paid — ${candidateName}`, html });
   } catch (error) {
-    console.error("Error sending referral commission paid email:", error);
+    log.error("email.error_sending_referral_commission_paid_email", { err: error });
   }
 }
 
