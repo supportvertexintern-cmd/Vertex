@@ -21,6 +21,10 @@ interface Props {
   "aria-label"?: string;
 }
 
+const LIST_MAX_HEIGHT = 224;
+const SEARCH_ROW_HEIGHT = 40;
+const PANEL_HEIGHT = LIST_MAX_HEIGHT + SEARCH_ROW_HEIGHT;
+
 // A searchable dropdown that behaves like a native <select> from the
 // outside (string value + onChange(value)) but lets you type to filter
 // the option list instead of scrolling a long native menu — used
@@ -28,7 +32,8 @@ interface Props {
 // couple of options (countries, sectors, staff, regions, etc.).
 //
 // The option list is rendered into a `position: fixed` layer attached to
-// <body>, positioned directly under the trigger from its measured rect,
+// <body>, positioned directly under the trigger (or above it, when the
+// window has no room for the list below) from its measured rect,
 // so it cannot be affected by any ancestor's overflow/transform/position
 // layout. The fixed subtree is inserted one frame after the dropdown is
 // opened (double requestAnimationFrame): if it is mounted while the page
@@ -53,7 +58,7 @@ export default function SearchableSelect({
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width: number; space: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +78,16 @@ export default function SearchableSelect({
     const r = el.getBoundingClientRect();
     const width = Math.min(Math.max(r.width, 200), window.innerWidth - 8);
     const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8));
-    setCoords({ top: r.bottom + 4, left, width });
+    // A fixed panel can't be scrolled into view, so when a trigger near the
+    // bottom of the window lacks room for the full list below it, open the
+    // panel upward instead of off-screen.
+    const below = window.innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    if (below < PANEL_HEIGHT && above > below) {
+      setCoords({ bottom: window.innerHeight - r.top + 4, left, width, space: above });
+    } else {
+      setCoords({ top: r.bottom + 4, left, width, space: below });
+    }
   }, []);
 
   const close = () => {
@@ -158,7 +172,7 @@ export default function SearchableSelect({
     }
   };
 
-  const maxHeight = coords ? Math.max(96, Math.min(224, window.innerHeight - coords.top - 8)) : 224;
+  const maxHeight = coords ? Math.max(96, Math.min(LIST_MAX_HEIGHT, coords.space - SEARCH_ROW_HEIGHT)) : LIST_MAX_HEIGHT;
 
   return (
     <div
@@ -190,7 +204,7 @@ export default function SearchableSelect({
         ? createPortal(
             <div
               ref={panelRef}
-              style={{ position: "fixed", top: coords.top, left: coords.left, width: coords.width }}
+              style={{ position: "fixed", top: coords.top, bottom: coords.bottom, left: coords.left, width: coords.width }}
               className="z-[999] bg-white border border-midnight-900/15 rounded-lg shadow-xl overflow-hidden"
             >
               <div className="flex items-center gap-2 px-3 py-2 border-b border-midnight-900/10">

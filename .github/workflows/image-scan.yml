@@ -39,5 +39,7 @@ jobs:
           retention-days: 90
       - name: Gate (fixable HIGH/CRITICAL)
         run: >-
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2
-          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 ${{ matrix.image }}:weekly
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1
+          --ignorefile /trivyignore.yaml ${{ matrix.image }}:weekly

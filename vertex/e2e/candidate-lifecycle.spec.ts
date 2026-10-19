@@ -34,6 +34,13 @@ async function pickOption(page: Page, trigger: Locator, name: string | RegExp) {
   await page.getByRole("option", { name }).click();
 }
 
+// The Czech Republic — 2-Year Resident Card programme's first seeded position.
+async function pickCzechPosition(page: Page) {
+  await pickOption(page, page.locator("#selected_country"), "Czech Republic");
+  await pickOption(page, page.locator("#sector"), "General / Unskilled");
+  await pickOption(page, page.locator("#job_position_id"), /^General Unskilled Worker — Prague$/);
+}
+
 const PASSWORD = "E2ETestPassword123!";
 const PDF_BUFFER = Buffer.from("%PDF-1.4\n%%EOF");
 
@@ -67,15 +74,15 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByLabel(/Phone Number/).fill("+254700111222");
       await page.getByLabel("Email Address").fill(candidateEmail);
 
-      // Section 1 is a single Opportunity (Job) picker now (2026-07-31),
-      // not separate country/sector pickers. Jobs are seeded reference
-      // data (prisma/seed.ts); most seeded destination countries (Belarus,
-      // Poland, etc.) carry extra CountryDocumentRequirement rows beyond
-      // the universal cv/passport/passport_photo set — Czech Republic is
-      // one of the seeded destinations with none, so document-completeness
-      // (and the auto-advance to "submitted" it drives) only depends on
-      // the 3 universal uploads this test actually performs.
-      await pickOption(page, page.getByLabel("Opportunity"), /Czech Republic — 2-Year Resident Card/);
+      // Section 1 is cascading Country → Sector → Position pickers. Jobs
+      // and their positions are seeded reference data (prisma/seed.ts);
+      // most seeded destination countries (Belarus, Poland, etc.) carry
+      // extra CountryDocumentRequirement rows beyond the universal
+      // cv/passport/passport_photo set — Czech Republic is one of the
+      // seeded destinations with none, so document-completeness (and the
+      // auto-advance to "submitted" it drives) only depends on the 3
+      // universal uploads this test actually performs.
+      await pickCzechPosition(page);
       await page.getByLabel("Earliest Possible Travel Date").fill("2026-12-01");
       // "E2E Country" (global-setup fixture) is also e2e-recruiter/
       // e2e-supervisor's assigned territory, so the candidate lands in the
