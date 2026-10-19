@@ -59,6 +59,9 @@ test.describe("Mobility case lifecycle (Phase 4)", () => {
       await page.goto("/operations");
       const caseRow = page.locator("tr", { hasText: "E2E Case Candidate" });
       await expect(caseRow).toBeVisible({ timeout: 25_000 });
+      // Case lists cut stage labels over 50 characters short
+      // (ExpandableStageText) — expand it to check the full label.
+      await caseRow.getByRole("button", { name: "Show More" }).click();
       await expect(caseRow.getByText(/Stage 1 of 11: Candidate Registration & Document Submission/)).toBeVisible();
       await caseRow.getByRole("link", { name: "E2E Case Candidate" }).click();
       await page.waitForURL(/\/operations\/.+/);
@@ -101,6 +104,7 @@ test.describe("Mobility case lifecycle (Phase 4)", () => {
       await page.goto("/management/cases");
       const caseRow = page.locator("tr", { hasText: "E2E Case Candidate" });
       await expect(caseRow).toBeVisible({ timeout: 25_000 });
+      await caseRow.getByRole("button", { name: "Show More" }).click();
       await expect(caseRow.getByText(/Stage 2 of 11: Document Preparation, Translation & Legalization/)).toBeVisible();
       await caseRow.getByRole("link", { name: "E2E Case Candidate" }).click();
       await page.waitForURL(/\/management\/cases\/.+/);
