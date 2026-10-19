@@ -34,6 +34,13 @@ async function pickOption(page: Page, trigger: Locator, name: string | RegExp) {
   await page.getByRole("option", { name }).click();
 }
 
+// The Czech Republic — 2-Year Resident Card programme's first seeded position.
+async function pickCzechPosition(page: Page) {
+  await pickOption(page, page.locator("#selected_country"), "Czech Republic");
+  await pickOption(page, page.locator("#sector"), "General / Unskilled");
+  await pickOption(page, page.locator("#job_position_id"), /^General Unskilled Worker — Prague$/);
+}
+
 const PASSWORD = "E2ETestPassword123!";
 const PDF_BUFFER = Buffer.from("%PDF-1.4\n%%EOF");
 
@@ -69,7 +76,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       // the one surviving Czech Republic programme in the 2026 pricing
       // revision (2026-07-31) — the old seasonal permits it used to be
       // (3/6/9-month) were retired.
-      await pickOption(page, page.getByLabel("Opportunity"), /Czech Republic — 2-Year Resident Card/);
+      await pickCzechPosition(page);
       await page.getByLabel("Earliest Possible Travel Date").fill("2026-12-01");
       await pickOption(page, page.getByLabel("Current Location (country)"), "Kenya");
       await page.getByLabel("I understand the payment plan above.").check();
