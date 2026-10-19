@@ -310,8 +310,11 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       # E4: a fixable HIGH/CRITICAL finding fails the build. Unfixed ones
-      # are the documented exceptions (docs/security/exceptions.md).
+      # are the documented exceptions (docs/security/exceptions.md), and so
+      # are the dated entries in .trivyignore.yaml (E7).
       - name: Image scan (fixable HIGH/CRITICAL)
         run: >-
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2
-          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 ${{ matrix.image }}:ci
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1
+          --ignorefile /trivyignore.yaml ${{ matrix.image }}:ci
