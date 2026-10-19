@@ -106,9 +106,13 @@ async function main() {
     if (!c.stage) continue;
     const kase = await prisma.case.create({ data: { application_id: application.id, current_stage: c.stage } });
     await prisma.caseStageEvent.create({ data: { case_id: kase.id, stage: c.stage, owner_id: staff.operations.id } });
+    const paymentStage = await prisma.jobPaymentStage.findFirst({
+      where: { job_id: jobs[i % jobs.length].id }, orderBy: { order: "asc" },
+    });
+    if (!paymentStage) continue;
     await prisma.casePayment.create({
       data: {
-        case_id: kase.id, type: "documentation", amount: 250, recorded_by: staff.finance.id,
+        case_id: kase.id, job_payment_stage_id: paymentStage.id, amount: 250, recorded_by: staff.finance.id,
         status: c.stage === "registration_document_submission" ? "pending" : "collected",
       },
     });
