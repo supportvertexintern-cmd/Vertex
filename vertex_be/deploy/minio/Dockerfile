@@ -30,7 +30,7 @@ RUN cd mc && for m in ${MC_DEP_UPDATES}; do go get "$m@latest"; done && go mod t
 RUN cd minio && go build -trimpath -ldflags "$(sh /usr/local/bin/ldflags.sh minio "${MINIO_RELEASE}")" -o /out/minio .
 RUN cd mc && go build -trimpath -ldflags "$(sh /usr/local/bin/ldflags.sh mc "${MC_RELEASE}")" -o /out/mc .
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk upgrade --no-cache && apk add --no-cache ca-certificates \
  && adduser -D -H -u 1000 minio \
  && mkdir -p /data && chown minio /data
