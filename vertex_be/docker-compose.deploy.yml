@@ -33,7 +33,7 @@ x-logging: &default-logging
 services:
 
   backend:
-    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-backend:${IMAGE_TAG:?IMAGE_TAG is required}
 
     # Explicit, not env_file: each service sees only its own credentials,
     # never the superuser's or another service's.
@@ -93,7 +93,7 @@ services:
     logging: *default-logging
 
   flutter-web:
-    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
 
     # Served to the app as /config.json.
     environment:
@@ -109,7 +109,7 @@ services:
     logging: *default-logging
 
   nextjs:
-    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
 
     # Explicit list (see backend). Prisma connects as vertex_web; the optional
     # integration keys are empty unless set in the env file.
@@ -179,7 +179,7 @@ services:
     logging: *default-logging
 
   minio:
-    image: ${IMAGE_REGISTRY:-ghcr.io/brookteferi}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
     # S3-compatible object storage for uploaded documents. Files live on the
     # host in MINIO_DATA_DIR (D:/VertexData/minio/<env>). Only on the internal
     # `data` network: no published port, no web console.
