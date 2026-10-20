@@ -203,6 +203,10 @@ jobs:
 
       - run: npx tsc --noEmit
 
+      # Errors fail the build; warnings (the React Compiler rules, see
+      # eslint.config.mjs) are reported but don't, yet.
+      - run: npm run lint
+
       # E1: what ships must have no known advisories; dev-only tooling
       # (the ESLint chain's `braces`) must never reach production. Runs on
       # every pull request, so every lockfile change is re-checked.
