@@ -1,0 +1,44 @@
+# Weekly dependency updates, opened against dev, grouped to keep PR noise low.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /vertex
+    target-branch: dev
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message: { prefix: chore, include: scope }
+
+  - package-ecosystem: pip
+    directory: /vertex_be
+    target-branch: dev
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    commit-message: { prefix: chore, include: scope }
+
+  - package-ecosystem: pub
+    directory: /vertex_app
+    target-branch: dev
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 3
+    commit-message: { prefix: chore, include: scope }
+
+  - package-ecosystem: docker
+    directories: [/vertex, /vertex_be, /vertex_app, /vertex_be/deploy/minio]
+    target-branch: dev
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: chore, include: scope }
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message: { prefix: ci }
