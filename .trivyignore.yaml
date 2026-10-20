@@ -1,0 +1,15 @@
+# Fixable HIGH/CRITICAL findings accepted for a short, dated window while
+# the fix reaches the base image. Each entry is a security exception recorded
+# in docs/security/exceptions.md §4, with an expiry. After `expired_at` Trivy
+# stops honouring the entry and the CI and weekly gates fail again, which
+# forces a review instead of a silent permanent ignore.
+#
+# Only the gate steps read this file (ci.yml "Image scan", image-scan.yml
+# "Gate"); the weekly full report still lists everything.
+vulnerabilities:
+  - id: CVE-2026-77214
+    statement: >-
+      libexpat 2.8.5-r0 in nginx:1.29-alpine (vertex-flutter-web). Fixed in
+      2.9.0-r0, which Alpine hasn't published for this base yet, so the
+      Dockerfile's `apk upgrade` can't pick it up. Exception E7.
+    expired_at: 2026-11-02
