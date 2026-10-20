@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 
 # Prisma's engines need OpenSSL on Alpine.
 RUN apk add --no-cache openssl
@@ -18,7 +18,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build && npm prune --omit=dev  && if [ -e node_modules/braces ]; then echo "E1: braces in the production image" >&2; exit 1; fi
 
 
-FROM node:22-alpine
+FROM node:26-alpine
 
 # Current Alpine security fixes, and no npm/npx/yarn at runtime: the app
 # doesn't need a package manager, and npm's own bundled packages were most
