@@ -1,0 +1,25 @@
+# Keeps GHCR storage small: deletes untagged image versions, keeps the newest 20.
+name: Clean up old images
+
+on:
+  schedule:
+    - cron: "30 3 * * 0"   # Sundays 03:30 UTC
+  workflow_dispatch:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [vertex-backend, vertex-nextjs, vertex-flutter-web, vertex-minio]
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ matrix.package }}
+          package-type: container
+          min-versions-to-keep: 20
+          delete-only-untagged-versions: "true"

@@ -1,0 +1,95 @@
+name: Deploy local stacks
+
+# The Docker stacks on this PC, from images build.yml already pushed:
+#   build finished on `dev`     → vertex-dev      (automatic)
+#   build finished on `staging` → vertex-staging  (automatic)
+#   `main`                      → vertex-main only by hand: Actions → Deploy
+#                                 local stacks → Run workflow → branch `main`
+#                                 (merging to main never deploys by itself).
+# The self-hosted runner on the Docker host (label `vertex-host`) pulls that
+# exact build and restarts the stack (deploy/deploy.sh). Production on the
+# servers is production.yml, not this.
+#
+# Setup: register the runner on this repo and keep `.env.dev` /
+# `.env.staging` / `.env.main` in LOCAL_ENV_DIR on that machine.
+# See vertex_be/deploy/README.md and docs/CI-CD-SETUP.md.
+
+on:
+  workflow_run:
+    workflows: ["Build images"]
+    types: [completed]
+    branches: [dev, staging]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-local-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: false
+
+# Pull only: the token on the self-hosted runner can't push images.
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Deploy to vertex-${{ github.event.workflow_run.head_branch || github.ref_name }}
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && contains(fromJSON('["dev", "staging", "main"]'), github.ref_name))
+    runs-on: [self-hosted, vertex-host]
+    environment: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+    env:
+      BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+      PROJECT: vertex-${{ github.event.workflow_run.head_branch || github.ref_name }}
+      IMAGE_TAG: ${{ github.event.workflow_run.head_branch || github.ref_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
+      ENV_FILE: ${{ vars.LOCAL_ENV_DIR || 'D:/Django Projects/vertex_main/vertex_be' }}/.env.${{ github.event.workflow_run.head_branch || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          sparse-checkout: |
+            vertex_be/deploy
+            vertex_be/docker-compose.deploy.yml
+            vertex_be/docker-compose.db-port.yml
+          sparse-checkout-cone-mode: false
+
+      # Retries with backoff (this host's link to ghcr.io is sometimes slow
+      # enough to time out a single attempt). Runs in Git Bash: see the script
+      # for why PowerShell can't pipe the token.
+      - name: Log in to GHCR (with retries)
+        shell: powershell
+        working-directory: vertex_be
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          & "C:\Program Files\Git\bin\bash.exe" deploy/ghcr-login.sh
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Pull images and restart the stack
+        shell: powershell
+        working-directory: vertex_be
+        run: |
+          & "C:\Program Files\Git\bin\bash.exe" deploy/deploy.sh $env:PROJECT $env:IMAGE_TAG
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Summary
+        if: success()
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $f = Get-Content $env:ENV_FILE | ConvertFrom-StringData -ErrorAction SilentlyContinue
+          @"
+          ### Deployed ``$env:IMAGE_TAG`` to **$env:PROJECT**
+          | Service | URL |
+          |---|---|
+          | API docs | http://localhost:$($f.BACKEND_PORT)/docs |
+          | Flutter web | http://localhost:$($f.FLUTTER_PORT) |
+          | Next.js | http://localhost:$($f.NEXTJS_PORT) |
+          | pgAdmin | http://localhost:$($f.PGADMIN_PORT) |
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Log out of GHCR
+        if: always()
+        shell: powershell
+        run: docker logout ghcr.io
