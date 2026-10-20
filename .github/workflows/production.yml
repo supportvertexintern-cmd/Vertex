@@ -48,7 +48,7 @@ jobs:
     needs: guard
     runs-on: [self-hosted, prod-ops]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Deploy to app-server
         run: bash scripts/deploy/deploy-prod.sh "${{ needs.guard.outputs.tag }}"
 
@@ -56,7 +56,7 @@ jobs:
     needs: [guard, deploy]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tag the released commit vYYYY.MM.DD
         run: |
           git config user.name "release-bot"
