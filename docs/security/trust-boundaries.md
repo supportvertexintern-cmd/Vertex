@@ -166,12 +166,12 @@ Files are never public; every read goes through a signed, short-lived link.
 
 | Stage | Identity | Can do | Secrets | Exposure | Audit | Failure |
 |---|---|---|---|---|---|---|
-| CI (`ci.yml`, GitHub-hosted) | `GITHUB_TOKEN`, `contents: read` | Read code; tests use throwaway trust-auth databases | None real | GitHub cloud | Actions logs | Any failed job blocks the deploy |
-| Image build/push (`deploy.yml` build job) | `GITHUB_TOKEN`, `packages: write` | Push `ghcr.io/brookteferi/vertex-*` | — | GitHub cloud | Actions logs, GHCR | Push fails → no deploy |
-| Deploy (self-hosted runner `vertex-pc`) | `GITHUB_TOKEN`, now **`packages: read`** (was write, fixed here); local Docker | Pull images, run `deploy.sh`: provision roles as superuser, start the stack, migrations as `vertex_migrator` | Reads `.env.<env>` from disk (all of that environment's secrets) | Outbound only (polls GitHub); no inbound port | Actions logs; GitHub environment `dev`/`staging` | `set -eu`, health waits, network repair after each stage; the job fails and reports, but containers already recreated stay on the new version, so a service can be left down (happened 2026-10-09; no automatic rollback) |
+| CI (`ci.yml`, GitHub-hosted) | `GITHUB_TOKEN`, `contents: read` | Read code; tests use throwaway trust-auth databases | None real | GitHub cloud | Actions logs | Runs on pull requests only. A failed job turns **CI passed** red, which should block the merge; nothing enforces that on GitHub Free, and a direct push to `dev`/`staging` builds and deploys without CI |
+| Image build/push (`build.yml`) | `GITHUB_TOKEN`, `packages: write` | Push `ghcr.io/supportvertexintern-cmd/vertex-*` on every push to `dev`/`staging`/`main` | — | GitHub cloud | Actions logs, GHCR | Build fails → no deploy |
+| Local deploy (`deploy-local.yml`, self-hosted runner `vertex-pc`) | `GITHUB_TOKEN`, now **`packages: read`** (was write, fixed here); local Docker | Pull images, run `deploy.sh`: provision roles as superuser, start the stack, migrations as `vertex_migrator` | Reads `.env.<env>` from disk (all of that environment's secrets) | Outbound only (polls GitHub); no inbound port | Actions logs; GitHub environment `dev`/`staging` | `set -eu`, health waits, network repair after each stage; the job fails and reports, but containers already recreated stay on the new version, so a service can be left down (happened 2026-10-09; no automatic rollback) |
 | Vercel | Vercel GitHub app | Builds `main` only (`ignoreCommand`), for the customer demo site | Vercel env vars: `vertex_web` on the Neon demo database, a demo-only `JWT_SECRET` | Public | Vercel dashboard | **On again from 2026-10-13, demo data only** ([demo-site.md](../demo-site.md)). Off 2026-10-10 to 2026-10-13 |
 
-Who can deploy: anyone who can push to `dev` or `staging`. The runner
+Who can deploy: anyone who can push to `dev` or `staging` (locally), or run the production release as `vars.PROD_DEPLOYER` (`production.yml`, runner `prod-ops`; manual, `main` only). The runner
 account can read both environments' env files and control Docker, so it is
 as privileged as the PC's user. `main` is guarded only by a local pre-push
 hook (GitHub branch protection needs a paid plan for this private repo).

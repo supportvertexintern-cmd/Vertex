@@ -4,12 +4,14 @@
 
 | Branch    | Environment       | On push                                                                 |
 |-----------|-------------------|-------------------------------------------------------------------------|
-| `dev`     | `vertex-dev`      | CI → build & push all images to GHCR → auto-deploy to this PC           |
-| `staging` | `vertex-staging`  | CI → build & push all images to GHCR → auto-deploy to this PC           |
-| `main`    | `vertex-main`     | CI only. Deploys **by hand**: Actions → Deploy → Run workflow → `main`   |
+| `dev`     | `vertex-dev`      | build & push all images to GHCR → auto-deploy to this PC                |
+| `staging` | `vertex-staging`  | build & push all images to GHCR → auto-deploy to this PC                |
+| `main`    | `vertex-main`     | build & push only. Deploys **by hand**: Actions → Deploy local stacks → Run workflow → `main` |
 
 Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
-CI runs on every PR into those three branches, so nothing merges red.
+CI runs on the PRs into those three branches, not again on the push, so merge
+only when **CI passed** is green. A direct push to `dev` or `staging` deploys
+without CI; the pre-commit hooks refuse commits on `main` and `staging`.
 
 ## What runs where
 
@@ -59,7 +61,9 @@ Images are tagged `<branch>-<commit sha>` (exact build) and `<branch>` (latest).
 
 ## The pipeline
 
-[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — on PRs and `main`:
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) — on PRs (PRs into
+`dev` run only the suites whose folders changed; promotions into `staging` and
+`main` run everything, including the end-to-end journeys and image scans):
 
 | Job      | Checks                                                                 |
 |----------|------------------------------------------------------------------------|
@@ -68,11 +72,20 @@ Images are tagged `<branch>-<commit sha>` (exact build) and `<branch>` (latest).
 | nextjs   | `tsc`, vitest against a seeded Postgres (R2 upload test is local-only) |
 | images   | all three Docker images build                                          |
 
-[`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) — on push to
-`dev` / `staging`: runs CI, pushes the three images, then the **self-hosted runner
-on this PC** runs `deploy/deploy.sh`, which pulls that exact build and restarts
-the stack, waiting until every container is healthy. A failed health check
-fails the run and prints the logs.
+[`.github/workflows/build.yml`](../../.github/workflows/build.yml) — on push to
+`dev` / `staging` / `main`: pushes the four images (backend, Flutter web,
+Next.js, MinIO) tagged `<branch>-<sha>` and `<branch>`.
+
+[`.github/workflows/deploy-local.yml`](../../.github/workflows/deploy-local.yml) —
+when a `dev` / `staging` build succeeds (or by hand, for `main`): the
+**self-hosted runner on this PC** runs `deploy/deploy.sh`, which pulls that
+exact build and restarts the stack, waiting until every container is healthy.
+A failed health check fails the run and prints the logs. It's triggered by
+`workflow_run`, which GitHub only honours once the workflow file is on the
+default branch (`main`).
+
+Production on the servers is [`production.yml`](../../.github/workflows/production.yml);
+see [docs/CI-CD-SETUP.md](../../docs/CI-CD-SETUP.md).
 
 ## One-time setup
 
@@ -81,7 +94,7 @@ fails the run and prints the logs.
 `vertex_be/.env.dev` and `vertex_be/.env.staging` (gitignored) hold each stack's
 settings and secrets. They are not in Git in any form; keep a secure backup.
 The runner reads them from `LOCAL_ENV_DIR`
-(default `D:/Django Projects/Vertex/vertex_be`; override with a repo variable).
+(default `D:/Django Projects/vertex_main/vertex_be`; override with a repo variable).
 
 ### 2. Self-hosted runner
 
@@ -91,7 +104,7 @@ Copy the token from the `config.cmd` line, then in PowerShell:
 ```powershell
 mkdir C:\actions-runner; cd C:\actions-runner
 # download + extract the runner zip using the commands GitHub shows, then:
-.\config.cmd --url https://github.com/BrookTeferi/Vertex --token <TOKEN> `
+.\config.cmd --url https://github.com/supportvertexintern-cmd/Vertex --token <TOKEN> `
   --name vertex-pc --labels vertex-host --unattended
 .\run.cmd          # or install it as a service running as *your* user
 ```

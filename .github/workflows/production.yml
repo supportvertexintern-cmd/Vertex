@@ -1,0 +1,68 @@
+# Production release: manual only, from main only, by the allowed deployer only.
+# Runs on the self-hosted runner on ops-server (label prod-ops), which reaches
+# app-server and db-server over the Lightsail private network. GitHub never
+# holds an SSH key or a production secret.
+#
+# Repository variable to create (Settings -> Secrets and variables -> Actions -> Variables):
+#   PROD_DEPLOYER = your GitHub username
+name: Production release
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to release (main-<full commit sha>). Leave empty for the current main commit."
+        required: false
+        type: string
+      confirm:
+        description: 'Type "release" to confirm'
+        required: true
+        type: string
+
+permissions:
+  contents: write   # to push the release tag
+  packages: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Only main, only the deployer, only when confirmed
+        run: |
+          [ "${{ github.ref }}" = "refs/heads/main" ] || { echo "Run this from main."; exit 1; }
+          [ "${{ github.actor }}" = "${{ vars.PROD_DEPLOYER }}" ] || { echo "Not an allowed deployer."; exit 1; }
+          [ "${{ inputs.confirm }}" = "release" ] || { echo "Confirmation missing."; exit 1; }
+      - id: tag
+        run: |
+          T="${{ inputs.image_tag }}"
+          [ -n "$T" ] || T="main-${{ github.sha }}"
+          echo "tag=$T" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: guard
+    runs-on: [self-hosted, prod-ops]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to app-server
+        run: bash scripts/deploy/deploy-prod.sh "${{ needs.guard.outputs.tag }}"
+
+  tag-release:
+    needs: [guard, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag the released commit vYYYY.MM.DD
+        run: |
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          BASE="v$(date -u +%Y.%m.%d)"; T="$BASE"; n=2
+          while git ls-remote --exit-code --tags origin "refs/tags/$T" >/dev/null 2>&1; do T="$BASE.$n"; n=$((n+1)); done
+          git tag -a "$T" -m "Release ${{ needs.guard.outputs.tag }}"
+          git push origin "$T"
+          echo "Released as $T" >> "$GITHUB_STEP_SUMMARY"
