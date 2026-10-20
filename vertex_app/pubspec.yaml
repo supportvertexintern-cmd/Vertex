@@ -16,7 +16,7 @@ dependencies:
   phosphor_flutter: ^2.1.0             # Same icons as web
 
   # ─── Navigation & State ─────────────────────────────────────
-  go_router: ^18.0.1
+  go_router: ^18.1.0
   provider: ^6.1.2
 
   # ─── Networking ─────────────────────────────────────────────
