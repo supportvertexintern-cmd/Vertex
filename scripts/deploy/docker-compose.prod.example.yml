@@ -1,0 +1,60 @@
+# Example production compose file for app-server (copy to /opt/app/docker-compose.prod.yml).
+# Images come from GHCR at the tag passed by deploy-prod.sh (IMAGE_TAG).
+# The database is NOT here: it runs on db-server and is reached over the private network.
+# Documents stay on Cloudflare R2 (S3_* variables in .env).
+#
+# ASSUMPTIONS: internal ports 8000 (FastAPI) and 3000 (Next.js), Flutter web served on 80
+# inside its nginx image, a cloudflared tunnel token in .env. Adjust to your images.
+
+x-common: &common
+  restart: unless-stopped
+  env_file: .env
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+
+services:
+  backend:
+    <<: *common
+    image: ghcr.io/supportvertexintern-cmd/vertex-backend:${IMAGE_TAG:?set IMAGE_TAG}
+    # Migrations run separately (service "migrate"), not on every container start.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "3", "--proxy-headers"]
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: ghcr.io/supportvertexintern-cmd/vertex-backend:${IMAGE_TAG:?set IMAGE_TAG}
+    env_file: .env.migrator          # DATABASE_URL for the vertex_migrator role only
+    command: ["alembic", "upgrade", "head"]
+    profiles: ["tools"]              # only runs via "docker compose run --rm migrate"
+
+  nextjs:
+    <<: *common
+    image: ghcr.io/supportvertexintern-cmd/vertex-nextjs:${IMAGE_TAG:?set IMAGE_TAG}
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [backend]
+
+  flutter-web:
+    <<: *common
+    image: ghcr.io/supportvertexintern-cmd/vertex-flutter-web:${IMAGE_TAG:?set IMAGE_TAG}
+    ports: ["127.0.0.1:8080:80"]
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes: [clamav-db:/var/lib/clamav]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set in .env}
+    network_mode: host               # reaches the 127.0.0.1 ports above; no inbound ports opened
+
+volumes:
+  clamav-db:

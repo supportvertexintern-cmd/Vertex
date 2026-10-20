@@ -1,0 +1,71 @@
+# Build once, after a merge: pushes the four images to GHCR tagged
+# <branch>-<sha> and <branch>. Deploys (deploy-local.yml, production.yml) only
+# ever pull these. CI ran on the pull request; it doesn't run again here.
+name: Build images
+
+on:
+  push:
+    branches: [dev, staging, main]
+    # Docs-only changes have nothing to build.
+    paths-ignore: ["docs/**", "**/*.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false   # never cancel a build that a deploy may be waiting for
+
+jobs:
+  build:
+    name: Push ${{ matrix.image }}
+    # Only the three environments; a manual run on any other branch stops here.
+    if: contains(fromJSON('["dev", "staging", "main"]'), github.ref_name)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { image: vertex-backend, context: vertex_be }
+          - { image: vertex-flutter-web, context: vertex_app }
+          - { image: vertex-nextjs, context: vertex }
+          # Also the MinIO service image CI's integration tests run against.
+          - { image: vertex-minio, context: vertex_be/deploy/minio }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lower-case owner for GHCR
+        id: owner
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.owner.outputs.owner }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}-${{ github.sha }}
+            type=raw,value=${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
