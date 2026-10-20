@@ -1,4 +1,4 @@
-import type { Partner, PartnerCandidate, Prisma } from "@prisma/client";
+import type { Partner, PartnerCandidate } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { auditedPrisma } from "@/lib/audit";
 import { z } from "zod";
@@ -120,7 +120,7 @@ export async function finalizeSubmission({
   // wherever staff browse Candidate rows directly, confusingly showing up
   // as unexplained duplicates. A transaction makes a mid-sequence failure
   // roll back to nothing instead of a partial, orphaned record.
-  const { candidate, application, partnerCandidate } = await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  const { candidate, application, partnerCandidate } = await db.$transaction(async (tx) => {
     // Personal-info fields → Candidate. No country_id/country_name is set —
     // a partner-sourced candidate deliberately never enters a recruiter's or
     // country supervisor's scoped queue (both key off Candidate.country_id),

@@ -19,30 +19,32 @@ const isBuild = process.env.npm_lifecycle_event === "build" || process.env.NEXT_
 const databaseUrl = process.env.DATABASE_URL ?? "";
 const isAccelerateUrl = databaseUrl.startsWith("prisma://") || databaseUrl.startsWith("prisma+postgres://");
 
-function createPrismaClient() {
+function createPrismaClient(): PrismaClient {
   const client = new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
-  return isAccelerateUrl ? client.$extends(withAccelerate()) : client;
+  return isAccelerateUrl ? (client.$extends(withAccelerate()) as unknown as PrismaClient) : client;
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  (isBuild
-    ? new Proxy({} as any, {
-        get(target, prop) {
-          if (prop === "then") return undefined;
-          return new Proxy(() => Promise.resolve([]), {
-            get(t, p) {
-              if (p === "then") return undefined;
-              return () => Promise.resolve([]);
-            },
-          });
-        },
-      })
-    : createPrismaClient());
+// During `next build` every query resolves to an empty list instead of
+// touching a database. Typed as PrismaClient on purpose: an `any` here made
+// the exported client `any`, which switched type checking off for every
+// query in the app.
+const buildStub = new Proxy({}, {
+  get(target, prop) {
+    if (prop === "then") return undefined;
+    return new Proxy(() => Promise.resolve([]), {
+      get(t, p) {
+        if (p === "then") return undefined;
+        return () => Promise.resolve([]);
+      },
+    });
+  },
+}) as unknown as PrismaClient;
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma as any;
+export const prisma: PrismaClient = globalForPrisma.prisma ?? (isBuild ? buildStub : createPrismaClient());
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // Prisma's "record to update/delete does not exist" (P2025): an unknown ID
 // is a 404 for the caller, not a server error (ZAP 90022, Phase 12).

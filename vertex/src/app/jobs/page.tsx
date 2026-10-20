@@ -5,7 +5,7 @@ import JobsCategoryFilter from "@/components/JobsCategoryFilter";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 import { getAuthUser } from "@/lib/api-auth";
-import { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
+import { resolvePaymentStages } from "@/components/PaymentStagesPreview";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -13,25 +13,7 @@ export const metadata: Metadata = {
   description: "Explore international career opportunities at Vertex International Recruitment.",
 };
 
-interface Job {
-  id: string;
-  title: string;
-  country: string;
-  city: string;
-  category: string | null;
-  tier: string | null;
-  salary_range: string | null;
-  job_description: string | null;
-  status: string;
-  created_at: string | Date;
-  visa_type: string | null;
-  duration_permit: string | null;
-  service_fee_gbp: number | null;
-  partner_only: boolean;
-  is_credit_service: boolean;
-  payment_stages: PaymentStageOption[];
-  _count: { applications: number };
-}
+type PublicJob = Awaited<ReturnType<typeof getPublicJobsList>>["jobs"][number];
 
 // Calls the same query the API route uses directly (in-process), rather
 // than self-fetching /api/jobs over HTTP — see server/services/publicJobs.ts.
@@ -50,7 +32,7 @@ async function getJobs(searchParams: { page?: string; country?: string; category
       status: "public",
     });
   } catch {
-    return { jobs: [], total: 0, pages: 1 };
+    return { jobs: [] as PublicJob[], total: 0, pages: 1 };
   }
 }
 
@@ -131,7 +113,7 @@ export default async function JobsPage({
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {jobs.map((job: Job) => (
+              {jobs.map((job) => (
                 <div
                   key={job.id}
                   className="bg-white border border-midnight-900/10 rounded-2xl p-8 flex flex-col h-full hover:border-gold-500/60 transition-colors group"

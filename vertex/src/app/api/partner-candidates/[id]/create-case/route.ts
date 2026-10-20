@@ -76,9 +76,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // is the sole point of contact for a candidate they sourced; Vertex
   // never emails that candidate directly, mirroring the earlier decision
   // not to collect their phone number at all).
-  after(async () => {
-    await sendPartnerCaseCreatedEmail(partnerCandidate.partner.contact_email, partnerCandidate.partner.name, candidate.full_name).catch((err) => log.error("email.send_failed", { err }));
-  });
+  // A partner without a contact email has nobody to tell.
+  const partnerEmail = partnerCandidate.partner.contact_email;
+  if (partnerEmail) {
+    after(async () => {
+      await sendPartnerCaseCreatedEmail(partnerEmail, partnerCandidate.partner.name, candidate.full_name ?? "your candidate").catch((err) => log.error("email.send_failed", { err }));
+    });
+  }
 
   return NextResponse.json({ data: { partnerCandidate: updated, case: newCase } });
 }

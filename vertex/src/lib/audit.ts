@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { log } from "./log";
 import { redact, REDACTED } from "./redact";
@@ -111,8 +112,9 @@ export function auditedPrisma(actorId: string | null) {
                 action: operation,
                 actor_id: actorId,
                 request_id: requestId,
-                before: before ? redactSnapshot(model, JSON.parse(JSON.stringify(before))) ?? undefined : undefined,
-                after: operation !== "delete" ? redactSnapshot(model, JSON.parse(JSON.stringify(result))) ?? undefined : undefined,
+                // JSON round-tripped above, so these are valid JSON values.
+                before: before ? ((redactSnapshot(model, JSON.parse(JSON.stringify(before))) ?? undefined) as Prisma.InputJsonValue | undefined) : undefined,
+                after: operation !== "delete" ? ((redactSnapshot(model, JSON.parse(JSON.stringify(result))) ?? undefined) as Prisma.InputJsonValue | undefined) : undefined,
               },
             });
           } catch (err) {

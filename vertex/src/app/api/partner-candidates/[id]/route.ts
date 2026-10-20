@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
@@ -88,7 +87,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   const db = auditedPrisma(user!.userId);
-  await db.$transaction(async (tx: Prisma.TransactionClient) => {
+  await db.$transaction(async (tx) => {
     await tx.partnerCandidate.delete({ where: { id } });
     if (partnerCandidate.bridged_candidate_id) {
       await tx.candidate.delete({ where: { id: partnerCandidate.bridged_candidate_id } });

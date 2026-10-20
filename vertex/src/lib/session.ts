@@ -230,7 +230,7 @@ export interface SessionSummary {
 export async function listSessions(userId: string, currentFamilyId: string | null): Promise<SessionSummary[]> {
   const live: { family_id: string; device_info: string | null; created_at: Date; expires_at: Date }[] = await activeFamilies(userId);
   if (!live.length) return [];
-  const starts: { family_id: string; _min: { created_at: Date | null } }[] = await prisma.refreshToken.groupBy({
+  const starts = await prisma.refreshToken.groupBy({
     by: ["family_id"],
     where: { family_id: { in: live.map((r) => r.family_id) } },
     _min: { created_at: true },

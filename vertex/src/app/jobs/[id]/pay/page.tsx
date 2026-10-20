@@ -3,13 +3,13 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loadStripe } from "@stripe/stripe-js";
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
-// Initialize Stripe (will handle missing key gracefully in UI if not set)
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) 
-  : null;
+// Card payments go to Stripe's hosted Checkout page; a missing key is
+// handled gracefully in the UI.
+const stripeConfigured = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
+const errorMessage = (err: unknown, fallback: string) => (err instanceof Error && err.message) || fallback;
 
 interface Job {
   id: string;
@@ -40,14 +40,14 @@ export default function PaymentSelectionPage({ params }: { params: Promise<{ id:
         setJob(data);
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         setError("Failed to load job details.");
         setLoading(false);
       });
   }, [jobId, router]);
 
   const handleStripePayment = async () => {
-    if (!stripePromise) {
+    if (!stripeConfigured) {
       setError("Stripe is not configured on this environment.");
       return;
     }
@@ -64,16 +64,15 @@ export default function PaymentSelectionPage({ params }: { params: Promise<{ id:
       
       const data = await res.json();
       
-      if (res.ok && data.sessionId) {
-        const stripe = await stripePromise;
-        if (!stripe) throw new Error("Stripe failed to initialize.");
-        const { error } = await (stripe as any).redirectToCheckout({ sessionId: data.sessionId });
-        if (error) throw error;
+      // Stripe.js no longer has redirectToCheckout; the Checkout Session's
+      // own URL is Stripe's replacement.
+      if (res.ok && data.url) {
+        window.location.assign(data.url);
       } else {
         throw new Error(data.error || "Failed to initialize Stripe checkout");
       }
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred during payment.");
+    } catch (err) {
+      setError(errorMessage(err, "An unexpected error occurred during payment."));
       setProcessing(false);
     }
   };
@@ -157,7 +156,7 @@ export default function PaymentSelectionPage({ params }: { params: Promise<{ id:
                         if (!res.ok) throw new Error(order.error || "Failed to create order");
                         return order.id;
                       }}
-                      onApprove={async (data: any, actions: any) => {
+                      onApprove={async (data: { orderID: string }) => {
                         setProcessing(true);
                         try {
                           const res = await fetch("/api/payments/paypal/capture-order", {
@@ -171,12 +170,12 @@ export default function PaymentSelectionPage({ params }: { params: Promise<{ id:
                           }
                           // Success - route to success page or apply page
                           router.push(`/apply?jobId=${jobId}&payment=success`);
-                        } catch (err: any) {
-                          setError(err.message || "Payment processing failed. Please try again.");
+                        } catch (err) {
+                          setError(errorMessage(err, "Payment processing failed. Please try again."));
                           setProcessing(false);
                         }
                       }}
-                      onError={(err: any) => {
+                      onError={() => {
                         setError("PayPal encountered an error. Please try again or use a card.");
                       }}
                     />

@@ -46,15 +46,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
   if (!partnerCandidate) return NextResponse.json({ error: { code: "not_found", message: "Partner candidate submission not found." } }, { status: 404 });
 
+  // Only a rejected submission can be overturned; a submission with a case
+  // (job_assigned) is never rejected, so this check covers that too.
   if (partnerCandidate.status !== "rejected") {
     return NextResponse.json({ error: { code: "not_rejected", message: "This submission is not rejected." } }, { status: 400 });
-  }
-
-  if (partnerCandidate.status === "job_assigned") {
-    return NextResponse.json(
-      { error: { code: "case_exists", message: "A case has already been created for this submission — manage it from the Case instead." } },
-      { status: 409 }
-    );
   }
 
   const db = auditedPrisma(user!.userId);

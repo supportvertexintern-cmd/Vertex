@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -74,7 +75,7 @@ export async function getPublicJobsList(params: PublicJobsListParams = {}) {
   const limit = Math.min(maxLimit, Math.max(1, params.limit ?? 10));
   const skip = (page - 1) * limit;
 
-  const where = {
+  const where: Prisma.JobWhereInput = {
     ...(params.status === "public"
       ? { status: { in: ["active", "closed"] as const } }
       : params.status && params.status !== "all"
@@ -96,7 +97,7 @@ export async function getPublicJobsList(params: PublicJobsListParams = {}) {
   };
 
   const sortDir = params.sortDir ?? "desc";
-  const orderBy =
+  const orderBy: Prisma.JobOrderByWithRelationInput =
     params.sortBy === "title"
       ? { title: sortDir }
       : params.sortBy === "applications"

@@ -18,8 +18,9 @@ function syncPricing(jobId: string, label: string) {
 }
 
 // Reproduces the 3 payment-plan shapes this seed's Jobs use (2026-09-16,
-// flexible per-Job payment stages) — same formulas as
-// scripts/backfill-job-payment-stages.ts, kept idempotent by skipping any
+// flexible per-Job payment stages) — same formulas as the one-off backfill
+// that introduced them (removed once Alembic 0006 took over its payment
+// mapping; see git history), kept idempotent by skipping any
 // Job that already has payment_stages (so a reseed never duplicates rows
 // or clobbers stages an admin edited by hand on a dev database).
 async function ensurePaymentStages(jobId: string, stagesData: { order: number; label: string; percent: number; trigger_stage: CaseStage }[]) {

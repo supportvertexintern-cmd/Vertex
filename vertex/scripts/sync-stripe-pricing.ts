@@ -1,8 +1,8 @@
 import { prisma } from "../src/lib/prisma";
 import { syncJobMilestonePricing } from "../src/server/services/stripeProvisioning";
 
-// Bulk-provisions/re-syncs the 3 Stripe Products/Prices (documentation/
-// permit/visa) for every active Job — reads DATABASE_URL and
+// Bulk-provisions/re-syncs the Stripe Product and one Price per payment
+// stage (JobPaymentStage) for every active Job — reads DATABASE_URL and
 // STRIPE_SECRET_KEY straight from the environment, same as the app itself,
 // so pointing this at a different database/Stripe account (e.g. running
 // it once against production with the live secret key) needs no code
@@ -10,7 +10,7 @@ import { syncJobMilestonePricing } from "../src/server/services/stripeProvisioni
 //
 //   DATABASE_URL="..." STRIPE_SECRET_KEY="..." npx tsx scripts/sync-stripe-pricing.ts
 //
-// Safe to re-run — syncJobMilestonePricing no-ops per job/milestone if the
+// Safe to re-run — syncJobMilestonePricing no-ops per payment stage if the
 // stored amount already matches, and only creates a new Stripe Price (not
 // a duplicate Product) if the fee changed since the last sync.
 async function main() {
@@ -29,8 +29,8 @@ async function main() {
     }
     try {
       await syncJobMilestonePricing(job.id);
-      const prices = await prisma.jobMilestonePrice.findMany({ where: { job_id: job.id } });
-      console.log(`✓ ${job.title}: ${prices.length} milestone price(s) synced`);
+      const priced = await prisma.jobPaymentStage.count({ where: { job_id: job.id, stripe_price_id: { not: null } } });
+      console.log(`✓ ${job.title}: ${priced} payment stage price(s) synced`);
     } catch (err) {
       console.error(`✗ ${job.title}: FAILED —`, err instanceof Error ? err.message : err);
     }
