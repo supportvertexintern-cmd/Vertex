@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { FINANCE_NAV_ITEMS } from "@/components/portal/financeNav";
@@ -204,7 +204,7 @@ export default function FinanceCasesPage() {
       <h1 className="section-title text-3xl md:text-4xl mb-2">Cases.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
         Every active case — open one to issue a payment link or record a payment. Stage and document updates are
-        Operations' own lane.
+        Operations&apos; own lane.
       </p>
 
       <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">

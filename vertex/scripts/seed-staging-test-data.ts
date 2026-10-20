@@ -81,7 +81,7 @@ async function main() {
     return { user, candidate, application };
   }
 
-  const grace = await makeSelfCandidate("Grace Achieng", "grace.achieng@staging-test.local", 1);
+  await makeSelfCandidate("Grace Achieng", "grace.achieng@staging-test.local", 1);
   const peter = await makeSelfCandidate("Peter Mwangi", "peter.mwangi@staging-test.local", 3);
   const amara = await makeSelfCandidate("Amara Okafor", "amara.okafor@staging-test.local", 6);
 
@@ -154,7 +154,7 @@ async function main() {
     return { candidate, application, partnerCandidate };
   }
 
-  const fatima = await makePartnerCandidate(testPartner.id, "Fatima Ibrahim", "fatima.ibrahim@staging-test.local", 2, "submitted");
+  await makePartnerCandidate(testPartner.id, "Fatima Ibrahim", "fatima.ibrahim@staging-test.local", 2, "submitted");
   const david = await makePartnerCandidate(testPartner.id, "David Mensah", "david.mensah@staging-test.local", 4, "job_assigned");
   const john = await makePartnerCandidate(testPartner.id, "John Otieno", "john.otieno@staging-test.local", 5, "job_assigned");
 

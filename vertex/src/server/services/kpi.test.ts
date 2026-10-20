@@ -19,11 +19,11 @@ import {
 let regionId: string;
 let countryId: string;
 let recruiterId: string;
-let candidateIds: string[] = [];
+const candidateIds: string[] = [];
 let campaignId: string;
 let filters: KpiFilters;
 let partnerId: string;
-let partnerCandidateIds: string[] = [];
+const partnerCandidateIds: string[] = [];
 
 beforeAll(async () => {
   const region = await prisma.region.create({ data: { name: "KPI Test Region" } });

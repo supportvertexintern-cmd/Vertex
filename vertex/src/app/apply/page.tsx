@@ -123,7 +123,7 @@ function ApplyPageInner() {
 
         {opportunity && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-6 text-sm text-emerald-800">
-            Applying for <span className="font-semibold">{opportunity.title}</span> — we've preselected this
+            Applying for <span className="font-semibold">{opportunity.title}</span> — we&apos;ve preselected this
             programme below.
           </div>
         )}

@@ -170,7 +170,7 @@ export default function HrSelfApplicationsPage() {
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
         Candidates who submitted the Candidate Information Form themselves at{" "}
         <span className="font-medium">/apply</span>, with no recruiter or partner involved. Open a submission to
-        review it, approve it for account creation, and — once they've completed their own documentation — approve
+        review it, approve it for account creation, and — once they&apos;ve completed their own documentation — approve
         it again to open the Case.
       </p>
 

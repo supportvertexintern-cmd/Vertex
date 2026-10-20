@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  MapPin, Tag, CurrencyCircleDollar, Users, CalendarBlank, CaretRight,
+  Tag, CurrencyCircleDollar, Users, CalendarBlank, CaretRight,
   IdentificationCard, Clock, ShieldCheck, CheckCircle, ArrowRight,
 } from "@phosphor-icons/react/dist/ssr";
 import { getPublicJobById } from "@/server/services/publicJobs";

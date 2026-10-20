@@ -249,7 +249,17 @@ function FadeIn({
 
 /* ===== Page ===== */
 
-export default function HomeClient({ jobs }: { jobs: any[] }) {
+// The fields of a getPublicJobsList() row this page shows.
+interface FeaturedJob {
+  id: string;
+  title: string;
+  country: string;
+  city: string | null;
+  salary_range: string | null;
+  created_at: string | Date;
+}
+
+export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
   return (
     <div className="overflow-x-hidden">
       {/* ===== Hero ===== */}
@@ -426,7 +436,7 @@ export default function HomeClient({ jobs }: { jobs: any[] }) {
             </FadeIn>
           ) : (
             <div className="border-t border-midnight-900/10">
-              {jobs.map((job: any, idx: number) => (
+              {jobs.map((job, idx) => (
                 <FadeIn key={job.id} delay={idx * 0.03}>
                   <Link
                     href={`/jobs/${job.id}`}
@@ -526,7 +536,7 @@ export default function HomeClient({ jobs }: { jobs: any[] }) {
                 <span className="eyebrow-rule" />
                 Before you apply
               </p>
-              <h2 className="section-title mb-6">What you'll need.</h2>
+              <h2 className="section-title mb-6">What you&apos;ll need.</h2>
               <ul className="space-y-4 mb-8">
                 {REQUIREMENTS.map((req) => (
                   <li key={req} className="flex items-center gap-4 text-midnight-900">
@@ -707,7 +717,7 @@ export default function HomeClient({ jobs }: { jobs: any[] }) {
               Move with confidence.
             </h2>
             <p className="text-ivory-50/50 text-lg font-light mb-10 max-w-xl mx-auto">
-              Whether you're an employer, a licensed agency, a travel or visa partner, or a candidate ready
+              Whether you&apos;re an employer, a licensed agency, a travel or visa partner, or a candidate ready
               to pursue opportunities abroad — Vertex provides the institutional platform to move forward.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

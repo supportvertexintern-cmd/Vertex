@@ -242,7 +242,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
       })
       .catch(() => setMessage("Failed to load the saved draft."))
       .finally(() => setPrefillLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [initialDraftId]);
 
   // Section 2's Country/Sector are UI-only filter state derived from
@@ -705,7 +705,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
         </div>
 
         <div className="mt-4">
-          <label htmlFor="earliest_travel_date" className={labelCls}>Candidate's Earliest Possible Travel Date <span className="text-red-500">*</span></label>
+          <label htmlFor="earliest_travel_date" className={labelCls}>Candidate&apos;s Earliest Possible Travel Date <span className="text-red-500">*</span></label>
           <input
             id="earliest_travel_date"
             type="date"
@@ -756,7 +756,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
         <h2 className="font-bold text-slate-800 mb-1">Section 4 — Document Checklist</h2>
         <p className="text-xs text-slate-500 mb-4">
           Tick the documents the candidate can provide, and attach the actual file where you have it on hand — this
-          submission goes straight to Vertex's operations team for case creation, not through a separate document
+          submission goes straight to Vertex&apos;s operations team for case creation, not through a separate document
           review step, so uploading the real files here (not just self-reporting) avoids a follow-up delay.
         </p>
         <div className="space-y-3">
@@ -820,7 +820,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
           <div className="text-sm font-semibold text-slate-700 mb-1">Other Supporting Documents</div>
           <p className="text-xs text-slate-500 mb-3">
             Anything not covered by the list above — a reference letter, extra certificate, etc. Give it a label so
-            it's clear what it is.
+            it&apos;s clear what it is.
           </p>
           {otherUploadedDocs.length > 0 && (
             <ul className="mb-2 space-y-0.5">
@@ -887,7 +887,7 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
         <h2 className="font-bold text-slate-800 mb-4">Section 6 — Visa & Travel Readiness</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="current_location_country_name" className={labelCls}>Candidate's Current Location (country) <span className="text-red-500">*</span></label>
+            <label htmlFor="current_location_country_name" className={labelCls}>Candidate&apos;s Current Location (country) <span className="text-red-500">*</span></label>
             <SearchableSelect
               id="current_location_country_name"
               value={form.current_location_country_name}

@@ -151,7 +151,7 @@ export default function OperationsPartnerSubmissionsPage() {
         </Link>
       </div>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Read-only — visibility into what's coming before HR completes its review. Review, rejection, and case
+        Read-only — visibility into what&apos;s coming before HR completes its review. Review, rejection, and case
         creation are handled by HR.
       </p>
 

@@ -17,7 +17,7 @@ export default function TermsOfServicePage() {
 
             <h2>1. Acceptance of Terms</h2>
             <p>
-              By accessing and using the Vertex International Recruitment website (the "Service"), you accept and agree to be bound by the terms and provision of this agreement. 
+              By accessing and using the Vertex International Recruitment website (the &quot;Service&quot;), you accept and agree to be bound by the terms and provision of this agreement. 
               If you do not agree to abide by the above, please do not use this service.
             </p>
 

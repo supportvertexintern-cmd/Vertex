@@ -331,7 +331,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
                 <input id="edit-contact-email" type="email" value={detailsDraft.contact_email} onChange={(e) => setDetailsDraft({ ...detailsDraft, contact_email: e.target.value })} className="input-field" />
                 {partner.user_id && detailsDraft.contact_email !== partner.contact_email && (
                   <p className="text-xs text-gold-600 mt-1.5">
-                    This is also this partner's login email — changing it will email them a link to set a new password, and their current password will stop working.
+                    This is also this partner&apos;s login email — changing it will email them a link to set a new password, and their current password will stop working.
                   </p>
                 )}
               </div>

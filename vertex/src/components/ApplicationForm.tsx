@@ -479,7 +479,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section>
         <h2 className="font-bold text-slate-800 mb-1">Section 1 — Programme Selection</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Choose the country you're applying to, then the sector, then the exact position — the document checklist
+          Choose the country you&apos;re applying to, then the sector, then the exact position — the document checklist
           below adjusts to match its destination country.
         </p>
         <div className="grid sm:grid-cols-3 gap-4">
@@ -908,7 +908,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
 
       <div>
         <label className={labelCls}>
-          Anything else you'd like to tell us? <span className="text-slate-400 font-normal">(optional)</span>
+          Anything else you&apos;d like to tell us? <span className="text-slate-400 font-normal">(optional)</span>
         </label>
         <textarea
           value={form.cover_letter}

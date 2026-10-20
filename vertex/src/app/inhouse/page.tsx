@@ -158,7 +158,7 @@ export default function InhouseOverviewPage() {
               <FileText size={16} weight="bold" className="text-gold-600" /> Reports awaiting your review
             </h2>
             {data.pendingCountryReports === 0 ? (
-              <p className="text-sm text-midnight-900/40">Nothing outstanding — you're caught up.</p>
+              <p className="text-sm text-midnight-900/40">Nothing outstanding — you&apos;re caught up.</p>
             ) : (
               <p className="text-sm text-midnight-900">
                 <span className="font-semibold">{data.pendingCountryReports}</span> country report

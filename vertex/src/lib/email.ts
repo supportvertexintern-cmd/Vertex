@@ -37,7 +37,7 @@ async function getEmailConfig(event: string, defaultSubject: string, defaultHtml
   try {
     const template = await prisma.emailTemplate.findUnique({ where: { event } });
     if (template) return { subject: template.subject, html: template.body_html };
-  } catch (e) {
+  } catch {
     log.warn("email.db_not_ready_or_template_missing_using");
   }
   return { subject: defaultSubject, html: defaultHtml };

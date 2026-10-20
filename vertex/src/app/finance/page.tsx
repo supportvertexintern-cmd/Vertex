@@ -98,7 +98,7 @@ export default function FinancePaymentsDuePage() {
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Payments Due.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Every payment stage that's reached its trigger point but hasn't been collected yet (SRS FR-4.5).
+        Every payment stage that&apos;s reached its trigger point but hasn&apos;t been collected yet (SRS FR-4.5).
       </p>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm mb-6">{error}</div>}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { OPERATIONS_NAV_ITEMS } from "@/components/portal/operationsNav";
@@ -194,7 +194,7 @@ export default function OperationsCasesPage() {
       <h1 className="section-title text-3xl md:text-4xl mb-2">Cases.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
         Every active case across every region and country — registration through permit, visa, and departure (SRS
-        FR-4.1). Payments are Finance's own lane.
+        FR-4.1). Payments are Finance&apos;s own lane.
       </p>
 
       <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">

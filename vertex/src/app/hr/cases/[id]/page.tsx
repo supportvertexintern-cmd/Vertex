@@ -20,8 +20,8 @@ export default function HrCaseDetailPage({ params }: { params: Promise<{ id: str
       <h1 className="section-title text-3xl md:text-4xl mb-2">Case detail.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
         Case stage and payments are handled by Operations and Finance — you can still attach a document that
-        wasn't part of the original checklist. Use Reject Case to close a case you created by mistake, or edit
-        the application's own details directly below.
+        wasn&apos;t part of the original checklist. Use Reject Case to close a case you created by mistake, or edit
+        the application&apos;s own details directly below.
       </p>
       <CaseDetail
         caseId={id}

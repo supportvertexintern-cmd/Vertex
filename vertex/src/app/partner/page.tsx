@@ -284,7 +284,7 @@ export default function PartnerPortalPage() {
               <X size={20} weight="bold" />
             </button>
             <h2 className="text-xl font-black text-midnight-900 mb-1">{resumeDraftId ? "Continue Draft" : "Submit a Candidate"}</h2>
-            <p className="text-sm text-midnight-900/50 mb-6">Every detail is checked against the candidate's passport and supporting documents.</p>
+            <p className="text-sm text-midnight-900/50 mb-6">Every detail is checked against the candidate&apos;s passport and supporting documents.</p>
             <PartnerCandidateForm
               draftId={resumeDraftId}
               onDraftSaved={load}

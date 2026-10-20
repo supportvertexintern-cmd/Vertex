@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { HR_NAV_ITEMS } from "@/components/portal/hrNav";
@@ -193,7 +193,7 @@ export default function HrCasesPage() {
       <h1 className="section-title text-3xl md:text-4xl mb-2">Cases.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
         Every case handed off from your review queues — read-only, with Reject Case available on a case you
-        created by mistake. Stage and document updates are Operations' own lane.
+        created by mistake. Stage and document updates are Operations&apos; own lane.
       </p>
 
       <FilterBar searchValue={q} onSearchChange={setQ} searchPlaceholder="Search by candidate, email, partner, or programme…">

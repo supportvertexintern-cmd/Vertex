@@ -62,7 +62,7 @@ export default function SupportingDocumentUpload({ candidateId, documents, onUpl
       </div>
       <p className="text-xs text-midnight-900/40 mb-3">
         Anything not covered by the required list above — a reference letter, extra certificate, etc. Give it a
-        label so it's clear what it is.
+        label so it&apos;s clear what it is.
       </p>
 
       {documents.length > 0 && (

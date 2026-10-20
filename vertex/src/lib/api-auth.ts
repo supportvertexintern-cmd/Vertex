@@ -14,10 +14,11 @@ import { ACCESS_COOKIE, loadSession } from "@/lib/session";
  * next request. Role and email come from the database, not the token.
  * Any failure, including the database being unreachable, means null.
  *
- * req is optional so Server Components (which have no NextRequest) can
- * call this too; the session always comes from next/headers's cookies().
+ * _req is optional and unused: route handlers still pass their request, and
+ * Server Components (which have no NextRequest) can call this too; the
+ * session always comes from next/headers's cookies().
  */
-export async function getAuthUser(req?: NextRequest): Promise<JwtPayload | null> {
+export async function getAuthUser(_req?: NextRequest): Promise<JwtPayload | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(ACCESS_COOKIE)?.value;

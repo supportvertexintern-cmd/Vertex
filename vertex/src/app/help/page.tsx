@@ -6,11 +6,11 @@ export default async function HelpCenterPage() {
   });
 
   // Group by category
-  const categories = (articles as any[]).reduce((acc: any, article: any) => {
+  const categories = articles.reduce<Record<string, typeof articles>>((acc, article) => {
     if (!acc[article.category]) acc[article.category] = [];
     acc[article.category].push(article);
     return acc;
-  }, {} as Record<string, typeof articles>);
+  }, {});
 
   return (
     <div className="bg-slate-50 min-h-screen py-16">
@@ -41,7 +41,7 @@ export default async function HelpCenterPage() {
                 </div>
                 
                 <div className="grid gap-6">
-                  {(items as any[]).map((item: any) => (
+                  {items.map((item) => (
                     <details key={item.id} className="group bg-slate-50 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden">
                       <summary className="cursor-pointer font-bold text-lg text-slate-800 p-6 flex items-center justify-between hover:bg-slate-100 transition-colors">
                         {item.title}

@@ -5,12 +5,28 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { isInternalPortalPath } from "@/lib/rbac";
 
+// The Web Speech API isn't in TypeScript's DOM types; just what this widget uses.
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
 export default function AIChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [hasSpeechSupport, setHasSpeechSupport] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Custom mock of useChat to avoid build errors from ai/react package
@@ -51,9 +67,9 @@ export default function AIChatWidget() {
       setMessages(prev =>
         prev.map(m => m.id === assistantId ? { ...m, content: data.text || "No response received." } : m)
       );
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError({ message: err.message || "An error occurred" });
+      setError({ message: (err instanceof Error && err.message) || "An error occurred" });
       setMessages(prev => prev.filter(m => m.id !== assistantId));
     } finally {
       setIsLoading(false);
@@ -70,22 +86,24 @@ export default function AIChatWidget() {
   useEffect(() => {
     // Initialize Speech Recognition if supported
     if (typeof window !== "undefined") {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const speechWindow = window as SpeechWindow;
+      const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
       if (SpeechRecognition) {
         setHasSpeechSupport(true);
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = false;
-        recognitionRef.current.interimResults = false;
-        recognitionRef.current.lang = "en-US";
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
 
-        recognitionRef.current.onresult = (event: any) => {
+        recognition.onresult = (event) => {
           const transcript = event.results[0][0].transcript;
           setInput(transcript);
           // Auto-submit could be enabled here if desired:
           // setTimeout(() => document.getElementById("ai-chat-form")?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })), 100);
         };
 
-        recognitionRef.current.onend = () => {
+        recognition.onend = () => {
           setIsListening(false);
         };
       }

@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const { messages } = parsed.data;
 
     // 1. Check if AI is enabled (fail open if DB unavailable)
-    let aiEnabled: any = null;
+    let aiEnabled: { value: string } | null = null;
     try {
       aiEnabled = await prisma.systemSetting.findUnique({ where: { key: "ai_enabled" } });
     } catch {
@@ -107,9 +107,9 @@ export async function POST(req: Request) {
       const knowledgeItems = await prisma.knowledgeArticle.findMany({
         select: { title: true, content: true },
       });
-      if (knowledgeItems && (knowledgeItems as any[]).length > 0) {
-        kbText = (knowledgeItems as any[])
-          .map((k: any) => `--- ${k.title} ---\n${k.content}`)
+      if (knowledgeItems.length > 0) {
+        kbText = knowledgeItems
+          .map((k) => `--- ${k.title} ---\n${k.content}`)
           .join("\n\n");
       }
     } catch {

@@ -15,7 +15,7 @@ export default function PartnerCaseDetailPage({ params }: { params: Promise<{ id
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Case detail.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Read-only — status of your candidate's case as it moves through documentation, permit, and visa stages.
+        Read-only — status of your candidate&apos;s case as it moves through documentation, permit, and visa stages.
       </p>
       <CaseDetail caseId={id} />
     </PortalShell>

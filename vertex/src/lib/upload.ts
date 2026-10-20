@@ -12,13 +12,6 @@ const ALLOWED_MIME_TYPES = [
   "image/png",
 ];
 
-const CONTENT_TYPES: Record<string, string> = {
-  pdf: "application/pdf",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-};
-
 const MAX_FILE_SIZE = (Number(process.env.MAX_FILE_SIZE_MB) || 5) * 1024 * 1024;
 const DEFAULT_SIGNED_URL_TTL_SECONDS = 300; // 5 minutes
 

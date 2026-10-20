@@ -8,12 +8,6 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { GlobeHemisphereWest, Plus, MapPin, PencilSimple, Check, X, Trash } from "@phosphor-icons/react";
 
-interface Country {
-  id: string;
-  name: string;
-  region: { id: string; name: string };
-}
-
 interface Region {
   id: string;
   name: string;

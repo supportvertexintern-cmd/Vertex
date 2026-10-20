@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const settings = await prisma.systemSetting.findMany();
   // Return as a key-value object
-  const settingsObj = (settings as any[]).reduce((acc: any, s: any) => ({ ...acc, [s.key]: s.value }), {});
+  const settingsObj = Object.fromEntries(settings.map((s) => [s.key, s.value]));
   return NextResponse.json(settingsObj);
 }
 
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest) {
 
     await prisma.$transaction(upserts);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
   }
 }

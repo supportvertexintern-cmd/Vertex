@@ -6,10 +6,15 @@ import Pagination from "@/components/Pagination";
 import BackupExport from "@/components/BackupExport";
 import { usePagination } from "@/lib/usePagination";
 
+// Shapes returned by /api/admin/settings (a key-value map), /knowledge and /emails.
+type Settings = Record<string, string>;
+interface KnowledgeArticle { id: string; title: string; category: string; content: string }
+interface EmailTemplate { event: string; subject: string; body_html: string }
+
 export default function AdminSettings() {
-  const [settings, setSettings] = useState<any>({ ai_enabled: "true", whatsapp_number: "", intake_mode: "email" });
-  const [knowledge, setKnowledge] = useState<any[]>([]);
-  const [emails, setEmails] = useState<any[]>([]);
+  const [settings, setSettings] = useState<Settings>({ ai_enabled: "true", whatsapp_number: "", intake_mode: "email" });
+  const [knowledge, setKnowledge] = useState<KnowledgeArticle[]>([]);
+  const [emails, setEmails] = useState<EmailTemplate[]>([]);
   
   const [newKbTitle, setNewKbTitle] = useState("");
   const [newKbCategory, setNewKbCategory] = useState("General");
@@ -130,7 +135,7 @@ export default function AdminSettings() {
       {/* Knowledge Base */}
       <div className="card p-6">
         <h2 className="font-semibold text-midnight-900 mb-4">Knowledge Base Articles</h2>
-        <p className="text-sm text-midnight-900/50 mb-6">These articles are displayed in the Help Center and configure the AI Assistant's knowledge.</p>
+        <p className="text-sm text-midnight-900/50 mb-6">These articles are displayed in the Help Center and configure the AI Assistant&apos;s knowledge.</p>
 
         <form method="post" onSubmit={addKnowledge} className="bg-ivory-100 p-4 rounded-xl border border-midnight-900/10 mb-6 space-y-4">
           <h3 className="font-semibold text-midnight-900 text-sm">Add New Instruction / FAQ</h3>

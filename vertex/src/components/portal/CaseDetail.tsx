@@ -274,7 +274,6 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   const [overturnedTo, setOverturnedTo] = useState("");
 
   const [contractContent, setContractContent] = useState("");
-  const [signName, setSignName] = useState("");
 
   const [payStageId, setPayStageId] = useState("");
   const [payAmount, setPayAmount] = useState("");
@@ -1041,7 +1040,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             </span>
           </div>
           <p className="text-xs text-midnight-900/45 mb-3">
-            Operations/Director confirmation that the documentation is correct before the case's stage can move forward.
+            Operations/Director confirmation that the documentation is correct before the case&apos;s stage can move forward.
           </p>
           {data.ops_reviewed_by && data.ops_reviewed_at && (
             <p className="text-xs text-midnight-900/50 mb-2">
@@ -1645,7 +1644,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         <div className="card p-6">
           <h3 className="text-sm font-semibold text-midnight-900/70 uppercase tracking-wider mb-4">Send Reminder</h3>
           <p className="text-xs text-midnight-900/45 mb-4">
-            A one-off email nudge for a delayed document or payment — not automated, sent when you decide it's needed.
+            A one-off email nudge for a delayed document or payment — not automated, sent when you decide it&apos;s needed.
           </p>
           <div className="flex items-center gap-2 mb-3">
             <SearchableSelect

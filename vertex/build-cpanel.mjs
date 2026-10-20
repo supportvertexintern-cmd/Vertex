@@ -7,7 +7,7 @@ console.log('🚀 Starting cPanel Deployment Build (CSS Fix)...');
 try {
   console.log('📦 Running npm run build...');
   execSync('npm run build', { stdio: 'inherit' });
-} catch (e) {
+} catch {
   console.error('❌ Build failed!');
   process.exit(1);
 }

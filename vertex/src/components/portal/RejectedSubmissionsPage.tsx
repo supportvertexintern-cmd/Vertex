@@ -7,8 +7,6 @@ import PortalShell, { type PortalNavItem } from "@/components/portal/PortalShell
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 
-const MAX_REASON_LENGTH = 50;
-
 interface RejectedSubmission {
   id: string;
   type: "Partner submission" | "Self submission" | "Case";
@@ -47,7 +45,6 @@ export default function RejectedSubmissionsPage({
   const [sourceFilter, setSourceFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/rejected-submissions")

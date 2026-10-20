@@ -247,7 +247,7 @@ export default function ReportContentForm({ role, cycle, value, onChange }: Prop
             <input value={value.key_achievement ?? ""} onChange={(e) => set("key_achievement", e.target.value)} className="input-field text-sm" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-midnight-900/60 mb-1">Tomorrow's Priority</label>
+            <label className="block text-xs font-medium text-midnight-900/60 mb-1">Tomorrow&apos;s Priority</label>
             <input value={value.next_priority ?? ""} onChange={(e) => set("next_priority", e.target.value)} className="input-field text-sm" />
           </div>
         </div>

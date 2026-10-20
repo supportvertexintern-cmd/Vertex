@@ -15,7 +15,7 @@ export default function OperationsCaseDetailPage({ params }: { params: Promise<{
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Case detail.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Stage, documents, and the work permit delivery are yours to manage. Payments are Finance's own lane.
+        Stage, documents, and the work permit delivery are yours to manage. Payments are Finance&apos;s own lane.
       </p>
       <CaseDetail
         caseId={id}

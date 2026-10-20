@@ -218,9 +218,9 @@ export default function AboutPage() {
             <div className="bg-white border border-midnight-900/10 rounded-2xl p-8 md:p-10">
               <Sparkle size={28} weight="light" className="text-gold-600 mb-5" />
               <p className="text-midnight-900 font-medium leading-relaxed mb-4">
-                "Vertex is not a transactional staffing vendor. We operate as a long-term institutional partner,
+                &quot;Vertex is not a transactional staffing vendor. We operate as a long-term institutional partner,
                 coordinating recruitment, mobility, compliance, travel, and settlement through one accountable
-                structure."
+                structure.&quot;
               </p>
               <p className="text-midnight-900/45 text-sm uppercase tracking-[0.15em] font-semibold">
                 Strategic Institutional Partnership
@@ -237,7 +237,7 @@ export default function AboutPage() {
             Ready to start your global mobility journey?
           </h2>
           <p className="text-ivory-50/50 font-light mb-10">
-            Whether you're an employer, a licensed agency, a travel or visa partner, or a candidate ready to
+            Whether you&apos;re an employer, a licensed agency, a travel or visa partner, or a candidate ready to
             pursue opportunities abroad — start with Vertex.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

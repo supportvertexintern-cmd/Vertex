@@ -82,7 +82,7 @@ function RegisterForm() {
         setMessage(data.error || "Registration failed.");
         if (data.details) setErrors(data.details);
       }
-    } catch (err) {
+    } catch {
       setStatus("error");
       setMessage("Network error. Please check your connection.");
     }

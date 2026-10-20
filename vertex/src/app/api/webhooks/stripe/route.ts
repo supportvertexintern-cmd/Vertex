@@ -6,7 +6,7 @@ import { sendConsultationBookingNotification } from "@/lib/email";
 
 import { log } from "@/lib/log";
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build") as string, {
-  apiVersion: "2025-02-24.acacia" as any,
+  apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion,
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -20,9 +20,10 @@ export async function POST(req: NextRequest) {
   try {
     if (!sig || !endpointSecret) throw new Error("Missing stripe signature or secret.");
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (err: any) {
-    log.error("api.webhook_error", { message: `Webhook Error: ${err.message}` });
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    log.error("api.webhook_error", { message: `Webhook Error: ${message}` });
+    return NextResponse.json({ error: `Webhook Error: ${message}` }, { status: 400 });
   }
 
   // Handle successful checkout
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    const { userId, jobId, jobTitle, candidateEmail } = session.metadata || {};
+    const { userId, jobId, jobTitle } = session.metadata || {};
     if (!userId || !jobId) return NextResponse.json({ received: true });
 
     // Ensure payment not already recorded

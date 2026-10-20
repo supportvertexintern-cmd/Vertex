@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { RECRUITER_NAV_ITEMS } from "@/components/portal/recruiterNav";
@@ -180,7 +180,7 @@ export default function RecruiterReportsPage() {
         return { ...row, target: existing?.target, comment: existing?.comment };
       }),
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [periodCandidates, type, isDateDrivenType]);
 
   const submit = async (e: React.FormEvent) => {

@@ -13,7 +13,7 @@ export default function SupervisorCasesPage() {
       </p>
       <h1 className="section-title text-3xl md:text-4xl mb-2">Cases.</h1>
       <p className="text-midnight-900/55 font-light mb-8 max-w-2xl">
-        Every case across your country's recruiters — offer through permit, visa, and travel (SRS FR-4.1).
+        Every case across your country&apos;s recruiters — offer through permit, visa, and travel (SRS FR-4.1).
       </p>
       <CaseList emptyLabel="No active cases in your country yet." basePath="/supervisor/cases" />
     </PortalShell>

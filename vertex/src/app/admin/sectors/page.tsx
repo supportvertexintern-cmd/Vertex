@@ -199,7 +199,7 @@ export default function SectorsPage() {
         Manage the sectors candidates choose from as their preferred type of work, the document types the
         Candidate Information Form and Agency form can ask for, and which of those extras each destination
         country requires on top of the universal passport, photo, and CV set. A document type you add here
-        appears on both forms' checklists immediately — no other change needed.
+        appears on both forms&apos; checklists immediately — no other change needed.
       </p>
 
       {error && (

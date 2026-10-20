@@ -757,7 +757,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
         <div className="space-y-4">
           {justReplaced && (
             <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg p-3 text-xs">
-              Replaced — send a message below to let our team know it's ready for another look.
+              Replaced — send a message below to let our team know it&apos;s ready for another look.
             </div>
           )}
           {data.bridged_candidate_id && <CandidateMessages candidateId={data.bridged_candidate_id} />}
