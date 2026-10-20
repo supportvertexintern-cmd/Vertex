@@ -1,19 +1,20 @@
 name: CI
 
-# Checks every app and that every image builds. Runs on PRs into the
-# environment branches and on pushes to main; pushes to dev/staging run it via
-# deploy.yml before deploying.
+# Runs on PRs into the environment branches; merges then build images
+# (build.yml) without running CI again. The repo is private on GitHub Free
+# (2,000 Actions minutes a month; October's ran out on 2026-10-13), so:
+#   - PRs into dev run the secret scan plus only the suites whose folders
+#     changed;
+#   - PRs into staging or main (promotions) and manual runs run everything,
+#     including the end-to-end journeys and the image builds and scans.
+# "CI passed" is the one check to wait for before merging.
 
 on:
   pull_request:
     branches: [dev, staging, main]
-    # Docs-only changes don't run CI (the repo is private on GitHub Free:
-    # 2,000 Actions minutes a month; October's ran out on 2026-10-13).
+    # Docs-only changes don't run CI.
     paths-ignore: ["docs/**", "**/*.md"]
-  push:
-    branches: [main]
-    paths-ignore: ["docs/**", "**/*.md"]
-  workflow_call:
+  workflow_dispatch:
 
 # A newer push to the same pull request cancels the older run.
 concurrency:
@@ -24,6 +25,37 @@ permissions:
   contents: read
 
 jobs:
+  # Which areas a PR into dev touches. Promotions and manual runs ignore this
+  # and run everything (github.base_ref is not dev).
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      app: ${{ steps.filter.outputs.app }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'vertex_be/**'
+            web:
+              - 'vertex/**'
+            app:
+              - 'vertex_app/**'
+            infra:
+              - '.github/**'
+              - '.trivyignore.yaml'
+              - '**/Dockerfile'
+              - '**/docker-compose*.yml'
+
   secrets:
     name: Secret scan (full history)
     runs-on: ubuntu-latest
@@ -41,6 +73,8 @@ jobs:
 
   backend:
     name: Backend tests
+    needs: changes
+    if: github.base_ref != 'dev' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,6 +112,8 @@ jobs:
 
   flutter:
     name: Flutter analyze & test
+    needs: changes
+    if: github.base_ref != 'dev' || needs.changes.outputs.app == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -98,8 +134,12 @@ jobs:
 
       - run: flutter test
 
+  # Also runs when only the backend changed: its schema comes from the
+  # backend's Alembic migrations.
   nextjs:
     name: Next.js typecheck & test
+    needs: changes
+    if: github.base_ref != 'dev' || needs.changes.outputs.web == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -121,7 +161,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
       # Document storage tests run against this stack's own MinIO image.
       minio:
-        image: ghcr.io/brookteferi/vertex-minio:dev
+        image: ghcr.io/supportvertexintern-cmd/vertex-minio:dev
         credentials:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -191,8 +231,11 @@ jobs:
 
       - run: npx vitest run
 
+  # The most expensive job: promotions and manual runs only.
   e2e:
     name: End-to-end journeys
+    needs: nextjs
+    if: github.base_ref != 'dev'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -210,7 +253,7 @@ jobs:
           --health-cmd "pg_isready -U postgres -d vertex_e2e"
           --health-interval 5s --health-timeout 5s --health-retries 10
       minio:
-        image: ghcr.io/brookteferi/vertex-minio:dev
+        image: ghcr.io/supportvertexintern-cmd/vertex-minio:dev
         credentials:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
@@ -288,8 +331,12 @@ jobs:
           path: vertex/test-results
           retention-days: 14
 
+  # Promotions, manual runs, and PRs into dev that change a Dockerfile, a
+  # compose file, the workflows or the Trivy ignore list.
   images:
     name: Image builds (${{ matrix.image }})
+    needs: changes
+    if: github.base_ref != 'dev' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -310,8 +357,29 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       # E4: a fixable HIGH/CRITICAL finding fails the build. Unfixed ones
-      # are the documented exceptions (docs/security/exceptions.md).
+      # are the documented exceptions (docs/security/exceptions.md), and so
+      # are the dated entries in .trivyignore.yaml (E7).
       - name: Image scan (fixable HIGH/CRITICAL)
         run: >-
-          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.67.2
-          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1 ${{ matrix.image }}:ci
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1
+          --ignorefile /trivyignore.yaml ${{ matrix.image }}:ci
+
+  # The one check to wait for: skipped jobs count as passed, failed or
+  # cancelled ones don't.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [changes, secrets, backend, flutter, nextjs, e2e, images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any job failed or was cancelled
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | python3 -c "
+          import json, sys
+          bad = [k for k, v in json.load(sys.stdin).items() if v['result'] in ('failure', 'cancelled')]
+          print('failed:', bad) if bad else print('all passed or skipped')
+          sys.exit(1 if bad else 0)"

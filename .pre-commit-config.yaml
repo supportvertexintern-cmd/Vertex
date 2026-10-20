@@ -20,6 +20,11 @@ repos:
       - id: check-merge-conflict
       - id: check-yaml
         args: ["--allow-multiple-documents"]
+      # Work happens on branches; main and staging only change through pull
+      # requests merged on GitHub (GitHub Free can't enforce that on a
+      # private repo).
+      - id: no-commit-to-branch
+        args: ["--branch", "main", "--branch", "staging"]
 
   - repo: local
     hooks:

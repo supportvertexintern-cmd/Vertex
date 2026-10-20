@@ -1,3 +1,7 @@
 self-hosted-runner:
-  # The runner on the Docker host that deploys vertex-dev / vertex-staging.
-  labels: [vertex-host]
+  labels:
+    # The runner on the Docker host that deploys vertex-dev / vertex-staging
+    # (and vertex-main by hand): deploy-local.yml.
+    - vertex-host
+    # The runner on ops-server that deploys production: production.yml.
+    - prod-ops

@@ -38,6 +38,13 @@ async function pickOption(page: Page, trigger: Locator, name: string | RegExp) {
   await page.getByRole("option", { name }).click();
 }
 
+// The Czech Republic — 2-Year Resident Card programme's first seeded position.
+async function pickCzechPosition(page: Page) {
+  await pickOption(page, page.locator("#selected_country"), "Czech Republic");
+  await pickOption(page, page.locator("#sector"), "General / Unskilled");
+  await pickOption(page, page.locator("#job_position_id"), /^General Unskilled Worker — Prague$/);
+}
+
 const PASSWORD = "E2ETestPassword123!";
 const PARTNER_CONTACT_EMAIL = "e2e-partner-contact@test.local";
 
@@ -123,12 +130,12 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       // The partner form no longer collects the candidate's phone or email:
       // the partner is the point of contact until the candidate is invited.
 
-      // Section 2 is a single Opportunity picker now (2026-07-31), not a
-      // 3-country + sector cluster — Czech Republic's programmes have no
-      // extra CountryDocumentRequirement rows, so only the two universal
+      // Section 2 is cascading Country → Sector → Position pickers —
+      // Czech Republic's programmes have no extra
+      // CountryDocumentRequirement rows, so only the two universal
       // checklist items (passport, passport_photo) need a real file
       // attached before Submit unlocks, keeping this test simple.
-      await pickOption(page, page.getByLabel("Opportunity"), /Czech Republic — 2-Year Resident Card/);
+      await pickCzechPosition(page);
       await page.getByLabel(/Earliest Possible Travel Date/).fill("2026-12-01");
 
       await page.getByLabel("We understand the payment plan above.").check();
