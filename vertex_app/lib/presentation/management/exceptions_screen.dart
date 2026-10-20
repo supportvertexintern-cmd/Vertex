@@ -81,11 +81,22 @@ class _ManagementExceptionsScreenState extends State<ManagementExceptionsScreen>
         .showSnackBar(const SnackBar(content: Text('Exception raised successfully.')));
   }
 
+  // The search box and category dropdown above the lists.
+  bool _matchesFilters(RecruiterException e) {
+    if (_selectedCategory != 'All categories' && e.type != _selectedCategory) {
+      return false;
+    }
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    return [e.reference, e.issueStatement, e.crmRef]
+        .any((field) => field.toLowerCase().contains(query));
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<ExceptionStore>();
-    final open = store.openExceptions;
-    final closed = store.closedExceptions;
+    final open = store.openExceptions.where(_matchesFilters).toList();
+    final closed = store.closedExceptions.where(_matchesFilters).toList();
 
     return Scaffold(
       backgroundColor: VertexColors.ivory50,
