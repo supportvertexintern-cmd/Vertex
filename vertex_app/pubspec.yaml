@@ -35,7 +35,7 @@ dependencies:
   jwt_decoder: ^2.0.1
 
   # ─── Firebase (Push notifications) ─────────────────────────
-  firebase_core: ^4.14.0
+  firebase_core: ^4.15.0
   firebase_messaging: ^16.6.0
   flutter_local_notifications: ^22.3.0
   flutter_native_splash: ^2.4.6
