@@ -47,7 +47,7 @@ Fresh scan on 2026-10-12: backend image `dev-56de2b9`, Debian 13.7, Trivy 0.67.2
 | Whether the app uses each vulnerable package | Recorded below: none is reachable |
 | Slim or distroless base | ✅ `python:3.11-slim`. **Distroless was tried and rejected:** `distroless/python3-debian12` scanned **62** findings, **43 of them fixable but not yet patched there**, 2 critical, against 44 / 0 fixable / 0 critical for slim. It is older (Debian 12) and patched more slowly |
 | Weekly rebuild and re-scan | ✅ `.github/workflows/image-scan.yml`: Mondays, all four images built with `--pull --no-cache` (fresh bases; the Dockerfiles apply the distribution's current fixes); reports kept 90 days |
-| Fail the build on new fixable CRITICAL/HIGH | ✅ `trivy --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1`: in CI on every pull request (backend, Next.js, Flutter) and in the weekly job (all four, MinIO included) |
+| Fail the build on new fixable CRITICAL/HIGH | ✅ `trivy --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1`: in CI (backend, Next.js, Flutter) on every promotion into `staging` or `main` and on pull requests into `dev` that change a Dockerfile, compose file or workflow (from 2026-10-20, to save Actions minutes; everything reaches `staging` through a scanned promotion), and in the weekly job (all four, MinIO included) |
 | Extra: backend runs as non-root | ✅ New: user `vertex` (uid 10001). Tested: migrates to head on start, healthy, `alembic` still usable for rollback |
 
 **Backend findings and whether the app reaches them:**
