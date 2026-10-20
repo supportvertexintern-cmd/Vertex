@@ -4,6 +4,19 @@ import { ensurePaymentReceiptDocumentTypes } from "../src/server/services/paymen
 
 const prisma = new PrismaClient();
 
+// Best-effort Stripe pricing for a seeded job: a Stripe outage or
+// misconfiguration must never block the seed. Without a key at all (CI, the
+// local test scripts) there's nothing to sync to, so skip the call instead
+// of sending every job to Stripe with the build-time placeholder key.
+const hasStripeKey = Boolean(process.env.STRIPE_SECRET_KEY);
+if (!hasStripeKey) console.log("STRIPE_SECRET_KEY not set: skipping Stripe pricing sync for seeded jobs.");
+function syncPricing(jobId: string, label: string) {
+  if (!hasStripeKey) return Promise.resolve();
+  return syncJobMilestonePricing(jobId).catch((err) =>
+    console.error(`Failed to sync Stripe pricing for ${label}.`, err)
+  );
+}
+
 // Reproduces the 3 payment-plan shapes this seed's Jobs use (2026-09-16,
 // flexible per-Job payment stages) — same formulas as
 // scripts/backfill-job-payment-stages.ts, kept idempotent by skipping any
@@ -847,9 +860,7 @@ async function applyCanadaPricingFixup() {
       data: { service_fee_gbp: job.service_fee_gbp ?? 3100 },
     });
     await ensurePaymentStages(job.id, TWO_STAGE_PAYMENT_STAGES);
-    await syncJobMilestonePricing(job.id).catch((err) =>
-      console.error(`Failed to sync Stripe pricing for Canada job ${job.id} ("${title}").`, err)
-    );
+    await syncPricing(job.id, `Canada job ${job.id} ("${title}")`);
   }
 }
 
@@ -978,12 +989,7 @@ async function main() {
       jobId = created.id;
     }
     await ensurePaymentStages(jobId, STANDARD_PAYMENT_STAGES);
-    // Best-effort, same try/catch-and-log pattern as every other call site
-    // — a Stripe outage/misconfiguration (still just placeholder keys as
-    // of this 2026 pricing revision) must never block the seed itself.
-    await syncJobMilestonePricing(jobId).catch((err) =>
-      console.error(`Failed to sync Stripe pricing for job ${jobId} ("${j.title}").`, err)
-    );
+    await syncPricing(jobId, `job ${jobId} ("${j.title}")`);
     await backfillDefaultSectorAndPosition(jobId, j.category);
   }
 
@@ -1017,9 +1023,7 @@ async function main() {
     // payment stage regardless of shape (2026-09-16) — the old skip here
     // (JobMilestonePrice/MilestonePaymentType couldn't represent a
     // variable N-installment schedule) no longer applies.
-    await syncJobMilestonePricing(jobId).catch((err) =>
-      console.error(`Failed to sync Stripe pricing for job ${jobId} ("${j.title}").`, err)
-    );
+    await syncPricing(jobId, `job ${jobId} ("${j.title}")`);
     await backfillDefaultSectorAndPosition(jobId, j.category);
   }
 
