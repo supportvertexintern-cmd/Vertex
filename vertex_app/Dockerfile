@@ -22,7 +22,7 @@ COPY . .
 RUN flutter build web --release
 
 
-FROM nginx:1.29-alpine
+FROM nginx:1.31-alpine
 # Current Alpine security fixes (OpenSSL and others; Trivy, Phase 12).
 RUN apk upgrade --no-cache
 
