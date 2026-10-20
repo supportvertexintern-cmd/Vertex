@@ -362,7 +362,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       # E4: a fixable HIGH/CRITICAL finding fails the build. Unfixed ones
       # are the documented exceptions (docs/security/exceptions.md), and so
-      # are the dated entries in .trivyignore.yaml (E7).
+      # are any dated entries in .trivyignore.yaml.
       - name: Image scan (fixable HIGH/CRITICAL)
         run: >-
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock

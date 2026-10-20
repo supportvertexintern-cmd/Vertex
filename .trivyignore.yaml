@@ -6,10 +6,9 @@
 #
 # Only the gate steps read this file (ci.yml "Image scan", image-scan.yml
 # "Gate"); the weekly full report still lists everything.
-vulnerabilities:
-  - id: CVE-2026-77214
-    statement: >-
-      libexpat 2.8.5-r0 in nginx:1.29-alpine (vertex-flutter-web). Fixed in
-      2.9.0-r0, which Alpine hasn't published for this base yet, so the
-      Dockerfile's `apk upgrade` can't pick it up. Exception E7.
-    expired_at: 2026-11-02
+#
+# Keep this file even when the list is empty: the gates mount it, and a
+# missing file would be mounted as a directory and break the scan.
+#
+# Past entries: CVE-2026-77214 (E7, libexpat), closed 2026-10-21.
+vulnerabilities: []

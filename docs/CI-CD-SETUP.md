@@ -14,7 +14,7 @@ use the 2,000 free minutes; the two self-hosted runners cost nothing.
 | Build finished on `dev` / `staging` | `deploy-local.yml` | `vertex-host` (Windows PC) | Local `vertex-dev` / `vertex-staging` stack updated via `vertex_be/deploy/deploy.sh` |
 | You click "Run workflow" on `main` in **Deploy local stacks** | `deploy-local.yml` | `vertex-host` | Local `vertex-main` stack updated (never automatic) |
 | You click "Run workflow" on `main` in **Production release** | `production.yml` | `prod-ops` (ops-server) | Pull images, migrate, restart, health check, auto-rollback, tag `vYYYY.MM.DD` |
-| Monday | `image-scan.yml` | GitHub-hosted | All four images rebuilt from fresh bases (`--pull --no-cache`), full Trivy report kept 90 days, gate on fixable HIGH/CRITICAL (exception E4/E7 in [security/exceptions.md](security/exceptions.md)) |
+| Monday | `image-scan.yml` | GitHub-hosted | All four images rebuilt from fresh bases (`--pull --no-cache`), full Trivy report kept 90 days, gate on fixable HIGH/CRITICAL (exceptions in [security/exceptions.md](security/exceptions.md), dated ignores in `.trivyignore.yaml`) |
 | Sunday 03:30 UTC | `cleanup-packages.yml` | GitHub-hosted | Delete untagged image versions, keep newest 20 |
 | Monday | Dependabot | GitHub | Grouped update PRs into `dev` |
 
