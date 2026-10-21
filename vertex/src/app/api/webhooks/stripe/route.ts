@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
+import { STRIPE_API_VERSION } from "@/lib/stripe";
 import { createReceiptPdf } from "@/lib/invoice";
 import { sendConsultationBookingNotification } from "@/lib/email";
 
 import { log } from "@/lib/log";
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build") as string, {
-  apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion,
+  apiVersion: STRIPE_API_VERSION,
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;

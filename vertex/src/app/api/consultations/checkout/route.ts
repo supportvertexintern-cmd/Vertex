@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, CARD_ONLY_CHECKOUT } from "@/lib/stripe";
 import { rateLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/log";
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   try {
     session = await stripe.checkout.sessions.create({
     mode: "payment",
-    payment_method_types: ["card"],
+    ...CARD_ONLY_CHECKOUT,
     phone_number_collection: { enabled: true },
     line_items: [
       {

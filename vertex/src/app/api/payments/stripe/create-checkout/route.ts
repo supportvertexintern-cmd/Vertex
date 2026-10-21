@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import Stripe from "stripe";
+import { STRIPE_API_VERSION, CARD_ONLY_CHECKOUT } from "@/lib/stripe";
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || "sk_test_dummy_key_for_build") as string, {
-  apiVersion: "2025-02-24.acacia" as Stripe.LatestApiVersion,
+  apiVersion: STRIPE_API_VERSION,
 });
 
 export async function POST(req: NextRequest) {
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   // Create Checkout Session
   const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
+    ...CARD_ONLY_CHECKOUT,
     customer_email: user!.email,
     line_items: [
       {
