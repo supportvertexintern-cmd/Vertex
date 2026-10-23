@@ -358,8 +358,10 @@ jobs:
           push: false
           load: true
           tags: ${{ matrix.image }}:ci
+          # Read-only: reuses the layers build.yml caches for dev, staging
+          # and main. Writing here would store a PR's layers where only that
+          # same PR can reuse them, filling the 10 GB Actions cache.
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
       # E4: a fixable HIGH/CRITICAL finding fails the build. Unfixed ones
       # are the documented exceptions (docs/security/exceptions.md), and so
       # are any dated entries in .trivyignore.yaml.
