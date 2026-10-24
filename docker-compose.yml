@@ -123,6 +123,16 @@ services:
 
   pgadmin:
     extends: { <<: *deploy, service: pgadmin }
+    # Local only: next to the read-only connection (password
+    # DB_READONLY_PASSWORD), an admin one (POSTGRES_USER, password
+    # POSTGRES_PASSWORD) that sees and edits every column. This stack holds
+    # test data only; the deployed stacks register the read-only one alone.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo '{"Servers": {"1": {"Name": "vertex-local (read-only)", "Group": "Vertex", "Host": "db", "Port": 5432, "MaintenanceDB": "${POSTGRES_DB}", "Username": "vertex_readonly", "SSLMode": "prefer"}, "2": {"Name": "vertex-local (admin)", "Group": "Vertex", "Host": "db", "Port": 5432, "MaintenanceDB": "${POSTGRES_DB}", "Username": "${POSTGRES_USER}", "SSLMode": "prefer"}}}' > /tmp/servers.json
+        exec /entrypoint.sh
     depends_on:
       db:
         condition: service_healthy
