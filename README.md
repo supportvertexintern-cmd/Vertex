@@ -12,31 +12,38 @@ A modern, full-stack recruitment platform built for international job placements
 
 ## Local Setup Instructions
 
-1. **Clone & Install**
+The whole platform runs locally with Docker: backend (`vertex_be/`), web
+(`vertex/`) and app (`vertex_app/`), each built from its own Dockerfile, plus
+Postgres, pgAdmin, MinIO and Mailpit, all from `docker-compose.yml`.
+
+1. **Environment** (once): writes a gitignored `.env` with random secrets.
    ```bash
-   npm install
+   sh scripts/local-env.sh        # Git Bash; from PowerShell:
+                                  # & "C:\Program Files\Git\bin\bash.exe" scripts/local-env.sh
    ```
 
-2. **Environment Variables**
-   Create a `.env` file with the required values (get them from a maintainer;
-   it is gitignored and must never be committed — see `docs/secrets.md`).
-   **Important:** Set your `DATABASE_URL` to a valid PostgreSQL connection string.
-
-3. **Database Setup**
-   Push the Prisma schema to your database to create the necessary tables:
+2. **Build and start**
    ```bash
-   npx prisma db push
-   ```
-   *(Optional)* Seed some data or view the database:
-   ```bash
-   npx prisma studio
+   docker compose up -d --build --wait
    ```
 
-4. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:3000` in your browser.
+   | Service | URL |
+   |---|---|
+   | Web (Next.js) | http://localhost:3010 |
+   | App (Flutter web) | http://localhost:8090 |
+   | API docs (FastAPI) | http://localhost:8010/docs |
+   | pgAdmin | http://localhost:5060 (database password: `DB_READONLY_PASSWORD`) |
+   | MinIO console | http://localhost:9011 |
+   | Mail (Mailpit) | http://localhost:8035 |
+
+   Logins are in `.env`. The schema comes from the backend's Alembic
+   migrations, never `prisma db push`.
+
+3. **Stop**: `docker compose down` (data is kept; add `-v` to wipe it).
+
+Tests run against throwaway databases, never this stack:
+`vertex_be/scripts/test.sh`, `vertex/scripts/test.sh` (Vitest) and
+`vertex/scripts/test-e2e.sh` (Playwright).
 
 ## Project Architecture
 - `src/app/*`: Next.js App Router pages and layouts.

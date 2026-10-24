@@ -1,0 +1,136 @@
+
+
+name: vertex-local
+
+x-deploy: &deploy
+  file: vertex_be/docker-compose.deploy.yml
+
+services:
+
+  db:
+    extends: { <<: *deploy, service: db }
+
+  db-roles:
+    image: postgres:15-alpine
+    environment: &db-roles-env
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD}
+      DB_API_PASSWORD: ${DB_API_PASSWORD}
+      DB_WEB_PASSWORD: ${DB_WEB_PASSWORD}
+      DB_READONLY_PASSWORD: ${DB_READONLY_PASSWORD}
+    volumes: &db-roles-volumes
+      - ./vertex_be/deploy:/deploy:ro
+    entrypoint: &db-roles-entrypoint
+      - sh
+      - -c
+      - |
+        {
+          printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set web_pw '%s'\n\\set readonly_pw '%s'\n" \
+            "$$DB_MIGRATOR_PASSWORD" "$$DB_API_PASSWORD" "$$DB_WEB_PASSWORD" "$$DB_READONLY_PASSWORD"
+          cat /deploy/readonly-columns.sql /deploy/db-roles.sql
+        } | psql -q -h db -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" >/dev/null && echo "database roles provisioned"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [ data ]
+    restart: "no"
+
+  minio:
+    extends: { <<: *deploy, service: minio }
+    build: ./vertex_be/deploy/minio
+    pull_policy: build
+    # Local only: the web console, and the S3 API for tools on this PC.
+    # (The deployed stacks keep MinIO on the internal network, no console.)
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      MINIO_BROWSER: "on"
+    ports:
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9011}:9001"
+    networks: [ data, edge ]
+
+  # The bucket and the app's own key, limited to that bucket
+  # (deploy/minio-bootstrap.sh).
+  minio-setup:
+    image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-minio:${IMAGE_TAG}
+    pull_policy: never
+    environment:
+      MINIO_URL: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      VERTEX_S3_BUCKET: ${S3_BUCKET}
+      VERTEX_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      VERTEX_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    volumes:
+      - ./vertex_be/deploy/minio-bootstrap.sh:/bootstrap.sh:ro
+    entrypoint: [ "sh", "-c", "sh /bootstrap.sh && echo 'object storage provisioned'" ]
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks: [ data ]
+    restart: "no"
+
+  # Runs `alembic upgrade head` as vertex_migrator on start, then serves as
+  # vertex_api.
+  backend:
+    extends: { <<: *deploy, service: backend }
+    build: ./vertex_be
+    pull_policy: build
+    depends_on:
+      db:
+        condition: service_healthy
+      db-roles:
+        condition: service_completed_successfully
+
+  # Again after the migrations, so tables they just created get their
+  # grants (deploy.sh does the same).
+  db-roles-after-migrate:
+    image: postgres:15-alpine
+    environment: *db-roles-env
+    volumes: *db-roles-volumes
+    entrypoint: *db-roles-entrypoint
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [ data ]
+    restart: "no"
+
+  nextjs:
+    extends: { <<: *deploy, service: nextjs }
+    build: ./vertex
+    pull_policy: build
+    depends_on:
+      backend:
+        condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
+      db-roles-after-migrate:
+        condition: service_completed_successfully
+
+  flutter-web:
+    extends: { <<: *deploy, service: flutter-web }
+    build: ./vertex_app
+    pull_policy: build
+
+  mailpit:
+    extends: { <<: *deploy, service: mailpit }
+
+  pgadmin:
+    extends: { <<: *deploy, service: pgadmin }
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads:
+  pgadmin_data:
+  # MINIO_DATA_DIR in .env names this volume (or a host folder, if a path).
+  minio_data:
+
+networks:
+  data:
+    internal: true
+  edge:
+  static:

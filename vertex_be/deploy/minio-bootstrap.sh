@@ -1,12 +1,14 @@
 #!/bin/sh
-# Runs inside the MinIO container (deploy.sh pipes it in). Idempotent:
-# creates the environment's bucket and the app's own access key, limited by
-# policy to objects in that one bucket. The root login is never given to an
-# application. Credentials come from the container's environment, never argv.
+# Runs inside the MinIO container (deploy.sh pipes it in), or in a one-shot
+# container next to it (docker-compose.yml at the repo root, with MINIO_URL
+# set). Idempotent: creates the environment's bucket and the app's own access
+# key, limited by policy to objects in that one bucket. The root login is
+# never given to an application. Credentials come from the container's
+# environment, never argv.
 set -eu
 export MC_CONFIG_DIR=/tmp/.mc
 
-mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
+mc alias set local "${MINIO_URL:-http://127.0.0.1:9000}" "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
 mc mb --ignore-existing "local/$VERTEX_S3_BUCKET" >/dev/null
 mc anonymous set none "local/$VERTEX_S3_BUCKET" >/dev/null
 
