@@ -44,7 +44,7 @@ jobs:
       IMAGE_TAG: ${{ github.event.workflow_run.head_branch || github.ref_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
       ENV_FILE: ${{ vars.LOCAL_ENV_DIR || 'D:/Django Projects/vertex_main/vertex_be' }}/.env.${{ github.event.workflow_run.head_branch || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           sparse-checkout: |

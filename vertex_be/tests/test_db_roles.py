@@ -85,6 +85,23 @@ def test_only_the_web_service_touches_sessions(conn):
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "RefreshToken"') == INSUFFICIENT_PRIVILEGE
 
 
+def test_only_the_api_may_ask_whether_a_session_is_live(conn):
+    # G9: FastAPI verifies Next.js sessions through a yes/no function
+    # (migration 0007), never by reading session rows.
+    ask = "SELECT public.vertex_session_is_live('u', 'f')"
+    assert run_as(conn, "vertex_api", ask) is None
+    assert run_as(conn, "vertex_web", ask) == INSUFFICIENT_PRIVILEGE
+    assert run_as(conn, "vertex_readonly", ask) == INSUFFICIENT_PRIVILEGE
+    owner, public_can = conn.execute(
+        text(
+            "SELECT pg_get_userbyid(proowner), has_function_privilege('public', oid, 'EXECUTE') "
+            "FROM pg_proc WHERE proname = 'vertex_session_is_live'"
+        )
+    ).one()
+    assert public_can is False
+    assert owner != "vertex_api"
+
+
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 @pytest.mark.parametrize(
     "sql",
