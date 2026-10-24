@@ -10,8 +10,8 @@ serving data (the way G1/G2 happened in the Next.js app). tests/
 test_default_deny.py also fails CI on any route that is neither, and on
 stale register entries.
 
-GUARDS is empty until FastAPI has user authentication (G9). Until then,
-every route that isn't public is refused.
+GUARDS holds current_user (app/core/auth.py, G9): a route that depends on
+it serves only a live Next.js session.
 """
 
 from __future__ import annotations
@@ -23,6 +23,8 @@ from fastapi import HTTPException, Request, status
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 
+from app.core.auth import current_user
+
 # "<METHOD> <path>": why it is public and what limits it.
 PUBLIC_ENDPOINTS: dict[str, str] = {
     "GET /": "service name and links; no data",
@@ -33,8 +35,8 @@ PUBLIC_ENDPOINTS: dict[str, str] = {
 FRAMEWORK_ROUTES: set[str] = {"/docs", "/docs/oauth2-redirect", "/redoc", "/api/v1/openapi.json"}
 
 # Authentication dependencies. A route whose dependency tree contains one of
-# these is guarded. Item 3 (G9) adds the user-session dependency here.
-GUARDS: set[Callable[..., Any]] = set()
+# these is guarded: current_user (G9) verifies a Next.js session.
+GUARDS: set[Callable[..., Any]] = {current_user}
 
 
 def route_key(method: str, path: str) -> str:
