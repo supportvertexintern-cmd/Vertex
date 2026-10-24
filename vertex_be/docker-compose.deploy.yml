@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgresql://vertex_api:${DB_API_PASSWORD:?DB_API_PASSWORD is required}@db:5432/${POSTGRES_DB}
       MIGRATION_DATABASE_URL: postgresql://vertex_migrator:${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
+      # The web app's: FastAPI verifies the sessions Next.js issues (G9).
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:

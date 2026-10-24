@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     MIGRATION_DATABASE_URL: str | None = None
 
     SECRET_KEY: str = "change-me-in-production"
+    # The Next.js app's JWT_SECRET: FastAPI verifies the sessions it issues
+    # (app/core/tokens.py). Unset in development = no token verifies.
+    JWT_SECRET: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
@@ -47,6 +50,8 @@ class Settings(BaseSettings):
                 raise ValueError(f"DEBUG must be false in {self.APP_ENV}")
             if self.SECRET_KEY == "change-me-in-production" or len(self.SECRET_KEY) < 32:
                 raise ValueError(f"SECRET_KEY must be a real 32+ char secret in {self.APP_ENV}")
+            if not self.JWT_SECRET or len(self.JWT_SECRET) < 32:
+                raise ValueError(f"JWT_SECRET must be the web app's 32+ char secret in {self.APP_ENV}")
         return self
 
 

@@ -154,6 +154,12 @@ BEGIN
   IF to_regclass('public."RefreshToken"') IS NOT NULL THEN
     REVOKE ALL ON "RefreshToken" FROM vertex_api;
   END IF;
+  -- G9: FastAPI verifies those sessions, so it may ask whether one is live
+  -- (yes/no, migration 0007) without reading any session row.
+  IF to_regprocedure('public.vertex_session_is_live(text, text)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_session_is_live(text, text) FROM PUBLIC, vertex_web, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_session_is_live(text, text) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api, vertex_web;
   END IF;

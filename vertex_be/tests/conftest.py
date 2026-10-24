@@ -9,8 +9,13 @@ import os
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL")
 if not TEST_DATABASE_URL:
     raise RuntimeError("TEST_DATABASE_URL is not set: run the tests with `sh scripts/test.sh`")
-# Must happen before anything imports app.core.config.
+# Must happen before anything imports app.core.config. JWT_SECRET is the
+# test-only secret the Node golden vectors were signed with, never a real
+# one from vertex_be/.env.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+from tests.node_session_vectors import SECRET as TEST_JWT_SECRET  # noqa: E402
+
+os.environ["JWT_SECRET"] = TEST_JWT_SECRET
 
 from collections.abc import Iterator  # noqa: E402
 

@@ -34,6 +34,15 @@ There is one exception: a spent token presented within **30 seconds** is answere
 
 Code: `vertex/src/lib/session.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
 
+**FastAPI verifies the same sessions (G9).** Next.js stays the only issuer until users and sessions move (`docs/architecture/data-ownership.md` §5). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:
+- the signature, with the same per-purpose key (`app/core/tokens.py`; pinned to tokens the Node code signs by `tests/node_session_vectors.py`);
+- the user still exists, and `token_version` matches;
+- the family has a live token.
+
+So logout, the kill switch, and a password or role change end FastAPI access on the next request too. Differences, both deliberate:
+- **Bearer only.** FastAPI reads the token from `Authorization: Bearer`, never from the `auth_token` cookie, so other sites can't make a browser send authenticated requests to it (CSRF). The Flutter app and Next.js's server-side calls send the header.
+- **No session rows.** `vertex_api` still has no grants on `RefreshToken`. It asks `vertex_session_is_live(user_id, family_id)` (migration `0007`), a `SECURITY DEFINER` function that answers only yes or no and is executable by `vertex_api` alone.
+
 ## 2. What ends a session
 
 | Event | Effect | Mechanism |
