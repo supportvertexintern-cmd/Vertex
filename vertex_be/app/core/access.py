@@ -11,7 +11,9 @@ test_default_deny.py also fails CI on any route that is neither, and on
 stale register entries.
 
 GUARDS holds current_user (app/core/auth.py, G9): a route that depends on
-it serves only a live Next.js session.
+it serves only a live Next.js session; and calling_service (G18): a route
+that depends on it serves only Next.js itself. A service token, wherever it
+is sent, is verified here first: a bad one is a 401 on any route.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 
-from app.core.auth import current_user
+from app.core.auth import calling_service, check_service_header, current_user
 
 # "<METHOD> <path>": why it is public and what limits it.
 PUBLIC_ENDPOINTS: dict[str, str] = {
@@ -35,8 +37,9 @@ PUBLIC_ENDPOINTS: dict[str, str] = {
 FRAMEWORK_ROUTES: set[str] = {"/docs", "/docs/oauth2-redirect", "/redoc", "/api/v1/openapi.json"}
 
 # Authentication dependencies. A route whose dependency tree contains one of
-# these is guarded: current_user (G9) verifies a Next.js session.
-GUARDS: set[Callable[..., Any]] = {current_user}
+# these is guarded: current_user (G9) verifies a Next.js session,
+# calling_service (G18) the Next.js service itself.
+GUARDS: set[Callable[..., Any]] = {current_user, calling_service}
 
 
 def route_key(method: str, path: str) -> str:
@@ -73,6 +76,7 @@ async def default_deny(request: Request) -> None:
     route = request.scope.get("route")
     if not isinstance(route, APIRoute):
         return
+    check_service_header(request)
     # Public entries are static paths, so the concrete path is the key.
     if route_key(request.method, request.url.path) in PUBLIC_ENDPOINTS or is_guarded(route):
         return
