@@ -123,3 +123,107 @@ def test_the_api_database_role_can_read_it(api, db, policies):
         db.execute(text("RESET ROLE"))
     assert res.status_code == 200
     assert len(ours(res.json(), policies)) == 2
+
+
+# --- writes (step 1.2) -------------------------------------------------------
+
+from sqlalchemy import select  # noqa: E402
+
+from app.api.v1.fee_policy import FEE_POLICY_MANAGERS  # noqa: E402
+from app.models.audit import AuditLog  # noqa: E402
+
+
+def test_the_manager_roles_match_next_js():
+    src = NEXT_ROUTE.read_text(encoding="utf-8")
+    managers = re.search(r"FEE_POLICY_MANAGER_ROLES = \[(.*?)\]", src, re.S)
+    assert set(re.findall(r'"(\w+)"', managers.group(1))) == {r.value for r in FEE_POLICY_MANAGERS}
+
+
+def save(api, headers, **body):
+    return api.post("/api/v1/fee-policy", headers=headers, json={"enabled": True, **body})
+
+
+def test_a_save_updates_the_countrys_policy_and_is_audited(api, db, policies):
+    director = policies["director"]
+    s = add_session(db, director.id)
+    headers = bearer(session_token(director.id, s.family_id, director.token_version))
+    res = save(api, headers, country_id=policies["country"].id, enabled=False, documentation_amount=99.5, currency="EUR")
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["id"] == policies["local"].id  # updated in place, not duplicated
+    assert (data["enabled"], data["documentation_amount"], data["permit_amount"], data["currency"]) == (False, 99.5, None, "EUR")
+    assert data["country"] == {"name": policies["country"].name}
+    assert db.scalars(select(FeePolicy).where(FeePolicy.country_id == policies["country"].id)).all() == [policies["local"]]
+
+    [row] = db.scalars(select(AuditLog).where(AuditLog.entity_id == policies["local"].id, AuditLog.action == "update")).all()
+    assert row.actor_id == director.id
+    assert (row.before["currency"], row.after["currency"]) == ("GBP", "EUR")
+
+
+def test_a_save_for_a_new_country_creates_its_policy(api, db, policies):
+    region = Region(name=f"Fee region {secrets.token_hex(3)}")
+    db.add(region)
+    db.flush()
+    country = Country(name=f"Newland {secrets.token_hex(3)}", region_id=region.id)
+    db.add(country)
+    db.flush()
+    headers = as_role(db, Role.admin)
+    res = save(api, headers, country_id=country.id, visa_amount=500)
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert (data["country_id"], data["visa_amount"], data["currency"]) == (country.id, 500.0, "USD")
+    assert db.scalars(select(AuditLog).where(AuditLog.entity_id == data["id"])).one().action == "create"
+
+
+def test_a_save_without_a_country_updates_the_global_default(api, db, policies):
+    res = save(api, as_role(db, Role.director), country_id=None, permit_amount=10)
+    assert res.json()["data"]["id"] == policies["default"].id
+
+
+@pytest.mark.parametrize(
+    ("body", "field"),
+    [
+        ({"documentation_amount": 0}, "documentation_amount"),
+        ({"permit_amount": -5}, "permit_amount"),
+        ({"currency": "EURO"}, "currency"),
+        ({"currency": "EU"}, "currency"),
+        ({"country_id": "not-a-cuid"}, "country_id"),
+        ({"enabled": "maybe"}, "enabled"),
+    ],
+)
+def test_invalid_input_is_refused_field_by_field(api, db, body, field):
+    res = save(api, as_role(db, Role.admin), **body)
+    assert res.status_code == 422
+    assert field in res.json()["error"]["details"]
+
+
+def test_enabled_is_required(api, db):
+    res = api.post("/api/v1/fee-policy", headers=as_role(db, Role.admin), json={"currency": "USD"})
+    assert res.status_code == 422
+    assert "enabled" in res.json()["error"]["details"]
+
+
+def test_an_unknown_country_is_refused(api, db):
+    res = save(api, as_role(db, Role.admin), country_id="cnotarealcountry0000")
+    assert res.status_code == 422
+    assert res.json()["error"]["details"] == {"country_id": ["Unknown country"]}
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_only_director_and_admin_may_save(api, db, role):
+    res = save(api, as_role(db, role), country_id=None)
+    assert res.status_code == (200 if role in FEE_POLICY_MANAGERS else 403)
+
+
+def test_saving_needs_a_session(api):
+    assert api.post("/api/v1/fee-policy", json={"enabled": True}).status_code == 401
+
+
+def test_the_api_database_role_can_save_it(api, db, policies):
+    headers = as_role(db, Role.admin)
+    db.execute(text("SET LOCAL ROLE vertex_api"))
+    try:
+        res = save(api, headers, country_id=policies["country"].id, enabled=False)
+    finally:
+        db.execute(text("RESET ROLE"))
+    assert res.status_code == 200

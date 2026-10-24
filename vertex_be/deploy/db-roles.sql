@@ -167,3 +167,22 @@ BEGIN
     REVOKE ALL ON _prisma_migrations FROM vertex_api, vertex_web;
   END IF;
 END $$;
+
+-- One writer per table (docs/architecture/data-ownership.md): tables handed
+-- over to FastAPI. Next.js keeps reading them (vertex_web SELECT) but may no
+-- longer change them; its handlers write through callBackend() instead.
+-- Foreign-key actions (a deleted country setting country_id to null) still
+-- work: Postgres runs them as the table's owner. tests/test_db_roles.py
+-- reads this list and checks each table.
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[  -- FastAPI-owned tables
+    'FeePolicy'  -- reference data, step 1.2 (2026-10-24)
+  ] LOOP
+    IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
+      EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
+    END IF;
+  END LOOP;
+END $$;

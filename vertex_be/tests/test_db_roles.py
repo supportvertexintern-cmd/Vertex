@@ -260,3 +260,44 @@ def test_audit_log_stays_immutable_even_for_the_owner(conn):
     conn.execute(text("""INSERT INTO "AuditLog" (id, entity_type, entity_id, action)
                          VALUES ('ctest-immutable', 'test', 'x', 'CREATE')"""))
     assert run_as(conn, "vertex_migrator", """UPDATE "AuditLog" SET action = 'UPDATE' WHERE id = 'ctest-immutable'""") == "P0001"
+
+
+def fastapi_owned_tables() -> list[str]:
+    sql = (BASE_DIR / "deploy" / "db-roles.sql").read_text(encoding="utf-8")
+    block = sql[sql.index("-- FastAPI-owned tables"):sql.index("] LOOP", sql.index("-- FastAPI-owned tables"))]
+    return re.findall(r"^\s*'(\w+)'", block, re.M)
+
+
+def test_the_handover_list_is_read():
+    assert "FeePolicy" in fastapi_owned_tables()
+
+
+@pytest.mark.parametrize("table", fastapi_owned_tables())
+def test_a_handed_over_table_has_one_writer(conn, table):
+    # docs/architecture/data-ownership.md: FastAPI writes it; Next.js only reads.
+    assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') is None
+    for sql in (
+        f'INSERT INTO "{table}" (id) SELECT \'x\' WHERE false',
+        f'UPDATE "{table}" SET id = id',
+        f'DELETE FROM "{table}"',
+        f'TRUNCATE "{table}"',
+    ):
+        assert run_as(conn, "vertex_web", sql) == INSUFFICIENT_PRIVILEGE, sql
+    assert run_as(conn, "vertex_api", f'UPDATE "{table}" SET id = id') is None
+
+
+def test_the_web_app_can_still_delete_a_country_with_a_fee_policy(conn):
+    # ON DELETE SET NULL runs as FeePolicy's owner, not as vertex_web.
+    conn.execute(text("""INSERT INTO "Region" (id, name) VALUES ('ctest-fp-region', 'FP region')"""))
+    conn.execute(text("""INSERT INTO "Country" (id, name, region_id) VALUES ('ctest-fp-country', 'FP country', 'ctest-fp-region')"""))
+    conn.execute(text("""INSERT INTO "User" (id, full_name, email, updated_at) VALUES ('ctest-fp-user', 'FP', 'fp@test.invalid', now())"""))
+    conn.execute(text("""INSERT INTO "FeePolicy" (id, country_id, updated_by, updated_at)
+                         VALUES ('ctest-fp-policy', 'ctest-fp-country', 'ctest-fp-user', now())"""))
+    savepoint = conn.begin_nested()
+    try:
+        conn.execute(text("SET LOCAL ROLE vertex_web"))
+        conn.execute(text("""DELETE FROM "Country" WHERE id = 'ctest-fp-country'"""))
+        conn.execute(text("RESET ROLE"))
+        assert conn.execute(text("""SELECT country_id FROM "FeePolicy" WHERE id = 'ctest-fp-policy'""")).scalar() is None
+    finally:
+        savepoint.rollback()

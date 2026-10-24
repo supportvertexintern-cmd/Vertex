@@ -6,6 +6,7 @@ import { MANAGEMENT_NAV_ITEMS } from "@/components/portal/managementNav";
 import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
+import { describeApiError } from "@/lib/apiError";
 
 interface FeePolicy {
   id: string;
@@ -62,7 +63,7 @@ export default function FeePolicyPage() {
       }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to save."); return; }
+    if (!res.ok) { alert(describeApiError(json, "Failed to save.")); return; }
     setCountryId(""); setEnabled(false); setDocumentationAmount(""); setPermitAmount(""); setVisaAmount(""); setCurrency("USD");
     load();
   };
