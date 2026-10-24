@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { backendResponse, callBackend } from "@/lib/backend";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 
@@ -15,7 +14,8 @@ const FEE_POLICY_MANAGER_ROLES = ["director", "admin"] as const;
 // Widened to hr/operations_team/operations_director/finance/partner
 // (2026-07-31) — CaseDetail.tsx calls this unconditionally on every load
 // to compute its "Milestone payments not enabled" banner, and it's now
-// rendered by their portals too.
+// rendered by their portals too. The list must match FEE_POLICY_READERS in
+// vertex_be/app/api/v1/fee_policy.py (tests/test_fee_policy.py checks it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [
@@ -32,8 +32,9 @@ export async function GET(req: NextRequest) {
   ]);
   if (guardRes) return guardRes;
 
-  const policies = await prisma.feePolicy.findMany({ include: { country: { select: { name: true } } }, orderBy: { updated_at: "desc" } });
-  return NextResponse.json({ data: policies });
+  // Served by FastAPI (backend plan step 1.3), which answers in the same
+  // shape (Prisma's, with the country's name) and re-checks the same roles.
+  return backendResponse(await callBackend("/api/v1/fee-policy"));
 }
 
 // POST /api/fee-policy: SRS FR-4.5, milestone-payment policy, defaults

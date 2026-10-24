@@ -192,7 +192,7 @@ updated.
 | `Sector` | `/api/admin/sectors/[id]` (delete)<br>`/api/admin/sectors` (create) | `/api/admin/sectors/[id]`, `/api/admin/sectors` |
 | `DocumentRequirementType` | `/api/admin/document-types/[id]` (delete)<br>`/api/admin/document-types` (create) | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
 | `CountryDocumentRequirement` | `/api/admin/countries/[id]/document-requirements` (createMany, deleteMany) | `/api/admin/countries/[id]/document-requirements`, `/api/apply/options`, `server/services/documentCompleteness.ts` |
-| `FeePolicy` | **FastAPI** `POST /api/v1/fee-policy` (create, update; audited). Next.js's `/api/fee-policy` POST passes requests on (`callBackend()`); `vertex_web` has no write grant (`db-roles.sql`) | `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/fee-policy`, `/api/finance/payments-due` |
+| `FeePolicy` | **FastAPI** `POST /api/v1/fee-policy` (create, update; audited). Next.js's `/api/fee-policy` POST passes requests on (`callBackend()`); `vertex_web` has no write grant (`db-roles.sql`) | **FastAPI** `GET /api/v1/fee-policy`, which Next.js's `/api/fee-policy` passes on (step 1.3). Still read directly by Next.js (`SELECT` kept), moving with Payments: `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/finance/payments-due` |
 | `SystemSetting` | `/api/admin/settings` (upsert) | `/api/admin/settings`, `/api/apply/options`, `/api/chat` |
 
 ### Content
