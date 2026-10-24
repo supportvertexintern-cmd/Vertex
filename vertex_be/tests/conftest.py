@@ -25,6 +25,7 @@ from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from app.core.audit import set_audit_actor  # noqa: E402
 from app.core.config import BASE_DIR  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
@@ -41,6 +42,8 @@ def db() -> Iterator[Session]:
     with engine.connect() as conn:
         trans = conn.begin()
         session = Session(bind=conn, join_transaction_mode="create_savepoint")
+        # Fixtures set up rows as the system; the audit trail records them.
+        set_audit_actor(session, None)
         try:
             yield session
         finally:
