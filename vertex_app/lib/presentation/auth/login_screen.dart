@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../app/theme/colors.dart';
 import '../../app/theme/typography.dart';
 import '../../core/auth/auth_manager.dart';
+import '../../data/services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,19 +34,22 @@ class _LoginScreenState extends State<LoginScreen> {
       isSubmitting = true;
       errorMessage = null;
     });
-    final role = await context.read<AuthManager>().signIn(
-          email: email.text,
-          password: password.text,
-        );
-    if (!mounted) return;
-    if (role == null) {
+    try {
+      final role = await context.read<AuthManager>().signIn(
+            email: email.text,
+            password: password.text,
+          );
+      if (!mounted) return;
+      context.go(role.portalHome);
+    } on ApiException catch (e) {
+      // The server's own message: wrong password, unverified email, too
+      // many attempts, offline, or an account this app isn't for.
+      if (!mounted) return;
       setState(() {
         isSubmitting = false;
-        errorMessage = 'Use an authorized Vertex staff email and password.';
+        errorMessage = e.message;
       });
-      return;
     }
-    context.go(role.portalHome);
   }
 
   @override

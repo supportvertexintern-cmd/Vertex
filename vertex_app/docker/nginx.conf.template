@@ -9,7 +9,7 @@ server {
     location = /config.json {
         default_type application/json;
         add_header Cache-Control "no-store";
-        return 200 '{"apiBaseUrl": "${API_BASE_URL}", "environment": "${APP_ENV}"}';
+        return 200 '{"apiBaseUrl": "${API_BASE_URL}", "authBaseUrl": "${AUTH_BASE_URL}", "environment": "${APP_ENV}"}';
     }
 
     location = /healthz {

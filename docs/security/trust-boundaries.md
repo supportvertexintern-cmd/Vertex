@@ -87,9 +87,9 @@ Next.js and FastAPI share is the database, each through its own role.
 
 | | |
 |---|---|
-| Caller → receiver | Browser (or anything that can reach the port) → FastAPI. Flutter app: **N/A** |
-| Identity | None |
-| Authentication / authorization | None. Endpoints: `/`, `/api/v1/health` (runs `SELECT 1`, reports environment and version), `/docs`, `/redoc`, `/api/v1/openapi.json` |
+| Caller → receiver | The Flutter app (`ApiService`), or anything that can reach the port → FastAPI |
+| Identity | The user's session: an access token from `/api/auth/app/login` or `/refresh` on Next.js ([session-management.md](session-management.md) §1, "Mobile app"), sent as `Authorization: Bearer` |
+| Authentication / authorization | Default deny; `current_user` checks the session is live, `require_role` the role, both against the database. Public: `/`, `/api/v1/health` (runs `SELECT 1`, reports environment and version), `/docs`, `/redoc`, `/api/v1/openapi.json` |
 | Secrets | None used for requests (`SECRET_KEY` loaded, unused) |
 | Network exposure | `127.0.0.1:8001` / `:8002`. CORS allows `localhost:3000` and `:8080` with credentials |
 | Audit | None |

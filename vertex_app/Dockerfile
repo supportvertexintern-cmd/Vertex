@@ -31,6 +31,7 @@ COPY --from=build /src/build/web /usr/share/nginx/html
 
 # Rendered into /config.json at container start (see nginx.conf.template).
 ENV API_BASE_URL=http://localhost:8001/api/v1 \
+    AUTH_BASE_URL=http://localhost:3001 \
     APP_ENV=development
 
 EXPOSE 80
