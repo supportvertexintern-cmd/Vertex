@@ -68,6 +68,16 @@ These were already recorded and are unchanged:
 
 **Privileged operations** are data changes made by admin and staff routes: user and role changes, password resets for others, partners, fee policies and so on. `auditedPrisma` records them with before/after snapshots, and granting `admin` raises an alert (§6).
 
+**FastAPI** (`vertex_be/app/core/audit.py`, step 0.3 of the backend plan) writes to the same trail, in the same row shape:
+
+- **Data changes:** a flush hook on every SQLAlchemy session records each create, update and delete of the same audited models as `auditedPrisma`. `tests/test_audit.py` fails CI if the two lists differ. Unlike `auditedPrisma`, the audit row is in the **same transaction** as the change, so a change can't commit unrecorded.
+- **Fail closed:**
+  - the actor must be declared (`AuditedDb` in a route, `set_audit_actor(db, None)` for system work), or the write raises;
+  - bulk `UPDATE`/`DELETE` statements on audited tables are refused;
+  - SQL sent straight to the connection bypasses the hook, so code review covers that.
+- **Security events:** `record_security_event()` logs and appends in its own transaction. `require_role()` uses it for `access_denied`.
+- **Not ported yet:** the security monitor's alert rules (§6). Granting `admin` through FastAPI is logged (`security.privilege_granted`) but doesn't raise an alert yet.
+
 **Not audited, by design:**
 
 - A 401 with no session at all is ordinary anonymous traffic.
@@ -156,7 +166,7 @@ The email has the rule, environment, time, counts and the request ID, and never 
 
 Tested in `security-events.integration.test.ts` ("logging failures cannot grant access") and `tests/test_logging.py`.
 
-**Known limit:** `auditedPrisma` writes the audit row after the change, not in the same transaction. If that write fails, the change stays but the request fails and an `audit_write_failed` alert goes out. Making it one transaction is a candidate for Phase 7 item 6 (transactions).
+**Known limit:** `auditedPrisma` writes the audit row after the change, not in the same transaction. If that write fails, the change stays but the request fails and an `audit_write_failed` alert goes out. Making it one transaction is a candidate for Phase 7 item 6 (transactions). FastAPI's writes don't have this limit (§3).
 
 ## 8. Verification
 

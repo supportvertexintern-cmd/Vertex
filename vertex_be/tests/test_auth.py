@@ -100,7 +100,8 @@ def test_a_password_change_ends_the_session(api, db, user):
     token = session_token(user.id, s.family_id, user.token_version)
     assert api.get("/api/v1/me", headers=bearer(token)).status_code == 200
     # The database trigger bumps token_version, whatever code changes it.
-    db.execute(update(User).where(User.id == user.id).values(password_hash="changed"))
+    # Straight to the connection: the ORM refuses bulk writes to audited tables.
+    db.connection().execute(update(User.__table__).where(User.id == user.id).values(password_hash="changed"))
     db.flush()
     db.expire_all()
     assert api.get("/api/v1/me", headers=bearer(token)).status_code == 401
@@ -131,7 +132,7 @@ def test_another_users_session_is_refused(api, db, user):
 def test_a_deleted_user_is_refused(api, db, user):
     s = add_session(db, user.id)
     token = session_token(user.id, s.family_id, user.token_version)
-    db.execute(delete(User).where(User.id == user.id))
+    db.connection().execute(delete(User.__table__).where(User.id == user.id))
     db.flush()
     db.expire_all()
     assert api.get("/api/v1/me", headers=bearer(token)).status_code == 401
