@@ -5,6 +5,7 @@ both services:
     success   {"data": ...}                                   Data[T]
     list      {"data": [...], "total", "page", "pageSize"}    Page[T]
     error     {"error": {"code", "message", "details"?}}      ApiError
+    timestamp "2026-10-24T12:00:00.000Z"                     UtcDateTime
 
 Errors raised anywhere (ApiError, FastAPI/Starlette HTTP errors, request
 validation, an unexpected exception) leave in the error shape, with the
@@ -20,12 +21,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from datetime import datetime
+from typing import Annotated, Any, Generic, TypeVar
 
 from fastapi import FastAPI, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, PlainSerializer
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -37,6 +39,15 @@ T = TypeVar("T")
 # is the common one. A route can pass its own limits to page_params.
 DEFAULT_PAGE_SIZE = 15
 MAX_PAGE_SIZE = 100
+
+
+# Timestamps as Prisma's JSON writes them ("2026-10-24T12:00:00.000Z"), so
+# a field reads the same from either service. Columns are UTC without a
+# time zone (timestamp(3)), as Prisma stores them.
+UtcDateTime = Annotated[
+    datetime,
+    PlainSerializer(lambda v: v.isoformat(timespec="milliseconds") + ("Z" if v.tzinfo is None else ""), return_type=str),
+]
 
 
 class Data(BaseModel, Generic[T]):
