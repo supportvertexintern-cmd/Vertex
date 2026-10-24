@@ -1,0 +1,49 @@
+name: Branch flow
+
+# Changes reach the environment branches in one order only:
+#
+#   feature branch → dev → staging → main
+#
+# This fails a pull request into staging or main that skips a step, e.g. a
+# feature branch opened against main (#68) or staging (#69), which leaves
+# a merge commit the branch behind doesn't have and stops promote.yml
+# fast-forwarding. It runs on every such PR, docs-only ones included, and
+# again when the PR's base is changed ("edited").
+#
+# The usual way forward is still promote.yml (no PR at all); a dev → staging
+# or staging → main PR passes this check too.
+
+on:
+  pull_request:
+    branches: [staging, main]
+    types: [opened, reopened, synchronize, edited]
+
+permissions: {}
+
+jobs:
+  check:
+    name: Branch flow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Source branch is the one before the target
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          case "$BASE" in
+            staging) expected=dev ;;
+            main)    expected=staging ;;
+            *)       exit 0 ;;
+          esac
+          if [ "$SAME_REPO" = "true" ] && [ "$HEAD" = "$expected" ]; then
+            echo "$HEAD → $BASE: allowed."
+            exit 0
+          fi
+          {
+            echo "### Wrong target branch"
+            echo "Only \`$expected\` may go into \`$BASE\`; this PR is from \`$HEAD\`."
+            echo "Change the base to \`dev\` (Edit next to the title), merge there, then use Actions → Promote."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Wrong target branch::Only $expected may go into $BASE; this PR is from $HEAD. Change the base to dev, then use Promote."
+          exit 1

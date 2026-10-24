@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     # The Next.js app's JWT_SECRET: FastAPI verifies the sessions it issues
     # (app/core/tokens.py). Unset in development = no token verifies.
     JWT_SECRET: str | None = None
+    # Next.js's credential when it calls FastAPI (G18). Separate from
+    # JWT_SECRET; _PREVIOUS is still accepted during a rotation. Unset in
+    # development = no service token verifies.
+    SERVICE_AUTH_SECRET: str | None = None
+    SERVICE_AUTH_SECRET_PREVIOUS: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
@@ -52,6 +57,10 @@ class Settings(BaseSettings):
                 raise ValueError(f"SECRET_KEY must be a real 32+ char secret in {self.APP_ENV}")
             if not self.JWT_SECRET or len(self.JWT_SECRET) < 32:
                 raise ValueError(f"JWT_SECRET must be the web app's 32+ char secret in {self.APP_ENV}")
+            if not self.SERVICE_AUTH_SECRET or len(self.SERVICE_AUTH_SECRET) < 32:
+                raise ValueError(f"SERVICE_AUTH_SECRET must be a 32+ char secret in {self.APP_ENV}")
+            if self.SERVICE_AUTH_SECRET == self.JWT_SECRET:
+                raise ValueError("SERVICE_AUTH_SECRET must differ from JWT_SECRET")
         return self
 
 

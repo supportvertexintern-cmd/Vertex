@@ -14,6 +14,13 @@ Next.js's server-side calls send the header.
 
 Registered as a guard in app/core/access.py, so a route that depends on
 current_user passes the default-deny check.
+
+calling_service is the other guard: Next.js's own credential (G18), sent in
+X-Vertex-Service by callBackend(). Default deny checks that header on every
+request that carries it, so a bad one is refused even on a user route; a
+route that only Next.js may call depends on calling_service. A user route
+called through Next.js still needs the user's session: FastAPI decides
+what the user may do, never the calling service (zero-trust §6).
 """
 
 from __future__ import annotations
@@ -27,7 +34,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.logging import log_event
-from app.core.tokens import InvalidToken, verify_session_token
+from app.core.tokens import InvalidToken, ServiceClaims, verify_service_token, verify_session_token
 from app.db.session import get_db
 from app.models.enums import Role
 from app.models.identity import User
@@ -95,3 +102,25 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> A
 
 
 CurrentUser = Annotated[AuthUser, Depends(current_user)]
+
+
+SERVICE_HEADER = "X-Vertex-Service"
+
+
+def check_service_header(request: Request) -> ServiceClaims | None:
+    """None when the header is absent; 401 when it is present but invalid."""
+    token = request.headers.get(SERVICE_HEADER)
+    if token is None:
+        return None
+    try:
+        return verify_service_token(token.strip())
+    except InvalidToken as err:
+        log_event(logging.WARNING, "auth.invalid_service_token", reason=str(err))
+        raise _unauthenticated() from None
+
+
+def calling_service(request: Request) -> ServiceClaims:
+    claims = check_service_header(request)
+    if claims is None:
+        raise _unauthenticated()
+    return claims
