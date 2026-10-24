@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from app.core.api import Data
 from app.core.auth import CurrentUser
 from app.models.enums import Role
 
@@ -13,7 +14,7 @@ class Me(BaseModel):
     role: Role
 
 
-@router.get("/me", response_model=Me)
-def me(user: CurrentUser) -> Me:
+@router.get("/me")
+def me(user: CurrentUser) -> Data[Me]:
     """The signed-in caller, from the database (as Next.js's /api/auth/me)."""
-    return Me(id=user.user_id, email=user.email, role=user.role)
+    return Data(data=Me(id=user.user_id, email=user.email, role=user.role))

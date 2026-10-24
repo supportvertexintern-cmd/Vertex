@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
-from app.core import audit  # noqa: F401  registers the audit trail's flush hooks
+from app.core import api, audit  # noqa: F401  (audit registers the trail's flush hooks)
 from app.core.access import default_deny
 from app.core.config import settings
 from app.core.logging import RequestContextMiddleware, configure_logging
@@ -22,6 +22,8 @@ def create_app() -> FastAPI:
         # Default deny (app/core/access.py): runs before every route.
         dependencies=[Depends(default_deny)],
     )
+    # Innermost: the error shape for every response (app/core/api.py).
+    api.install(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,

@@ -72,7 +72,7 @@ def test_a_live_session_is_accepted_with_role_and_email_from_the_database(api, d
     # The token claims another role and email; the database wins, as in Next.js.
     res = api.get("/api/v1/me", headers=bearer(session_token(user.id, s.family_id, user.token_version)))
     assert res.status_code == 200
-    assert res.json() == {"id": user.id, "email": user.email, "role": "director"}
+    assert res.json() == {"data": {"id": user.id, "email": user.email, "role": "director"}}
 
 
 def test_no_token_is_401_with_a_bearer_challenge(api):
