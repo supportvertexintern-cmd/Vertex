@@ -25,14 +25,14 @@ jobs:
           - { image: vertex-nextjs, context: vertex, file: vertex/Dockerfile }
           - { image: vertex-minio, context: vertex_be/deploy/minio, file: vertex_be/deploy/minio/Dockerfile }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build from fresh base images, no cache
         run: docker build --pull --no-cache -t ${{ matrix.image }}:weekly -f ${{ matrix.file }} ${{ matrix.context }}
       - name: Full report (HIGH/CRITICAL, fixed or not)
         run: >-
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" aquasec/trivy:0.67.2
           image --quiet --severity CRITICAL,HIGH --format json -o /out/trivy-${{ matrix.image }}.json ${{ matrix.image }}:weekly
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: trivy-${{ matrix.image }}
           path: trivy-${{ matrix.image }}.json
