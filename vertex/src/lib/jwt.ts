@@ -33,7 +33,11 @@ export type TokenPurpose =
   | "account_setup"
   | "cif_upload"
   | "document"
-  | "referral_agent_email_verification";
+  | "referral_agent_email_verification"
+  // Not a user's token: Next.js's own credential when it calls FastAPI
+  // (callBackend(), gap G18). Keyed from SERVICE_AUTH_SECRET instead of
+  // JWT_SECRET, so one leaking doesn't give away the other.
+  | "service";
 
 const KEY_VERSION: Record<TokenPurpose, number> = {
   session: 1,
@@ -44,6 +48,7 @@ const KEY_VERSION: Record<TokenPurpose, number> = {
   cif_upload: 1,
   document: 1,
   referral_agent_email_verification: 1,
+  service: 1,
 };
 
 const keys = new Map<TokenPurpose, Buffer>();
@@ -51,8 +56,9 @@ const keys = new Map<TokenPurpose, Buffer>();
 function keyFor(purpose: TokenPurpose): Buffer {
   let key = keys.get(purpose);
   if (!key) {
-    const secret = process.env.JWT_SECRET;
-    if (!secret || secret.length < 32) throw new Error("JWT_SECRET must be set (at least 32 characters)");
+    const name = purpose === "service" ? "SERVICE_AUTH_SECRET" : "JWT_SECRET";
+    const secret = process.env[name];
+    if (!secret || secret.length < 32) throw new Error(`${name} must be set (at least 32 characters)`);
     const info = `vertex/jwt/${purpose}/v${KEY_VERSION[purpose]}`;
     key = Buffer.from(hkdfSync("sha256", secret, "vertex-token-keys", info, 32));
     keys.set(purpose, key);
@@ -120,6 +126,12 @@ export interface CifUploadTokenPayload {
 export interface ReferralAgentEmailVerificationTokenPayload {
   referralAgentId: string;
   type: "referral_agent_email_verification";
+}
+
+// One per FastAPI call (lib/backend.ts), valid for a minute; FastAPI refuses
+// any that lives longer than five (vertex_be/app/core/tokens.py).
+export function signServiceToken(): string {
+  return sign("service", { sub: ISSUER, scope: "backend" }, 60);
 }
 
 export function signToken(payload: JwtPayload): string {

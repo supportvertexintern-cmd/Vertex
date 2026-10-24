@@ -9,9 +9,15 @@ tokens it signs, by the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Only the "session" purpose is verified here; FastAPI issues nothing.
-The signature is necessary, not sufficient: app/core/auth.py also checks
-the session is still live, as Next.js does on every request.
+Two purposes are verified here; FastAPI issues nothing.
+  - "session": a user's session. The signature is necessary, not
+    sufficient: app/core/auth.py also checks the session is still live, as
+    Next.js does on every request.
+  - "service": Next.js's own credential when it calls FastAPI
+    (callBackend() in vertex/src/lib/backend.ts; gap G18, zero-trust §6).
+    Keyed from SERVICE_AUTH_SECRET, never JWT_SECRET, so one leaking
+    doesn't give away the other; SERVICE_AUTH_SECRET_PREVIOUS is also
+    accepted while a rotation is under way. At most a few minutes long.
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ ISSUER = "vertex-web"
 SALT = b"vertex-token-keys"
 # Mirrors KEY_VERSION in jwt.ts: bumping it there invalidates every
 # outstanding token of that purpose, so it must be bumped here too.
-KEY_VERSION = {"session": 1}
+KEY_VERSION = {"session": 1, "service": 1}
 
 
 class InvalidToken(Exception):
@@ -96,3 +102,48 @@ def verify_session_token(token: str) -> SessionClaims:
         sid=payload["sid"],
         ver=ver,
     )
+
+
+# Next.js signs one per call, valid for a minute; anything longer-lived is
+# refused, so a leaked token is of little use.
+SERVICE_TOKEN_MAX_LIFETIME = 300
+SERVICE_SCOPES = frozenset({"backend"})
+
+
+@dataclass(frozen=True)
+class ServiceClaims:
+    service: str
+    scope: str
+
+
+def verify_service_token(token: str) -> ServiceClaims:
+    candidates = [s for s in (settings.SERVICE_AUTH_SECRET, settings.SERVICE_AUTH_SECRET_PREVIOUS) if s and len(s) >= 32]
+    if not candidates:
+        raise InvalidToken("SERVICE_AUTH_SECRET is not configured")
+    payload = None
+    for secret in candidates:
+        try:
+            payload = jwt.decode(
+                token,
+                key_for("service", secret),
+                algorithms=[ALGORITHM],
+                issuer=ISSUER,
+                audience="vertex:service",
+                options={"require": ["exp", "iat", "iss", "aud", "sub"]},
+            )
+            break
+        except jwt.InvalidSignatureError:
+            continue
+        except jwt.PyJWTError as err:
+            raise InvalidToken(type(err).__name__) from err
+    if payload is None:
+        raise InvalidToken("InvalidSignatureError")
+
+    if payload["sub"] != ISSUER:
+        raise InvalidToken("service token is for another service")
+    if payload.get("scope") not in SERVICE_SCOPES:
+        raise InvalidToken("service token has no allowed scope")
+    iat, exp = payload["iat"], payload["exp"]
+    if not all(isinstance(v, int) and not isinstance(v, bool) for v in (iat, exp)) or exp - iat > SERVICE_TOKEN_MAX_LIFETIME:
+        raise InvalidToken("service token lives too long")
+    return ServiceClaims(service=payload["sub"], scope=payload["scope"])

@@ -45,6 +45,11 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       # The web app's: FastAPI verifies the sessions Next.js issues (G9).
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # Next.js's credential when it calls this service (G18). Required
+      # outside development (app/core/config.py); _PREVIOUS only while
+      # rotating it.
+      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
+      SERVICE_AUTH_SECRET_PREVIOUS: ${SERVICE_AUTH_SECRET_PREVIOUS:-}
       CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:
@@ -119,6 +124,10 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://vertex_web:${DB_WEB_PASSWORD:?DB_WEB_PASSWORD is required}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET}
+      # callBackend() (lib/backend.ts): FastAPI on the stack's own network,
+      # and the credential it signs each call with (G18).
+      BACKEND_URL: http://backend:8000
+      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

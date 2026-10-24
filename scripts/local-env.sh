@@ -62,6 +62,8 @@ DB_READONLY_PASSWORD=$(secret)
 
 SECRET_KEY=$(secret 32)
 JWT_SECRET=$(secret 32)
+# Next.js's credential when it calls FastAPI; never the same as JWT_SECRET.
+SERVICE_AUTH_SECRET=$(secret 32)
 CORS_ORIGINS=["http://localhost:$NEXTJS_PORT", "http://localhost:$FLUTTER_PORT"]
 PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:$NEXTJS_PORT
