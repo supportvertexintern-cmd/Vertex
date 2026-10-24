@@ -6,6 +6,10 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   {
+    // The files eslint-config-next defines its plugins for. Without this the
+    // block also reaches files they don't cover (e.g. .cjs), and ESLint stops
+    // with 'could not find plugin "react-hooks"'.
+    files: ["**/*.{js,jsx,mjs,ts,tsx,mts,cts}"],
     rules: {
       // Destructuring a field out to drop it (`const { case: _case, ...rest }`)
       // and `_`-prefixed placeholders are deliberate, not dead code.

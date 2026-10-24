@@ -2,7 +2,7 @@
 hkdfSync + jsonwebtoken, as vertex/src/lib/jwt.ts), with a TEST-ONLY secret
 used nowhere else. They pin FastAPI's verifier to what Next.js really issues.
 
-Regenerate with `node scripts/golden-session-vectors.cjs` from vertex/ if
+Regenerate with `node scripts/golden-session-vectors.mjs` from vertex/ if
 jwt.ts's key derivation or claims ever change.
 """
 
