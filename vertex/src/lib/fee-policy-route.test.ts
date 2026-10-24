@@ -23,7 +23,7 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
 
-import { GET, POST } from "./route";
+import { GET, POST } from "@/app/api/fee-policy/route";
 
 const page = { data: [{ id: "p1", country_id: null, enabled: true, country: null }] };
 
