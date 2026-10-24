@@ -32,7 +32,7 @@ Postgres, pgAdmin, MinIO and Mailpit, all from `docker-compose.yml`.
    | Web (Next.js) | http://localhost:3010 |
    | App (Flutter web) | http://localhost:8090 |
    | API docs (FastAPI) | http://localhost:8010/docs |
-   | pgAdmin | http://localhost:5060 (database password: `DB_READONLY_PASSWORD`) |
+   | pgAdmin | http://localhost:5070 (database password: `DB_READONLY_PASSWORD`) |
    | MinIO console | http://localhost:9011 |
    | Mail (Mailpit) | http://localhost:8035 |
    | Postgres | `localhost:15433`, database `vertexdb` |
