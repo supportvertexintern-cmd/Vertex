@@ -5,7 +5,8 @@ name: CI
 # (2,000 Actions minutes a month; October's ran out on 2026-10-13), so:
 #   - PRs into dev run the secret scan plus only the suites whose folders
 #     changed;
-#   - PRs into staging or main (promotions) and manual runs run everything,
+#   - PRs into staging or main, manual runs, and promote.yml (which calls
+#     this before fast-forwarding staging or main) run everything,
 #     including the end-to-end journeys and the image builds and scans.
 # "CI passed" is the one check to wait for before merging.
 
@@ -15,6 +16,7 @@ on:
     # Docs-only changes don't run CI.
     paths-ignore: ["docs/**", "**/*.md"]
   workflow_dispatch:
+  workflow_call:
 
 # A newer push to the same pull request cancels the older run.
 concurrency:

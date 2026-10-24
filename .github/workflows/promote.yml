@@ -1,0 +1,84 @@
+name: Promote
+
+# Moves the next environment branch to exactly the commit you run this on,
+# without a merge commit, so dev, staging and main stay identical instead of
+# collecting "N commits behind" merge commits:
+#
+#   Actions → Promote → Run workflow from `dev`      → staging = dev
+#   Actions → Promote → Run workflow from `staging`  → main    = staging
+#
+# 1. Full CI (ci.yml, everything a PR into staging/main runs, end-to-end
+#    journeys and image scans included) on that exact commit.
+# 2. Fast-forward only: if the target has anything the source doesn't, it
+#    stops instead of overwriting. Changes still enter through dev.
+# 3. Starts build.yml on the target (a push made with GITHUB_TOKEN doesn't
+#    trigger workflows by itself); deploy-local.yml follows from that as
+#    usual. Production stays a separate, manual production.yml run.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: promote-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  target:
+    name: Work out the target
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.t.outputs.branch }}
+    steps:
+      - id: t
+        run: |
+          case "${{ github.ref_name }}" in
+            dev)     echo "branch=staging" >> "$GITHUB_OUTPUT" ;;
+            staging) echo "branch=main" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Run this from dev (to promote to staging) or staging (to promote to main), not ${{ github.ref_name }}." >&2; exit 1 ;;
+          esac
+
+  ci:
+    needs: target
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
+
+  promote:
+    name: Fast-forward ${{ needs.target.outputs.branch }} to ${{ github.ref_name }}
+    needs: [target, ci]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      TARGET: ${{ needs.target.outputs.branch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward only
+        run: |
+          git fetch origin "$TARGET"
+          if ! git merge-base --is-ancestor "origin/$TARGET" "$GITHUB_SHA"; then
+            echo "$TARGET has commits that ${{ github.ref_name }} doesn't. Bring them into dev first; nothing was changed." >&2
+            exit 1
+          fi
+          if [ "$(git rev-parse "origin/$TARGET")" = "$GITHUB_SHA" ]; then
+            echo "$TARGET is already at ${GITHUB_SHA::7}; nothing to promote."
+            echo "SKIP_BUILD=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          # A plain (non-force) push: refused unless it's a fast-forward.
+          git push origin "$GITHUB_SHA:refs/heads/$TARGET"
+          echo "### Promoted \`${GITHUB_SHA::7}\` to **$TARGET**" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build images for ${{ needs.target.outputs.branch }}
+        if: env.SKIP_BUILD != '1'
+        run: gh workflow run build.yml --ref "$TARGET"

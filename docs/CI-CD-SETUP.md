@@ -10,6 +10,7 @@ use the 2,000 free minutes; the two self-hosted runners cost nothing.
 |---|---|---|---|
 | Pull request into `dev` | `ci.yml` | GitHub-hosted | Secret scan + only the suites whose folders changed; image builds and Trivy only if a Dockerfile, compose file, workflow or `.trivyignore.yaml` changed |
 | Pull request into `staging` or `main`, or a manual run | `ci.yml` | GitHub-hosted | Everything: secret scan, backend, Flutter, Next.js, end-to-end journeys, image builds + Trivy |
+| Actions → **Promote** → Run workflow from `dev` (→ `staging`) or `staging` (→ `main`) | `promote.yml` | GitHub-hosted | Full CI on that exact commit, then a fast-forward of the next branch (no merge commit, so the branches stay identical), then `build.yml` on it |
 | Merge into `dev`, `staging` or `main` | `build.yml` | GitHub-hosted | Four images (backend, Flutter web, Next.js, MinIO) pushed to GHCR as `<branch>-<sha>` and `<branch>` |
 | Build finished on `dev` / `staging` | `deploy-local.yml` | `vertex-host` (Windows PC) | Local `vertex-dev` / `vertex-staging` stack updated via `vertex_be/deploy/deploy.sh` |
 | You click "Run workflow" on `main` in **Deploy local stacks** | `deploy-local.yml` | `vertex-host` | Local `vertex-main` stack updated (never automatic) |
@@ -22,7 +23,7 @@ CI no longer runs on the push after a merge: it ran on the pull request. Merge o
 
 ## Free-plan safeguards (instead of branch protection)
 
-1. Always work on a branch; open a PR; merge only when the **CI passed** check is green. A direct push to `dev` or `staging` builds and deploys without CI.
+1. Always work on a branch; open a PR into `dev`; merge only when the **CI passed** check is green. Move `dev` to `staging` and `staging` to `main` with **Promote**, never with back-merges (`main` → `dev` and the like): each merge commit makes the other branch "behind", which never ends. A direct push to `dev` or `staging` builds and deploys without CI.
 2. Pre-commit hooks (`.pre-commit-config.yaml`, `pre-commit install`): `no-commit-to-branch` refuses commits on `main` and `staging`; `no-push-to-main` refuses pushes to `main`.
 3. Production deploys only by manual trigger, only from `main`, only by `vars.PROD_DEPLOYER`,
    only after typing `release`, only on the `prod-ops` runner.
@@ -85,7 +86,7 @@ Settings → Billing → Actions once a month.
 If it gets close: avoid many small pushes to open PRs (each push re-runs CI; `concurrency` cancels the older run), and batch promotions into `staging`, since those run the full suite.
 
 ## Releasing to production
-1. PR `staging` → `main`, merge commit, wait for `build.yml` to finish on `main`.
+1. Actions → **Promote** → Run workflow from `staging` (full CI, then `main` fast-forwards to `staging`); wait for `build.yml` to finish on `main`.
 2. Actions → **Production release** → Run workflow (branch `main`) → leave tag empty → type `release`.
 3. The job pulls `main-<sha>`, runs migrations, restarts, checks health; on failure it rolls back automatically.
 4. To roll back later: run the workflow again with the previous tag (see `/opt/app/.previous_tag` or the release tags).

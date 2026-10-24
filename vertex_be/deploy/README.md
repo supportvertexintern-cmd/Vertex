@@ -8,7 +8,8 @@
 | `staging` | `vertex-staging`  | build & push all images to GHCR → auto-deploy to this PC                |
 | `main`    | `vertex-main`     | build & push only. Deploys **by hand**: Actions → Deploy local stacks → Run workflow → `main` |
 
-Work flows `feature/*` → PR into `dev` → PR `dev` → `staging` → PR `staging` → `main`.
+Work flows `feature/*` → PR into `dev` → **Promote** `dev` → `staging` → **Promote** `staging` → `main`
+(Actions → Promote: full CI, then a fast-forward, so the three branches stay identical; never merge back).
 CI runs on the PRs into those three branches, not again on the push, so merge
 only when **CI passed** is green. A direct push to `dev` or `staging` deploys
 without CI; the pre-commit hooks refuse commits on `main` and `staging`.
