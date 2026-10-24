@@ -102,9 +102,11 @@ services:
   flutter-web:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
 
-    # Served to the app as /config.json.
+    # Served to the app as /config.json: FastAPI's URL, and the web app's,
+    # where the app signs in (/api/auth/app/*).
     environment:
       API_BASE_URL: ${PUBLIC_API_URL}
+      AUTH_BASE_URL: ${NEXT_PUBLIC_APP_URL}
       APP_ENV: ${APP_ENV}
 
     ports:
@@ -128,6 +130,9 @@ services:
       # and the credential it signs each call with (G18).
       BACKEND_URL: http://backend:8000
       SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
+      # Origins allowed to call the app sign-in routes (lib/app-auth.ts):
+      # the Flutter web build. Native apps send no Origin.
+      APP_ORIGINS: ${APP_ORIGINS:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

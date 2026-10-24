@@ -2,7 +2,15 @@ enum VertexRole {
   regionalRecruiter, countrySupervisor, inhouseSupervisor, director,
   admin, marketing, partner, hr, operationsTeam, operationsDirector, finance;
 
-  static VertexRole fromString(String value) => VertexRole.values.firstWhere((role) => role.toWire() == value, orElse: () => VertexRole.admin);
+  /// The role for a server value, or null for one this app has no screens for
+  /// (candidate, referral_agent). Never a default: an unknown role must not
+  /// open anyone's screens.
+  static VertexRole? tryFromWire(String value) {
+    for (final role in VertexRole.values) {
+      if (role.toWire() == value) return role;
+    }
+    return null;
+  }
 
   String toWire() => switch (this) {
     VertexRole.regionalRecruiter => 'regional_recruiter', VertexRole.countrySupervisor => 'country_supervisor',
