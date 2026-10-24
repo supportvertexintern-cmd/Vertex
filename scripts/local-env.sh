@@ -24,6 +24,7 @@ FLUTTER_PORT=8090
 PGADMIN_PORT=5060
 MAIL_UI_PORT=8035
 MINIO_CONSOLE_PORT=9011
+POSTGRES_HOST_PORT=15433
 MINIO_ROOT_USER=vertex-root
 MINIO_ROOT_PASSWORD="$(secret)"
 PGADMIN_PASSWORD="$(secret 12)"
@@ -47,6 +48,8 @@ FLUTTER_PORT=$FLUTTER_PORT
 PGADMIN_PORT=$PGADMIN_PORT
 MAIL_UI_PORT=$MAIL_UI_PORT
 MINIO_CONSOLE_PORT=$MINIO_CONSOLE_PORT
+# Postgres on 127.0.0.1, for scripts/local-seed.sh and database tools.
+POSTGRES_HOST_PORT=$POSTGRES_HOST_PORT
 
 # Postgres superuser (administration only) and the role each service uses.
 POSTGRES_DB=vertexdb
@@ -91,4 +94,9 @@ Wrote .env with fresh secrets. Start the stack:
                    database password: DB_READONLY_PASSWORD)
   MinIO console    http://localhost:$MINIO_CONSOLE_PORT  ($MINIO_ROOT_USER / MINIO_ROOT_PASSWORD in .env)
   Mail (Mailpit)   http://localhost:$MAIL_UI_PORT
+  Postgres         localhost:$POSTGRES_HOST_PORT  (database vertexdb)
+
+Then load the reference data and test accounts:
+
+  sh scripts/local-seed.sh
 EOF

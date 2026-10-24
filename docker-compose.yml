@@ -9,6 +9,11 @@ services:
 
   db:
     extends: { <<: *deploy, service: db }
+    # Local only: published for scripts/local-seed.sh and database tools on
+    # this PC. A published port needs a non-internal network, hence `edge`.
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15433}:5432"
+    networks: [ data, edge ]
 
   db-roles:
     image: postgres:15-alpine

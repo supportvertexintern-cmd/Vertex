@@ -35,11 +35,20 @@ Postgres, pgAdmin, MinIO and Mailpit, all from `docker-compose.yml`.
    | pgAdmin | http://localhost:5060 (database password: `DB_READONLY_PASSWORD`) |
    | MinIO console | http://localhost:9011 |
    | Mail (Mailpit) | http://localhost:8035 |
+   | Postgres | `localhost:15433`, database `vertexdb` |
 
    Logins are in `.env`. The schema comes from the backend's Alembic
    migrations, never `prisma db push`.
 
-3. **Stop**: `docker compose down` (data is kept; add `-v` to wipe it).
+3. **Seed** (on a new database): reference data (regions, countries,
+   sectors, job programmes) and one test account per role, e.g.
+   `admin@test.local`, all with password `TestPassword123!`.
+   ```bash
+   sh scripts/local-seed.sh
+   ```
+
+4. **Stop**: `docker compose down` (data is kept). Start over with
+   `docker compose down -v`, then steps 2 and 3.
 
 Tests run against throwaway databases, never this stack:
 `vertex_be/scripts/test.sh`, `vertex/scripts/test.sh` (Vitest) and
