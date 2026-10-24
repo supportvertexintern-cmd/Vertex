@@ -71,11 +71,17 @@ Next.js and FastAPI share is the database, each through its own role.
 | Failure behavior | Missing/invalid/expired/wrong-purpose token → `null` user → 401/403 or redirect: fails closed. Missing `JWT_SECRET` → every verify fails (closed). Rate limits are per process and reset on restart (G5); keyed on `X-Forwarded-For` (G14) |
 | Known limits | None for sessions since G19 was fixed (2026-10-12): role comes from the database, and demotion, deletion and password change take effect on the next request |
 
-### P2 Next.js server → FastAPI — N/A
+### P2 Next.js server → FastAPI
 
-No code in `vertex/src` references FastAPI, its port or `/api/v1`. When one
-is added it must use a service credential (G18, policy §6): issuer,
-audience, expiry and scope checked on every call.
+| | |
+|---|---|
+| Caller → receiver | Next.js server (`callBackend()`, `lib/backend.ts`) → FastAPI at `BACKEND_URL` (`http://backend:8000` on the stack's network) |
+| Identity | The service: `X-Vertex-Service`, a token signed per call (HS256, issuer and subject `vertex-web`, audience `vertex:service`, scope `backend`, 60 seconds). The user, when acting for one: their session token as `Authorization: Bearer` |
+| Authentication / authorization | FastAPI's default deny verifies the service token on every request that carries one (bad → 401), and refuses any that lives over 5 minutes. Routes only Next.js may call depend on `calling_service`. A user route still needs the user's session and role, checked by FastAPI itself: the service token never stands in for a user (zero-trust §6) |
+| Secrets | `SERVICE_AUTH_SECRET`, per environment and separate from `JWT_SECRET` (FastAPI refuses to start outside development without it or with the same value). Rotation: set the new value, keep the old as `SERVICE_AUTH_SECRET_PREVIOUS` on FastAPI until Next.js runs with the new one |
+| Network exposure | Internal Docker network; nothing is published for it |
+| Audit | `X-Request-ID` is passed on, so one ID ties both services' logs and audit rows; a refused service token is logged as `auth.invalid_service_token` |
+| Failure behavior | No `BACKEND_URL` or secret, a network error or a 10-second timeout → an error result (`backend_unavailable`, 502/503/504), logged as `backend.call_failed`; never a silent success |
 
 ### P3 Browser / mobile → FastAPI
 

@@ -248,7 +248,7 @@ Design so that one compromised piece does limited damage:
 | Constrained database roles | ✅ (Phase 1) |
 | Limited network exposure and segmentation | ✅ (G15 fixed, internal data network) |
 | Auditable actions, tamper-proof log | ✅ writes + exports (G16 fixed); authorization denials still open (G7) |
-| **Explicit service authentication** | ❌ **open (G18).** No service calls another today, but nothing stops one: a compromised Next.js container can reach FastAPI over the Docker network. Harmless while FastAPI has only a health check; §6 must be built before FastAPI serves any data. |
+| **Explicit service authentication** | ✅ **G18, 2026-10-24:** `callBackend()` (`lib/backend.ts`) sends a one-minute service token keyed from `SERVICE_AUTH_SECRET`, checked by FastAPI on every request that carries one; a call for a user also carries the user's session, which FastAPI re-checks (§6). Production's short-lived workload identity or mTLS is still to come. *Before:* No service calls another today, but nothing stops one: a compromised Next.js container can reach FastAPI over the Docker network. Harmless while FastAPI has only a health check; §6 must be built before FastAPI serves any data. |
 | Separate signing keys per purpose | ✅ (G17 fixed). Each token type has its own HKDF-derived key and audience, so no token is accepted for another purpose (an anonymous upload token used to pass as a session). Stealing `JWT_SECRET` itself still forges every type; a key per secret store is a production decision. |
 
 ## 9. Audit security decisions
