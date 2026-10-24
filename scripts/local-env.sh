@@ -67,6 +67,8 @@ SERVICE_AUTH_SECRET=$(secret 32)
 CORS_ORIGINS=["http://localhost:$NEXTJS_PORT", "http://localhost:$FLUTTER_PORT"]
 PUBLIC_API_URL=http://localhost:$BACKEND_PORT/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:$NEXTJS_PORT
+# The Flutter web build signs in through Next.js from another origin.
+APP_ORIGINS=http://localhost:$FLUTTER_PORT
 
 PGADMIN_EMAIL=admin@example.com
 PGADMIN_PASSWORD=$PGADMIN_PASSWORD

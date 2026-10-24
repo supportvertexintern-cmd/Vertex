@@ -32,6 +32,15 @@ There is one exception: a spent token presented within **30 seconds** is answere
 
 **Browser side.** `components/SessionRefresh.tsx` wraps `fetch`. On a 401 from `/api/*` it refreshes once, sharing one refresh between concurrent calls, and replays the request. If the refresh fails, a portal page goes to sign-in.
 
+**Mobile app.** The Flutter app has no cookie jar, so it signs in through `/api/auth/app/login`, `/refresh` and `/logout` (`vertex/src/lib/app-auth.ts`).
+- **The same sessions as the browser:** the same password check (`lib/password-login.ts`), the same families, rotation, reuse detection, lifetimes and revocation. Only the transport differs: the tokens are in the JSON body, and these routes never read or set the session cookies.
+- **The cookie is never accepted for refresh.** `/api/auth/app/refresh` takes the refresh token from the body only; otherwise a script injected into the website could trade the HttpOnly cookie for raw tokens.
+- **CORS** is allowed on these three routes only, for `APP_ORIGINS` (the Flutter web build), without credentials.
+- **On the device** (`vertex_app/lib/core/auth/`):
+  - the refresh token is in secure storage (Keychain / Keystore), and the access token only in memory;
+  - `ApiService` renews the token a minute before it expires, or once after a 401, sharing one refresh between concurrent calls; if that fails, the user is signed out;
+  - roles the app has no screens for (candidate, referral agent) are refused, and the session just opened is ended.
+
 Code: `vertex/src/lib/session.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
 
 **FastAPI verifies the same sessions (G9).** Next.js stays the only issuer until users and sessions move (`docs/architecture/data-ownership.md` §5). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:

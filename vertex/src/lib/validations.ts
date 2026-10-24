@@ -949,15 +949,6 @@ export const sendCaseReminderSchema = z.object({
   message: z.string().max(1000).optional(),
 });
 
-export const updateFeePolicySchema = z.object({
-  country_id: z.string().cuid().nullish(),
-  enabled: z.boolean(),
-  documentation_amount: z.number().positive().nullish(),
-  permit_amount: z.number().positive().nullish(),
-  visa_amount: z.number().positive().nullish(),
-  currency: z.string().length(3).default("USD"),
-});
-
 export const completeRetentionFollowUpSchema = z.object({
   notes: z.string().max(2000).optional(),
 });

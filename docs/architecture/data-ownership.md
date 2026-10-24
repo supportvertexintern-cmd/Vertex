@@ -119,7 +119,7 @@ move.
 
 | Area | Tables | Today | Target | Notes |
 |---|---|---|---|---|
-| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | Next.js (admin handlers; `FeePolicy` by finance) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
+| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **`FeePolicy`: FastAPI** (handed over 2026-10-24, step 1.2). The rest: Next.js (admin handlers) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | Next.js; none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
@@ -192,7 +192,7 @@ updated.
 | `Sector` | `/api/admin/sectors/[id]` (delete)<br>`/api/admin/sectors` (create) | `/api/admin/sectors/[id]`, `/api/admin/sectors` |
 | `DocumentRequirementType` | `/api/admin/document-types/[id]` (delete)<br>`/api/admin/document-types` (create) | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
 | `CountryDocumentRequirement` | `/api/admin/countries/[id]/document-requirements` (createMany, deleteMany) | `/api/admin/countries/[id]/document-requirements`, `/api/apply/options`, `server/services/documentCompleteness.ts` |
-| `FeePolicy` | `/api/fee-policy` (create, update) | `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/fee-policy`, `/api/finance/payments-due` |
+| `FeePolicy` | **FastAPI** `POST /api/v1/fee-policy` (create, update; audited). Next.js's `/api/fee-policy` POST passes requests on (`callBackend()`); `vertex_web` has no write grant (`db-roles.sql`) | **FastAPI** `GET /api/v1/fee-policy`, which Next.js's `/api/fee-policy` passes on (step 1.3). Still read directly by Next.js (`SELECT` kept), moving with Payments: `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/finance/payments-due` |
 | `SystemSetting` | `/api/admin/settings` (upsert) | `/api/admin/settings`, `/api/apply/options`, `/api/chat` |
 
 ### Content
