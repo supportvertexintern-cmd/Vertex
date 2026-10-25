@@ -110,30 +110,6 @@ class EmployerClient {
   final int jobsCount;
 }
 
-class FeePolicy {
-  FeePolicy({
-    required this.id,
-    this.countryId,
-    this.countryName,
-    required this.enabled,
-    this.documentationAmount,
-    this.permitAmount,
-    this.visaAmount,
-    required this.currency,
-    required this.updatedAt,
-  });
-
-  final String id;
-  final String? countryId;
-  final String? countryName;
-  bool enabled;
-  double? documentationAmount;
-  double? permitAmount;
-  double? visaAmount;
-  final String currency;
-  DateTime updatedAt;
-}
-
 class ManagementCaseRow {
   ManagementCaseRow({
     required this.id,
@@ -343,53 +319,6 @@ class ManagementStore extends ChangeNotifier {
     ),
   ];
 
-  final List<FeePolicy> feePolicies = [
-    FeePolicy(
-      id: 'f1',
-      countryId: 'KE',
-      countryName: 'Kenya',
-      enabled: true,
-      documentationAmount: 2500,
-      permitAmount: 5000,
-      visaAmount: 4500,
-      currency: 'KES',
-      updatedAt: DateTime.now().subtract(const Duration(days: 12)),
-    ),
-    FeePolicy(
-      id: 'f2',
-      countryId: 'NG',
-      countryName: 'Nigeria',
-      enabled: true,
-      documentationAmount: 15000,
-      permitAmount: 30000,
-      visaAmount: 25000,
-      currency: 'NGN',
-      updatedAt: DateTime.now().subtract(const Duration(days: 45)),
-    ),
-    FeePolicy(
-      id: 'f3',
-      countryId: 'UG',
-      countryName: 'Uganda',
-      enabled: false,
-      documentationAmount: 3000,
-      permitAmount: 8000,
-      visaAmount: 6000,
-      currency: 'UGX',
-      updatedAt: DateTime.now().subtract(const Duration(days: 8)),
-    ),
-    FeePolicy(
-      id: 'f4',
-      countryId: 'GH',
-      countryName: 'Ghana',
-      enabled: true,
-      documentationAmount: 1200,
-      permitAmount: 4000,
-      visaAmount: 3500,
-      currency: 'GHS',
-      updatedAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-  ];
-
   final List<ManagementCaseRow> managementCases = [
     ManagementCaseRow(
       id: 'mc1',
@@ -483,13 +412,6 @@ class ManagementStore extends ChangeNotifier {
     return null;
   }
 
-  FeePolicy? feePolicyById(String id) {
-    for (final policy in feePolicies) {
-      if (policy.id == id) return policy;
-    }
-    return null;
-  }
-
   // -------------------------------------------------------------------------
   // Employer Clients
   // -------------------------------------------------------------------------
@@ -520,32 +442,6 @@ class ManagementStore extends ChangeNotifier {
     final client = employerClientById(clientId);
     if (client == null) return;
     client.status = status;
-    notifyListeners();
-  }
-
-  // -------------------------------------------------------------------------
-  // Fee Policies
-  // -------------------------------------------------------------------------
-  void toggleFeePolicyEnabled(String policyId) {
-    final policy = feePolicyById(policyId);
-    if (policy == null) return;
-    policy.enabled = !policy.enabled;
-    policy.updatedAt = DateTime.now();
-    notifyListeners();
-  }
-
-  void updateFeeAmounts(
-    String policyId, {
-    double? documentationAmount,
-    double? permitAmount,
-    double? visaAmount,
-  }) {
-    final policy = feePolicyById(policyId);
-    if (policy == null) return;
-    policy.documentationAmount = documentationAmount;
-    policy.permitAmount = permitAmount;
-    policy.visaAmount = visaAmount;
-    policy.updatedAt = DateTime.now();
     notifyListeners();
   }
 

@@ -7,9 +7,11 @@ import 'core/auth/candidate_store.dart';
 import 'core/auth/case_store.dart';
 import 'core/auth/report_store.dart';
 import 'core/auth/exception_store.dart';
+import 'core/auth/fee_policy_store.dart';
 import 'core/auth/management_store.dart';
 import 'core/auth/supervisor_store.dart';
 import 'core/config/app_config.dart';
+import 'data/repositories/fee_policy_repository.dart';
 import 'data/services/api_service.dart';
 import 'data/services/auth_api.dart';
 
@@ -31,6 +33,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ExceptionStore()),
         ChangeNotifierProvider(create: (_) => SupervisorStore()),
         ChangeNotifierProvider(create: (_) => ManagementStore()),
+        // From FastAPI (backend plan step 1.4); the other stores are still mock data.
+        ChangeNotifierProvider(create: (_) => FeePolicyStore(FeePolicyRepository(api))),
       ],
       child: const VertexApp(),
     ),
