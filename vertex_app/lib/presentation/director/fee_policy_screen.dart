@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
-import '../../core/auth/management_store.dart';
+import '../../core/auth/auth_manager.dart';
+import '../../core/auth/fee_policy_store.dart';
+import '../../core/constants/roles.dart';
+import '../../data/models/fee_policy.dart';
+import '../../data/services/api_service.dart';
 import '../shared/vertex_app_bar_leading.dart';
 import 'director_drawer.dart';
 
@@ -14,7 +18,37 @@ class FeePolicyScreen extends StatefulWidget {
   State<FeePolicyScreen> createState() => _FeePolicyScreenState();
 }
 
+/// The fee policy from FastAPI (backend plan step 1.4): every staff role
+/// that opens it sees the real policies; director and admin can change them,
+/// which FastAPI enforces whatever this screen shows.
 class _FeePolicyScreenState extends State<FeePolicyScreen> {
+  static const _managers = {VertexRole.director, VertexRole.admin};
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<FeePolicyStore>().load();
+    });
+  }
+
+  bool get _canEdit => _managers.contains(context.read<AuthManager>().role);
+
+  Future<void> _save(FeePolicyStore store, FeePolicy policy, String done,
+      {bool? enabled, double? documentationAmount, double? permitAmount, double? visaAmount, bool amountsChanged = false}) async {
+    try {
+      await store.save(policy,
+          enabled: enabled,
+          documentationAmount: documentationAmount,
+          permitAmount: permitAmount,
+          visaAmount: visaAmount,
+          amountsChanged: amountsChanged);
+      _snack(done);
+    } on ApiException catch (e) {
+      _snack(e.message);
+    }
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -30,18 +64,17 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
     return result;
   }
 
-  Future<void> _editPolicy(ManagementStore store, FeePolicy policy) async {
-    final doc = TextEditingController(
-        text: (policy.documentationAmount ?? 0).toStringAsFixed(0));
-    final permit = TextEditingController(
-        text: (policy.permitAmount ?? 0).toStringAsFixed(0));
-    final visa = TextEditingController(
-        text: (policy.visaAmount ?? 0).toStringAsFixed(0));
+  Future<void> _editPolicy(FeePolicyStore store, FeePolicy policy) async {
+    // Empty = not set; the server takes null, not 0.
+    String text(double? amount) => amount == null ? '' : amount.toStringAsFixed(0);
+    final doc = TextEditingController(text: text(policy.documentationAmount));
+    final permit = TextEditingController(text: text(policy.permitAmount));
+    final visa = TextEditingController(text: text(policy.visaAmount));
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Fee Policy — ${policy.countryName} (${policy.currency})'),
+        title: Text('Fee Policy — ${policy.countryName ?? 'Global'} (${policy.currency})'),
         content: StatefulBuilder(
           builder: (ctx, setDialogState) => Column(
             mainAxisSize: MainAxisSize.min,
@@ -69,15 +102,19 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
       ),
     );
 
-    if (saved == true) {
-      store.updateFeeAmounts(
-        policy.id,
-        documentationAmount: double.tryParse(doc.text.trim()),
-        permitAmount: double.tryParse(permit.text.trim()),
-        visaAmount: double.tryParse(visa.text.trim()),
-      );
-      _snack('Fee policy updated.');
+    if (saved != true) return;
+    double? parse(TextEditingController c) {
+      final raw = c.text.replaceAll(RegExp(r'[ ,]'), '');
+      return raw.isEmpty ? null : double.tryParse(raw);
     }
+
+    final amounts = [parse(doc), parse(permit), parse(visa)];
+    if (amounts.any((a) => a != null && a <= 0)) {
+      _snack('Amounts must be above zero, or left empty.');
+      return;
+    }
+    await _save(store, policy, 'Fee policy updated.',
+        documentationAmount: amounts[0], permitAmount: amounts[1], visaAmount: amounts[2], amountsChanged: true);
   }
 
   Widget _amountField(String label, TextEditingController controller,
@@ -120,9 +157,8 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<ManagementStore>();
-    final enabledCount =
-        store.feePolicies.where((p) => p.enabled).length;
+    final store = context.watch<FeePolicyStore>();
+    final enabledCount = store.policies.where((p) => p.enabled).length;
 
     return Scaffold(
       backgroundColor: VertexColors.ivory50,
@@ -155,7 +191,32 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
           ],
         ),
       ),
-      body: ListView(
+      body: _body(store, enabledCount),
+    );
+  }
+
+  Widget _body(FeePolicyStore store, int enabledCount) {
+    if (!store.hasLoaded && store.loadError == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (!store.hasLoaded) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(store.loadError!, textAlign: TextAlign.center, style: const TextStyle(color: VertexColors.gray600)),
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: store.isLoading ? null : store.load, child: const Text('TRY AGAIN')),
+            ],
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: store.load,
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 100),
         children: [
           const Text(
@@ -184,7 +245,9 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '$enabledCount of ${store.feePolicies.length} country policies enabled.',
+              store.policies.isEmpty
+                  ? 'No fee policies yet. Milestone payments stay off until one is enabled.'
+                  : '$enabledCount of ${store.policies.length} policies enabled.',
               style: const TextStyle(
                 color: VertexColors.midnight500,
                 fontSize: 12,
@@ -194,15 +257,16 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
           ),
           const SizedBox(height: 18),
 
-          for (final policy in store.feePolicies)
+          for (final policy in store.policies)
             _buildPolicyCard(context, store, policy),
         ],
       ),
     );
   }
 
-  Widget _buildPolicyCard(BuildContext context, ManagementStore store,
+  Widget _buildPolicyCard(BuildContext context, FeePolicyStore store,
       FeePolicy policy) {
+    final busy = store.savingId != null;
     final countryName = policy.countryName ?? 'Global';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -261,12 +325,11 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
                   const SizedBox(width: 6),
                   Switch(
                     value: policy.enabled,
-                    onChanged: (_) {
-                      store.toggleFeePolicyEnabled(policy.id);
-                      _snack(policy.enabled
-                          ? '$countryName policy disabled.'
-                          : '$countryName policy enabled.');
-                    },
+                    onChanged: !_canEdit || busy
+                        ? null
+                        : (value) => _save(store, policy,
+                            value ? '$countryName policy enabled.' : '$countryName policy disabled.',
+                            enabled: value),
                     activeThumbColor: VertexColors.midnight500,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -302,11 +365,12 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
               ),
             ],
           ),
+          if (_canEdit) ...[
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
-              onPressed: () => _editPolicy(store, policy),
+              onPressed: busy ? null : () => _editPolicy(store, policy),
               icon: const Icon(Icons.edit_outlined, size: 15),
               label: const Text('EDIT FEES',
                   style: TextStyle(
@@ -319,6 +383,7 @@ class _FeePolicyScreenState extends State<FeePolicyScreen> {
               ),
             ),
           ),
+          ],
         ],
       ),
     );
