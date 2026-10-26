@@ -117,3 +117,29 @@ test.describe("Next.js -> FastAPI (sectors and document requirements, step 2.2)"
     await expect(page.getByText(name)).toBeVisible();
   });
 });
+
+test.describe("Next.js -> FastAPI (system settings, step 2.3)", () => {
+  // intake_mode stays "crm" (global-setup.ts sets it; self-application.spec.ts
+  // relies on it), so these tests only ever write that value.
+  test("an admin saves settings through the website and the readers see them", async ({ page }) => {
+    const number = `+251${Date.now().toString().slice(-9)}`;
+    const saved = await page.request.put("/api/admin/settings", { data: { whatsapp_number: number, intake_mode: "crm" } });
+    expect(saved.status()).toBe(200);
+    expect(await saved.json()).toEqual({ success: true });
+
+    const read = await (await page.request.get("/api/admin/settings")).json();
+    expect(read).toMatchObject({ whatsapp_number: number, intake_mode: "crm" });
+    expect((await (await page.request.get("/api/apply/options")).json()).intakeMode).toBe("crm");
+
+    const bad = await page.request.put("/api/admin/settings", { data: { intake_mode: "fax" } });
+    expect(bad.status()).toBe(400);
+    expect((await (await page.request.get("/api/admin/settings")).json()).intake_mode).toBe("crm");
+  });
+
+  test("the admin Settings page shows FastAPI's settings", async ({ page }) => {
+    const number = `+251${Date.now().toString().slice(-9)}`;
+    await page.request.put("/api/admin/settings", { data: { whatsapp_number: number } });
+    await page.goto("/admin/settings");
+    await expect(page.getByPlaceholder("+1234567890")).toHaveValue(number);
+  });
+});

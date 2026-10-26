@@ -283,21 +283,22 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement"} <= set(fastapi_owned_tables())
+    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
 def test_a_handed_over_table_has_one_writer(conn, table):
     # docs/architecture/data-ownership.md: FastAPI writes it; Next.js only reads.
+    pk = "key" if table == "SystemSetting" else "id"
     assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') is None
     for sql in (
-        f'INSERT INTO "{table}" (id) SELECT \'x\' WHERE false',
-        f'UPDATE "{table}" SET id = id',
+        f'INSERT INTO "{table}" ({pk}) SELECT \'x\' WHERE false',
+        f'UPDATE "{table}" SET {pk} = {pk}',
         f'DELETE FROM "{table}"',
         f'TRUNCATE "{table}"',
     ):
         assert run_as(conn, "vertex_web", sql) == INSUFFICIENT_PRIVILEGE, sql
-    assert run_as(conn, "vertex_api", f'UPDATE "{table}" SET id = id') is None
+    assert run_as(conn, "vertex_api", f'UPDATE "{table}" SET {pk} = {pk}') is None
 
 
 def test_deleting_a_country_clears_its_fee_policy(conn):

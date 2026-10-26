@@ -119,7 +119,7 @@ move.
 
 | Area | Tables | Today | Target | Notes |
 |---|---|---|---|---|
-| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2). Next.js: `SystemSetting` (step 2.3), and `DocumentRequirementType`, which moves with jobs in step 3 because job writes create its receipt types | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
+| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3). Next.js: `DocumentRequirementType`, which moves with jobs in step 3 because job writes create its receipt types | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | Next.js; none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
@@ -193,7 +193,7 @@ updated.
 | `DocumentRequirementType` | `/api/admin/document-types/[id]` (delete)<br>`/api/admin/document-types` (create)<br>`server/services/paymentReceiptTypes.ts` (upsert, after job writes). **Moves with jobs (step 3)**, so it keeps one writer | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
 | `CountryDocumentRequirement` | **FastAPI** `/api/v1/countries/{id}/document-requirements` (replace the list); Next.js's route passes requests on; `vertex_web` has no write grant (step 2.2) | `/api/admin/countries/[id]/document-requirements`, `/api/apply/options`, `server/services/documentCompleteness.ts` |
 | `FeePolicy` | **FastAPI** `POST /api/v1/fee-policy` (create, update; audited). Next.js's `/api/fee-policy` POST passes requests on (`callBackend()`); `vertex_web` has no write grant (`db-roles.sql`) | **FastAPI** `GET /api/v1/fee-policy`, which Next.js's `/api/fee-policy` passes on (step 1.3). Still read directly by Next.js (`SELECT` kept), moving with Payments: `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/finance/payments-due` |
-| `SystemSetting` | `/api/admin/settings` (upsert) | `/api/admin/settings`, `/api/apply/options`, `/api/chat` |
+| `SystemSetting` | **FastAPI** `/api/v1/settings` (upsert); Next.js's `/api/admin/settings` passes requests on; `vertex_web` has no write grant (step 2.3) | `/api/admin/settings`, `/api/apply/options`, `/api/chat` |
 
 ### Content
 
