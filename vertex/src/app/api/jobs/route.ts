@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { createJobSchema } from "@/lib/validations";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { getPublicJobsList } from "@/server/services/publicJobs";
-import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
-import { log } from "@/lib/log";
-import { ensurePaymentReceiptDocumentTypes } from "@/server/services/paymentReceiptTypes";
 export const dynamic = "force-dynamic";
 
 // Job postings are Marketing's sole responsibility — a role deliberately
 // kept outside the three-tier operational hierarchy (Regional Supervisory
 // Operational Workflow). Admin keeps override access.
+// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // Same role set already authorized to submit a candidate on a partner's
@@ -62,7 +59,12 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(result);
 }
 
-// POST /api/jobs — Marketing (admin retains override)
+// POST /api/jobs — Marketing (admin retains override). FastAPI owns job
+// writes since backend plan step 3.2 (vertex_be/app/api/v1/jobs.py): it
+// validates the job and its payment stages, creates each stage's receipt
+// document type and syncs Stripe pricing after it answers. This handler
+// checks the role early, passes the request on and answers in this route's
+// older shapes (the plain job; { error, details }), which the job forms read.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...JOB_MANAGER_ROLES]);
@@ -71,34 +73,6 @@ export async function POST(req: NextRequest) {
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
-  const parsed = createJobSchema
-    .refine((data) => !data.service_fee_gbp || (data.payment_stages && data.payment_stages.length > 0), {
-      message: "At least one payment stage is required when a service fee is set",
-      path: ["payment_stages"],
-    })
-    .refine((data) => !data.payment_stages || Math.round(data.payment_stages.reduce((sum, s) => sum + s.percent, 0)) <= 100, {
-      message: "Payment stage percentages must not exceed 100",
-      path: ["payment_stages"],
-    })
-    .safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
-  }
-
-  const { payment_stages, ...jobData } = parsed.data;
-  const job = await prisma.job.create({
-    data: {
-      ...jobData,
-      payment_stages: payment_stages ? { create: payment_stages } : undefined,
-    },
-  });
-
-  // Provisions Stripe pricing + receipt-upload document types for every
-  // payment stage — never blocks Job creation on either one failing.
-  if (payment_stages) {
-    ensurePaymentReceiptDocumentTypes(job.id).catch((err) => log.error("api.failed_to_provision_receipt_document_types_for_job", { message: `Failed to provision receipt document types for job ${job.id}.`, err }));
-  }
-  syncJobMilestonePricing(job.id).catch((err) => log.error("api.failed_to_provision_stripe_pricing_for_job", { message: `Failed to provision Stripe pricing for job ${job.id}.`, err }));
-
-  return NextResponse.json(job, { status: 201 });
+  const result = await callBackend("/api/v1/jobs", { method: "POST", body });
+  return result.ok ? NextResponse.json(result.body.data, { status: 201 }) : legacyErrorResponse(result);
 }

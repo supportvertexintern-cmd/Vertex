@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { computePaymentStageAmounts } from "@/lib/fees";
 
+// Not called by the app since backend plan step 3.2: FastAPI owns jobs,
+// payment stages and document types (vertex_be/app/api/v1/jobs.py,
+// app/services/stripe_pricing.py) and vertex_web may no longer write them.
+// Kept for prisma/seed.ts and the scripts/ that run with the schema owner's
+// credentials; app code must not import it.
+
 // e.g. "Serbia, Visa D, 6 months" from country: "Serbia", visa_type: "Visa
 // D", duration_permit: "6 months · TRC possible" — the simplified name the
 // business asked for, derived from the same 3 real seeded Job fields.

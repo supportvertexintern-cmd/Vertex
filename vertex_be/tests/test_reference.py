@@ -6,9 +6,8 @@ import re
 import secrets
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
-from app.api.v1 import reference
 from app.api.v1.reference import REQUIREMENT_READERS, SECTOR_READERS
 from app.core.config import BASE_DIR
 from app.db.session import get_db
@@ -61,7 +60,7 @@ def country(db):
 
 @pytest.fixture
 def doc_types(db):
-    """Two document types, as the website (which still owns them) makes them."""
+    """Two document types."""
     types = [DocumentRequirementType(key=f"ref_{secrets.token_hex(3)}", label=unique("Ref doc")) for _ in range(2)]
     db.add_all(types)
     db.flush()
@@ -215,9 +214,50 @@ def test_the_api_database_role_can_write_them(api, db, admin, country, doc_types
     assert (s.status_code, r.status_code, d.status_code) == (201, 200, 200)
 
 
-def test_document_types_stay_with_nextjs_until_jobs_move():
-    # A table has one writer: the website's job routes still create receipt
-    # types (paymentReceiptTypes.ts), so FastAPI must not write them yet.
-    assert not any(route.path.startswith("/document-types") for route in reference.router.routes)
-    assert "DocumentRequirementType" not in (BASE_DIR / "deploy" / "db-roles.sql").read_text(encoding="utf-8").split("-- FastAPI-owned tables")[1].split("] LOOP")[0]
+# --- document requirement types (step 3.2) ------------------------------------
 
+
+def test_an_admin_adds_a_document_type_with_a_slugified_key(api, db, admin):
+    label = unique("Police Clearance!")
+    res = api.post("/api/v1/document-types", headers=admin, json={"label": label})
+    assert res.status_code == 201
+    data = res.json()["data"]
+    assert data["key"] == re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+    assert set(data) == {"id", "key", "label", "is_universal", "sort_order", "created_at"} and data["is_universal"] is False
+    top = max(t.sort_order for t in db.scalars(select(DocumentRequirementType)))
+    assert data["sort_order"] == top
+
+    dup = api.post("/api/v1/document-types", headers=admin, json={"label": label.upper()})
+    assert (dup.status_code, dup.json()["error"]["code"]) == (409, "duplicate")
+
+
+@pytest.mark.parametrize(("label", "status"), [("x", 422), ("x" * 151, 422), ("!!!", 422)])
+def test_document_type_label_rules(api, admin, label, status):
+    assert api.post("/api/v1/document-types", headers=admin, json={"label": label}).status_code == status
+
+
+def test_deleting_a_document_type_drops_it_from_countries(api, db, admin, country, doc_types):
+    api.put(url(country.id), headers=admin, json={"document_types": doc_types})
+    doomed = db.scalars(select(DocumentRequirementType).where(DocumentRequirementType.key == doc_types[0])).one()
+    res = api.delete(f"/api/v1/document-types/{doomed.id}", headers=admin)
+    assert (res.status_code, res.json()) == (200, {"data": {"id": doomed.id}})
+    assert [r["document_type"] for r in api.get(url(country.id), headers=admin).json()["data"]] == [doc_types[1]]
+    again = api.delete(f"/api/v1/document-types/{doomed.id}", headers=admin)
+    assert (again.status_code, again.json()["error"]["message"]) == (404, "Document type not found.")
+
+
+def test_a_document_type_in_use_is_not_deleted(api, db, admin, doc_types):
+    doc_type = db.scalars(select(DocumentRequirementType).where(DocumentRequirementType.key == doc_types[0])).one()
+    db.execute(
+        text("""INSERT INTO "Document" (id, type, storage_path) VALUES (:id, :type, 'x/f.pdf')"""),
+        {"id": f"cdoc{secrets.token_hex(6)}", "type": doc_type.key},
+    )
+    res = api.delete(f"/api/v1/document-types/{doc_type.id}", headers=admin)
+    assert (res.status_code, res.json()["error"]["code"]) == (409, "in_use")
+
+
+def test_only_admin_writes_document_types(api, db, doc_types):
+    director = as_role(db, Role.director)
+    assert api.post("/api/v1/document-types", headers=director, json={"label": unique("Nope")}).status_code == 403
+    doc_type = db.scalars(select(DocumentRequirementType).where(DocumentRequirementType.key == doc_types[0])).one()
+    assert api.delete(f"/api/v1/document-types/{doc_type.id}", headers=director).status_code == 403

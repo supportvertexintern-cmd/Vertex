@@ -1,39 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { syncJobMilestonePricing } from "@/server/services/stripeProvisioning";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-import { log } from "@/lib/log";
+// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // POST /api/jobs/:id/sync-stripe-pricing — manual retry for the case a
 // provisioning attempt failed (e.g. Stripe was unreachable) and needs
-// re-running without changing any other field. Unlike the create/edit
-// hook points, this one is awaited and reports success/failure directly,
-// since a staff member explicitly asked for it to happen now.
+// re-running without changing any other field. FastAPI talks to Stripe
+// since backend plan step 3.2 (vertex_be/app/services/stripe_pricing.py):
+// it runs the sync now and answers { data: [each stage's Stripe ids] }, or
+// 502 stripe_sync_failed / 503 stripe_not_configured.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...JOB_MANAGER_ROLES]);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-
-  try {
-    await syncJobMilestonePricing(id);
-  } catch (err) {
-    log.error("api.manual_stripe_pricing_sync_failed_for_job", { message: `Manual Stripe pricing sync failed for job ${id}.`, err });
-    return NextResponse.json(
-      { error: { code: "stripe_sync_failed", message: err instanceof Error ? err.message : "Failed to sync Stripe pricing." } },
-      { status: 502 }
-    );
-  }
-
-  // Stripe prices live on each payment stage now (JobMilestonePrice is
-  // no longer part of the app's model).
-  const prices = await prisma.jobPaymentStage.findMany({
-    where: { job_id: id },
-    orderBy: { order: "asc" },
-    select: { id: true, order: true, label: true, stripe_product_id: true, stripe_price_id: true, synced_amount_gbp: true },
-  });
-  return NextResponse.json({ data: prices });
+  return backendResponse(await callBackend(`/api/v1/jobs/${encodeURIComponent(id)}/stripe-pricing/sync`, { method: "POST" }));
 }

@@ -172,3 +172,71 @@ test.describe("Next.js -> FastAPI (knowledge articles and email templates, step 
     await expect(page.getByText(title)).toBeVisible();
   });
 });
+
+test.describe("Next.js -> FastAPI (jobs, payment stages and document types, step 3.2)", () => {
+  const stages = [
+    { order: 1, label: "At application", percent: 20, trigger_stage: "registration_document_submission" },
+    { order: 2, label: "Permit approved", percent: 80, trigger_stage: "permit_authorization_approved" },
+  ];
+  const newJob = (tag: string) => ({
+    title: `E2E Job ${tag}`,
+    country: "Serbia",
+    city: "Novi Sad",
+    job_description: "Seasonal farm work on a family-run orchard, with housing provided.",
+    requirements: "Two years of farm experience.",
+    service_fee_gbp: 1000,
+    payment_stages: stages,
+  });
+
+  test("an admin creates, edits and deletes a job through the website", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    const created = await page.request.post("/api/jobs", { data: newJob(tag) });
+    expect(created.status()).toBe(201);
+    const job = await created.json();
+    expect(job).toMatchObject({ title: `E2E Job ${tag}`, status: "active", service_fee_gbp: 1000 });
+
+    // The public detail is still read by Next.js: it sees FastAPI's write.
+    const detail = await (await page.request.get(`/api/jobs/${job.id}`)).json();
+    const stageIds = detail.payment_stages.map((s: { id: string }) => s.id);
+    expect(detail.payment_stages.map((s: { percent: number }) => s.percent)).toEqual([20, 80]);
+
+    // Each stage has a receipt type to upload against.
+    const types = (await (await page.request.get("/api/admin/document-types")).json()).data.map((t: { key: string }) => t.key);
+    for (const id of stageIds) expect(types).toContain(`payment_receipt_stage_${id}`);
+
+    // An edit keeps the stages in place.
+    const edited = await page.request.put(`/api/jobs/${job.id}`, { data: { payment_stages: [{ ...stages[0], percent: 30 }, { ...stages[1], percent: 70 }] } });
+    expect(edited.status()).toBe(200);
+    const after = (await (await page.request.get(`/api/jobs/${job.id}`)).json()).payment_stages;
+    expect(after.map((s: { id: string }) => s.id)).toEqual(stageIds);
+
+    const bad = await page.request.put(`/api/jobs/${job.id}`, { data: { payment_stages: [{ ...stages[0], percent: 101 }] } });
+    expect(bad.status()).toBe(422);
+    const badBody = await bad.json();
+    expect(badBody.error).toBe("Validation failed");
+    expect(Object.keys(badBody.details)).toContain("payment_stages.0.percent");
+
+    // Stripe isn't configured in the e2e environment.
+    expect((await page.request.post(`/api/jobs/${job.id}/sync-stripe-pricing`)).status()).toBe(503);
+
+    expect(await (await page.request.delete(`/api/jobs/${job.id}`)).json()).toEqual({ message: "Job deleted." });
+    expect((await page.request.delete(`/api/jobs/${job.id}`)).status()).toBe(404);
+  });
+
+  test("an admin adds and removes a document type through the website", async ({ page }) => {
+    const label = `E2E Doc ${Date.now().toString(36)}`;
+    const created = await page.request.post("/api/admin/document-types", { data: { label } });
+    expect(created.status()).toBe(201);
+    const { data: docType } = await created.json();
+    expect(docType.key).toBe(label.toLowerCase().replace(/[^a-z0-9]+/g, "_"));
+    expect((await page.request.post("/api/admin/document-types", { data: { label } })).status()).toBe(409);
+    expect((await page.request.delete(`/api/admin/document-types/${docType.id}`)).status()).toBe(200);
+  });
+
+  test("the marketing jobs page lists FastAPI's job", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    await page.request.post("/api/jobs", { data: newJob(tag) });
+    await page.goto("/marketing/jobs");
+    await expect(page.getByText(`E2E Job ${tag}`)).toBeVisible();
+  });
+});

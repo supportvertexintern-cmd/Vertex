@@ -50,6 +50,9 @@ services:
       # rotating it.
       SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
       SERVICE_AUTH_SECRET_PREVIOUS: ${SERVICE_AUTH_SECRET_PREVIOUS:-}
+      # The same Stripe account as the web app's: FastAPI syncs each job
+      # payment stage's Product and Price (step 3.2). Unset = no sync.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:

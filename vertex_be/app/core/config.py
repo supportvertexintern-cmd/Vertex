@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # development = no service token verifies.
     SERVICE_AUTH_SECRET: str | None = None
     SERVICE_AUTH_SECRET_PREVIOUS: str | None = None
+    # Stripe, for each job payment stage's Product and Price (step 3.2,
+    # app/services/stripe_pricing.py). Unset = pricing isn't synced: a job
+    # still saves, and a manual sync answers 503.
+    STRIPE_SECRET_KEY: str | None = None
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
