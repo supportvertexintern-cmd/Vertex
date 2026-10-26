@@ -59,11 +59,18 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
+      # The OS security upgrade in each Dockerfile is keyed on the date, so
+      # it runs again daily instead of coming from the layer cache.
+      - name: Build date
+        id: day
+        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           push: true
+          build-args: SECURITY_REFRESH=${{ steps.day.outputs.day }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
