@@ -113,6 +113,14 @@ updates, and an append-only table has none. Grants stay `INSERT` (plus
 `SELECT` for Next.js, which serves the admin audit pages) until those pages
 move.
 
+**Owner's decision (2026-10-26): every FastAPI write is audited.** Each
+table FastAPI owns is in `AUDITED_MODELS` (`app/core/audit.py`, mirrored in
+`audit.ts`), and its routes write through `AuditedDb`, so every create,
+update and delete records the actor and the before/after snapshots in the
+same transaction. `tests/test_audit_coverage.py` fails if a table joins the
+FastAPI-owned list in `db-roles.sql` without being audited. What Postgres
+does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
+
 ## 3. Areas and owners
 
 "Today" is the service that writes in practice; "Target" is the owner once the area moves.

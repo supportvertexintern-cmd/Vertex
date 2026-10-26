@@ -6,8 +6,9 @@ They answer as Next.js's /api/admin/regions and /api/admin/countries did
 callBackend(): the same roles (tests/test_geography.py fails if the reader
 lists drift), the same rules and messages as the Zod schemas they replace,
 the same status codes and Prisma-shaped JSON. Anyone on staff who works by
-region or country reads them; only admin changes them. Not audited, as in
-Next.js (neither table is in AUDITED_MODELS).
+region or country reads them; only admin changes them. Every change is on
+the audit trail; what Postgres does to other tables when a country goes (SET
+NULL, CASCADE) is not.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession
 from app.core.api import ApiError, Data
+from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.rbac import require_role
 from app.models.enums import Role
@@ -136,7 +138,7 @@ def list_regions(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(
 
 
 @router.post("/regions", status_code=status.HTTP_201_CREATED)
-def create_region(body: RegionIn, db: DbSession, _admin: AdminUser) -> Data[RegionOut]:
+def create_region(body: RegionIn, db: AuditedDb, _admin: AdminUser) -> Data[RegionOut]:
     if _name_taken(db, Region, body.name):
         raise _duplicate("region")
     region = Region(name=body.name)
@@ -146,7 +148,7 @@ def create_region(body: RegionIn, db: DbSession, _admin: AdminUser) -> Data[Regi
 
 
 @router.patch("/regions/{region_id}")
-def rename_region(region_id: str, body: RegionIn, db: DbSession, _admin: AdminUser) -> Data[RegionOut]:
+def rename_region(region_id: str, body: RegionIn, db: AuditedDb, _admin: AdminUser) -> Data[RegionOut]:
     region = _region(db, region_id)
     if _name_taken(db, Region, body.name, except_id=region_id):
         raise _duplicate("region")
@@ -166,7 +168,7 @@ def list_countries(db: DbSession, _user: Annotated[AuthUser, Depends(require_rol
 
 
 @router.post("/countries", status_code=status.HTTP_201_CREATED)
-def create_country(body: CountryIn, db: DbSession, _admin: AdminUser) -> Data[CountryOut]:
+def create_country(body: CountryIn, db: AuditedDb, _admin: AdminUser) -> Data[CountryOut]:
     _region(db, body.region_id)
     if _name_taken(db, Country, body.name):
         raise _duplicate("country")
@@ -177,7 +179,7 @@ def create_country(body: CountryIn, db: DbSession, _admin: AdminUser) -> Data[Co
 
 
 @router.patch("/countries/{country_id}")
-def update_country(country_id: str, body: CountryUpdate, db: DbSession, _admin: AdminUser) -> Data[CountryOut]:
+def update_country(country_id: str, body: CountryUpdate, db: AuditedDb, _admin: AdminUser) -> Data[CountryOut]:
     """Renames a country and/or moves it to another region."""
     country = db.get(Country, country_id)
     if country is None:
@@ -194,7 +196,7 @@ def update_country(country_id: str, body: CountryUpdate, db: DbSession, _admin: 
 
 
 @router.delete("/countries/{country_id}")
-def delete_country(country_id: str, db: DbSession, _admin: AdminUser) -> Data[dict[str, str]]:
+def delete_country(country_id: str, db: AuditedDb, _admin: AdminUser) -> Data[dict[str, str]]:
     """Candidates, cases, staff assignments and the rest let go of the
     country (SET NULL or CASCADE); anything that still requires it makes
     Postgres refuse, which is a 409."""
