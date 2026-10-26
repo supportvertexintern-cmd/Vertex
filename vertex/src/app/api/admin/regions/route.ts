@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
-import { createRegionSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-// GET /api/admin/regions — list regions with their countries (SRS FR-1.4).
-// Read-only reference data — any staff role can read it (Phase 3 dashboard
-// filters, campaign targets); only admin can write.
+// FastAPI owns regions and countries since backend plan step 2.1
+// (vertex_be/app/api/v1/geography.py): these handlers check the role early,
+// pass the request on with callBackend() and answer with FastAPI's response.
+// FastAPI re-checks the session, the role and the input itself, and
+// vertex_web may no longer write either table (deploy/db-roles.sql).
+
+// GET /api/admin/regions: regions with their countries (SRS FR-1.4). Any
+// staff role in the hierarchy reads it (Phase 3 dashboard filters, campaign
+// targets). Must match REGION_READERS in geography.py (tests check it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"]);
   if (guardRes) return guardRes;
 
-  const regions = await prisma.region.findMany({
-    include: { countries: { orderBy: { name: "asc" } } },
-    orderBy: { name: "asc" },
-  });
-
-  return NextResponse.json({ data: regions });
+  return backendResponse(await callBackend("/api/v1/regions"));
 }
 
-// POST /api/admin/regions
+// POST /api/admin/regions: admin only.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAdmin(user);
@@ -32,22 +32,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
 
-  const parsed = createRegionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const existing = await prisma.region.findUnique({ where: { name: parsed.data.name } });
-  if (existing) {
-    return NextResponse.json(
-      { error: { code: "duplicate", message: "A region with this name already exists." } },
-      { status: 409 }
-    );
-  }
-
-  const region = await prisma.region.create({ data: parsed.data });
-  return NextResponse.json({ data: region }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/regions", { method: "POST", body }));
 }

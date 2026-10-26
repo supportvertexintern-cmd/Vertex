@@ -119,7 +119,7 @@ move.
 
 | Area | Tables | Today | Target | Notes |
 |---|---|---|---|---|
-| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **`FeePolicy`: FastAPI** (handed over 2026-10-24, step 1.2). The rest: Next.js (admin handlers) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
+| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1). The rest: Next.js (admin handlers) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | Next.js; none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
@@ -187,8 +187,8 @@ updated.
 
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
-| `Country` | `/api/admin/countries/[id]` (delete, update)<br>`/api/admin/countries` (create) | 17 files, incl. `/api/admin/countries/[id]/document-requirements`, `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/users/[id]`, … |
-| `Region` | `/api/admin/regions/[id]` (update)<br>`/api/admin/regions` (create) | `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/regions/[id]`, `/api/admin/regions` |
+| `Country` | **FastAPI** `/api/v1/countries` (create), `/api/v1/countries/{id}` (update, delete); Next.js's `/api/admin/countries` routes pass requests on; `vertex_web` has no write grant (step 2.1) | 17 files, incl. `/api/admin/countries/[id]/document-requirements`, `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/users/[id]`, … |
+| `Region` | **FastAPI** `/api/v1/regions` (create), `/api/v1/regions/{id}` (update); Next.js's `/api/admin/regions` routes pass requests on; `vertex_web` has no write grant (step 2.1) | `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/regions/[id]`, `/api/admin/regions` |
 | `Sector` | `/api/admin/sectors/[id]` (delete)<br>`/api/admin/sectors` (create) | `/api/admin/sectors/[id]`, `/api/admin/sectors` |
 | `DocumentRequirementType` | `/api/admin/document-types/[id]` (delete)<br>`/api/admin/document-types` (create) | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
 | `CountryDocumentRequirement` | `/api/admin/countries/[id]/document-requirements` (createMany, deleteMany) | `/api/admin/countries/[id]/document-requirements`, `/api/apply/options`, `server/services/documentCompleteness.ts` |
