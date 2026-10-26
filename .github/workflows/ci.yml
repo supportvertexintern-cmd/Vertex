@@ -232,24 +232,6 @@ jobs:
         working-directory: vertex_be
       - run: npx prisma db seed
 
-      # FastAPI on the same database: Next.js calls it with callBackend()
-      # for the areas it owns (backend plan step 2.0). Runs in the
-      # background for the rest of the job; its log is printed on failure.
-      - name: Start FastAPI
-        working-directory: vertex_be
-        run: |
-          # A fresh one per run; later steps (Next.js) get it too.
-          SERVICE_AUTH_SECRET="$(openssl rand -hex 32)"
-          echo "SERVICE_AUTH_SECRET=$SERVICE_AUTH_SECRET" >> "$GITHUB_ENV"
-          export SERVICE_AUTH_SECRET
-          APP_ENV=development nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/fastapi.log" 2>&1 &
-          for i in $(seq 1 60); do
-            curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null && exit 0
-            sleep 1
-          done
-          cat "$RUNNER_TEMP/fastapi.log"
-          exit 1
-
       - name: Create the test bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
 
@@ -338,6 +320,24 @@ jobs:
       - run: pip install -r requirements.txt && alembic upgrade head
         working-directory: vertex_be
       - run: npx prisma db seed
+
+      # FastAPI on the same database: Next.js calls it with callBackend()
+      # for the areas it owns (backend plan step 2.0). Runs in the
+      # background for the rest of the job; its log is printed on failure.
+      - name: Start FastAPI
+        working-directory: vertex_be
+        run: |
+          # A fresh one per run; later steps (Next.js) get it too.
+          SERVICE_AUTH_SECRET="$(openssl rand -hex 32)"
+          echo "SERVICE_AUTH_SECRET=$SERVICE_AUTH_SECRET" >> "$GITHUB_ENV"
+          export SERVICE_AUTH_SECRET
+          APP_ENV=development nohup python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > "$RUNNER_TEMP/fastapi.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/fastapi.log"
+          exit 1
 
       - name: Create the e2e bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-e2e'
