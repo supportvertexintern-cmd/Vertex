@@ -1,38 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
-import { updateCountryDocumentRequirementsSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-// GET /api/admin/countries/:id/document-requirements — the extra documents
-// (beyond the universal passport/photo/CV set) a specific programme
-// destination requires (Candidate Information Form §3's "Required for: X").
-// Readable by the candidate too — they need to know what their own
-// dashboard's document checklist expects of them.
+// FastAPI owns sectors and country document requirements since backend
+// plan step 2.2 (vertex_be/app/api/v1/reference.py): these handlers check
+// the role early, pass the request on with callBackend() and answer with
+// FastAPI's response. FastAPI re-checks the session, the role and the input
+// itself, and vertex_web may no longer write either table
+// (deploy/db-roles.sql).
+
+const path = (id: string) => `/api/v1/countries/${encodeURIComponent(id)}/document-requirements`;
+
+// GET /api/admin/countries/:id/document-requirements: the extra documents
+// (beyond the universal passport/photo/CV set) a programme destination
+// requires (Candidate Information Form §3's "Required for: X"). The
+// candidate reads it too, for their own checklist. Must match
+// REQUIREMENT_READERS in reference.py (tests check it).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["candidate", "regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "marketing", "admin"]);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const requirements = await prisma.countryDocumentRequirement.findMany({ where: { country_id: id } });
-  return NextResponse.json({ data: requirements });
+  return backendResponse(await callBackend(path(id)));
 }
 
-// PUT /api/admin/countries/:id/document-requirements — replaces the full
-// set for this country with the given list (admin picks from a checklist,
-// not an incremental add/remove).
+// PUT /api/admin/countries/:id/document-requirements: replaces the
+// country's whole list (the admin ticks a checklist). Admin only.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireAdmin(user);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const country = await prisma.country.findUnique({ where: { id } });
-  if (!country) {
-    return NextResponse.json({ error: { code: "not_found", message: "Country not found." } }, { status: 404 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
@@ -40,31 +40,5 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
 
-  const parsed = updateCountryDocumentRequirementsSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  try {
-    await prisma.$transaction([
-      prisma.countryDocumentRequirement.deleteMany({ where: { country_id: id } }),
-      prisma.countryDocumentRequirement.createMany({
-        data: parsed.data.document_types.map((document_type) => ({ country_id: id, document_type })),
-      }),
-    ]);
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
-      return NextResponse.json(
-        { error: { code: "unknown_type", message: "One or more document types don't exist." } },
-        { status: 422 }
-      );
-    }
-    throw err;
-  }
-
-  const requirements = await prisma.countryDocumentRequirement.findMany({ where: { country_id: id } });
-  return NextResponse.json({ data: requirements });
+  return backendResponse(await callBackend(path(id), { method: "PUT", body }));
 }

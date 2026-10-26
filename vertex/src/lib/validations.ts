@@ -343,17 +343,9 @@ export const updateApplicationStatusSchema = z
     message: "Provide at least one field to update.",
   });
 
-// Regions & Countries (SRS FR-1.4)
-// Sectors ("Preferred Type of Work" on the Candidate Information Form) and
-// per-country document requirements (Section 3's "Required for: X" tags) —
-// both admin-configurable reference data, same pattern as Region/Country.
-export const createSectorSchema = z.object({
-  name: z.string().min(2).max(100),
-});
-
-export const updateCountryDocumentRequirementsSchema = z.object({
-  document_types: z.array(z.string().min(1).max(60)),
-});
+// Regions, countries, sectors and per-country document requirements are
+// validated by FastAPI, which owns them (vertex_be/app/api/v1/geography.py
+// and reference.py; backend plan steps 2.1 and 2.2).
 
 // Admin-managed document requirement types (replaces the old fixed
 // DocumentType enum) — `key` is derived server-side by slugifying the

@@ -181,7 +181,9 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[  -- FastAPI-owned tables
     'FeePolicy',  -- reference data, step 1.2 (2026-10-24)
     'Region',     -- reference data, step 2.1
-    'Country'     -- reference data, step 2.1
+    'Country',    -- reference data, step 2.1
+    'Sector',     -- reference data, step 2.2
+    'CountryDocumentRequirement'  -- reference data, step 2.2
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
