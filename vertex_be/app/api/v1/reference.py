@@ -4,8 +4,8 @@ the reference-data handover (backend plan step 2.2).
 They answer as Next.js's /api/admin/sectors and /api/admin/countries/[id]/
 document-requirements did, which now pass requests on through
 callBackend(): the same roles (tests/test_reference.py fails if the reader
-lists drift), rules, messages, status codes and Prisma-shaped JSON. Not
-audited, as in Next.js.
+lists drift), rules, messages, status codes and Prisma-shaped JSON. Every
+change is on the audit trail.
 
 Document requirement *types* stay in Next.js until jobs move (step 3): a
 job's payment stages create their receipt types there
@@ -18,11 +18,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime
+from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.rbac import require_role
 from app.models.enums import Role
@@ -81,7 +82,7 @@ def list_sectors(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(
 
 
 @router.post("/sectors", status_code=status.HTTP_201_CREATED)
-def create_sector(body: SectorIn, db: DbSession, _admin: AdminUser) -> Data[SectorOut]:
+def create_sector(body: SectorIn, db: AuditedDb, _admin: AdminUser) -> Data[SectorOut]:
     if db.scalars(select(Sector.id).where(Sector.name == body.name)).first() is not None:
         raise _sector_duplicate()
     sector = Sector(name=body.name)
@@ -98,7 +99,7 @@ def create_sector(body: SectorIn, db: DbSession, _admin: AdminUser) -> Data[Sect
 
 
 @router.delete("/sectors/{sector_id}")
-def delete_sector(sector_id: str, db: DbSession, _admin: AdminUser) -> Data[dict[str, str]]:
+def delete_sector(sector_id: str, db: AuditedDb, _admin: AdminUser) -> Data[dict[str, str]]:
     """Applications that chose the sector let go of it (SET NULL)."""
     sector = db.get(Sector, sector_id)
     if sector is None:
@@ -150,7 +151,7 @@ def list_requirements(
 
 
 @router.put("/countries/{country_id}/document-requirements")
-def replace_requirements(country_id: str, body: RequirementsIn, db: DbSession, _admin: AdminUser) -> Data[list[RequirementOut]]:
+def replace_requirements(country_id: str, body: RequirementsIn, db: AuditedDb, _admin: AdminUser) -> Data[list[RequirementOut]]:
     """Replaces the country's whole list (the admin ticks a checklist)."""
     if db.get(Country, country_id) is None:
         raise ApiError(404, "not_found", "Country not found.")
@@ -159,8 +160,13 @@ def replace_requirements(country_id: str, body: RequirementsIn, db: DbSession, _
     if len(known) != len(wanted):
         raise ApiError(422, "unknown_type", "One or more document types don't exist.")
 
-    db.execute(delete(CountryDocumentRequirement).where(CountryDocumentRequirement.country_id == country_id))
-    db.add_all(CountryDocumentRequirement(country_id=country_id, document_type=t) for t in wanted)
+    # Only what changed, through the ORM, so the trail shows each type
+    # ticked or unticked rather than the whole list rewritten.
+    current = {r.document_type: r for r in db.scalars(select(CountryDocumentRequirement).where(CountryDocumentRequirement.country_id == country_id))}
+    for doc_type, row in current.items():
+        if doc_type not in known:
+            db.delete(row)
+    db.add_all(CountryDocumentRequirement(country_id=country_id, document_type=t) for t in wanted if t not in current)
     try:
         db.commit()
     except IntegrityError as err:

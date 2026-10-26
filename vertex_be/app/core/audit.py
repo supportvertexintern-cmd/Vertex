@@ -69,6 +69,15 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "ReferralCommission",
         "ReferralCommissionRule",
         "ReferralAgentTarget",
+        # FastAPI-owned reference data and content (steps 2.1-3.1): every
+        # write FastAPI makes is on the trail.
+        "Region",
+        "Country",
+        "Sector",
+        "CountryDocumentRequirement",
+        "SystemSetting",
+        "KnowledgeArticle",
+        "EmailTemplate",
     }
 )
 
@@ -140,6 +149,14 @@ def _table(obj: Any) -> str:
     return inspect(obj).mapper.local_table.name
 
 
+def _entity_id(obj: Any) -> str:
+    # The primary key, whatever its column: SystemSetting's is "key" and
+    # EmailTemplate's "event", not "id".
+    state = inspect(obj)
+    values = state.identity or state.mapper.primary_key_from_instance(obj)
+    return "/".join(str(v) for v in values if v is not None) or "unknown"
+
+
 @event.listens_for(Session, "after_flush")
 def _record_changes(db: Session, _flush_context: Any) -> None:
     changes = [("create", o) for o in db.new] + [("update", o) for o in db.dirty] + [("delete", o) for o in db.deleted]
@@ -155,7 +172,7 @@ def _record_changes(db: Session, _flush_context: Any) -> None:
         actor_id = db.info[_ACTOR]
         before = snapshot(obj, before=True) if action != "create" else None
         after = snapshot(obj) if action != "delete" else None
-        entity_id = getattr(obj, "id", None) or "unknown"
+        entity_id = _entity_id(obj)
         rows.append(
             {
                 "id": new_id(),
