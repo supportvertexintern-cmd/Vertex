@@ -64,17 +64,24 @@ def run_as(conn: Connection, role: str, sql: str) -> str | None:
 RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 
 
-# A table each role still writes: FastAPI's handed-over tables, and one
-# Next.js keeps. When Sector moves too, pick another of Next.js's.
-OWN_TABLE = {"vertex_api": "Region", "vertex_web": "Sector"}
+# A table each role still writes: one of FastAPI's handed-over tables, and
+# one Next.js keeps (document types move with jobs, step 3). When it moves,
+# pick another of Next.js's.
+OWN_ROW = {
+    "vertex_api": ("Region", """INSERT INTO "Region" (id, name) VALUES ('ctest-role-row', 'Role test')"""),
+    "vertex_web": (
+        "DocumentRequirementType",
+        """INSERT INTO "DocumentRequirementType" (id, key, label) VALUES ('ctest-role-row', 'ctest_role_row', 'Role test')""",
+    ),
+}
 
 
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 def test_runtime_roles_can_read_and_write_rows(conn, role):
-    table = OWN_TABLE[role]
-    assert (table in fastapi_owned_tables()) == (role == "vertex_api"), f"{table} changed owner: update OWN_TABLE"
+    table, insert = OWN_ROW[role]
+    assert (table in fastapi_owned_tables()) == (role == "vertex_api"), f"{table} changed owner: update OWN_ROW"
     assert run_as(conn, role, 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, role, f"""INSERT INTO "{table}" (id, name) VALUES ('ctest-role-row', 'Role test')""") is None
+    assert run_as(conn, role, insert) is None
     assert run_as(conn, role, """INSERT INTO "AuditLog" (id, entity_type, entity_id, action)
                                  VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')""") is None
 
@@ -276,7 +283,7 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert {"FeePolicy", "Region", "Country"} <= set(fastapi_owned_tables())
+    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())

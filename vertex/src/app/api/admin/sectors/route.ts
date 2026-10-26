@@ -1,22 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
-import { createSectorSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-// GET /api/admin/sectors — flat list, read-only reference data for every
-// staff role (a recruiter completing a Candidate Information Form on
-// someone's behalf needs the same "Preferred Type of Work" options a
-// candidate would see); only admin can write.
+// FastAPI owns sectors and country document requirements since backend
+// plan step 2.2 (vertex_be/app/api/v1/reference.py): these handlers check
+// the role early, pass the request on with callBackend() and answer with
+// FastAPI's response. FastAPI re-checks the session, the role and the input
+// itself, and vertex_web may no longer write either table
+// (deploy/db-roles.sql).
+
+// GET /api/admin/sectors: flat list for every role that fills in a
+// Candidate Information Form (its "Preferred Type of Work") or posts jobs.
+// Must match SECTOR_READERS in reference.py (tests check it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "marketing", "admin"]);
   if (guardRes) return guardRes;
 
-  const sectors = await prisma.sector.findMany({ orderBy: { name: "asc" } });
-  return NextResponse.json({ data: sectors });
+  return backendResponse(await callBackend("/api/v1/sectors"));
 }
 
-// POST /api/admin/sectors
+// POST /api/admin/sectors: admin only.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAdmin(user);
@@ -29,22 +33,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
 
-  const parsed = createSectorSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const existing = await prisma.sector.findUnique({ where: { name: parsed.data.name } });
-  if (existing) {
-    return NextResponse.json(
-      { error: { code: "duplicate", message: "A sector with this name already exists." } },
-      { status: 409 }
-    );
-  }
-
-  const sector = await prisma.sector.create({ data: parsed.data });
-  return NextResponse.json({ data: sector }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/sectors", { method: "POST", body }));
 }

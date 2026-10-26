@@ -84,3 +84,36 @@ test.describe("Next.js -> FastAPI (regions and countries, step 2.1)", () => {
     await expect(page.getByText(name)).toBeVisible();
   });
 });
+
+test.describe("Next.js -> FastAPI (sectors and document requirements, step 2.2)", () => {
+  test("an admin manages sectors and a country's required documents through the website", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    const created = await page.request.post("/api/admin/sectors", { data: { name: `E2E Sector ${tag}` } });
+    expect(created.status()).toBe(201);
+    const { data: sector } = await created.json();
+    const sectors = (await (await page.request.get("/api/admin/sectors")).json()).data;
+    expect(sectors.map((s: { id: string }) => s.id)).toContain(sector.id);
+    expect((await page.request.delete(`/api/admin/sectors/${sector.id}`)).status()).toBe(200);
+
+    // Document types stay with the website until jobs move (step 3).
+    const types = (await (await page.request.get("/api/admin/document-types")).json()).data.slice(0, 2).map((t: { key: string }) => t.key);
+    const region = (await (await page.request.post("/api/admin/regions", { data: { name: `E2E Docs Region ${tag}` } })).json()).data;
+    const country = (await (await page.request.post("/api/admin/countries", { data: { name: `E2E Docs Land ${tag}`, region_id: region.id } })).json()).data;
+
+    const put = await page.request.put(`/api/admin/countries/${country.id}/document-requirements`, { data: { document_types: types } });
+    expect(put.status()).toBe(200);
+    const listed = (await (await page.request.get(`/api/admin/countries/${country.id}/document-requirements`)).json()).data;
+    expect(listed.map((r: { document_type: string }) => r.document_type).sort()).toEqual([...types].sort());
+
+    const bad = await page.request.put(`/api/admin/countries/${country.id}/document-requirements`, { data: { document_types: ["no_such_type"] } });
+    expect(bad.status()).toBe(422);
+    expect((await bad.json()).error.code).toBe("unknown_type");
+  });
+
+  test("the admin Sectors page shows FastAPI's sectors", async ({ page }) => {
+    const name = `E2E Page Sector ${Date.now().toString(36)}`;
+    await page.request.post("/api/admin/sectors", { data: { name } });
+    await page.goto("/admin/sectors");
+    await expect(page.getByText(name)).toBeVisible();
+  });
+});
