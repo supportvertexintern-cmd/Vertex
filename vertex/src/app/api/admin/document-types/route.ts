@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
-import { createDocumentRequirementTypeSchema } from "@/lib/validations";
-
-function slugify(label: string): string {
-  return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
+import { backendResponse, callBackend } from "@/lib/backend";
 
 // GET /api/admin/document-types — every admin-managed document requirement
 // type (replaces the old fixed DocumentType enum), read-only reference
@@ -24,8 +19,10 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/document-types — admin adds a brand-new requirement
 // type from just a label; the key (stored on Document.type,
 // CountryDocumentRequirement.document_type, and documents_available
-// arrays) is derived by slugifying it. Immediately usable everywhere else
-// reads this table — no code change needed.
+// arrays) is the label slugified. FastAPI owns document types since backend
+// plan step 3.2 (vertex_be/app/api/v1/reference.py, which also creates each
+// job payment stage's receipt type): this handler checks the role early and
+// passes the request on.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAdmin(user);
@@ -37,32 +34,5 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = createDocumentRequirementTypeSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const key = slugify(parsed.data.label);
-  if (!key) {
-    return NextResponse.json({ error: { code: "validation_error", message: "Label must contain at least one letter or number." } }, { status: 422 });
-  }
-
-  const existing = await prisma.documentRequirementType.findUnique({ where: { key } });
-  if (existing) {
-    return NextResponse.json(
-      { error: { code: "duplicate", message: "A document type with this name already exists." } },
-      { status: 409 }
-    );
-  }
-
-  const maxSortOrder = await prisma.documentRequirementType.aggregate({ _max: { sort_order: true } });
-  const db = auditedPrisma(user!.userId);
-  const type = await db.documentRequirementType.create({
-    data: { key, label: parsed.data.label, sort_order: (maxSortOrder._max.sort_order ?? 0) + 1 },
-  });
-  return NextResponse.json({ data: type }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/document-types", { method: "POST", body }));
 }

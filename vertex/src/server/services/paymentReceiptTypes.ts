@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { paymentReceiptTypeKey } from "@/lib/documentTypes";
 
+// Not called by the app since backend plan step 3.2: FastAPI owns jobs,
+// payment stages and document types (vertex_be/app/api/v1/jobs.py,
+// app/services/stripe_pricing.py) and vertex_web may no longer write them.
+// Kept for prisma/seed.ts and the scripts/ that run with the schema owner's
+// credentials; app code must not import it.
+
 // Ensures every one of a Job's payment_stages has a matching
 // DocumentRequirementType row to upload a receipt against (2026-09-16,
 // flexible per-Job payment stages) — POST /api/upload validates its

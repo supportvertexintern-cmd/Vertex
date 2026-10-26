@@ -186,7 +186,10 @@ BEGIN
     'CountryDocumentRequirement',  -- reference data, step 2.2
     'SystemSetting',  -- reference data, step 2.3
     'KnowledgeArticle',  -- content, step 3.1
-    'EmailTemplate'  -- content, step 3.1
+    'EmailTemplate',  -- content, step 3.1
+    'Job',  -- jobs, step 3.2
+    'JobPaymentStage',  -- jobs, step 3.2
+    'DocumentRequirementType'  -- jobs, step 3.2 (receipt types)
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

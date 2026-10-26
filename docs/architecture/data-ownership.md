@@ -127,12 +127,12 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 
 | Area | Tables | Today | Target | Notes |
 |---|---|---|---|---|
-| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3). Next.js: `DocumentRequirementType`, which moves with jobs in step 3 because job writes create its receipt types | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
-| Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1). Next.js: `Job` (step 3.2, with `DocumentRequirementType`); none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
+| Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3), **`DocumentRequirementType`** (step 3.2, with jobs, because job writes create its receipt types) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
+| Content | `Job`, `JobPaymentStage`, `JobSector`, `JobPosition`, `EmailTemplate`, `KnowledgeArticle` | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1), **`Job`, `JobPaymentStage`** (step 3.2, with Stripe pricing). Next.js: `JobSector`, `JobPosition` (step 3.3) | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp` | Next.js | FastAPI | One handover (§2.2). The S3 cutover must come first if documents will be stored on main (E2) |
-| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `JobPaymentStage`, `ReferralCommission`, `ReferralCommissionRule` (no writer) | Next.js; none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
+| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommission`, `ReferralCommissionRule` (no writer). `JobPaymentStage` moved with jobs (step 3.2) | Next.js; none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
 | Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | Next.js | FastAPI | Last: FastAPI becomes the session issuer |
 | Audit | `AuditLog` | both (insert only) | both (insert only) | §2.5 |
 
@@ -198,7 +198,7 @@ updated.
 | `Country` | **FastAPI** `/api/v1/countries` (create), `/api/v1/countries/{id}` (update, delete); Next.js's `/api/admin/countries` routes pass requests on; `vertex_web` has no write grant (step 2.1) | 17 files, incl. `/api/admin/countries/[id]/document-requirements`, `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/users/[id]`, … |
 | `Region` | **FastAPI** `/api/v1/regions` (create), `/api/v1/regions/{id}` (update); Next.js's `/api/admin/regions` routes pass requests on; `vertex_web` has no write grant (step 2.1) | `/api/admin/countries/[id]`, `/api/admin/countries`, `/api/admin/regions/[id]`, `/api/admin/regions` |
 | `Sector` | **FastAPI** `/api/v1/sectors` (create), `/api/v1/sectors/{id}` (delete); Next.js's `/api/admin/sectors` routes pass requests on; `vertex_web` has no write grant (step 2.2) | `/api/admin/sectors/[id]`, `/api/admin/sectors` |
-| `DocumentRequirementType` | `/api/admin/document-types/[id]` (delete)<br>`/api/admin/document-types` (create)<br>`server/services/paymentReceiptTypes.ts` (upsert, after job writes). **Moves with jobs (step 3)**, so it keeps one writer | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
+| `DocumentRequirementType` | **FastAPI** `/api/v1/document-types` (create), `/api/v1/document-types/{id}` (delete), and `/api/v1/jobs` (a receipt type per payment stage); Next.js's `/api/admin/document-types` writes pass requests on; `vertex_web` has no write grant (step 3.2) | `/api/admin/document-types/[id]`, `/api/admin/document-types`, `/api/apply/options`, `/api/upload`, `server/services/documentCompleteness.ts` |
 | `CountryDocumentRequirement` | **FastAPI** `/api/v1/countries/{id}/document-requirements` (replace the list); Next.js's route passes requests on; `vertex_web` has no write grant (step 2.2) | `/api/admin/countries/[id]/document-requirements`, `/api/apply/options`, `server/services/documentCompleteness.ts` |
 | `FeePolicy` | **FastAPI** `POST /api/v1/fee-policy` (create, update; audited). Next.js's `/api/fee-policy` POST passes requests on (`callBackend()`); `vertex_web` has no write grant (`db-roles.sql`) | **FastAPI** `GET /api/v1/fee-policy`, which Next.js's `/api/fee-policy` passes on (step 1.3). Still read directly by Next.js (`SELECT` kept), moving with Payments: `/api/cases/[id]/payments/invoice`, `/api/cases/[id]/payments/link`, `/api/cases/[id]/payments`, `/api/finance/payments-due` |
 | `SystemSetting` | **FastAPI** `/api/v1/settings` (upsert); Next.js's `/api/admin/settings` passes requests on; `vertex_web` has no write grant (step 2.3) | `/api/admin/settings`, `/api/apply/options`, `/api/chat` |
@@ -207,9 +207,9 @@ updated.
 
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
-| `Job` | `/api/jobs/[id]` (delete, update)<br>`/api/jobs` (create) | 9 files, incl. `/api/applications`, `/api/candidates/[id]/application`, `/api/partner/candidates`, `/api/payments/paypal/capture-order`, … |
-| `JobPosition` | **none** | none |
-| `JobSector` | **none** | none |
+| `Job` | **FastAPI** `/api/v1/jobs` (create), `/api/v1/jobs/{id}` (update, delete); Next.js's `/api/jobs` writes pass requests on; `vertex_web` has no write grant (step 3.2) | 9 files, incl. `/api/applications`, `/api/candidates/[id]/application`, `/api/partner/candidates`, `/api/payments/paypal/capture-order`, … |
+| `JobPosition` | `/api/jobs/[id]/sectors/[sectorId]/positions` (create), `/api/jobs/[id]/sectors/[sectorId]/positions/[positionId]` (update, delete). Moves in step 3.3 | `/api/applications`, `/api/candidates/[id]/application`, `/api/partner/candidates/[id]`, `server/services/partnerCandidateSubmission.ts` |
+| `JobSector` | `/api/jobs/[id]/sectors` (create), `/api/jobs/[id]/sectors/[sectorId]` (delete). Moves in step 3.3 | `/api/jobs/[id]/sectors/...` |
 | `EmailTemplate` | **FastAPI** `/api/v1/email-templates` (upsert); Next.js's `/api/admin/emails` passes requests on; `vertex_web` has no write grant (step 3.1) | `/api/admin/emails`, `lib/email.ts` |
 | `KnowledgeArticle` | **FastAPI** `/api/v1/knowledge` (create), `/api/v1/knowledge/{id}` (delete); Next.js's `/api/admin/knowledge` passes requests on; `vertex_web` has no write grant (step 3.1) | `/api/admin/knowledge`, `/api/chat`, page `/help` |
 
@@ -258,7 +258,7 @@ updated.
 |---|---|---|
 | `CasePayment` | `/api/cases/[id]/payments/[paymentId]/check-status` (update)<br>`/api/cases/[id]/payments/[paymentId]/mark-paid` (update)<br>`/api/cases/[id]/payments/[paymentId]/receipt` (update)<br>`/api/cases/[id]/payments/invoice` (create)<br>`/api/cases/[id]/payments/link` (create)<br>`/api/cases/[id]/payments` (create)<br>`/api/webhooks/stripe` (update) | `/api/cases/[id]/payments/[paymentId]/check-status`, `/api/cases/[id]/payments/[paymentId]/mark-paid`, `/api/cases/[id]/payments/[paymentId]/receipt`, `/api/cases/[id]/payments`, `/api/webhooks/stripe` |
 | `JobMilestonePrice` | `server/services/stripeProvisioning.ts` (create, update) | `/api/cases/[id]/payments/link`, `/api/jobs/[id]/sync-stripe-pricing`, `server/services/stripeProvisioning.ts` |
-| `JobPaymentStage` | **none** | none |
+| `JobPaymentStage` | **FastAPI** `/api/v1/jobs` and `/api/v1/jobs/{id}` (the stages, updated in place), `app/services/stripe_pricing.py` (Stripe ids, after a save and on `/api/v1/jobs/{id}/stripe-pricing/sync`); `vertex_web` has no write grant (step 3.2) | `/api/jobs/[id]`, `/api/cases/[id]/payments/link`, payment routes |
 | `Payment` | `/api/payments/paypal/capture-order` (create)<br>`/api/webhooks/stripe` (create) | `/api/applications`, `/api/payments/me`, `/api/webhooks/stripe` |
 | `ConsultationBooking` | `/api/webhooks/stripe` (create) | `/api/consultation-bookings`, `/api/webhooks/stripe` |
 | `ReferralCommission` | **none** | none |

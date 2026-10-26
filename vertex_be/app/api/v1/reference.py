@@ -7,18 +7,20 @@ callBackend(): the same roles (tests/test_reference.py fails if the reader
 lists drift), rules, messages, status codes and Prisma-shaped JSON. Every
 change is on the audit trail.
 
-Document requirement *types* stay in Next.js until jobs move (step 3): a
-job's payment stages create their receipt types there
-(server/services/paymentReceiptTypes.ts), and a table has one writer.
+Document requirement types are FastAPI's too since the jobs handover (step
+3.2): the admin adds and removes them here, and a job's payment stages get
+their receipt types in app/api/v1/jobs.py. Their list (GET) stays in
+Next.js's /api/admin/document-types.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
@@ -175,3 +177,69 @@ def replace_requirements(country_id: str, body: RequirementsIn, db: AuditedDb, _
             raise ApiError(422, "unknown_type", "One or more document types don't exist.") from None
         raise
     return Data(data=_requirements(db, country_id))
+
+
+# --- document requirement types (step 3.2) ------------------------------------
+
+
+class DocumentTypeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    key: str
+    label: str
+    is_universal: bool
+    sort_order: int
+    created_at: UtcDateTime
+
+
+class DocumentTypeIn(BaseModel):
+    label: str = Field(min_length=2, max_length=150)
+
+
+def _slug(label: str) -> str:
+    # The website's slugify(): the key stored on Document.type and friends.
+    return re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+
+
+@router.post("/document-types", status_code=status.HTTP_201_CREATED)
+def create_document_type(body: DocumentTypeIn, db: AuditedDb, _admin: AdminUser) -> Data[DocumentTypeOut]:
+    """A new type from just a label; its key is the label, slugified."""
+    key = _slug(body.label)
+    if not key:
+        raise ApiError(422, "validation_error", "Label must contain at least one letter or number.")
+    duplicate = ApiError(409, "duplicate", "A document type with this name already exists.")
+    if db.scalars(select(DocumentRequirementType.id).where(DocumentRequirementType.key == key)).first() is not None:
+        raise duplicate
+    last = db.scalars(select(func.max(DocumentRequirementType.sort_order))).first() or 0
+    doc_type = DocumentRequirementType(key=key, label=body.label, sort_order=last + 1)
+    db.add(doc_type)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        if _pgcode(err) == UNIQUE_VIOLATION:  # taken by a concurrent request
+            raise duplicate from None
+        raise
+    db.refresh(doc_type)
+    return Data(data=DocumentTypeOut.model_validate(doc_type))
+
+
+@router.delete("/document-types/{type_id}")
+def delete_document_type(type_id: str, db: AuditedDb, _admin: AdminUser) -> Data[dict[str, str]]:
+    """Refused while an uploaded document uses the type. Countries that
+    required it stop requiring it, each removal on the audit trail."""
+    doc_type = db.get(DocumentRequirementType, type_id)
+    if doc_type is None:
+        raise ApiError(404, "not_found", "Document type not found.")
+    for requirement in db.scalars(select(CountryDocumentRequirement).where(CountryDocumentRequirement.document_type == doc_type.key)):
+        db.delete(requirement)
+    db.delete(doc_type)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        if _pgcode(err) == FOREIGN_KEY_VIOLATION:
+            raise ApiError(409, "in_use", "This document type is still referenced by an uploaded document and can't be deleted.") from None
+        raise
+    return Data(data={"id": type_id})

@@ -69,7 +69,7 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "ReferralCommission",
         "ReferralCommissionRule",
         "ReferralAgentTarget",
-        # FastAPI-owned reference data and content (steps 2.1-3.1): every
+        # FastAPI-owned reference data, content and jobs (steps 2.1-3.2): every
         # write FastAPI makes is on the trail.
         "Region",
         "Country",
@@ -78,6 +78,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "SystemSetting",
         "KnowledgeArticle",
         "EmailTemplate",
+        "Job",
+        "JobPaymentStage",
     }
 )
 

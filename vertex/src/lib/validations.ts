@@ -2,10 +2,9 @@ import { z } from "zod";
 import { MARITAL_STATUS_VALUES } from "@/lib/maritalStatus";
 import { GENDER_VALUES } from "@/lib/gender";
 
-// The 11 CaseStage enum values, in order — shared by advanceCaseStageSchema
-// (which stage a Case is moving to) and createJobSchema's payment_stages
-// (which stage a payment installment is due at), since both need the same
-// exact literal union.
+// The 11 CaseStage enum values, in order — advanceCaseStageSchema's (which
+// stage a Case is moving to). A job payment stage's trigger_stage takes the
+// same values (FastAPI's CaseStage, step 3.2).
 const CASE_STAGES = [
   "registration_document_submission",
   "document_preparation_legalization",
@@ -117,64 +116,9 @@ export const candidateProfileSchema = z.object({
   marital_status: optionalMaritalStatus,
 });
 
-// Jobs
-export const createJobSchema = z.object({
-  title: z.string().min(3).max(150),
-  country: z.string().min(2).max(100),
-  city: z.string().min(2).max(100),
-  category: z.string().optional(),
-  salary_range: z.string().optional(),
-  job_description: z.string().min(50, "Job description must be at least 50 characters"),
-  requirements: z.string().min(20, "Requirements must be at least 20 characters"),
-  status: z.enum(["active", "closed", "draft"]).default("active"),
-  // .nullish() (not .optional()) on these five (2026-09-14) — the edit
-  // form always submits the full object, and an intentionally-cleared
-  // field sends an explicit null so PUT can actually null the column out.
-  // .optional() alone can't distinguish "cleared" from "untouched" once
-  // JSON.stringify drops the undefined key entirely; see PUT /api/jobs/:id.
-  // Not z.string().cuid(): seeded EmployerClient rows (e.g. "emp_polish_agro")
-  // use hand-written ids that fail the cuid format, and PUT /api/jobs/:id
-  // always carries this field — a strict cuid check silently 422d every edit
-  // of such jobs. Referential integrity is still enforced by the FK.
-  employer_client_id: z.string().min(1).max(100).nullish(),
-  // Work-permit programme / pricing fields (Service & Pricing List) — all
-  // optional since a plain employer job posting (SRS FR-5.2) has none of
-  // these. service_fee_gbp is the total; the 20/40/40 stage split is
-  // derived at render time, not stored (see prisma/seed.ts).
-  visa_type: z.string().nullish(),
-  duration_permit: z.string().nullish(),
-  processing_time: z.string().nullish(),
-  service_fee_gbp: z.number().positive().nullish(),
-  visa_success_rates: z.string().nullish(),
-  // Display/grouping flag only (2026-09-16) — see Job.is_credit_service in
-  // schema.prisma. No longer drives payment math; that's payment_stages
-  // below now, for every Job regardless of this flag's value.
-  is_credit_service: z.boolean().default(false),
-  // Flexible per-Job payment schedule (2026-09-16, replacing the old fixed
-  // 25/25/50 / two-stage / upfront+installments shapes) — any number of
-  // stages, each an arbitrary percent of service_fee_gbp due once the Case
-  // reaches trigger_stage. Optional at the base-schema level (a plain
-  // employer posting with no service_fee_gbp has none), but POST /api/jobs
-  // and PUT /api/jobs/:id both validate that when stages ARE given, their
-  // percentages total AT MOST 100 — financed/credit programmes list only
-  // the stages actually collected through the platform, so they may total
-  // less than 100% (2026-10-04). That check needs the full array
-  // (impossible to express as a single field's own .refine()), so it lives
-  // at the route call site, same pattern already used for
-  // is_credit_service's own financing_percent/installment_count
-  // requirement before this change.
-  payment_stages: z
-    .array(
-      z.object({
-        order: z.number().int().positive(),
-        label: z.string().min(1).max(100),
-        percent: z.number().positive().max(100),
-        trigger_stage: z.enum(CASE_STAGES),
-      })
-    )
-    .optional(),
-  partner_only: z.boolean().default(false),
-});
+// Jobs: validated by FastAPI since backend plan step 3.2
+// (vertex_be/app/api/v1/jobs.py, JobCreate/JobUpdate), which keeps
+// createJobSchema's rules field for field.
 
 // Programme sectors & positions (2026-09-02) — Marketing attaches one of
 // the same 8 canonical sector names already used everywhere else (the
@@ -350,10 +294,6 @@ export const updateApplicationStatusSchema = z
 // Admin-managed document requirement types (replaces the old fixed
 // DocumentType enum) — `key` is derived server-side by slugifying the
 // label, not supplied directly, so admin only ever thinks in labels.
-export const createDocumentRequirementTypeSchema = z.object({
-  label: z.string().min(2).max(150),
-});
-
 // Staff role/supervisor/country assignment (SRS FR-1.1, FR-1.3, FR-1.4) —
 // every role assignable via the admin staff directory. Deliberately wider
 // than lib/rbac.ts's STAFF_ROLES (which governs the three-tier candidate
@@ -1134,5 +1074,4 @@ export const createReferralAgentTargetSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
-export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type SubmitApplicationInput = z.infer<typeof submitApplicationSchema>;

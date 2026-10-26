@@ -126,3 +126,13 @@ export function backendResponse<T>(result: BackendResult<T>): NextResponse {
     ? NextResponse.json(result.body, { status: result.status })
     : NextResponse.json({ error: result.error }, { status: result.status });
 }
+
+/**
+ * A backend error in a route's older shape, { error: "message", details? },
+ * for pages written against it (the job forms read data.error as a string
+ * and data.details as zod's fieldErrors).
+ */
+export function legacyErrorResponse(result: Extract<BackendResult<unknown>, { ok: false }>): NextResponse {
+  const { message, details } = result.error;
+  return NextResponse.json(details ? { error: message, details } : { error: message }, { status: result.status });
+}
