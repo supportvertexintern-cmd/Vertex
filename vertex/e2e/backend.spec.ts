@@ -47,3 +47,40 @@ test.describe("Next.js -> FastAPI (fee policy)", () => {
     await expect(page.getByRole("cell", { name: "Global default" })).toBeVisible();
   });
 });
+
+test.describe("Next.js -> FastAPI (regions and countries, step 2.1)", () => {
+  test("an admin creates, renames, moves and deletes through the website", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    const created = await page.request.post("/api/admin/regions", { data: { name: `E2E Region ${tag}` } });
+    expect(created.status()).toBe(201);
+    const { data: region } = await created.json();
+
+    const other = (await (await page.request.post("/api/admin/regions", { data: { name: `E2E Other ${tag}` } })).json()).data;
+    const added = await page.request.post("/api/admin/countries", { data: { name: `E2E Land ${tag}`, region_id: region.id } });
+    expect(added.status()).toBe(201);
+    const { data: country } = await added.json();
+
+    expect((await page.request.patch(`/api/admin/regions/${region.id}`, { data: { name: `E2E Renamed ${tag}` } })).status()).toBe(200);
+    const moved = await page.request.patch(`/api/admin/countries/${country.id}`, { data: { region_id: other.id } });
+    expect((await moved.json()).data.region_id).toBe(other.id);
+
+    const listed = (await (await page.request.get("/api/admin/countries")).json()).data;
+    expect(listed.find((c: { id: string }) => c.id === country.id).region).toEqual({ id: other.id, name: `E2E Other ${tag}` });
+    const regions = (await (await page.request.get("/api/admin/regions")).json()).data;
+    expect(regions.find((r: { id: string }) => r.id === region.id).name).toBe(`E2E Renamed ${tag}`);
+
+    const dup = await page.request.post("/api/admin/countries", { data: { name: `E2E Land ${tag}`, region_id: region.id } });
+    expect(dup.status()).toBe(409);
+    expect((await dup.json()).error.code).toBe("duplicate");
+
+    expect((await page.request.delete(`/api/admin/countries/${country.id}`)).status()).toBe(200);
+    expect((await page.request.delete(`/api/admin/countries/${country.id}`)).status()).toBe(404);
+  });
+
+  test("the admin Regions page lists FastAPI's regions", async ({ page }) => {
+    const name = `E2E Page Region ${Date.now().toString(36)}`;
+    await page.request.post("/api/admin/regions", { data: { name } });
+    await page.goto("/admin/regions");
+    await expect(page.getByText(name)).toBeVisible();
+  });
+});

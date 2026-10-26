@@ -64,10 +64,17 @@ def run_as(conn: Connection, role: str, sql: str) -> str | None:
 RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 
 
+# A table each role still writes: FastAPI's handed-over tables, and one
+# Next.js keeps. When Sector moves too, pick another of Next.js's.
+OWN_TABLE = {"vertex_api": "Region", "vertex_web": "Sector"}
+
+
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 def test_runtime_roles_can_read_and_write_rows(conn, role):
+    table = OWN_TABLE[role]
+    assert (table in fastapi_owned_tables()) == (role == "vertex_api"), f"{table} changed owner: update OWN_TABLE"
     assert run_as(conn, role, 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, role, """INSERT INTO "Region" (id, name) VALUES ('ctest-role-region', 'Role test')""") is None
+    assert run_as(conn, role, f"""INSERT INTO "{table}" (id, name) VALUES ('ctest-role-row', 'Role test')""") is None
     assert run_as(conn, role, """INSERT INTO "AuditLog" (id, entity_type, entity_id, action)
                                  VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')""") is None
 
@@ -269,7 +276,7 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert "FeePolicy" in fastapi_owned_tables()
+    assert {"FeePolicy", "Region", "Country"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
@@ -286,8 +293,9 @@ def test_a_handed_over_table_has_one_writer(conn, table):
     assert run_as(conn, "vertex_api", f'UPDATE "{table}" SET id = id') is None
 
 
-def test_the_web_app_can_still_delete_a_country_with_a_fee_policy(conn):
-    # ON DELETE SET NULL runs as FeePolicy's owner, not as vertex_web.
+def test_deleting_a_country_clears_its_fee_policy(conn):
+    # Countries are FastAPI's since step 2.1. ON DELETE SET NULL runs as
+    # FeePolicy's owner, so the delete needs no write grant on FeePolicy.
     conn.execute(text("""INSERT INTO "Region" (id, name) VALUES ('ctest-fp-region', 'FP region')"""))
     conn.execute(text("""INSERT INTO "Country" (id, name, region_id) VALUES ('ctest-fp-country', 'FP country', 'ctest-fp-region')"""))
     conn.execute(text("""INSERT INTO "User" (id, full_name, email, updated_at) VALUES ('ctest-fp-user', 'FP', 'fp@test.invalid', now())"""))
@@ -295,7 +303,7 @@ def test_the_web_app_can_still_delete_a_country_with_a_fee_policy(conn):
                          VALUES ('ctest-fp-policy', 'ctest-fp-country', 'ctest-fp-user', now())"""))
     savepoint = conn.begin_nested()
     try:
-        conn.execute(text("SET LOCAL ROLE vertex_web"))
+        conn.execute(text("SET LOCAL ROLE vertex_api"))
         conn.execute(text("""DELETE FROM "Country" WHERE id = 'ctest-fp-country'"""))
         conn.execute(text("RESET ROLE"))
         assert conn.execute(text("""SELECT country_id FROM "FeePolicy" WHERE id = 'ctest-fp-policy'""")).scalar() is None

@@ -344,24 +344,6 @@ export const updateApplicationStatusSchema = z
   });
 
 // Regions & Countries (SRS FR-1.4)
-export const createRegionSchema = z.object({
-  name: z.string().min(2).max(100),
-});
-
-export const updateRegionSchema = z.object({
-  name: z.string().min(2).max(100),
-});
-
-export const createCountrySchema = z.object({
-  name: z.string().min(2).max(100),
-  region_id: z.string().cuid("Invalid region ID"),
-});
-
-export const updateCountrySchema = z.object({
-  name: z.string().min(2).max(100).optional(),
-  region_id: z.string().cuid("Invalid region ID").optional(),
-});
-
 // Sectors ("Preferred Type of Work" on the Candidate Information Form) and
 // per-country document requirements (Section 3's "Required for: X" tags) —
 // both admin-configurable reference data, same pattern as Region/Country.
