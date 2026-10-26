@@ -23,8 +23,12 @@ RUN flutter build web --release
 
 
 FROM nginx:1.31-alpine
+# SECURITY_REFRESH (the build date, set by build.yml and ci.yml) makes the
+# upgrade below run again each day instead of coming from the layer cache,
+# which would keep shipping yesterday's packages (CVE-2026-92392, curl).
+ARG SECURITY_REFRESH=
 # Current Alpine security fixes (OpenSSL and others; Trivy, Phase 12).
-RUN apk upgrade --no-cache
+RUN echo "security refresh: ${SECURITY_REFRESH}" && apk upgrade --no-cache
 
 COPY docker/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /src/build/web /usr/share/nginx/html

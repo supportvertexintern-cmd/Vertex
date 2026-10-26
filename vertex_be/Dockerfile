@@ -7,7 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # libpq, and every other dependency is a wheel. (Trivy, Phase 12: the build
 # toolchain carried most of the image's OS vulnerabilities.) Base packages
 # get the distribution's current security fixes.
-RUN apt-get update \
+# SECURITY_REFRESH (the build date, set by build.yml and ci.yml) makes the
+# upgrade below run again each day instead of coming from the layer cache,
+# which would keep shipping yesterday's packages (CVE-2026-92392, curl).
+ARG SECURITY_REFRESH=
+RUN echo "security refresh: ${SECURITY_REFRESH}" \
+    && apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 

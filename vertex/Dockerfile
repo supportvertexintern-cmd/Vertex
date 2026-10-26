@@ -23,7 +23,11 @@ FROM node:22-alpine
 # Current Alpine security fixes, and no npm/npx/yarn at runtime: the app
 # doesn't need a package manager, and npm's own bundled packages were most
 # of the image's findings (Trivy, Phase 12).
-RUN apk upgrade --no-cache && apk add --no-cache openssl \
+# SECURITY_REFRESH (the build date, set by build.yml and ci.yml) makes the
+# upgrade below run again each day instead of coming from the layer cache,
+# which would keep shipping yesterday's packages (CVE-2026-92392, curl).
+ARG SECURITY_REFRESH=
+RUN echo "security refresh: ${SECURITY_REFRESH}" && apk upgrade --no-cache && apk add --no-cache openssl \
  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
            /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg

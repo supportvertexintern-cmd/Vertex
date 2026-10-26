@@ -31,7 +31,11 @@ RUN cd minio && go build -trimpath -ldflags "$(sh /usr/local/bin/ldflags.sh mini
 RUN cd mc && go build -trimpath -ldflags "$(sh /usr/local/bin/ldflags.sh mc "${MC_RELEASE}")" -o /out/mc .
 
 FROM alpine:3.22
-RUN apk upgrade --no-cache && apk add --no-cache ca-certificates \
+# SECURITY_REFRESH (the build date, set by build.yml and ci.yml) makes the
+# upgrade below run again each day instead of coming from the layer cache,
+# which would keep shipping yesterday's packages (CVE-2026-92392, curl).
+ARG SECURITY_REFRESH=
+RUN echo "security refresh: ${SECURITY_REFRESH}" && apk upgrade --no-cache && apk add --no-cache ca-certificates \
  && adduser -D -H -u 1000 minio \
  && mkdir -p /data && chown minio /data
 COPY --from=build /out/minio /out/mc /usr/local/bin/
