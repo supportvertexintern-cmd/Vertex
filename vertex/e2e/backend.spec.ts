@@ -143,3 +143,32 @@ test.describe("Next.js -> FastAPI (system settings, step 2.3)", () => {
     await expect(page.getByPlaceholder("+1234567890")).toHaveValue(number);
   });
 });
+
+test.describe("Next.js -> FastAPI (knowledge articles and email templates, step 3.1)", () => {
+  test("an admin manages articles and templates through the website", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    const added = await page.request.post("/api/admin/knowledge", { data: { title: `E2E Article ${tag}`, content: "How it works." } });
+    expect(added.status()).toBe(201);
+    const article = await added.json();
+    expect(article).toMatchObject({ title: `E2E Article ${tag}`, category: "General" });
+    const listed = await (await page.request.get("/api/admin/knowledge")).json();
+    expect(listed.map((a: { id: string }) => a.id)).toContain(article.id);
+    expect((await page.request.post("/api/admin/knowledge", { data: { title: "No content" } })).status()).toBe(400);
+    expect(await (await page.request.delete(`/api/admin/knowledge?id=${article.id}`)).json()).toEqual({ success: true });
+    expect((await page.request.delete(`/api/admin/knowledge?id=${article.id}`)).status()).toBe(404);
+
+    const event = `e2e_${tag}`;
+    const saved = await page.request.put("/api/admin/emails", { data: { event, subject: "Hello", body_html: "<p>Hi</p>" } });
+    expect(await saved.json()).toMatchObject({ event, subject: "Hello" });
+    await page.request.put("/api/admin/emails", { data: { event, subject: "Hello again", body_html: "<p>Hi</p>" } });
+    const templates = await (await page.request.get("/api/admin/emails")).json();
+    expect(templates.find((t: { event: string }) => t.event === event).subject).toBe("Hello again");
+  });
+
+  test("the admin Settings page lists FastAPI's articles", async ({ page }) => {
+    const title = `E2E Page Article ${Date.now().toString(36)}`;
+    await page.request.post("/api/admin/knowledge", { data: { title, category: "E2E", content: "Shown on the page." } });
+    await page.goto("/admin/settings");
+    await expect(page.getByText(title)).toBeVisible();
+  });
+});
