@@ -120,7 +120,7 @@ move.
 | Area | Tables | Today | Target | Notes |
 |---|---|---|---|---|
 | Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3). Next.js: `DocumentRequirementType`, which moves with jobs in step 3 because job writes create its receipt types | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
-| Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | Next.js; none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
+| Content | `Job`, `EmailTemplate`, `KnowledgeArticle`; `JobPosition`, `JobSector` (no writer) | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1). Next.js: `Job` (step 3.2, with `DocumentRequirementType`); none | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp` | Next.js | FastAPI | One handover (§2.2). The S3 cutover must come first if documents will be stored on main (E2) |
@@ -202,8 +202,8 @@ updated.
 | `Job` | `/api/jobs/[id]` (delete, update)<br>`/api/jobs` (create) | 9 files, incl. `/api/applications`, `/api/candidates/[id]/application`, `/api/partner/candidates`, `/api/payments/paypal/capture-order`, … |
 | `JobPosition` | **none** | none |
 | `JobSector` | **none** | none |
-| `EmailTemplate` | `/api/admin/emails` (upsert) | `/api/admin/emails`, `lib/email.ts` |
-| `KnowledgeArticle` | `/api/admin/knowledge` (create, delete) | `/api/admin/knowledge`, `/api/chat`, page `/help` |
+| `EmailTemplate` | **FastAPI** `/api/v1/email-templates` (upsert); Next.js's `/api/admin/emails` passes requests on; `vertex_web` has no write grant (step 3.1) | `/api/admin/emails`, `lib/email.ts` |
+| `KnowledgeArticle` | **FastAPI** `/api/v1/knowledge` (create), `/api/v1/knowledge/{id}` (delete); Next.js's `/api/admin/knowledge` passes requests on; `vertex_web` has no write grant (step 3.1) | `/api/admin/knowledge`, `/api/chat`, page `/help` |
 
 ### Partners
 

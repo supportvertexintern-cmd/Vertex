@@ -283,13 +283,13 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting"} <= set(fastapi_owned_tables())
+    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting", "KnowledgeArticle", "EmailTemplate"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
 def test_a_handed_over_table_has_one_writer(conn, table):
     # docs/architecture/data-ownership.md: FastAPI writes it; Next.js only reads.
-    pk = "key" if table == "SystemSetting" else "id"
+    pk = {"SystemSetting": "key", "EmailTemplate": "event"}.get(table, "id")
     assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') is None
     for sql in (
         f'INSERT INTO "{table}" ({pk}) SELECT \'x\' WHERE false',

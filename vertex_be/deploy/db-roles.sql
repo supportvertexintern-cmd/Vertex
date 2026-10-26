@@ -184,7 +184,9 @@ BEGIN
     'Country',    -- reference data, step 2.1
     'Sector',     -- reference data, step 2.2
     'CountryDocumentRequirement',  -- reference data, step 2.2
-    'SystemSetting'  -- reference data, step 2.3
+    'SystemSetting',  -- reference data, step 2.3
+    'KnowledgeArticle',  -- content, step 3.1
+    'EmailTemplate'  -- content, step 3.1
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

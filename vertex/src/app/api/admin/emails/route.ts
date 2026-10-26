@@ -1,31 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireAdmin, requireAuth, forbidden } from "@/lib/api-auth";
+import { getAuthUser, requireAdmin } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns email templates since backend plan step 3.1
+// (vertex_be/app/api/v1/content.py): these handlers check the role early,
+// pass the request on with callBackend() and keep this route's response
+// shapes (a plain array, the plain template), so AdminSettings is
+// unchanged. FastAPI re-checks the session, the role and the input itself,
+// and vertex_web may no longer write the table (deploy/db-roles.sql).
+// lib/email.ts reads a template directly before sending.
+
+// GET /api/admin/emails: every template override, by event. Admin only.
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAdmin(user);
   if (guardRes) return guardRes;
-  const templates = await prisma.emailTemplate.findMany({ orderBy: { event: "asc" } });
-  return NextResponse.json(templates);
+
+  const result = await callBackend("/api/v1/email-templates");
+  return result.ok ? NextResponse.json(result.body.data) : backendResponse(result);
 }
 
+// PUT /api/admin/emails: creates or replaces the override for an event.
+// Admin only.
 export async function PUT(req: NextRequest) {
   const user = await getAuthUser(req);
-  const guardRes = requireAuth(user);
+  const guardRes = requireAdmin(user);
   if (guardRes) return guardRes;
-  if (user!.role !== "admin") return forbidden({ error: "Unauthorized" });
 
-  const body = await req.json();
-  if (!body.event || !body.subject || !body.body_html) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const template = await prisma.emailTemplate.upsert({
-    where: { event: body.event },
-    update: { subject: body.subject, body_html: body.body_html },
-    create: { event: body.event, subject: body.subject, body_html: body.body_html }
-  });
-
-  return NextResponse.json(template);
+  const result = await callBackend("/api/v1/email-templates", { method: "PUT", body });
+  return result.ok ? NextResponse.json(result.body.data) : backendResponse(result);
 }
