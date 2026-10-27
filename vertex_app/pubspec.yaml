@@ -12,7 +12,7 @@ dependencies:
 
   # ─── Core UI ────────────────────────────────────────────────
   cupertino_icons: ^1.0.8
-  google_fonts: ^8.2.1                 # Outfit font
+  google_fonts: ^9.0.0                 # Outfit font
   phosphor_flutter: ^2.1.0             # Same icons as web
 
   # ─── Navigation & State ─────────────────────────────────────
