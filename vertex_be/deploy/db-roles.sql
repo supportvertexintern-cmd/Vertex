@@ -189,7 +189,9 @@ BEGIN
     'EmailTemplate',  -- content, step 3.1
     'Job',  -- jobs, step 3.2
     'JobPaymentStage',  -- jobs, step 3.2
-    'DocumentRequirementType'  -- jobs, step 3.2 (receipt types)
+    'DocumentRequirementType',  -- jobs, step 3.2 (receipt types)
+    'JobSector',  -- jobs, step 3.3
+    'JobPosition'  -- jobs, step 3.3
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

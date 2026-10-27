@@ -120,34 +120,9 @@ export const candidateProfileSchema = z.object({
 // (vertex_be/app/api/v1/jobs.py, JobCreate/JobUpdate), which keeps
 // createJobSchema's rules field for field.
 
-// Programme sectors & positions (2026-09-02) — Marketing attaches one of
-// the same 8 canonical sector names already used everywhere else (the
-// Job.category values, both forms' SECTOR_ORDER constant) to a specific
-// Job, not free text.
-const CANONICAL_SECTORS = [
-  "Agriculture",
-  "Logistics & Warehousing",
-  "Manufacturing & Production",
-  "Construction & Trades",
-  "Hospitality",
-  "Healthcare",
-  "Transport & Delivery",
-  "General / Unskilled",
-] as const;
-
-export const createJobSectorSchema = z.object({
-  sector: z.enum(CANONICAL_SECTORS),
-});
-
-export const createJobPositionSchema = z.object({
-  title: z.string().min(2, "Title is required").max(150),
-  city: z.string().max(100).optional(),
-});
-
-export const updateJobPositionSchema = z.object({
-  title: z.string().min(2).max(150).optional(),
-  city: z.string().max(100).nullish(),
-});
+// Programme sectors & positions (2026-09-02): validated by FastAPI since
+// backend plan step 3.3 (vertex_be/app/api/v1/jobs.py: one of the 8
+// canonical sectors; a position's title 2-150 characters, city up to 100).
 
 // Applications — the Candidate Information Form: the first thing a
 // candidate (or a recruiter on a walk-in lead's behalf) ever fills in, not

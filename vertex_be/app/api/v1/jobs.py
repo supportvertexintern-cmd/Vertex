@@ -19,8 +19,11 @@ Differences, all deliberate:
 - Stripe pricing is synced by FastAPI (app/services/stripe_pricing.py)
   after the response, and on request through the manual sync below.
 
-Every change is on the audit trail (Job, JobPaymentStage and
-DocumentRequirementType are in AUDITED_MODELS).
+A programme's sectors and positions (the forms' "sector > position" pick)
+followed in step 3.3, as Next.js's /api/jobs/[id]/sectors/... routes did.
+
+Every change is on the audit trail (Job, JobPaymentStage, JobSector,
+JobPosition and DocumentRequirementType are in AUDITED_MODELS).
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 from fastapi.exceptions import RequestValidationError
@@ -43,7 +46,7 @@ from app.core.auth import AuthUser
 from app.core.rbac import require_role
 from app.db.session import SessionLocal
 from app.models.enums import CaseStage, JobStatus, Role
-from app.models.jobs import Job, JobPaymentStage
+from app.models.jobs import Job, JobPaymentStage, JobPosition, JobSector
 from app.models.reference import DocumentRequirementType
 from app.services.stripe_pricing import (
     PricingClient,
@@ -339,3 +342,130 @@ def sync_stripe_pricing(job_id: str, db: AuditedDb, _user: JobManager, stripe: S
         db.rollback()
         raise ApiError(502, "stripe_sync_failed", stripe_error_message(err)) from None
     return Data(data=[StagePriceOut.model_validate(s) for s in stages])
+
+
+# --- sectors and positions (step 3.3) -----------------------------------------
+
+# The 8 canonical sectors (the Job.category values and both forms'
+# SECTOR_ORDER), not free text.
+CanonicalSector = Literal[
+    "Agriculture",
+    "Logistics & Warehousing",
+    "Manufacturing & Production",
+    "Construction & Trades",
+    "Hospitality",
+    "Healthcare",
+    "Transport & Delivery",
+    "General / Unskilled",
+]
+
+UNIQUE_VIOLATION = "23505"
+
+
+class PositionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    job_sector_id: str
+    title: str
+    city: str | None
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
+
+
+class SectorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    job_id: str
+    sector: str
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
+    positions: list[PositionOut]
+
+
+class SectorIn(BaseModel):
+    sector: CanonicalSector
+
+
+class PositionIn(BaseModel):
+    title: str = Field(min_length=2, max_length=150)
+    city: str | None = Field(default=None, max_length=100)
+
+
+class PositionUpdate(BaseModel):
+    title: str = Field(default=None, min_length=2, max_length=150)  # type: ignore[assignment]
+    city: str | None = Field(default=None, max_length=100)
+
+
+def _sector_or_404(db: AuditedDb, job_id: str, sector_id: str) -> JobSector:
+    sector = db.get(JobSector, sector_id)
+    if sector is None or sector.job_id != job_id:
+        raise ApiError(404, "not_found", "Sector not found on this programme.")
+    return sector
+
+
+def _position_or_404(db: AuditedDb, job_id: str, sector_id: str, position_id: str) -> JobPosition:
+    position = db.get(JobPosition, position_id)
+    if position is None or position.job_sector_id != sector_id or position.job_sector.job_id != job_id:
+        raise ApiError(404, "not_found", "Position not found on this sector.")
+    return position
+
+
+@router.post("/jobs/{job_id}/sectors", status_code=status.HTTP_201_CREATED)
+def add_sector(job_id: str, body: SectorIn, db: AuditedDb, _user: JobManager) -> Data[SectorOut]:
+    """Attaches one of the canonical sectors to a programme."""
+    _job_or_404(db, job_id)
+    duplicate = ApiError(409, "duplicate", "This sector is already attached to this programme.")
+    if db.scalars(select(JobSector.id).where(JobSector.job_id == job_id, JobSector.sector == body.sector)).first() is not None:
+        raise duplicate
+    sector = JobSector(job_id=job_id, sector=body.sector)
+    db.add(sector)
+    try:
+        db.commit()
+    except IntegrityError as err:
+        db.rollback()
+        if getattr(err.orig, "pgcode", None) == UNIQUE_VIOLATION:  # a concurrent request
+            raise duplicate from None
+        raise
+    db.refresh(sector)
+    return Data(data=SectorOut.model_validate(sector))
+
+
+@router.delete("/jobs/{job_id}/sectors/{sector_id}")
+def remove_sector(job_id: str, sector_id: str, db: AuditedDb, _user: JobManager) -> Data[dict[str, str]]:
+    """Its positions go with it; applications that picked one let go of it."""
+    sector = _sector_or_404(db, job_id, sector_id)
+    with _writing(db):
+        db.delete(sector)
+    return Data(data={"id": sector_id})
+
+
+@router.post("/jobs/{job_id}/sectors/{sector_id}/positions", status_code=status.HTTP_201_CREATED)
+def add_position(job_id: str, sector_id: str, body: PositionIn, db: AuditedDb, _user: JobManager) -> Data[PositionOut]:
+    """e.g. "Grape Picker" under Italy's Agriculture sector."""
+    _sector_or_404(db, job_id, sector_id)
+    position = JobPosition(job_sector_id=sector_id, title=body.title, city=body.city)
+    with _writing(db):
+        db.add(position)
+    db.refresh(position)
+    return Data(data=PositionOut.model_validate(position))
+
+
+@router.patch("/jobs/{job_id}/sectors/{sector_id}/positions/{position_id}")
+def update_position(job_id: str, sector_id: str, position_id: str, body: PositionUpdate, db: AuditedDb, _user: JobManager) -> Data[PositionOut]:
+    """A position's title and city; a null city clears it."""
+    position = _position_or_404(db, job_id, sector_id, position_id)
+    with _writing(db):
+        for field in body.model_fields_set:
+            setattr(position, field, getattr(body, field))
+    db.refresh(position)
+    return Data(data=PositionOut.model_validate(position))
+
+
+@router.delete("/jobs/{job_id}/sectors/{sector_id}/positions/{position_id}")
+def remove_position(job_id: str, sector_id: str, position_id: str, db: AuditedDb, _user: JobManager) -> Data[dict[str, str]]:
+    position = _position_or_404(db, job_id, sector_id, position_id)
+    with _writing(db):
+        db.delete(position)
+    return Data(data={"id": position_id})
