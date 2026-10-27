@@ -20,6 +20,7 @@ flatten().fieldErrors; a body that isn't JSON is 400 invalid_json.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Generic, TypeVar
@@ -27,7 +28,8 @@ from typing import Annotated, Any, Generic, TypeVar
 from fastapi import FastAPI, Query, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, PlainSerializer
+from pydantic import AfterValidator, BaseModel, PlainSerializer
+from pydantic_core import PydanticCustomError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -48,6 +50,22 @@ UtcDateTime = Annotated[
     datetime,
     PlainSerializer(lambda v: v.isoformat(timespec="milliseconds") + ("Z" if v.tzinfo is None else ""), return_type=str),
 ]
+
+
+# zod's z.string().email() (zod 4's pattern, vertex/node_modules/zod/v4/core/
+# regexes.js), so FastAPI accepts and refuses the addresses the website's
+# schemas did. Pydantic's EmailStr is stricter: it refuses reserved domains
+# such as .test and .local, which staff and tests use.
+_ZOD_EMAIL = re.compile(r"^(?:[A-Za-z0-9_'+\-]+\.)*[A-Za-z0-9_'+\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\-]*\.)+[A-Za-z]{2,}$")
+
+
+def _email(value: str) -> str:
+    if not _ZOD_EMAIL.match(value):
+        raise PydanticCustomError("value_error", "Invalid email address")
+    return value
+
+
+Email = Annotated[str, AfterValidator(_email)]
 
 
 class Data(BaseModel, Generic[T]):

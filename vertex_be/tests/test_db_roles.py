@@ -70,9 +70,9 @@ RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 OWN_ROW = {
     "vertex_api": ("Region", """INSERT INTO "Region" (id, name) VALUES ('ctest-role-row', 'Role test')"""),
     "vertex_web": (
-        "EmployerClient",
-        """INSERT INTO "EmployerClient" (id, name, country, contact_name, contact_email, contact_phone)
-           VALUES ('ctest-role-row', 'Role test', 'Nowhere', 'Role test', 'role@test.invalid', '0')""",
+        "ConsultationBooking",
+        """INSERT INTO "ConsultationBooking" (id, email, amount, stripe_checkout_session_id)
+           VALUES ('ctest-role-row', 'role@test.invalid', 1, 'cs_ctest_role_row')""",
     ),
 }
 
@@ -284,7 +284,7 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting", "KnowledgeArticle", "EmailTemplate", "Job", "JobPaymentStage", "DocumentRequirementType", "JobSector", "JobPosition"} <= set(fastapi_owned_tables())
+    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting", "KnowledgeArticle", "EmailTemplate", "Job", "JobPaymentStage", "DocumentRequirementType", "JobSector", "JobPosition", "EmployerClient"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())

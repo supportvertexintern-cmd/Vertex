@@ -948,26 +948,9 @@ export const savePartnerCandidateDraftSchema = submitPartnerCandidateSchema.part
 
 // Phase 5: Employer/Client CRM (SRS FR-5.2) — the employer a vacancy is
 // actually for, distinct from Partner (which sources candidates, not jobs).
-export const createEmployerClientSchema = z.object({
-  name: z.string().min(2, "Name is required").max(150),
-  country: z.string().min(2, "Country is required").max(100),
-  industry: z.string().max(100).optional(),
-  contact_name: z.string().min(2, "Contact name is required").max(150),
-  contact_email: z.string().email("A valid contact email is required"),
-  contact_phone: z.string().min(3, "Contact phone is required").max(30),
-  notes: z.string().max(2000).optional(),
-});
-
-export const updateEmployerClientSchema = z.object({
-  name: z.string().min(2).max(150).optional(),
-  country: z.string().min(2).max(100).optional(),
-  industry: z.string().max(100).nullish(),
-  contact_name: z.string().min(2).max(150).optional(),
-  contact_email: z.string().email().optional(),
-  contact_phone: z.string().min(3).max(30).optional(),
-  status: z.enum(["active", "inactive"]).optional(),
-  notes: z.string().max(2000).nullish(),
-});
+// Validated by FastAPI since backend plan step 4.1
+// (vertex_be/app/api/v1/partners.py, EmployerClientCreate/Update), which
+// keeps the old create/updateEmployerClientSchema rules field for field.
 
 // Public contact form (/contact) — always emails PUBLIC_FORMS_NOTIFY_EMAIL
 // regardless of the intake_mode setting; there's no CRM-side equivalent of
