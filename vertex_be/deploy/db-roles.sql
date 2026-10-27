@@ -192,7 +192,9 @@ BEGIN
     'DocumentRequirementType',  -- jobs, step 3.2 (receipt types)
     'JobSector',  -- jobs, step 3.3
     'JobPosition',  -- jobs, step 3.3
-    'EmployerClient'  -- partners, step 4.1
+    'EmployerClient',  -- partners, step 4.1
+    'Campaign',  -- recruitment operations, step 5.1
+    'CampaignTarget'  -- recruitment operations, step 5.1
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
