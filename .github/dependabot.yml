@@ -9,6 +9,17 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Prisma 7 is a migration, not a bump (prisma.config.ts, the new
+      # client generator, a driver adapter); prisma and @prisma/client must
+      # also move together. Planned separately.
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      # Follows the Node version the app runs on, not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     commit-message: { prefix: chore, include: scope }
 
   - package-ecosystem: pip
