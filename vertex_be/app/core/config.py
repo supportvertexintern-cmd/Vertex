@@ -2,10 +2,24 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+# The driver installed (requirements.txt: psycopg2-binary). A bare
+# postgresql:// URL means whatever SQLAlchemy's default is, and SQLAlchemy
+# 2.1 changed that default to psycopg (v3).
+DB_DRIVER = "postgresql+psycopg2://"
+
+
+def with_driver(url: str) -> str:
+    """postgresql://... (the form Prisma and psql share) -> postgresql+psycopg2://...;
+    a URL that already names a driver is left alone."""
+    for bare in ("postgresql://", "postgres://"):
+        if url.startswith(bare):
+            return DB_DRIVER + url[len(bare):]
+    return url
 
 
 class Settings(BaseSettings):
@@ -51,6 +65,11 @@ class Settings(BaseSettings):
     # storage_path is always relative to this root, never a public URL.
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024
+
+    @field_validator("DATABASE_URL", "MIGRATION_DATABASE_URL")
+    @classmethod
+    def _name_the_driver(cls, url: str | None) -> str | None:
+        return with_driver(url) if url else url
 
     @model_validator(mode="after")
     def _deployed_envs_are_locked_down(self) -> "Settings":
