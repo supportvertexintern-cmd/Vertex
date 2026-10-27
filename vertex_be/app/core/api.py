@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Any, Generic, TypeVar
 
 from fastapi import FastAPI, Query, Request, status
@@ -66,6 +66,18 @@ def _email(value: str) -> str:
 
 
 Email = Annotated[str, AfterValidator(_email)]
+
+
+def js_date(value: str) -> datetime:
+    """A date string read as the website's new Date(value) read it: a date or
+    a date-time; one with an offset is stored in UTC, as Prisma stores it.
+    For a field_validator(mode="before"): anything else is a validation
+    error, not the 500 an Invalid Date became."""
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        raise PydanticCustomError("datetime_parsing", "Invalid date") from None
+    return parsed.astimezone(UTC).replace(tzinfo=None) if parsed.tzinfo else parsed
 
 
 class Data(BaseModel, Generic[T]):

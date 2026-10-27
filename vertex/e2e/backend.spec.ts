@@ -371,3 +371,33 @@ test.describe("Next.js -> FastAPI (recruiter targets, staff KPI targets and note
   });
 });
 
+test.describe("Next.js -> FastAPI (staff scorecards, step 5.3)", () => {
+  test("an admin drafts, finalizes and reads a scorecard through the website", async ({ page }) => {
+    const users = (await (await page.request.get("/api/admin/users?q=e2e-recruiter@test.local")).json()).data;
+    const recruiter = users.find((u: { email: string }) => u.email === "e2e-recruiter@test.local");
+    const keys = [
+      "target_achievement", "quality_accuracy", "reporting_timeliness", "compliance_data_discipline",
+      "supervision_collaboration", "issue_resolution_escalation", "professional_conduct",
+    ];
+    const month = "2026-09-01"; // the e2e database is created fresh for each run
+
+    const partial = await page.request.post("/api/staff-scorecards", {
+      data: { staff_id: recruiter.id, period_month: month, areas: [{ area_key: "quality_accuracy", rating: 5, evidence: "Clean records" }] },
+    });
+    expect(partial.status()).toBe(201);
+    const { data: draft } = await partial.json();
+    expect(draft.areas).toHaveLength(7);
+    const incomplete = await page.request.patch(`/api/staff-scorecards/${draft.id}`, { data: {} });
+    expect((await incomplete.json()).error.code).toBe("incomplete");
+
+    await page.request.post("/api/staff-scorecards", {
+      data: { staff_id: recruiter.id, period_month: month, areas: keys.map((area_key) => ({ area_key, rating: 4 })) },
+    });
+    const finalized = await page.request.patch(`/api/staff-scorecards/${draft.id}`, { data: {} });
+    expect((await finalized.json()).data).toMatchObject({ status: "finalized", overall_score: 4, performance_category: "Strong", required_action: "Maintain" });
+
+    const listed = (await (await page.request.get(`/api/staff-scorecards?staff_id=${recruiter.id}`)).json()).data;
+    expect(listed.find((s: { id: string }) => s.id === draft.id)).toMatchObject({ status: "finalized", staff: { id: recruiter.id } });
+  });
+});
+

@@ -21,17 +21,16 @@ not a 500.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from pydantic_core import PydanticCustomError
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DbSession
-from app.core.api import ApiError, Data, UtcDateTime
+from app.core.api import ApiError, Data, UtcDateTime, js_date
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.rbac import require_role
@@ -108,25 +107,13 @@ class CampaignDetail(CampaignListItem):
     criteria: dict[str, Any]
 
 
-def _date(value: str | None) -> datetime | None:
-    """new Date(value), as the website read it: a date or a date-time; one
-    with an offset is stored in UTC, as Prisma stores it."""
-    if value is None:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        raise PydanticCustomError("datetime_parsing", "Invalid date") from None
-    return parsed.astimezone(UTC).replace(tzinfo=None) if parsed.tzinfo else parsed
-
-
 class CampaignCreate(BaseModel):
     name: str = Field(min_length=3, max_length=150)
     criteria: dict[str, Any] = Field(default_factory=dict)
     start_date: datetime
     end_date: datetime  # a campaign has a bounded timeline (FR-3.3)
 
-    _dates = field_validator("start_date", "end_date", mode="before")(lambda v: _date(v) if isinstance(v, str) else v)
+    _dates = field_validator("start_date", "end_date", mode="before")(lambda v: js_date(v) if isinstance(v, str) else v)
 
 
 class CampaignUpdate(BaseModel):
@@ -137,7 +124,7 @@ class CampaignUpdate(BaseModel):
     start_date: datetime | None = None
     end_date: datetime | None = None
 
-    _dates = field_validator("start_date", "end_date", mode="before")(lambda v: (_date(v) if v else None) if isinstance(v, str) else v)
+    _dates = field_validator("start_date", "end_date", mode="before")(lambda v: (js_date(v) if v else None) if isinstance(v, str) else v)
 
 
 class TargetCreate(BaseModel):

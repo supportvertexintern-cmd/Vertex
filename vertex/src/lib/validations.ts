@@ -649,25 +649,10 @@ export const SCORECARD_AREAS = [
   { key: "professional_conduct", weight: 0.05, label: "Professional Conduct" },
 ] as const;
 
-const scorecardAreaKeys = SCORECARD_AREAS.map((a) => a.key) as [string, ...string[]];
-
-export const upsertStaffScorecardSchema = z.object({
-  staff_id: z.string().cuid(),
-  period_month: z.string().min(1),
-  areas: z
-    .array(
-      z.object({
-        area_key: z.enum(scorecardAreaKeys),
-        rating: z.number().min(1).max(5).optional(),
-        evidence: z.string().max(1000).optional(),
-      })
-    )
-    .max(SCORECARD_AREAS.length),
-});
-
-export const finalizeStaffScorecardSchema = z.object({
-  review_date: z.string().optional(),
-});
+// Scorecards are validated, scored and categorized by FastAPI since backend
+// plan step 5.3 (vertex_be/app/api/v1/scorecards.py), which keeps a copy
+// of these keys and weights: change both. vertex_be/tests/test_scorecards.py
+// fails until they match. The labels are only rendered here.
 
 // Contact form
 export const contactFormSchema = z.object({
