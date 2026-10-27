@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Job writes, the Stripe pricing sync and document-type writes are served
-// by FastAPI since backend plan step 3.2: each handler checks the role
+// by FastAPI since backend plan step 3.2, a programme's sectors and
+// positions since step 3.3: each handler checks the role
 // early, passes the request on and keeps its route's response shapes.
 // callBackend() itself is tested in lib/backend.test.ts; e2e/backend.spec.ts
 // goes through the real FastAPI.
@@ -31,6 +32,10 @@ import * as job from "@/app/api/jobs/[id]/route";
 import * as sync from "@/app/api/jobs/[id]/sync-stripe-pricing/route";
 import * as docTypes from "@/app/api/admin/document-types/route";
 import * as docType from "@/app/api/admin/document-types/[id]/route";
+import * as sectors from "@/app/api/jobs/[id]/sectors/route";
+import * as sector from "@/app/api/jobs/[id]/sectors/[sectorId]/route";
+import * as positions from "@/app/api/jobs/[id]/sectors/[sectorId]/positions/route";
+import * as position from "@/app/api/jobs/[id]/sectors/[sectorId]/positions/[positionId]/route";
 
 const req = (method = "GET", body?: string) =>
   new NextRequest("http://localhost/api/x", { method, body, headers: body ? { "content-type": "application/json" } : {} });
@@ -104,6 +109,43 @@ describe("document-type writes go to FastAPI", () => {
     callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: { id: "d1" } } });
     await docType.DELETE(req("DELETE"), params("d1"));
     expect(callBackend).toHaveBeenLastCalledWith("/api/v1/document-types/d1", { method: "DELETE" });
+  });
+});
+
+describe("sector and position writes go to FastAPI", () => {
+  const ids = (id: string, sectorId: string, positionId = "") => ({ params: Promise.resolve({ id, sectorId, positionId }) });
+
+  it.each([
+    ["POST sector", () => sectors.POST(req("POST", '{"sector":"Agriculture"}'), params("j1")), ["/api/v1/jobs/j1/sectors", { method: "POST", body: { sector: "Agriculture" } }]],
+    ["DELETE sector", () => sector.DELETE(req("DELETE"), ids("j1", "s1")), ["/api/v1/jobs/j1/sectors/s1", { method: "DELETE" }]],
+    [
+      "POST position",
+      () => positions.POST(req("POST", '{"title":"Picker"}'), ids("j1", "s1")),
+      ["/api/v1/jobs/j1/sectors/s1/positions", { method: "POST", body: { title: "Picker" } }],
+    ],
+    [
+      "PATCH position",
+      () => position.PATCH(req("PATCH", '{"city":null}'), ids("j1", "s/1", "p1")),
+      ["/api/v1/jobs/j1/sectors/s%2F1/positions/p1", { method: "PATCH", body: { city: null } }],
+    ],
+    ["DELETE position", () => position.DELETE(req("DELETE"), ids("j1", "s1", "p1")), ["/api/v1/jobs/j1/sectors/s1/positions/p1", { method: "DELETE" }]],
+  ])("%s", async (_name, call, expected) => {
+    await call();
+    expect(callBackend).toHaveBeenCalledWith(...expected);
+  });
+
+  it("answers with FastAPI's status and envelope", async () => {
+    const error = { code: "duplicate", message: "This sector is already attached to this programme." };
+    callBackend.mockResolvedValueOnce({ ok: false, status: 409, error });
+    const res = await sectors.POST(req("POST", '{"sector":"Agriculture"}'), params("j1"));
+    expect([res.status, await res.json()]).toEqual([409, { error }]);
+  });
+
+  it("refuses other roles without calling FastAPI", async () => {
+    state.role = "hr";
+    expect((await sectors.POST(req("POST", "{}"), params("j1"))).status).toBe(403);
+    expect((await position.DELETE(req("DELETE"), ids("j1", "s1", "p1"))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
   });
 });
 

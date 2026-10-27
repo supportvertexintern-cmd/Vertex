@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { updateJobPositionSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns a programme's sectors and positions since backend plan step
+// 3.3 (vertex_be/app/api/v1/jobs.py): this handler checks the role early,
+// passes the request on and answers with FastAPI's response. FastAPI
+// re-checks the session, the role, the input and that the ids belong
+// together, audits every change, and vertex_web may no longer write either
+// table (deploy/db-roles.sql).
+
+// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
-async function findScopedPosition(id: string, sectorId: string, positionId: string) {
-  const position = await prisma.jobPosition.findUnique({
-    where: { id: positionId },
-    include: { job_sector: true },
-  });
-  if (!position || position.job_sector_id !== sectorId || position.job_sector.job_id !== id) return null;
-  return position;
-}
+const path = (id: string, sectorId: string, positionId: string) =>
+  `/api/v1/jobs/${encodeURIComponent(id)}/sectors/${encodeURIComponent(sectorId)}/positions/${encodeURIComponent(positionId)}`;
 
 // PATCH /api/jobs/:id/sectors/:sectorId/positions/:positionId — edit a
 // position's title/city.
@@ -22,24 +23,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id, sectorId, positionId } = await params;
-  const existing = await findScopedPosition(id, sectorId, positionId);
-  if (!existing) {
-    return NextResponse.json({ error: { code: "not_found", message: "Position not found on this sector." } }, { status: 404 });
-  }
-
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 }); }
 
-  const parsed = updateJobPositionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const position = await prisma.jobPosition.update({ where: { id: positionId }, data: parsed.data });
-  return NextResponse.json({ data: position });
+  return backendResponse(await callBackend(path(id, sectorId, positionId), { method: "PATCH", body }));
 }
 
 // DELETE /api/jobs/:id/sectors/:sectorId/positions/:positionId
@@ -49,11 +36,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (guardRes) return guardRes;
 
   const { id, sectorId, positionId } = await params;
-  const existing = await findScopedPosition(id, sectorId, positionId);
-  if (!existing) {
-    return NextResponse.json({ error: { code: "not_found", message: "Position not found on this sector." } }, { status: 404 });
-  }
-
-  await prisma.jobPosition.delete({ where: { id: positionId } });
-  return NextResponse.json({ data: { id: positionId } });
+  return backendResponse(await callBackend(path(id, sectorId, positionId), { method: "DELETE" }));
 }

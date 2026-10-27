@@ -240,3 +240,40 @@ test.describe("Next.js -> FastAPI (jobs, payment stages and document types, step
     await expect(page.getByText(`E2E Job ${tag}`)).toBeVisible();
   });
 });
+
+test.describe("Next.js -> FastAPI (a programme's sectors and positions, step 3.3)", () => {
+  test("an admin attaches a sector and manages its positions through the website", async ({ page }) => {
+    const tag = Date.now().toString(36);
+    const job = await (
+      await page.request.post("/api/jobs", {
+        data: {
+          title: `E2E Sector Job ${tag}`,
+          country: "Italy",
+          city: "Verona",
+          job_description: "Seasonal grape harvest on a family vineyard, with housing provided.",
+          requirements: "Able to work outdoors all day.",
+        },
+      })
+    ).json();
+
+    const attached = await page.request.post(`/api/jobs/${job.id}/sectors`, { data: { sector: "Agriculture" } });
+    expect(attached.status()).toBe(201);
+    const { data: sector } = await attached.json();
+    expect(sector).toMatchObject({ job_id: job.id, sector: "Agriculture", positions: [] });
+    expect((await page.request.post(`/api/jobs/${job.id}/sectors`, { data: { sector: "Agriculture" } })).status()).toBe(409);
+    expect((await page.request.post(`/api/jobs/${job.id}/sectors`, { data: { sector: "Mining" } })).status()).toBe(422);
+
+    const positions = `/api/jobs/${job.id}/sectors/${sector.id}/positions`;
+    const { data: position } = await (await page.request.post(positions, { data: { title: "Grape Picker", city: "Verona" } })).json();
+    const edited = await page.request.patch(`${positions}/${position.id}`, { data: { title: "Fruit Picker" } });
+    expect((await edited.json()).data).toMatchObject({ title: "Fruit Picker", city: "Verona" });
+
+    // The programme's detail, still read by Next.js, sees FastAPI's writes.
+    const detail = await (await page.request.get(`/api/jobs/${job.id}`)).json();
+    expect(JSON.stringify(detail)).toContain("Fruit Picker");
+
+    expect((await page.request.delete(`/api/jobs/${job.id}/sectors/${sector.id}`)).status()).toBe(200);
+    expect((await page.request.patch(`${positions}/${position.id}`, { data: { title: "Gone" } })).status()).toBe(404);
+    await page.request.delete(`/api/jobs/${job.id}`);
+  });
+});

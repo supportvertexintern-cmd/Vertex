@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { createJobPositionSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns a programme's sectors and positions since backend plan step
+// 3.3 (vertex_be/app/api/v1/jobs.py): this handler checks the role early,
+// passes the request on and answers with FastAPI's response. FastAPI
+// re-checks the session, the role, the input and that the ids belong
+// together, audits every change, and vertex_web may no longer write either
+// table (deploy/db-roles.sql).
+
+// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // POST /api/jobs/:id/sectors/:sectorId/positions — adds a specific
@@ -14,25 +21,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (guardRes) return guardRes;
 
   const { id, sectorId } = await params;
-  const sector = await prisma.jobSector.findUnique({ where: { id: sectorId } });
-  if (!sector || sector.job_id !== id) {
-    return NextResponse.json({ error: { code: "not_found", message: "Sector not found on this programme." } }, { status: 404 });
-  }
-
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 }); }
 
-  const parsed = createJobPositionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const position = await prisma.jobPosition.create({
-    data: { job_sector_id: sectorId, title: parsed.data.title, city: parsed.data.city },
-  });
-
-  return NextResponse.json({ data: position }, { status: 201 });
+  return backendResponse(await callBackend(`/api/v1/jobs/${encodeURIComponent(id)}/sectors/${encodeURIComponent(sectorId)}/positions`, { method: "POST", body }));
 }

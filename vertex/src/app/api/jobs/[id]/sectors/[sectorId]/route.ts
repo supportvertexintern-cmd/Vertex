@@ -1,23 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns a programme's sectors and positions since backend plan step
+// 3.3 (vertex_be/app/api/v1/jobs.py): this handler checks the role early,
+// passes the request on and answers with FastAPI's response. FastAPI
+// re-checks the session, the role, the input and that the ids belong
+// together, audits every change, and vertex_web may no longer write either
+// table (deploy/db-roles.sql).
+
+// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
 // DELETE /api/jobs/:id/sectors/:sectorId — detaches a sector from this
-// programme, cascading its positions (JobPosition.job_sector_id is
-// onDelete: Cascade).
+// programme, with its positions.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; sectorId: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...JOB_MANAGER_ROLES]);
   if (guardRes) return guardRes;
 
   const { id, sectorId } = await params;
-  const sector = await prisma.jobSector.findUnique({ where: { id: sectorId } });
-  if (!sector || sector.job_id !== id) {
-    return NextResponse.json({ error: { code: "not_found", message: "Sector not found on this programme." } }, { status: 404 });
-  }
-
-  await prisma.jobSector.delete({ where: { id: sectorId } });
-  return NextResponse.json({ data: { id: sectorId } });
+  return backendResponse(await callBackend(`/api/v1/jobs/${encodeURIComponent(id)}/sectors/${encodeURIComponent(sectorId)}`, { method: "DELETE" }));
 }

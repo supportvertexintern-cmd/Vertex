@@ -18,7 +18,7 @@ from app.main import app
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.identity import User
-from app.models.jobs import Job, JobPaymentStage
+from app.models.jobs import Job, JobPaymentStage, JobPosition, JobSector
 from app.models.reference import DocumentRequirementType
 from app.services.stripe_pricing import payment_stage_amounts, product_name
 from tests.test_auth import add_session, bearer, session_token
@@ -103,7 +103,15 @@ def stages_of(db, job_id: str) -> list[JobPaymentStage]:
 
 
 def test_the_managers_match_next_js():
-    for route in ("route.ts", "[id]/route.ts", "[id]/sync-stripe-pricing/route.ts"):
+    for route in (
+        "route.ts",
+        "[id]/route.ts",
+        "[id]/sync-stripe-pricing/route.ts",
+        "[id]/sectors/route.ts",
+        "[id]/sectors/[sectorId]/route.ts",
+        "[id]/sectors/[sectorId]/positions/route.ts",
+        "[id]/sectors/[sectorId]/positions/[positionId]/route.ts",
+    ):
         src = (NEXT_JOBS / route).read_text(encoding="utf-8")
         roles = re.search(r"const JOB_MANAGER_ROLES = \[(.*?)\]", src).group(1)
         assert set(re.findall(r'"(\w+)"', roles)) == {r.value for r in JOB_MANAGERS}, route
@@ -356,3 +364,97 @@ def test_the_api_database_role_can_write_them(api, db, marketing):
     finally:
         db.execute(text("RESET ROLE"))
     assert (created.status_code, edited.status_code, deleted.status_code) == (201, 200, 200)
+
+
+# --- sectors and positions (step 3.3) -----------------------------------------
+
+
+def sectors_url(job_id: str) -> str:
+    return f"/api/v1/jobs/{job_id}/sectors"
+
+
+def test_marketing_attaches_a_sector_and_positions(api, db, marketing, job):
+    res = api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Agriculture"})
+    assert res.status_code == 201
+    sector = res.json()["data"]
+    assert (sector["job_id"], sector["sector"], sector["positions"]) == (job["id"], "Agriculture", [])
+    assert ISO_Z.fullmatch(sector["created_at"])
+
+    positions = f"{sectors_url(job['id'])}/{sector['id']}/positions"
+    added = api.post(positions, headers=marketing, json={"title": "Grape Picker", "city": "Verona"})
+    assert added.status_code == 201
+    position = added.json()["data"]
+    assert set(position) == {"id", "job_sector_id", "title", "city", "created_at", "updated_at"}
+    assert (position["job_sector_id"], position["title"], position["city"]) == (sector["id"], "Grape Picker", "Verona")
+
+    edited = api.patch(f"{positions}/{position['id']}", headers=marketing, json={"city": None}).json()["data"]
+    assert (edited["title"], edited["city"]) == ("Grape Picker", None)
+    renamed = api.patch(f"{positions}/{position['id']}", headers=marketing, json={"title": "Fruit Picker"}).json()["data"]
+    assert renamed["title"] == "Fruit Picker"
+
+    assert api.delete(f"{positions}/{position['id']}", headers=marketing).json() == {"data": {"id": position["id"]}}
+    assert db.get(JobPosition, position["id"]) is None
+
+
+def test_a_sector_is_attached_once(api, marketing, job):
+    api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Hospitality"})
+    dup = api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Hospitality"})
+    assert (dup.status_code, dup.json()["error"]) == (409, {"code": "duplicate", "message": "This sector is already attached to this programme."})
+
+
+@pytest.mark.parametrize("body", [{"sector": "Mining"}, {}, {"sector": "agriculture"}])
+def test_only_canonical_sectors(api, marketing, job, body):
+    assert api.post(sectors_url(job["id"]), headers=marketing, json=body).status_code == 422
+
+
+@pytest.mark.parametrize(("method", "body"), [("post", {"title": "x"}), ("post", {"title": "Picker", "city": "c" * 101}), ("patch", {"title": None})])
+def test_position_rules(api, db, marketing, job, method, body):
+    sector = api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Agriculture"}).json()["data"]
+    positions = f"{sectors_url(job['id'])}/{sector['id']}/positions"
+    if method == "post":
+        assert api.post(positions, headers=marketing, json=body).status_code == 422
+    else:
+        position = api.post(positions, headers=marketing, json={"title": "Picker"}).json()["data"]
+        assert api.patch(f"{positions}/{position['id']}", headers=marketing, json=body).status_code == 422
+
+
+def test_removing_a_sector_removes_its_positions(api, db, marketing, job):
+    sector = api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Agriculture"}).json()["data"]
+    position = api.post(f"{sectors_url(job['id'])}/{sector['id']}/positions", headers=marketing, json={"title": "Picker"}).json()["data"]
+    res = api.delete(f"{sectors_url(job['id'])}/{sector['id']}", headers=marketing)
+    assert (res.status_code, res.json()) == (200, {"data": {"id": sector["id"]}})
+    assert db.get(JobSector, sector["id"]) is None and db.get(JobPosition, position["id"]) is None
+
+
+def test_ids_must_belong_together(api, db, marketing, job):
+    other = api.post("/api/v1/jobs", headers=marketing, json=new_job()).json()["data"]
+    sector = api.post(sectors_url(job["id"]), headers=marketing, json={"sector": "Agriculture"}).json()["data"]
+    position = api.post(f"{sectors_url(job['id'])}/{sector['id']}/positions", headers=marketing, json={"title": "Picker"}).json()["data"]
+
+    assert api.post(sectors_url("cnosuchjob0000"), headers=marketing, json={"sector": "Agriculture"}).json()["error"]["message"] == "Job not found."
+    wrong_job = api.delete(f"{sectors_url(other['id'])}/{sector['id']}", headers=marketing)
+    assert (wrong_job.status_code, wrong_job.json()["error"]["message"]) == (404, "Sector not found on this programme.")
+    other_sector = api.post(sectors_url(other["id"]), headers=marketing, json={"sector": "Hospitality"}).json()["data"]
+    wrong_sector = api.patch(f"{sectors_url(other['id'])}/{other_sector['id']}/positions/{position['id']}", headers=marketing, json={"title": "Moved"})
+    assert (wrong_sector.status_code, wrong_sector.json()["error"]["message"]) == (404, "Position not found on this sector.")
+    assert db.get(JobPosition, position["id"]).title == "Picker"
+
+
+def test_only_job_managers_manage_sectors(api, db, job):
+    _, hr = as_role(db, Role.hr)
+    assert api.post(sectors_url(job["id"]), headers=hr, json={"sector": "Agriculture"}).status_code == 403
+
+
+def test_sector_and_position_writes_are_on_the_trail(api, db):
+    actor, headers = as_role(db, Role.marketing)
+    job = api.post("/api/v1/jobs", headers=headers, json=new_job()).json()["data"]
+    sector = api.post(sectors_url(job["id"]), headers=headers, json={"sector": "Agriculture"}).json()["data"]
+    position = api.post(f"{sectors_url(job['id'])}/{sector['id']}/positions", headers=headers, json={"title": "Picker"}).json()["data"]
+    api.delete(f"{sectors_url(job['id'])}/{sector['id']}", headers=headers)
+
+    def trail(entity_id):
+        return [(e.action, e.actor_id) for e in db.scalars(select(AuditLog).where(AuditLog.entity_id == entity_id).order_by(AuditLog.created_at, AuditLog.id))]
+
+    assert trail(sector["id"]) == [("create", actor), ("delete", actor)]
+    assert trail(position["id"]) == [("create", actor), ("delete", actor)]  # removed with its sector, still recorded
+
