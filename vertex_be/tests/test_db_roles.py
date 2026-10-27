@@ -284,7 +284,7 @@ def fastapi_owned_tables() -> list[str]:
 
 
 def test_the_handover_list_is_read():
-    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting", "KnowledgeArticle", "EmailTemplate", "Job", "JobPaymentStage", "DocumentRequirementType", "JobSector", "JobPosition", "EmployerClient", "Campaign", "CampaignTarget", "RecruiterTarget", "StaffKpiTarget", "RecruiterNote"} <= set(fastapi_owned_tables())
+    assert {"FeePolicy", "Region", "Country", "Sector", "CountryDocumentRequirement", "SystemSetting", "KnowledgeArticle", "EmailTemplate", "Job", "JobPaymentStage", "DocumentRequirementType", "JobSector", "JobPosition", "EmployerClient", "Campaign", "CampaignTarget", "RecruiterTarget", "StaffKpiTarget", "RecruiterNote", "StaffScorecard", "StaffScorecardArea"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
