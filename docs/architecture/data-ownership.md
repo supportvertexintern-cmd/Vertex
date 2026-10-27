@@ -83,9 +83,17 @@ the three moves first would have FastAPI writing a table Next.js still owns.
 - the admin user pages;
 - **partner account provisioning and deletion** (`/api/admin/partners/[id]/provision-account`, `/api/admin/partners/[id]`).
 
-Users and sessions moves **last**, so when Partners moves:
-- **Provisioning a partner account** stays a Next.js handler: Next.js creates the `User`, then calls FastAPI to link it (`Partner.user_id`).
-- **Deleting a partner** works the same way in reverse: FastAPI updates or deletes the `Partner`, and Next.js deactivates or deletes the `User`.
+Users and sessions moves **last**. Partner provisioning, a partner's
+contact-email change (which re-points their login) and a partner delete
+each write both the `Partner` and its `User`, and approving a referral agent
+does the same for `ReferralAgent`.
+
+**Owner's decision (2026-10-27): `Partner` and `ReferralAgent` move with
+Users and sessions,** not before. Splitting each of those actions across two
+services (Next.js writes the `User`, FastAPI the `Partner`) would make one
+click two separate commits, with undo logic when the second fails, and
+every partner feature built twice. `EmployerClient`, which has no login,
+moved on its own (step 4.1).
 
 `POST /api/auth/register` creates the `User` and, for candidates, the
 `Candidate`. After the pipeline moves, it creates the `Candidate` through
@@ -129,8 +137,8 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 |---|---|---|---|---|
 | Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3), **`DocumentRequirementType`** (step 3.2, with jobs, because job writes create its receipt types) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `JobPaymentStage`, `JobSector`, `JobPosition`, `EmailTemplate`, `KnowledgeArticle` | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1), **`Job`, `JobPaymentStage`** (step 3.2, with Stripe pricing), **`JobSector`, `JobPosition`** (step 3.3) | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
-| Partners | `Partner`, `EmployerClient`, `ReferralAgent`; `ReferralAgentTarget` (no writer) | **FastAPI: `EmployerClient`** (step 4.1). Next.js: `Partner` (step 4.2), `ReferralAgent` (step 4.3); none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
-| Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
+| Partners | `Partner`, `EmployerClient`, `ReferralAgent`; `ReferralAgentTarget` (no writer) | **FastAPI: `EmployerClient`** (step 4.1). Next.js: `Partner`, `ReferralAgent`, which move with Users and sessions (§2.3); none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
+| Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | **FastAPI: `Campaign`, `CampaignTarget`** (step 5.1). Next.js: the rest (steps 5.2-5.4) | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp` | Next.js | FastAPI | One handover (§2.2). The S3 cutover must come first if documents will be stored on main (E2) |
 | Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommission`, `ReferralCommissionRule` (no writer). `JobPaymentStage` moved with jobs (step 3.2) | Next.js; none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
 | Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | Next.js | FastAPI | Last: FastAPI becomes the session issuer |
@@ -145,7 +153,7 @@ With the areas in §3, only three handlers still write across areas, and all of 
 
 | Handler | Writes | Resolution |
 |---|---|---|
-| `/api/admin/partners/[id]`, `.../provision-account` | `Partner` + `User` | Next.js orchestrates; FastAPI writes `Partner` (§2.3) |
+| `/api/admin/partners/[id]`, `.../provision-account` | `Partner` + `User` | Moves with Users and sessions (owner's decision, §2.3) |
 | `/api/auth/register` | `User` + `Candidate` | Next.js creates the `Candidate` through FastAPI once the pipeline has moved |
 
 **Foreign keys across areas** don't block a move: a service may read and
@@ -226,8 +234,8 @@ updated.
 
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
-| `Campaign` | `/api/campaigns/[id]` (delete, update)<br>`/api/campaigns` (create) | `/api/campaigns/[id]`, `/api/campaigns/[id]/targets`, `/api/campaigns`, `/api/inhouse/campaigns` |
-| `CampaignTarget` | `/api/campaigns/[id]/targets/[targetId]` (delete)<br>`/api/campaigns/[id]/targets` (create) | `/api/campaigns/[id]/targets/[targetId]`, `/api/inhouse/overview`, `/api/recruiter-targets`, `/api/supervisor/recruiters/[id]`, `/api/supervisor/team-targets`, `server/services/kpi.ts` |
+| `Campaign` | **FastAPI** `/api/v1/campaigns` (create), `/api/v1/campaigns/{id}` (update, delete); Next.js's `/api/campaigns` routes pass requests on; `vertex_web` has no write grant (step 5.1) | `/api/campaigns/[id]`, `/api/campaigns/[id]/targets`, `/api/campaigns`, `/api/inhouse/campaigns` |
+| `CampaignTarget` | **FastAPI** `/api/v1/campaigns/{id}/targets` (create), `…/targets/{targetId}` (delete), and with its campaign; audited since step 5.1; `vertex_web` has no write grant | `/api/campaigns/[id]/targets/[targetId]`, `/api/inhouse/overview`, `/api/recruiter-targets`, `/api/supervisor/recruiters/[id]`, `/api/supervisor/team-targets`, `server/services/kpi.ts` |
 | `RecruiterTarget` | `/api/recruiter-targets` (upsert) | `/api/recruiter-targets`, `/api/supervisor/recruiters/[id]`, `/api/supervisor/team-targets`, `server/services/kpi.ts` |
 | `RecruiterNote` | `/api/recruiter-notes` (create) | `/api/recruiter-notes` |
 | `Report` | `/api/reports/[id]/resubmit` (update)<br>`/api/reports/[id]/return` (update)<br>`/api/reports/[id]/verify` (update)<br>`/api/reports` (create, update, updateMany) | 9 files, incl. `/api/inhouse/overview`, `/api/reports/[id]/resubmit`, `/api/reports/[id]/return`, `/api/reports/[id]`, … |

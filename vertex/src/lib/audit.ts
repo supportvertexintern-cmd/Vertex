@@ -38,7 +38,7 @@ const AUDITED_MODELS = new Set([
   "ReferralCommission",
   "ReferralCommissionRule",
   "ReferralAgentTarget",
-  // Written by FastAPI since backend plan steps 2.1-3.3, which audits them.
+  // Written by FastAPI since backend plan steps 2.1-5.1, which audits them.
   "Region",
   "Country",
   "Sector",
@@ -50,6 +50,7 @@ const AUDITED_MODELS = new Set([
   "JobPaymentStage",
   "JobSector",
   "JobPosition",
+  "CampaignTarget",
 ]);
 const AUDITED_OPERATIONS = new Set(["create", "update", "delete"]);
 

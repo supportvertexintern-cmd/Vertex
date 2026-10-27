@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { updateCampaignSchema } from "@/lib/validations";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
-// See the matching comment in /api/campaigns/route.ts — In-House creates
-// campaigns for their own country. An In-House Supervisor may only edit/
-// delete a campaign they themselves created (checked below), not another
-// country's; Director/admin can touch any.
+// FastAPI owns campaigns and their targets since backend plan step 5.1
+// (vertex_be/app/api/v1/campaigns.py): these handlers check the role early,
+// pass the request on with callBackend() and answer with FastAPI's
+// response. FastAPI re-checks the session, the role, the scoping (an
+// In-House Supervisor edits only campaigns they created and targets only
+// their own assigned countries) and the input, audits every change, and
+// vertex_web may no longer write either table (deploy/db-roles.sql).
+
+// Must match CAMPAIGN_MANAGERS in campaigns.py (tests check it).
 const CAMPAIGN_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
-const CROSS_CAMPAIGN_ROLES = ["director", "admin"] as const;
+// Must match CAMPAIGN_READERS in campaigns.py (tests check it): a recruiter
+// needs to see what campaign targets apply to their work.
+const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
+
+const path = (id: string) => `/api/v1/campaigns/${encodeURIComponent(id)}`;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
@@ -18,32 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const campaign = await prisma.campaign.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      criteria: true,
-      status: true,
-      start_date: true,
-      end_date: true,
-      creator: { select: { id: true, full_name: true } },
-      targets: {
-        select: {
-          id: true,
-          metric: true,
-          target_value: true,
-          country: { select: { id: true, name: true } },
-          region: { select: { id: true, name: true } },
-        },
-      },
-    },
-  });
-  if (!campaign) {
-    return NextResponse.json({ error: { code: "not_found", message: "Campaign not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: campaign });
+  return backendResponse(await callBackend(path(id)));
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -52,44 +33,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id } = await params;
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = updateCampaignSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const existing = await prisma.campaign.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: { code: "not_found", message: "Campaign not found." } }, { status: 404 });
-  }
-
-  if (!CROSS_CAMPAIGN_ROLES.includes(user!.role as (typeof CROSS_CAMPAIGN_ROLES)[number]) && existing.created_by !== user!.userId) {
-    return forbidden({ error: { code: "forbidden", message: "You can only edit campaigns you created." } });
-  }
-
-  const { start_date, end_date, ...rest } = parsed.data;
-
-  const updated = await auditedPrisma(user!.userId).campaign.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(start_date ? { start_date: new Date(start_date) } : {}),
-      ...(end_date ? { end_date: new Date(end_date) } : {}),
-    },
-    select: { id: true, name: true, status: true, start_date: true, end_date: true },
-  });
-
-  return NextResponse.json({ data: updated });
+  return backendResponse(await callBackend(path(id), { method: "PATCH", body }));
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -98,15 +48,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const existing = await prisma.campaign.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: { code: "not_found", message: "Campaign not found." } }, { status: 404 });
-  }
-
-  if (!CROSS_CAMPAIGN_ROLES.includes(user!.role as (typeof CROSS_CAMPAIGN_ROLES)[number]) && existing.created_by !== user!.userId) {
-    return forbidden({ error: { code: "forbidden", message: "You can only delete campaigns you created." } });
-  }
-
-  await auditedPrisma(user!.userId).campaign.delete({ where: { id } });
-  return NextResponse.json({ data: { id } });
+  return backendResponse(await callBackend(path(id), { method: "DELETE" }));
 }

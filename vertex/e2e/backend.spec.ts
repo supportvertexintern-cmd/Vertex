@@ -304,3 +304,32 @@ test.describe("Next.js -> FastAPI (employer clients, step 4.1)", () => {
   });
 });
 
+test.describe("Next.js -> FastAPI (campaigns and their targets, step 5.1)", () => {
+  test("an admin runs a campaign through the website", async ({ page }) => {
+    const name = `E2E Campaign ${Date.now().toString(36)}`;
+    const created = await page.request.post("/api/campaigns", { data: { name, start_date: "2026-11-01", end_date: "2026-12-31" } });
+    expect(created.status()).toBe(201);
+    const { data: campaign } = await created.json();
+    expect(campaign).toMatchObject({ name, status: "draft", start_date: "2026-11-01T00:00:00.000Z" });
+
+    const backwards = await page.request.post("/api/campaigns", { data: { name, start_date: "2026-12-31", end_date: "2026-11-01" } });
+    expect(backwards.status()).toBe(422);
+
+    const target = await page.request.post(`/api/campaigns/${campaign.id}/targets`, { data: { metric: "verified_candidates", target_value: 25 } });
+    expect(target.status()).toBe(201);
+    const { data: t } = await target.json();
+
+    expect((await page.request.patch(`/api/campaigns/${campaign.id}`, { data: { status: "active" } })).status()).toBe(200);
+    const active = (await (await page.request.get("/api/campaigns?status=active")).json()).data;
+    const listed = active.find((c: { id: string }) => c.id === campaign.id);
+    expect(listed.targets.map((x: { id: string }) => x.id)).toEqual([t.id]);
+
+    await page.goto("/management/campaigns");
+    await expect(page.getByText(name)).toBeVisible();
+
+    expect((await page.request.delete(`/api/campaigns/${campaign.id}/targets/${t.id}`)).status()).toBe(200);
+    expect((await page.request.delete(`/api/campaigns/${campaign.id}`)).status()).toBe(200);
+    expect((await page.request.get(`/api/campaigns/${campaign.id}`)).status()).toBe(404);
+  });
+});
+
