@@ -333,3 +333,41 @@ test.describe("Next.js -> FastAPI (campaigns and their targets, step 5.1)", () =
   });
 });
 
+test.describe("Next.js -> FastAPI (recruiter targets, staff KPI targets and notes, step 5.2)", () => {
+  test("an admin sets targets and leaves a note, and the website's KPI read sees them", async ({ page }) => {
+    const users = (await (await page.request.get("/api/admin/users?q=e2e-recruiter@test.local")).json()).data;
+    const recruiter = users.find((u: { email: string }) => u.email === "e2e-recruiter@test.local");
+    expect(recruiter).toBeTruthy();
+
+    // A campaign target to allocate from (step 5.1's routes).
+    const { data: campaign } = await (
+      await page.request.post("/api/campaigns", { data: { name: `E2E Targets ${Date.now().toString(36)}`, start_date: "2026-11-01", end_date: "2026-12-31" } })
+    ).json();
+    const { data: campaignTarget } = await (
+      await page.request.post(`/api/campaigns/${campaign.id}/targets`, { data: { metric: "verified_candidates", target_value: 100 } })
+    ).json();
+
+    const allocated = await page.request.post("/api/recruiter-targets", { data: { campaign_target_id: campaignTarget.id, recruiter_id: recruiter.id, target_value: 30 } });
+    expect(allocated.status()).toBe(201);
+    expect((await allocated.json()).data).toMatchObject({ target_value: 30, recruiter: { id: recruiter.id } });
+    const listed = (await (await page.request.get(`/api/recruiter-targets?campaign_target_id=${campaignTarget.id}`)).json()).data;
+    expect(listed.map((t: { recruiter: { id: string } }) => t.recruiter.id)).toEqual([recruiter.id]);
+
+    const label = "Candidate identification"; // on a recruiter's weekly report
+    const kpi = await page.request.post("/api/staff-kpi-targets", { data: { staff_id: recruiter.id, cycle: "weekly", kpi_label: label, target_value: 12 } });
+    expect(kpi.status()).toBe(201);
+    const badLabel = await page.request.post("/api/staff-kpi-targets", { data: { staff_id: recruiter.id, cycle: "weekly", kpi_label: "Made-up KPI", target_value: 12 } });
+    expect((await badLabel.json()).error.code).toBe("invalid_label");
+    // Targets vs actuals is still computed by Next.js from the pipeline.
+    const vsActuals = await (await page.request.get(`/api/staff-kpi-targets?staff_id=${recruiter.id}&cycle=weekly`)).json();
+    expect(JSON.stringify(vsActuals.data)).toContain(label);
+
+    const note = await page.request.post("/api/recruiter-notes", { data: { recruiter_id: recruiter.id, message: "Strong week, keep it up." } });
+    expect(note.status()).toBe(201);
+    const notes = (await (await page.request.get(`/api/recruiter-notes?recruiter_id=${recruiter.id}`)).json()).data;
+    expect(notes[0]).toMatchObject({ message: "Strong week, keep it up.", author: { full_name: "E2E Admin" } });
+
+    await page.request.delete(`/api/campaigns/${campaign.id}`);
+  });
+});
+

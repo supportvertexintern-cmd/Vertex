@@ -194,7 +194,10 @@ BEGIN
     'JobPosition',  -- jobs, step 3.3
     'EmployerClient',  -- partners, step 4.1
     'Campaign',  -- recruitment operations, step 5.1
-    'CampaignTarget'  -- recruitment operations, step 5.1
+    'CampaignTarget',  -- recruitment operations, step 5.1
+    'RecruiterTarget',  -- recruitment operations, step 5.2
+    'StaffKpiTarget',  -- recruitment operations, step 5.2
+    'RecruiterNote'  -- recruitment operations, step 5.2
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
