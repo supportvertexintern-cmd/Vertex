@@ -1,29 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { createEmployerClientSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-// In-House Supervisor no longer manages Employer Clients — confirmed with
-// the business, kept Director/admin-only.
+// FastAPI owns employer clients since backend plan step 4.1
+// (vertex_be/app/api/v1/partners.py): these handlers check the role early,
+// pass the request on with callBackend() and answer with FastAPI's
+// response. FastAPI re-checks the session, the role and the input itself,
+// audits every change, and vertex_web may no longer write the table
+// (deploy/db-roles.sql).
+
+// Must match EMPLOYER_CLIENT_READERS / EMPLOYER_CLIENT_MANAGERS in
+// partners.py (tests check it). Marketing reads the list to link a job
+// posting to a client; In-House Supervisor no longer manages them
+// (confirmed with the business).
 const EMPLOYER_CLIENT_MANAGER_ROLES = ["director", "admin"] as const;
 
-// GET /api/admin/employer-clients — readable by Marketing too (needs the
-// list to link a job posting to a client), not just management.
+// GET /api/admin/employer-clients — every client, by name, with its job count.
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["marketing", "director", "admin"]);
   if (guardRes) return guardRes;
 
-  const employerClients = await prisma.employerClient.findMany({
-    include: { _count: { select: { jobs: true } } },
-    orderBy: { name: "asc" },
-  });
-
-  return NextResponse.json({ data: employerClients });
+  return backendResponse(await callBackend("/api/v1/employer-clients"));
 }
 
-// POST /api/admin/employer-clients — In-House Supervisor/Director (admin retains override).
+// POST /api/admin/employer-clients — Director (admin retains override).
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...EMPLOYER_CLIENT_MANAGER_ROLES]);
@@ -35,16 +36,5 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = createEmployerClientSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const employerClient = await db.employerClient.create({ data: parsed.data });
-  return NextResponse.json({ data: employerClient }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/employer-clients", { method: "POST", body }));
 }

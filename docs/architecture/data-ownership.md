@@ -129,7 +129,7 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 |---|---|---|---|---|
 | Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3), **`DocumentRequirementType`** (step 3.2, with jobs, because job writes create its receipt types) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `JobPaymentStage`, `JobSector`, `JobPosition`, `EmailTemplate`, `KnowledgeArticle` | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1), **`Job`, `JobPaymentStage`** (step 3.2, with Stripe pricing), **`JobSector`, `JobPosition`** (step 3.3) | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
-| Partners | `Partner`, `EmployerClient`; `ReferralAgent`, `ReferralAgentTarget` (no writer) | Next.js; none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
+| Partners | `Partner`, `EmployerClient`, `ReferralAgent`; `ReferralAgentTarget` (no writer) | **FastAPI: `EmployerClient`** (step 4.1). Next.js: `Partner` (step 4.2), `ReferralAgent` (step 4.3); none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | Next.js | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp` | Next.js | FastAPI | One handover (§2.2). The S3 cutover must come first if documents will be stored on main (E2) |
 | Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommission`, `ReferralCommissionRule` (no writer). `JobPaymentStage` moved with jobs (step 3.2) | Next.js; none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
@@ -218,8 +218,8 @@ updated.
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
 | `Partner` | `/api/admin/partners/[id]/provision-account` (update)<br>`/api/admin/partners/[id]` (delete, update)<br>`/api/admin/partners` (create) | 10 files, incl. `/api/admin/backup/partners-csv`, `/api/admin/partners/[id]/provision-account`, `/api/admin/partners/[id]/reset-password`, `/api/admin/partners/[id]`, … |
-| `EmployerClient` | `/api/admin/employer-clients/[id]` (update)<br>`/api/admin/employer-clients` (create) | `/api/admin/employer-clients/[id]`, `/api/admin/employer-clients` |
-| `ReferralAgent` | **none** | none |
+| `EmployerClient` | **FastAPI** `/api/v1/employer-clients` (create), `/api/v1/employer-clients/{id}` (update); Next.js's routes pass requests on; `vertex_web` has no write grant (step 4.1) | **FastAPI** (the same routes, list and detail) |
+| `ReferralAgent` | `/api/referral-agents/register` (create), `/api/referral-agents/verify-email` (update), `/api/admin/referral-agents/[id]` and `…/approve` (update). Moves in step 4.3 | `/api/admin/referral-agents`, … |
 | `ReferralAgentTarget` | **none** | none |
 
 ### Recruitment operations

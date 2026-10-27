@@ -277,3 +277,30 @@ test.describe("Next.js -> FastAPI (a programme's sectors and positions, step 3.3
     await page.request.delete(`/api/jobs/${job.id}`);
   });
 });
+
+test.describe("Next.js -> FastAPI (employer clients, step 4.1)", () => {
+  test("an admin adds and edits an employer client through the website", async ({ page }) => {
+    const name = `E2E Employer ${Date.now().toString(36)}`;
+    const client = { name, country: "Poland", contact_name: "Anna Nowak", contact_email: "anna@agro.test", contact_phone: "+48 600 000 000" };
+    const created = await page.request.post("/api/admin/employer-clients", { data: client });
+    expect(created.status()).toBe(201);
+    const { data } = await created.json();
+    expect(data).toMatchObject({ name, status: "active" });
+
+    const bad = await page.request.post("/api/admin/employer-clients", { data: { ...client, contact_email: "nope" } });
+    expect(bad.status()).toBe(422);
+    expect(Object.keys((await bad.json()).error.details)).toEqual(["contact_email"]);
+
+    const edited = await page.request.patch(`/api/admin/employer-clients/${data.id}`, { data: { status: "inactive" } });
+    expect((await edited.json()).data.status).toBe("inactive");
+
+    const listed = (await (await page.request.get("/api/admin/employer-clients")).json()).data;
+    expect(listed.find((c: { id: string }) => c.id === data.id)._count).toEqual({ jobs: 0 });
+    const detail = (await (await page.request.get(`/api/admin/employer-clients/${data.id}`)).json()).data;
+    expect(detail.jobs).toEqual([]);
+
+    await page.goto("/management/employer-clients");
+    await expect(page.getByText(name)).toBeVisible();
+  });
+});
+

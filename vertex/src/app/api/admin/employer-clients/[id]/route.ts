@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { updateEmployerClientSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns employer clients since backend plan step 4.1
+// (vertex_be/app/api/v1/partners.py): these handlers check the role early,
+// pass the request on with callBackend() and answer with FastAPI's
+// response. FastAPI re-checks the session, the role and the input itself,
+// audits every change, and vertex_web may no longer write the table
+// (deploy/db-roles.sql).
+
+// Must match EMPLOYER_CLIENT_READERS / EMPLOYER_CLIENT_MANAGERS in
+// partners.py (tests check it). Marketing reads the list to link a job
+// posting to a client; In-House Supervisor no longer manages them
+// (confirmed with the business).
 const EMPLOYER_CLIENT_MANAGER_ROLES = ["director", "admin"] as const;
+
+const path = (id: string) => `/api/v1/employer-clients/${encodeURIComponent(id)}`;
 
 // GET /api/admin/employer-clients/:id — detail, including its linked jobs.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,17 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const employerClient = await prisma.employerClient.findUnique({
-    where: { id },
-    include: {
-      jobs: { select: { id: true, title: true, country: true, city: true, status: true, created_at: true }, orderBy: { created_at: "desc" } },
-    },
-  });
-  if (!employerClient) {
-    return NextResponse.json({ error: { code: "not_found", message: "Employer/client not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: employerClient });
+  return backendResponse(await callBackend(path(id)));
 }
 
 // PATCH /api/admin/employer-clients/:id
@@ -33,27 +34,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const existing = await prisma.employerClient.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: { code: "not_found", message: "Employer/client not found." } }, { status: 404 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = updateEmployerClientSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const employerClient = await db.employerClient.update({ where: { id }, data: parsed.data });
-  return NextResponse.json({ data: employerClient });
+  return backendResponse(await callBackend(path(id), { method: "PATCH", body }));
 }
