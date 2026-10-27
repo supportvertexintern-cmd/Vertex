@@ -33,7 +33,14 @@ export default async function globalTeardown() {
     // but only after Country deletion has already run, which is too late.
     await prisma.partnerCandidate.deleteMany({ where: { partner: { name: "E2E Test Partner" } } });
     await prisma.partner.deleteMany({ where: { name: "E2E Test Partner" } });
-    await prisma.user.deleteMany({ where: { email: { startsWith: "e2e-", endsWith: "@test.local" } } });
+    // StaffKpiTarget.set_by and RecruiterTarget.set_by are NOT NULL yet
+    // ON DELETE SET NULL (inherited schema), so a target an e2e user set
+    // blocks deleting that user: remove those targets first.
+    const e2eUsers = { email: { startsWith: "e2e-", endsWith: "@test.local" } };
+    const e2eUserIds = (await prisma.user.findMany({ where: e2eUsers, select: { id: true } })).map((u: { id: string }) => u.id);
+    await prisma.staffKpiTarget.deleteMany({ where: { set_by: { in: e2eUserIds } } });
+    await prisma.recruiterTarget.deleteMany({ where: { set_by: { in: e2eUserIds } } });
+    await prisma.user.deleteMany({ where: e2eUsers });
     await prisma.country.deleteMany({ where: { name: "E2E Country" } });
     await prisma.region.deleteMany({ where: { name: "E2E Region" } });
     // Application rows cascade with the Job (onDelete: Cascade in schema).

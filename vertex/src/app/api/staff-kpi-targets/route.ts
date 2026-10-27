@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { upsertStaffKpiTargetSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { computeStaffKpiTargetsVsActuals } from "@/server/services/kpi";
 import { getInhouseAssignedCountryIds } from "@/server/scope";
-import { REPORT_KPI_LABELS } from "@/lib/reportTemplates";
 import { STAFF_ROLES } from "@/lib/rbac";
 import type { JwtPayload } from "@/lib/jwt";
 import type { ReportCycle, Role } from "@prisma/client";
@@ -70,8 +68,13 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/staff-kpi-targets — upsert one KPI-row target for a direct
-// report, keyed to the exact label their own report's KPI table already
-// uses for that cycle (REPORT_KPI_LABELS) — not a generic campaign metric.
+// report, keyed to a label their own report's KPI table uses for that
+// cycle. FastAPI owns these writes since backend plan step 5.2
+// (vertex_be/app/api/v1/targets.py), which re-checks the label
+// (app/core/report_templates.py, a tested copy of REPORT_KPI_LABELS) and
+// the same three-level hierarchy as callerCanManage above, audits the
+// change, and vertex_web may no longer write the table. This GET stays here
+// until the candidate pipeline moves: it measures actuals from it.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, STAFF_ROLES);
@@ -83,42 +86,5 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = upsertStaffKpiTargetSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const { staff_id, cycle, kpi_label, target_value } = parsed.data;
-
-  const staff: TargetStaff | null = await prisma.user.findUnique({
-    where: { id: staff_id },
-    select: { id: true, role: true, supervisor_id: true, assigned_country_id: true },
-  });
-  if (!staff) return NextResponse.json({ error: { code: "not_found", message: "Staff member not found." } }, { status: 404 });
-
-  const validLabels = REPORT_KPI_LABELS[staff.role]?.[cycle] ?? [];
-  if (!validLabels.includes(kpi_label)) {
-    return NextResponse.json(
-      { error: { code: "invalid_label", message: "That label doesn't appear on this staff member's report for this cycle." } },
-      { status: 422 }
-    );
-  }
-
-  if (!(await callerCanManage(user!, staff))) {
-    return forbidden({ error: { code: "forbidden", message: "You can only set targets for your own direct reports." } });
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const target = await db.staffKpiTarget.upsert({
-    where: { staff_id_cycle_kpi_label: { staff_id, cycle, kpi_label } },
-    update: { target_value, set_by: user!.userId },
-    create: { staff_id, cycle, kpi_label, target_value, set_by: user!.userId },
-    select: { id: true, staff_id: true, cycle: true, kpi_label: true, target_value: true, updated_at: true },
-  });
-
-  return NextResponse.json({ data: target }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/staff-kpi-targets", { method: "POST", body }));
 }

@@ -436,33 +436,10 @@ export const updateCandidateStatusSchema = z.object({
 // rules (criteria stays a free-form record: roles, quotas and eligibility
 // vary by destination market).
 
-// A Country Supervisor's personal allocation of a country CampaignTarget
-// across their own recruiters — upserted one recruiter at a time.
-export const upsertRecruiterTargetSchema = z.object({
-  campaign_target_id: z.string().cuid(),
-  recruiter_id: z.string().cuid(),
-  target_value: z.number().positive(),
-});
-
-// A supervisor's personal target for a direct report, keyed to one of
-// that recipient's own report KPI-table row labels for a cycle (see
-// StaffKpiTarget in schema.prisma) — shared across all 3 supervisory
-// relationships (country_supervisor -> recruiter, inhouse_supervisor ->
-// country_supervisor, director/admin -> inhouse_supervisor).
-export const upsertStaffKpiTargetSchema = z.object({
-  staff_id: z.string().cuid(),
-  cycle: z.enum(["daily", "weekly", "monthly"]),
-  kpi_label: z.string().min(1),
-  target_value: z.number().positive(),
-});
-
-// A Country Supervisor's one-way note to a specific recruiter (see
-// RecruiterNote in schema.prisma) — deliberately just a message string,
-// no subject/thread structure.
-export const createRecruiterNoteSchema = z.object({
-  recruiter_id: z.string().cuid(),
-  message: z.string().min(1).max(2000),
-});
+// Recruiter targets, staff KPI targets and recruiter notes: validated by
+// FastAPI since backend plan step 5.2 (vertex_be/app/api/v1/targets.py),
+// which keeps the old upsertRecruiterTargetSchema,
+// upsertStaffKpiTargetSchema and createRecruiterNoteSchema rules.
 
 // Supervisory Reporting Framework §2.1's mandatory sections, expressed as
 // one shared, structured content shape reused across every daily/weekly/

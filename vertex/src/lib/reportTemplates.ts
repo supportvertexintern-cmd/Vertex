@@ -5,6 +5,11 @@ import type { ReportCycle, Role } from "@prisma/client";
 // content schema itself (src/lib/validations.ts) is generic/shared
 // across every role; only these labels differ per §2.1's own framing
 // (uniform sections, role-specific KPI names).
+//
+// FastAPI checks staff KPI targets against a copy of REPORT_KPI_LABELS
+// (vertex_be/app/core/report_templates.py, backend plan step 5.2): change
+// a label in both places. vertex_be/tests/test_targets.py fails until they
+// match.
 type RoleReportTemplates = Record<ReportCycle, string[]>;
 
 export const REPORT_KPI_LABELS: Partial<Record<Role, RoleReportTemplates>> = {
