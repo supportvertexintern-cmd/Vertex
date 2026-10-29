@@ -1,7 +1,7 @@
 # Candidate pipeline handover (backend plan step 6)
 
-Status: **proposal, for the owner's decision** (2026-10-29). Follows
-`data-ownership.md` §2.2, which makes the pipeline one ownership handover.
+Status: **decided** (owner, 2026-10-29; §3). Follows `data-ownership.md`
+§2.2, which makes the pipeline one ownership handover.
 
 ## 1. What moves
 
@@ -70,7 +70,11 @@ it, so the table moves with the pipeline instead of waiting for Payments.
 registration keeps creating the `User` and creates the `Candidate` through
 FastAPI.
 
-## 3. Decisions for the owner
+## 3. Decisions
+
+**Owner's decisions (2026-10-29):** D1 **A** (the website sends the
+emails), D2 **A** (FastAPI handles uploads end to end), D3 **B** (one
+switch), D4 **keep today's behaviour**. The options considered follow.
 
 ### D1. Who sends the pipeline's emails?
 
@@ -101,34 +105,41 @@ Either way, **the S3 cutover (E2) comes first**, as its own step.
 - **Q3:** reviewer roles see every application, regardless of region.
 
 FastAPI checks access on every write it takes over, so it needs the
-intended rule. Recommended: **keep today's behaviour** (global for those
-roles) and record it as the owner's decision; tightening it is a separate
-change with its own tests.
+intended rule. **Decided: keep today's behaviour** (global for those
+roles). Tightening it is a separate change with its own tests.
 
-## 4. Steps (with the recommended options)
+## 4. Steps
+
+D3 B means nothing switches until every group is built, but the building
+still happens in reviewable PRs. Each group's FastAPI endpoints ship behind
+`PIPELINE_WRITES_ENABLED` (off by default): they answer 503 until the
+switch, so the website keeps writing as today and nothing else (the staff
+app included) can write through them early. Their tests turn the setting on.
 
 | Step | What | Notes |
 |---|---|---|
 | 6.0 | S3 cutover (E2) | Storage only; closes E2 before any real document lands on main |
-| 6.1 | Foundations | FastAPI's resource authorization and scoping for candidates, cases and partner candidates (`docs/security/authorization-pipeline.md` stages 5–6), with drift tests against `server/scope.ts`; the referral-milestone service |
-| 6.2 | Candidates | Profile, staff edit, lifecycle status, screening and invites, messages; registration creates the `Candidate` through FastAPI |
-| 6.3 | Documents | Upload (with the CIF upload token), verify, access records |
-| 6.4 | Applications | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
-| 6.5 | Cases | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
-| 6.6 | Partner submissions | Partner drafts and submission, HR review, create case, reject and overturn |
-| 6.7 | Handover | Revoke `vertex_web` writes on the whole cluster and `ReferralCommission`; remove the dead Next.js code; update `data-ownership.md` |
+| 6.1 | Foundations | `PIPELINE_WRITES_ENABLED`; FastAPI's resource authorization and scoping for candidates, cases and partner candidates (`docs/security/authorization-pipeline.md` stages 5–6), with drift tests against `server/scope.ts`; the referral-milestone service |
+| 6.2 | Candidates (built, off) | Profile, staff edit, lifecycle status, screening and invites, messages, and the `Candidate` that registration creates |
+| 6.3 | Documents (built, off) | Upload end to end (storage, scan, the CIF upload token), verify, access records |
+| 6.4 | Applications (built, off) | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
+| 6.5 | Cases (built, off) | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
+| 6.6 | Partner submissions (built, off) | Partner drafts and submission, HR review, create case, reject and overturn |
+| 6.7 | **The switch** | Every pipeline route in Next.js passes requests on (sending its email on success, D1); the setting turns on; `vertex_web` loses its writes on the whole cluster and `ReferralCommission`; the dead Next.js code goes. One PR, one release, with the full e2e suite and a rollback plan (turn the setting off and restore the grants) |
 
-Each step is one or more PRs, with the same checks as before: role and
-scoping drift tests against the Next.js files, the audit trail, writes as
-`vertex_api`, and an e2e journey through the website. The existing e2e
-journeys (self-application, candidate lifecycle, partner submission) are
-the regression net for the whole area.
+Each building PR has the same checks as before: role and scoping drift
+tests against the Next.js files, the audit trail and writes as
+`vertex_api`. The existing e2e journeys (self-application, candidate
+lifecycle, partner submission) are the regression net for the switch.
 
 ## 5. Risks
 
-- **Two writers during 6.2–6.6** (D3 A): a row can be changed by a moved
-  route and an unmoved one. Both are audited, and each sub-step moves whole
-  user actions, not half of one.
+- **A large switch** (D3 B): 6.7 changes every pipeline route at once.
+  Mitigated by building and testing each group first (6.2–6.6), the full
+  e2e suite on the switch PR, and a rollback that needs no code change:
+  turn `PIPELINE_WRITES_ENABLED` off and restore `vertex_web`'s grants.
+- **Built but unused code** (6.2–6.6): FastAPI's pipeline endpoints exist
+  weeks before they're used. They refuse every request until the switch.
 - **Email after a write** (D1 A): an email can fail once the write has
   committed. Same as today; failures are logged.
 - **Scope drift:** the scoping rules exist in Next.js and FastAPI until
