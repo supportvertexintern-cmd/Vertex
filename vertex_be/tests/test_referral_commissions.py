@@ -92,3 +92,62 @@ def test_the_api_database_role_can_write_them(api, db, commission):
     finally:
         db.execute(text("RESET ROLE"))
     assert res.status_code == 200
+
+
+# --- commission rules (payments step 7.1) -------------------------------------
+
+
+@pytest.fixture
+def country(db):
+    from app.models.identity import Country, Region
+
+    region = Region(name=f"Rule region {secrets.token_hex(3)}")
+    db.add(region)
+    db.flush()
+    place = Country(name=f"Rule land {secrets.token_hex(3)}", region_id=region.id)
+    db.add(place)
+    db.flush()
+    return place
+
+
+def test_the_rule_route_matches_next_js():
+    src = (BASE_DIR.parent / "vertex" / "src" / "app" / "api" / "admin" / "referral-commission-rules" / "route.ts").read_text(encoding="utf-8")
+    post = src[src.index("export async function POST"):]
+    assert "requireRole(user, REFERRAL_AGENT_MANAGER_ROLES)" in post
+
+
+def test_a_rule_is_set_then_updated_not_duplicated(api, db, country):
+    from app.models.referral import ReferralCommissionRule
+
+    admin, as_admin = person(db, Role.admin)
+    body = {"country_id": country.id, "milestone": "qualified", "amount": "25"}  # a string, as the grid sends it
+    first = api.post("/api/v1/referral-commission-rules", headers=as_admin, json=body)
+    assert first.status_code == 200
+    assert (first.json()["data"]["amount"], first.json()["data"]["currency"], first.json()["data"]["updated_by"]) == (25.0, "USD", admin.id)
+    second = api.post("/api/v1/referral-commission-rules", headers=as_admin, json=body | {"amount": 0, "currency": "EUR"})
+    assert (second.json()["data"]["id"], second.json()["data"]["amount"], second.json()["data"]["currency"]) == (first.json()["data"]["id"], 0.0, "EUR")
+    rows = db.scalars(select(ReferralCommissionRule).where(ReferralCommissionRule.country_id == country.id)).all()
+    assert len(rows) == 1
+    actions = db.scalars(select(AuditLog.action).where(AuditLog.entity_id == rows[0].id)).all()
+    assert sorted(actions) == ["create", "update"]
+
+
+def test_a_rule_is_checked(api, db, country):
+    _, as_admin = person(db, Role.admin)
+    url = "/api/v1/referral-commission-rules"
+    assert api.post(url, headers=as_admin, json={"country_id": country.id, "milestone": "qualified", "amount": -1}).status_code == 422
+    assert api.post(url, headers=as_admin, json={"country_id": country.id, "milestone": "hired", "amount": 1}).status_code == 422
+    unknown = api.post(url, headers=as_admin, json={"country_id": "cnosuchcountry", "milestone": "qualified", "amount": 1})
+    assert (unknown.status_code, unknown.json()["error"]["message"]) == (422, "Country not found.")
+    _, as_hr = person(db, Role.hr)
+    assert api.post(url, headers=as_hr, json={"country_id": country.id, "milestone": "qualified", "amount": 1}).status_code == 403
+
+
+def test_rules_are_written_as_the_api_role(api, db, country):
+    _, as_director = person(db, Role.director)
+    db.execute(text("SET LOCAL ROLE vertex_api"))
+    try:
+        res = api.post("/api/v1/referral-commission-rules", headers=as_director, json={"country_id": country.id, "milestone": "deployed", "amount": 100})
+    finally:
+        db.execute(text("RESET ROLE"))
+    assert res.status_code == 200

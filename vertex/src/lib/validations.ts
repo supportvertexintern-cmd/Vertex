@@ -798,16 +798,9 @@ export const updateReferralAgentStatusSchema = z.object({
   reason: z.string().max(2000).optional(),
 });
 
-// Commission-rule grid (2026-08-29) — one row per (country, milestone),
-// amount explicitly allowed to be 0 (some milestones legitimately pay
-// nothing, per the business — z.number().min(0) allows this, it's not
-// treated as "unset").
-export const upsertReferralCommissionRuleSchema = z.object({
-  country_id: z.string().cuid(),
-  milestone: z.enum(["registered", "qualified", "application_submitted", "work_permit_approved", "visa_approved", "deployed"]),
-  amount: z.coerce.number().min(0),
-  currency: z.string().min(1).max(10).default("USD"),
-});
+// Commission rules (one amount per country and milestone, 0 allowed):
+// validated by FastAPI since payments step 7.1
+// (vertex_be/app/api/v1/referral_commissions.py, RuleIn).
 
 // Commission payout confirmation (2026-08-29) — receipt is optional here,
 // unlike markCasePaymentPaidSchema's required one: the underlying

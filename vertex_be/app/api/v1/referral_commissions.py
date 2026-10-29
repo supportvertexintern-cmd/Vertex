@@ -1,7 +1,10 @@
 """Referral commission payouts, owned by FastAPI since the pipeline switch
 (docs/architecture/pipeline-handover.md, step 6.7): a director or admin
 approves a pending commission, then marks it paid. Commissions are earned
-in the pipeline itself (app/services/referrals.py).
+in the pipeline itself (app/services/referrals.py). The commission rules
+(an amount per country and milestone) since payments step 7.1
+(docs/architecture/payments-handover.md), replacing POST
+/api/admin/referral-commission-rules.
 
 They answer as Next.js's POST /api/admin/referral-commissions/[id]/approve
 and /mark-paid did, which now pass requests on: the same roles, states,
@@ -17,15 +20,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.api.notices import CommissionApprovedEmail, CommissionPaidEmail, Notifying
-from app.core.api import ApiError, UtcDateTime
+from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import REFERRAL_AGENT_MANAGER_ROLES, require_role
 from app.models.enums import ReferralCommissionStatus, ReferralMilestone
-from app.models.referral import ReferralCommission
+from app.models.referral import ReferralCommission, ReferralCommissionRule
 
 router = APIRouter()
 
@@ -109,3 +114,65 @@ def mark_paid(commission_id: str, body: PaidIn, user: Manager, db: AuditedDb, _o
     db.commit()
     db.refresh(commission)
     return {"data": commission, "notify": [CommissionPaidEmail(**_for_agent(commission))]}
+
+
+# --- commission rules (payments step 7.1) -------------------------------------
+
+CUID = r"^c[^\s-]{8,}$"
+UNIQUE_VIOLATION = "23505"
+FOREIGN_KEY_VIOLATION = "23503"
+
+
+class RuleIn(BaseModel):
+    """upsertReferralCommissionRuleSchema. Zero is a real amount: some
+    milestones pay nothing."""
+
+    country_id: str = Field(pattern=CUID)
+    milestone: ReferralMilestone
+    amount: float = Field(ge=0)
+    currency: str = Field("USD", min_length=1, max_length=10)
+
+
+class RuleRow(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    country_id: str
+    milestone: ReferralMilestone
+    amount: float
+    currency: str
+    updated_by: str
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
+
+
+@router.post("/referral-commission-rules", response_model=Data[RuleRow])
+def upsert_rule(body: RuleIn, user: Manager, db: AuditedDb):
+    """One rule per (country, milestone): the existing one is updated. A
+    rule saved by a concurrent request is updated on a second try."""
+
+    def save() -> ReferralCommissionRule:
+        rule = db.scalar(
+            select(ReferralCommissionRule).where(ReferralCommissionRule.country_id == body.country_id, ReferralCommissionRule.milestone == body.milestone)
+        )
+        if rule is None:
+            rule = ReferralCommissionRule(country_id=body.country_id, milestone=body.milestone)
+            db.add(rule)
+        rule.amount = body.amount
+        rule.currency = body.currency
+        rule.updated_by = user.user_id
+        db.commit()
+        return rule
+
+    try:
+        rule = save()
+    except IntegrityError as err:
+        db.rollback()
+        code = getattr(err.orig, "pgcode", None)
+        if code == FOREIGN_KEY_VIOLATION:
+            raise ApiError(422, "validation_error", "Country not found.") from None
+        if code != UNIQUE_VIOLATION:
+            raise
+        rule = save()
+    db.refresh(rule)
+    return {"data": rule}

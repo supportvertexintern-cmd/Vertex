@@ -213,7 +213,8 @@ BEGIN
     'Exception',  -- candidate pipeline, step 6.7
     'ExceptionCorrectiveAction',  -- candidate pipeline, step 6.7
     'PartnerCandidate',  -- candidate pipeline, step 6.7
-    'ReferralCommission'  -- candidate pipeline, step 6.7
+    'ReferralCommission',  -- candidate pipeline, step 6.7
+    'ReferralCommissionRule'  -- payments, step 7.1
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
