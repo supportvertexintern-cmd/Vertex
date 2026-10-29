@@ -111,3 +111,10 @@ end-to-end journeys.
   lost; today a database error does the same.
 - **Test mode:** Stripe and PayPal run in test/sandbox mode locally; the
   live keys are a deployment matter.
+
+## 6. Progress
+
+| Step | State |
+|---|---|
+| 7.1 | Done (#124): `vertex_be/app/api/v1/referral_commissions.py`, `upsert_rule` |
+| 7.2 | `vertex_be/app/api/v1/payments.py`: the webhook (signature checked by FastAPI; consultation bookings, application fees, paid case links; each write idempotent and audited) and PayPal create and capture, which now checks with PayPal that the order is this user's, for this job's fee, before capturing (the website's didn't). The webhook secret and PayPal's credentials moved to the backend's environment |

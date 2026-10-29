@@ -53,6 +53,12 @@ services:
       # The same Stripe account as the web app's: FastAPI syncs each job
       # payment stage's Product and Price (step 3.2). Unset = no sync.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # Payments (step 7.2): the website passes Stripe's webhook on and
+      # FastAPI checks its signature; FastAPI talks to PayPal.
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_API_BASE: ${PAYPAL_API_BASE:-}
       # The candidate pipeline's writes (pipeline-handover.md): on since the
       # switch (step 6.7). The rollback is to set it false and restore the
       # web app's grants (§6).
@@ -180,10 +186,8 @@ services:
       PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
       CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
-      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
-      PAYPAL_API_BASE: ${PAYPAL_API_BASE:-}
+      # The Stripe webhook secret and PayPal's credentials are the backend's
+      # since payments step 7.2: this app only passes those requests on.
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-}
       # Documents go to this stack's MinIO (S3 API) with the app's own key,
       # limited to its bucket (deploy/minio-bootstrap.sh). For AWS S3: drop

@@ -54,7 +54,7 @@ export interface CallBackendOptions {
    */
   asUser?: boolean | "if-signed-in";
   /** The few request headers FastAPI reads from the browser's request, passed on. */
-  forward?: Partial<Record<"X-Upload-Token" | "X-Forwarded-For", string | null>>;
+  forward?: Partial<Record<"X-Upload-Token" | "X-Forwarded-For" | "Stripe-Signature", string | null>>;
   /** Longer than the default for an upload, which FastAPI scans before storing. */
   timeoutMs?: number;
 }

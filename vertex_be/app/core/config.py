@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     # app/services/stripe_pricing.py). Unset = pricing isn't synced: a job
     # still saves, and a manual sync answers 503.
     STRIPE_SECRET_KEY: str | None = None
+    # The Stripe webhook's signing secret (payments step 7.2): the website
+    # passes Stripe's request on as it came and FastAPI checks the signature
+    # itself. Unset = the webhook answers 503 and Stripe retries.
+    STRIPE_WEBHOOK_SECRET: str | None = None
+    # PayPal (payments step 7.2: FastAPI creates and captures the
+    # application-fee orders). The same variables as the web app's had.
+    # Unset = PayPal answers 503.
+    PAYPAL_CLIENT_ID: str | None = None
+    PAYPAL_CLIENT_SECRET: str | None = None
+    PAYPAL_API_BASE: str | None = None
     # The candidate pipeline handover (docs/architecture/pipeline-handover.md):
     # on since the switch (step 6.7), FastAPI writes the pipeline. The roll-
     # back: turn it off and restore vertex_web's grants (pipeline-handover.md

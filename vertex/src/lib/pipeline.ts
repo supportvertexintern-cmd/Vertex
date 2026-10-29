@@ -1,6 +1,7 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import { callBackend, type BackendResult, type CallBackendOptions } from "@/lib/backend";
 import * as email from "@/lib/email";
+import { createReceiptPdf } from "@/lib/invoice";
 import { log } from "@/lib/log";
 
 /**
@@ -38,6 +39,10 @@ export const NOTICE_SENDERS = {
   partner_candidate_submitted: (n) => email.sendPartnerCandidateSubmittedEmail(n.partner_name, n.candidate_name),
   partner_case_created: (n) => email.sendPartnerCaseCreatedEmail(n.email, n.partner_name, n.candidate_name),
   partner_candidate_rejected: (n) => email.sendPartnerCandidateRejectedEmail(n.email, n.partner_name, n.candidate_name, n.reason),
+  // Payments (step 7.2): a consultation booked, a fee paid by card or PayPal.
+  consultation_booked: (n) =>
+    email.sendConsultationBookingNotification({ fullName: n.full_name, email: n.email, phone: n.phone, amount: n.amount, currency: n.currency }),
+  payment_receipt: (n) => createReceiptPdf(n.payment_id, n.full_name, n.email, n.job_title, n.amount, n.transaction_id, new Date(n.date)),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
 } satisfies Record<string, (notice: any) => Promise<unknown>>;
 

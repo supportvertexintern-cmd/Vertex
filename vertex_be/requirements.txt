@@ -13,8 +13,9 @@ stripe==16.0.0
 # Document storage (S3, MinIO, R2) and the multipart uploads it takes.
 boto3==1.43.100
 python-multipart==0.0.32
+# PayPal's API (app/services/paypal.py); also the test client's transport.
+httpx==0.28.1
 
 # tests
 pytest==9.1.1
-httpx==0.28.1
 moto[s3]==5.2.4

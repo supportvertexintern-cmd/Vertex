@@ -69,10 +69,11 @@ RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 # pick another of Next.js's.
 OWN_ROW = {
     "vertex_api": ("Region", """INSERT INTO "Region" (id, name) VALUES ('ctest-role-row', 'Role test')"""),
+    # Users stay with the website until users and sessions move.
     "vertex_web": (
-        "ConsultationBooking",
-        """INSERT INTO "ConsultationBooking" (id, email, amount, stripe_checkout_session_id)
-           VALUES ('ctest-role-row', 'role@test.invalid', 1, 'cs_ctest_role_row')""",
+        "User",
+        """INSERT INTO "User" (id, full_name, email, updated_at)
+           VALUES ('ctest-role-row', 'Role test', 'role-row@test.invalid', now())""",
     ),
 }
 
@@ -292,7 +293,7 @@ def test_the_handover_list_is_read():
     }
     assert pipeline <= set(fastapi_owned_tables())
     # Payments and finance, table by table (step 7).
-    assert {"ReferralCommissionRule"} <= set(fastapi_owned_tables())
+    assert {"ReferralCommissionRule", "Payment", "ConsultationBooking"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())

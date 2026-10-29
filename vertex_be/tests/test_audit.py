@@ -23,7 +23,6 @@ from app.main import create_app
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.identity import User
-from app.models.payments import ConsultationBooking
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
@@ -96,11 +95,15 @@ def test_an_unchanged_object_is_not_recorded(db):
 
 
 def test_unaudited_models_need_no_actor_and_leave_no_record(db):
-    db.info.pop("audit_actor")
-    b = ConsultationBooking(email="audit@test.invalid", amount=50, stripe_checkout_session_id=f"cs_{secrets.token_hex(6)}")
-    db.add(b)
+    # Sessions are deliberately off the trail: they hold token hashes.
+    from tests.test_auth import add_session
+
+    owner = User(full_name="Session owner", email=f"audit-{secrets.token_hex(4)}@test.invalid")
+    db.add(owner)
     db.flush()
-    assert trail(db, b.id) == []
+    db.info.pop("audit_actor")
+    token = add_session(db, owner.id)
+    assert trail(db, token.id) == []
 
 
 def test_an_audited_write_without_an_actor_is_refused(db):
