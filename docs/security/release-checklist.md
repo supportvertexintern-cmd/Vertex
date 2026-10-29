@@ -50,7 +50,7 @@ Since 2026-10-12, these are handled under the owner's implementation plan. Fixes
 | ID | Exception | Decision | Status (2026-10-12) |
 |---|---|---|---|
 | E1 | 5 high advisories in the ESLint toolchain (`braces`), dev-only, no fix | Accept with conditions | All conditions in place; CI and the image build enforce them |
-| E2 | MinIO: 6 advisories in its last community release | Accept with conditions | No ports, internal network only, unique credentials. vertex-main holds 0 documents today (hourly guard). **Expiry 2027-01-10, or the first real document on main** |
+| E2 | MinIO: 6 advisories in its last community release | Accept with conditions | No ports, internal network only, unique credentials. **Re-decided 2026-10-29: MinIO on every local stack, main included; review 2027-01-10 or before hosting outside this machine** |
 | E3 | CSP allowed `'unsafe-inline'` for scripts | **Fix** | Nonce policy built (report-only first, then `CSP_MODE=enforce`); verified in Chromium ([csp.md](csp.md)) |
 | E4 | Backend image: 44 Debian findings, none fixable | Accept with conditions | 0 KEV matches, none reachable, backend now non-root, weekly rebuild and scan, CI fails on fixable HIGH/CRITICAL |
 | E5 | Backups only on D: | **Fix** | Off-site immutable copy built and rehearsed; needs the owner's bucket and the first real off-site restore ([backup-recovery.md](backup-recovery.md) §9) |

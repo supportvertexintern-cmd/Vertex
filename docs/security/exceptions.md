@@ -37,6 +37,8 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 
 **Recommendation for main.** Either move vertex-main's documents to S3 before anyone uploads a real document there, or explicitly accept MinIO on main until the cutover. The exposure is limited: no port, internal network only, and the vulnerable features (OIDC, LDAP) are not configured.
 
+**Owner's decision (2026-10-29): accept MinIO on every local stack, main included.** Vertex runs locally for now, so documents stay in each stack's MinIO; there is no S3 cutover until the platform is hosted. The first real document on main no longer breaks the exception. The other three conditions stay mandatory and are still checked (`verify-stack.sh`): no published port, the internal `data` network only, unique non-default credentials. The hourly check (`backup-health.sh`) still alerts when main stores its first document; whether to keep that alert now is the owner's call. Review on 2027-01-10, or as soon as Vertex is to be hosted outside this machine, whichever comes first.
+
 ### E4: Debian base-image findings, no fix released
 
 Fresh scan on 2026-10-12: backend image `dev-56de2b9`, Debian 13.7, Trivy 0.67.2.
@@ -78,11 +80,11 @@ Every open exception needs a named owner, a compensating control and an expiry d
 | E3 | Fix | Report-only nonce policy running; no `'unsafe-eval'`; CI regression test | Brook | Enforce 2 weeks after report-only starts on staging; latest 2026-11-09 | Brook, 2026-10-12 |
 | E5 | Fix | Local encrypted D: copy, hourly health alerts, monthly drills, until the off-site copy lands | Brook | 2026-11-12 (bucket + first off-site restore) | Brook, 2026-10-12 |
 | E1 | Accept | Dev-only, never shipped (build and CI enforce it); re-checked on every lockfile change | Brook | 2027-01-10, or earlier when a fix ships | Brook, 2026-10-12 |
-| E2 | Accept | Non-production use, internal network only, unique credentials; vertex-main holds 0 documents (hourly guard alerts on the first one) | Brook | **2027-01-10, or the first real document stored on vertex-main, whichever comes first.** The S3 cutover must happen before then | Brook, 2026-10-12 |
+| E2 | Accept (re-decided 2026-10-29: MinIO on every local stack, main included) | Internal network only, no published port, unique credentials; the hourly check still alerts on main's first document | Brook | **Review 2027-01-10, or before Vertex is hosted outside this machine, whichever comes first** | Brook, 2026-10-12; re-decided by Brook, 2026-10-29 |
 | E4 | Accept | No KEV matches; none reachable by the app; backend non-root; weekly rebuild and scan; CI fails on fixable HIGH/CRITICAL | Brook | 2027-01-10 | Brook, 2026-10-12 |
 | E7 | Accept, temporarily. **Closed 2026-10-21** | CVE-2026-77214 (HIGH, libexpat 2.8.5-r0 in the `nginx:1.29-alpine` base of vertex-flutter-web). Fixed in 2.9.0-r0, not yet published for this Alpine base, so `apk upgrade` can't apply it. That nginx serves static files only, with no XSLT, DAV or other XML module configured. Ignored by the CI and weekly gates through `.trivyignore.yaml` only; the weekly full report still lists it | Brook | 2026-11-02 (met 2026-10-21: Alpine published libexpat 2.9.0-r0; the image moved to `nginx:1.31-alpine` and scans clean, and the `.trivyignore.yaml` entry was removed) | Brook, 2026-10-19 |
 
 Sign-off: the owner (Brook) approved this register in the working session on 2026-10-12. The implementer (Claude) recorded it. Each row is reviewed by its date; an exception that passes its date without a review is treated as a failed release check.
 
-**E2 expiry:** the S3 cutover date wasn't fixed yet, so the owner chose the recommended rule. That rule is a 90-day review, brought forward by the first real document on vertex-main. `backup-health.sh` checks it every hour.
+**E2 expiry:** the S3 cutover date wasn't fixed yet, so on 2026-10-12 the owner chose a 90-day review, brought forward by the first real document on vertex-main. On 2026-10-29 the owner chose MinIO for every local stack, main included: the review date stands, the first document no longer ends the exception, and hosting Vertex outside this machine brings the review forward. `backup-health.sh` still checks main's document count every hour and alerts on the first one, until the owner decides otherwise.
 
