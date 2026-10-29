@@ -216,7 +216,8 @@ BEGIN
     'ReferralCommission',  -- candidate pipeline, step 6.7
     'ReferralCommissionRule',  -- payments, step 7.1
     'Payment',  -- payments, step 7.2 (the Stripe webhook, PayPal)
-    'ConsultationBooking'  -- payments, step 7.2
+    'ConsultationBooking',  -- payments, step 7.2
+    'CasePayment'  -- payments, step 7.3 (a case's milestone payments)
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

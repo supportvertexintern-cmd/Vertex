@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { callBackend, type BackendResult, type CallBackendOptions } from "@/lib/backend";
 import * as email from "@/lib/email";
 import { createReceiptPdf } from "@/lib/invoice";
+import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import { log } from "@/lib/log";
 
 /**
@@ -16,6 +17,8 @@ import { log } from "@/lib/log";
  * kinds here and in vertex_be/app/api/notices.py must match: a test on
  * each side reads the other.
  */
+
+type PlanStage = { id: string; label: string; percent: number; amount: number; trigger_stage: CaseStageKey };
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -43,6 +46,10 @@ export const NOTICE_SENDERS = {
   consultation_booked: (n) =>
     email.sendConsultationBookingNotification({ fullName: n.full_name, email: n.email, phone: n.phone, amount: n.amount, currency: n.currency }),
   payment_receipt: (n) => createReceiptPdf(n.payment_id, n.full_name, n.email, n.job_title, n.amount, n.transaction_id, new Date(n.date)),
+  // A case milestone's Stripe Payment Link (step 7.3), with the whole plan.
+  milestone_payment_link: (n) =>
+    email.sendMilestonePaymentLinkEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.payment_url, n.current_stage_id,
+      n.stages.map((s: PlanStage) => ({ id: s.id, label: s.label, percent: s.percent, amount: s.amount, triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage] }))),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
 } satisfies Record<string, (notice: any) => Promise<unknown>>;
 

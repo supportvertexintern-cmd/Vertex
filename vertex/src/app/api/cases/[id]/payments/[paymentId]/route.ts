@@ -1,52 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { canAccessCase } from "@/server/scope";
+import { NextRequest } from "next/server";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { passOn, seg } from "@/lib/pipeline";
 
-// DELETE /api/cases/:id/payments/:paymentId — Finance undoing a payment
-// record entirely (2026-09-16), not just its receipt — for when "Record"
-// (or "Mark as Paid") was clicked in error and no money actually changed
-// hands. There was previously no way to correct this: a
-// mistakenly-collected CasePayment was permanent, and it also blocked the
-// same payment stage from ever being offered again in the Record/Send
-// Link/Send Invoice pickers (see dueUnrecordedStages in CaseDetail.tsx).
-// Deliberately scoped to the "finance" role only — no Director/Admin
-// override, unlike every other payment action (FINANCE_ROLES) — per
-// explicit business direction, since this is a correction of Finance's
-// own mistake, not a general case-management power. Works on a payment
-// in either status — a pending Stripe link/invoice Finance wants to
-// cancel, or an already-collected one entered by mistake — the
-// underlying issue (a phantom record) is the same either way. Deleting
-// is safe: nothing else references CasePayment.id, and its own
-// receipt_document_id is onDelete: SetNull, so any attached file is
-// orphaned (kept), not deleted.
+// DELETE /api/cases/:id/payments/:paymentId — Finance removes a payment
+// record entered in error (no money changed hands), in either status, so
+// the stage can be offered again. The finance role only, no Director/Admin
+// override: it's a correction of Finance's own mistake. Removed by FastAPI
+// since payments step 7.3 (vertex_be/app/api/v1/case_payments.py,
+// remove_payment). Answered as before: { message }.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; paymentId: string }> }) {
   const { id, paymentId } = await params;
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["finance"]);
   if (guardRes) return guardRes;
-
-  const payment = await prisma.casePayment.findUnique({
-    where: { id: paymentId },
-    include: {
-      case: {
-        include: {
-          application: {
-            include: { candidate: { select: { user_id: true, recruiter_id: true, country_id: true, partner_id: true } } },
-          },
-        },
-      },
-    },
-  });
-  if (!payment || payment.case_id !== id) {
-    return NextResponse.json({ error: { code: "not_found", message: "Payment not found." } }, { status: 404 });
-  }
-
-  const allowed = await canAccessCase(user!, payment.case.application.candidate);
-  if (!allowed) return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
-
-  await auditedPrisma(user!.userId).casePayment.delete({ where: { id: paymentId } });
-
-  return NextResponse.json({ message: "Payment record removed." });
+  return passOn(
+    `/api/v1/cases/${seg(id)}/payments/${seg(paymentId)}`,
+    { method: "DELETE" },
+    { unwrap: true, reshape: (_data, body) => ({ message: body.message }) }
+  );
 }

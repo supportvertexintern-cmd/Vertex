@@ -44,7 +44,7 @@ describe("access denials are audited (G7)", () => {
     const uses = files(API_ROOT).reduce((n, f) => n + (readFileSync(f, "utf8").match(/\bforbidden\(/g)?.length ?? 0), 0);
     // Falls as areas move to FastAPI, whose require_role() and refusals
     // audit the same way (vertex_be/app/core/rbac.py); 45 after step 5.4,
-    // 20 after the pipeline switch (step 6.7).
-    expect(uses).toBeGreaterThan(15);
+    // 20 after the pipeline switch (step 6.7), 13 after case payments (7.3).
+    expect(uses).toBeGreaterThan(10);
   });
 });
