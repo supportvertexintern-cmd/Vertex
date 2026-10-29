@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
-from app.core import api, audit  # noqa: F401  (audit registers the trail's flush hooks)
+from app.core import api, audit, openapi  # noqa: F401  (audit registers the trail's flush hooks)
 from app.core.access import default_deny
 from app.core.config import settings
 from app.core.logging import RequestContextMiddleware, configure_logging
@@ -37,6 +37,8 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+    # /docs's "Authorize": the session and service credentials (app/core/openapi.py).
+    openapi.install(app)
 
     @app.get("/", include_in_schema=False)
     def root() -> dict[str, str]:
