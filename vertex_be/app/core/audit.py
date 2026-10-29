@@ -64,6 +64,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "RecruiterNote",
         "CandidateMessage",
         "CaseReminder",
+        "Exception",
+        "ExceptionCorrectiveAction",
         "InhouseCountryAssignment",
         "StaffKpiTarget",
         "ReferralAgent",

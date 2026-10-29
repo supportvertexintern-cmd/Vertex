@@ -33,6 +33,8 @@ const AUDITED_MODELS = new Set([
   "RecruiterNote",
   "CandidateMessage",
   "CaseReminder",
+  "Exception",
+  "ExceptionCorrectiveAction",
   "InhouseCountryAssignment",
   "StaffKpiTarget",
   "ReferralAgent",
