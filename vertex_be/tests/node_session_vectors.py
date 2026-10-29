@@ -17,3 +17,9 @@ SESSION_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJnb2xkZW4tdX
 # The same claims, signed with the password_reset purpose's key: must never
 # pass as a session (G17).
 RESET_KEY_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJnb2xkZW4tdXNlciIsImVtYWlsIjoiZ29sZGVuQHRlc3QuaW52YWxpZCIsInJvbGUiOiJhZG1pbiIsInNpZCI6ImdvbGRlbi1mYW1pbHkiLCJ2ZXIiOjMsImlhdCI6MTc5MjgwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJhdWQiOiJ2ZXJ0ZXg6c2Vzc2lvbiIsImlzcyI6InZlcnRleC13ZWIifQ.sC8pN-K-qZ6kqyRu2yag-n9WTkjalto4o5eGwBlBeo8"  # gitleaks:allow
+
+# A screening invite (signCandidateInviteToken) for candidate
+# cgoldencandidate01, issued 2026-10-23, expires 2100-01-01.
+INVITE_KEY_HEX = "fbfc30188eca687a2cbd8e2ad4cadf051f5a3ed1d07329880130423d33a5891e"  # gitleaks:allow
+INVITE_CANDIDATE_ID = "cgoldencandidate01"
+INVITE_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjYW5kaWRhdGVJZCI6ImNnb2xkZW5jYW5kaWRhdGUwMSIsInR5cGUiOiJjYW5kaWRhdGVfaW52aXRlIiwiaWF0IjoxNzkyODAwMDAwLCJleHAiOjQxMDI0NDQ4MDAsImF1ZCI6InZlcnRleDpjYW5kaWRhdGVfaW52aXRlIiwiaXNzIjoidmVydGV4LXdlYiJ9.LXsKzdipECH-hdviypszg7FMt6L7iQbi2VcMv-CQ17Y"  # gitleaks:allow
