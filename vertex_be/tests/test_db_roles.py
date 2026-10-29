@@ -291,6 +291,8 @@ def test_the_handover_list_is_read():
         "RetentionFollowUp", "Exception", "ExceptionCorrectiveAction", "PartnerCandidate", "ReferralCommission",
     }
     assert pipeline <= set(fastapi_owned_tables())
+    # Payments and finance, table by table (step 7).
+    assert {"ReferralCommissionRule"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())

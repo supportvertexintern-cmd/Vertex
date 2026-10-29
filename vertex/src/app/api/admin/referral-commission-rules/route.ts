@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { backendResponse, callBackend } from "@/lib/backend";
+import { readJson } from "@/lib/pipeline";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
-import { upsertReferralCommissionRuleSchema } from "@/lib/validations";
 
 // GET /api/admin/referral-commission-rules — every rule on file, optional
 // ?countryId= filter (reused by the Country Management hub, §7.6). A
@@ -27,36 +27,16 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data: rules });
 }
 
-// POST /api/admin/referral-commission-rules — upserts by (country_id,
-// milestone) via a find-then-create/update, same "avoid duplicate rows on
-// every save" idiom as /api/fee-policy — a plain Prisma .upsert() would
-// bypass auditedPrisma's create/update interception entirely (it only
-// wraps those two operations, not upsert), and this model is deliberately
-// in AUDITED_MODELS.
+// POST /api/admin/referral-commission-rules — set the amount for a (country,
+// milestone); the existing rule is updated. Written by FastAPI since
+// payments step 7.1 (vertex_be/app/api/v1/referral_commissions.py,
+// upsert_rule).
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, REFERRAL_AGENT_MANAGER_ROLES);
   if (guardRes) return guardRes;
-
-  let body: unknown;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 }); }
-
-  const parsed = upsertReferralCommissionRuleSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const { country_id, milestone, amount, currency } = parsed.data;
-  const existing = await prisma.referralCommissionRule.findUnique({ where: { country_id_milestone: { country_id, milestone } } });
-
-  const db = auditedPrisma(user!.userId);
-  const data = { country_id, milestone, amount, currency, updated_by: user!.userId };
-  const rule = existing
-    ? await db.referralCommissionRule.update({ where: { id: existing.id }, data })
-    : await db.referralCommissionRule.create({ data });
-
-  return NextResponse.json({ data: rule });
+  const read = await readJson(req);
+  if (read.invalid) return read.invalid;
+  const result = await callBackend("/api/v1/referral-commission-rules", { method: "POST", body: read.body });
+  return backendResponse(result);
 }

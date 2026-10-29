@@ -140,7 +140,7 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 | Partners | `Partner`, `EmployerClient`, `ReferralAgent`; `ReferralAgentTarget` (no writer) | **FastAPI: `EmployerClient`** (step 4.1). Next.js: `Partner`, `ReferralAgent`, which move with Users and sessions (§2.3); none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | **FastAPI: `Campaign`, `CampaignTarget`** (step 5.1), **`RecruiterTarget`, `StaffKpiTarget`, `RecruiterNote`** (step 5.2), **`StaffScorecard`, `StaffScorecardArea`** (step 5.3), **`Report`** (step 5.4: submit, verify, return, resubmit; the list, detail and consolidation preview still read it in Next.js) | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp`, `ReferralCommission` | **FastAPI: all of them** (step 6.7, the switch; `docs/architecture/pipeline-handover.md`). Next.js keeps the reads (lists, detail pages, dashboards) and sends the pipeline's emails | FastAPI | One handover (§2.2). Documents are stored in each local stack's MinIO, main included (owner's decision 2026-10-29, E2) |
-| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommissionRule`. `JobPaymentStage` moved with jobs (step 3.2); `ReferralCommission` with the pipeline (step 6.7) | Next.js | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
+| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`, `ReferralCommissionRule`. `JobPaymentStage` moved with jobs (step 3.2); `ReferralCommission` with the pipeline (step 6.7) | **FastAPI: `ReferralCommissionRule`** (step 7.1, `payments-handover.md`). Next.js: the rest | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
 | Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | Next.js | FastAPI | Last: FastAPI becomes the session issuer |
 | Audit | `AuditLog` | both (insert only) | both (insert only) | §2.5 |
 
@@ -268,7 +268,7 @@ Written by **FastAPI** since the switch (step 6.7, `docs/architecture/pipeline-h
 | `JobPaymentStage` | **FastAPI** `/api/v1/jobs` and `/api/v1/jobs/{id}` (the stages, updated in place), `app/services/stripe_pricing.py` (Stripe ids, after a save and on `/api/v1/jobs/{id}/stripe-pricing/sync`); `vertex_web` has no write grant (step 3.2) | `/api/jobs/[id]`, `/api/cases/[id]/payments/link`, payment routes |
 | `Payment` | `/api/payments/paypal/capture-order` (create)<br>`/api/webhooks/stripe` (create) | `/api/applications`, `/api/payments/me`, `/api/webhooks/stripe` |
 | `ConsultationBooking` | `/api/webhooks/stripe` (create) | `/api/consultation-bookings`, `/api/webhooks/stripe` |
-| `ReferralCommissionRule` | **none** | none |
+| `ReferralCommissionRule` | **FastAPI** `/api/v1/referral-commission-rules` (upsert, step 7.1); `vertex_web` has no write grant | `/api/admin/referral-commission-rules`, FastAPI's `commission_if_due` |
 
 ### Users and sessions
 
