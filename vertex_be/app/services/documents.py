@@ -76,3 +76,23 @@ def document_completeness(db: Session, candidate_id: str) -> Completeness:
     needed = list(dict.fromkeys(t for types in required.values() for t in types))
     missing = [t for t in needed if t not in uploaded]
     return Completeness(complete=not missing, missing_types=missing)
+
+
+# vertex/src/lib/documentTypes.ts (tests fail if they drift): types never
+# self-reported on the application forms, so never required by them. Each
+# has its own upload (the screening-gate CV, issued permits, receipts).
+NON_PROGRAMME_TYPE_KEYS: frozenset[str] = frozenset(
+    {"cv", "transcript", "certificate", "medical", "contract", "visa", "other", "issued_work_permit", "issued_visa"}
+)
+PAYMENT_RECEIPT_TYPE_PREFIX = "payment_receipt_stage_"
+LEGACY_PAYMENT_RECEIPT_KEYS: frozenset[str] = frozenset(
+    {"payment_receipt_documentation", "payment_receipt_permit", "payment_receipt_visa", "payment_receipt_upfront"}
+)
+
+
+def is_payment_receipt_type(key: str) -> bool:
+    return key == "payment_receipt" or key.startswith(PAYMENT_RECEIPT_TYPE_PREFIX) or key in LEGACY_PAYMENT_RECEIPT_KEYS
+
+
+def is_non_programme_type(key: str) -> bool:
+    return key in NON_PROGRAMME_TYPE_KEYS or is_payment_receipt_type(key)
