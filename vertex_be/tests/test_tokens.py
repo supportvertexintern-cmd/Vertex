@@ -2,14 +2,19 @@
 (vertex/src/lib/jwt.ts) and nothing else. The golden vectors come from the
 Node code path itself (tests/node_session_vectors.py)."""
 
+import re
 import time
 
 import jwt
 import pytest
 
 from app.core import tokens
-from app.core.tokens import InvalidToken, SessionClaims, hkdf_sha256, key_for, verify_session_token
+from app.core.config import BASE_DIR
+from app.core.tokens import InvalidToken, SessionClaims, hkdf_sha256, key_for, verify_candidate_invite_token, verify_session_token
 from tests.node_session_vectors import (
+    INVITE_CANDIDATE_ID,
+    INVITE_KEY_HEX,
+    INVITE_TOKEN,
     PASSWORD_RESET_KEY_HEX,
     RESET_KEY_TOKEN,
     SECRET,
@@ -105,3 +110,39 @@ def test_nothing_verifies_without_a_proper_secret(monkeypatch, secret):
     monkeypatch.setattr(tokens.settings, "JWT_SECRET", secret)
     with pytest.raises(InvalidToken):
         verify_session_token(SESSION_TOKEN)
+
+
+# --- screening invites (pipeline handover step 6.2) ---------------------------
+
+
+def test_the_key_versions_match_jwt_ts():
+    src = (BASE_DIR.parent / "vertex" / "src" / "lib" / "jwt.ts").read_text(encoding="utf-8")
+    versions = dict(re.findall(r"^  (\w+): (\d+),$", re.search(r"const KEY_VERSION[^{]*\{(.*?)\};", src, re.S).group(1), re.M))
+    assert {purpose: int(versions[purpose]) for purpose in tokens.KEY_VERSION} == tokens.KEY_VERSION
+
+
+def test_an_invite_signed_by_nextjs_verifies():
+    assert key_for("candidate_invite", SECRET).hex() == INVITE_KEY_HEX
+    assert verify_candidate_invite_token(INVITE_TOKEN) == INVITE_CANDIDATE_ID
+
+
+def invite(**claims):
+    payload = {"candidateId": "c1", "type": "candidate_invite", "exp": int(time.time()) + 60, "iss": "vertex-web", "aud": "vertex:candidate_invite"}
+    return jwt.encode({k: v for k, v in (payload | claims).items() if v is not None}, key_for("candidate_invite", SECRET), algorithm="HS256")
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        pytest.param(lambda: SESSION_TOKEN, id="a session"),
+        pytest.param(lambda: invite(exp=int(time.time()) - 1), id="expired"),
+        pytest.param(lambda: invite(exp=None), id="no expiry"),
+        pytest.param(lambda: invite(aud="vertex:session"), id="another audience"),
+        pytest.param(lambda: invite(candidateId=None), id="no candidate"),
+        pytest.param(lambda: invite(candidateId=""), id="empty candidate"),
+        pytest.param(lambda: invite(candidateId=7), id="candidate not a string"),
+    ],
+)
+def test_bad_invites_are_refused(token):
+    with pytest.raises(InvalidToken):
+        verify_candidate_invite_token(token())

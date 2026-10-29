@@ -9,7 +9,7 @@ tokens it signs, by the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Two purposes are verified here; FastAPI issues nothing.
+Three purposes are verified here; FastAPI issues nothing.
   - "session": a user's session. The signature is necessary, not
     sufficient: app/core/auth.py also checks the session is still live, as
     Next.js does on every request.
@@ -18,6 +18,10 @@ Two purposes are verified here; FastAPI issues nothing.
     Keyed from SERVICE_AUTH_SECRET, never JWT_SECRET, so one leaking
     doesn't give away the other; SERVICE_AUTH_SECRET_PREVIOUS is also
     accepted while a rotation is under way. At most a few minutes long.
+  - "candidate_invite": the link a screened candidate is emailed to create
+    their account (signCandidateInviteToken). Registration passes it on so
+    FastAPI checks for itself which candidate the new account claims
+    (pipeline handover step 6.2).
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ ISSUER = "vertex-web"
 SALT = b"vertex-token-keys"
 # Mirrors KEY_VERSION in jwt.ts: bumping it there invalidates every
 # outstanding token of that purpose, so it must be bumped here too.
-KEY_VERSION = {"session": 1, "service": 1}
+KEY_VERSION = {"session": 1, "service": 1, "candidate_invite": 1}
 
 
 class InvalidToken(Exception):
@@ -147,3 +151,25 @@ def verify_service_token(token: str) -> ServiceClaims:
     if not all(isinstance(v, int) and not isinstance(v, bool) for v in (iat, exp)) or exp - iat > SERVICE_TOKEN_MAX_LIFETIME:
         raise InvalidToken("service token lives too long")
     return ServiceClaims(service=payload["sub"], scope=payload["scope"])
+
+
+def verify_candidate_invite_token(token: str) -> str:
+    """The candidate id a screening invite was signed for."""
+    secret = settings.JWT_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("JWT_SECRET is not configured")
+    try:
+        payload = jwt.decode(
+            token,
+            key_for("candidate_invite", secret),
+            algorithms=[ALGORITHM],
+            issuer=ISSUER,
+            audience="vertex:candidate_invite",
+            options={"require": ["exp", "iss", "aud"]},
+        )
+    except jwt.PyJWTError as err:
+        raise InvalidToken(type(err).__name__) from err
+    candidate_id = payload.get("candidateId")
+    if not isinstance(candidate_id, str) or not candidate_id:
+        raise InvalidToken("candidate_invite token is missing candidateId")
+    return candidate_id

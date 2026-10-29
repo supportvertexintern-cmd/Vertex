@@ -14,6 +14,9 @@ const options = { algorithm: "HS256", issuer: "vertex-web", audience: "vertex:se
 
 const sessionKey = derive("session");
 const resetKey = derive("password_reset");
+// A screening invite (signCandidateInviteToken), for registration's claim.
+const inviteKey = derive("candidate_invite");
+const invite = { candidateId: "cgoldencandidate01", type: "candidate_invite", iat: 1792800000 };
 console.log(
   JSON.stringify(
     {
@@ -22,6 +25,8 @@ console.log(
       resetKeyHex: resetKey.toString("hex"),
       token: jwt.sign(claims, sessionKey, options),
       resetToken: jwt.sign(claims, resetKey, options),
+      inviteKeyHex: inviteKey.toString("hex"),
+      inviteToken: jwt.sign(invite, inviteKey, { ...options, audience: "vertex:candidate_invite" }),
     },
     null,
     1,

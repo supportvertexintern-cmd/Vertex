@@ -63,12 +63,15 @@ them.
 (qualified, application submitted, case stages). Only pipeline flows call
 it, so the table moves with the pipeline instead of waiting for Payments.
 
-### 2.5 Registration creates a candidate
+### 2.5 Registration claims a candidate
 
-`POST /api/auth/register` creates the `User` and, for candidates, the
-`Candidate` (§2.3 of `data-ownership.md`). Users stay in Next.js, so
-registration keeps creating the `User` and creates the `Candidate` through
-FastAPI.
+The Candidate already exists: the Candidate Information Form created it,
+and screening emailed an invite. `POST /api/auth/register` creates the
+`User` and claims the `Candidate` with it (links it, moves it to
+`guided_to_apply`, and to `submitted` if the form already carried every
+required document). Users stay in Next.js (§2.3 of `data-ownership.md`),
+so registration keeps creating the `User` and claims the `Candidate`
+through FastAPI.
 
 ## 3. Decisions
 
@@ -131,6 +134,31 @@ Each building PR has the same checks as before: role and scoping drift
 tests against the Next.js files, the audit trail and writes as
 `vertex_api`. The existing e2e journeys (self-application, candidate
 lifecycle, partner submission) are the regression net for the switch.
+
+### 4.1 What the built endpoints promise the switch
+
+Step 6.7 wires the website to these, so they are fixed here:
+
+- **Emails (D1).** A response that leaves an email due lists it in
+  `notify`, next to `data`: `{kind, ...}` with what that email's sender in
+  `lib/email.ts` takes (`candidate_invite`, `referral_commission_earned`,
+  `candidate_message` with a `view_path` the website puts its own URL in
+  front of). The website sends each one after FastAPI answers, and never
+  passes `notify` on to the browser.
+- **Registration** calls `POST /api/v1/candidates/claim` as itself
+  (`callBackend(..., { asUser: false })`; FastAPI refuses it from anyone
+  else) with the invite token and the new user's id. FastAPI verifies the
+  invite itself and checks the account is that candidate's.
+- **Approving a candidate** opens their case, so it moves with cases: the
+  status endpoint refuses `approved` (501) until step 6.5 builds it.
+
+### 4.2 Progress
+
+| Step | State |
+|---|---|
+| 6.0 | Waiting for the owner's choice of storage provider |
+| 6.1 | Done (#112) |
+| 6.2 | Built, off: `vertex_be/app/api/v1/candidates.py`; the lifecycle rules are checked move for move against the website's through `candidateLifecycle.matrix.json` |
 
 ## 5. Risks
 
