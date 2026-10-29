@@ -1,13 +1,14 @@
 """Case writes for the pipeline handover, step 6.5
 (docs/architecture/pipeline-handover.md): moving a case through the SOP's
 stages, Operations' documentation review, rejecting a case and overturning
-a rejection, and reminders. Opening a case happens when a candidate is
+a rejection, reminders (step 6.5a); the contract and its signature, and the
+90-day retention follow-up (6.5b). Opening a case happens when a candidate is
 approved (candidates.py, set_status).
 
 Built ahead of the switch (D3 B): every route answers 503 until
 PIPELINE_WRITES_ENABLED is set at step 6.7, when Next.js's
-/api/cases/[id]/{stage,ops-review,reject,overturn,remind} start passing
-requests on.
+/api/cases/[id]/{stage,ops-review,reject,overturn,remind,contract,
+contract/sign,retention} start passing requests on.
 
 They answer as those routes do: the same roles (tests fail if the lists
 drift), access rules (a case is its candidate's, app/core/scope.py),
@@ -15,7 +16,7 @@ checks, messages and status codes. The emails go back in `notify` (D1): a
 reminder is recorded here and sent by the website.
 
 Every change is on the audit trail (Case, CaseStageEvent, CaseReminder,
-RetentionFollowUp, Candidate, Application and ReferralCommission are in
+Contract, RetentionFollowUp, Candidate, Application and ReferralCommission are in
 AUDITED_MODELS).
 """
 
@@ -24,7 +25,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy import select
 
@@ -41,12 +42,12 @@ from app.api.notices import (
 from app.api.v1.candidates import _date
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
-from app.core.auth import AuthUser
+from app.core.auth import AuthUser, check_service_header
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import OPERATIONS_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_case
 from app.models.candidate import Application
-from app.models.cases import Case, CaseReminder, CaseStageEvent, RetentionFollowUp
+from app.models.cases import Case, CaseReminder, CaseStageEvent, Contract, RetentionFollowUp
 from app.models.enums import (
     ApplicationStatus,
     CandidateLifecycleStatus,
@@ -54,6 +55,7 @@ from app.models.enums import (
     CaseReminderChannel,
     CaseStage,
     CaseStatus,
+    ContractStatus,
     Role,
 )
 from app.models.identity import User
@@ -392,3 +394,128 @@ def remind(
         email=email, recipient_name=name, candidate_name=candidate_name, programme_title=programme, channel=body.channel, message=body.message
     )
     return {"data": reminder, "notify": [notice]}
+
+
+# --- the contract (SRS FR-4.3) ------------------------------------------------
+
+
+class ContractIn(BaseModel):
+    content: str = Field(min_length=20, max_length=20000)
+
+
+class SignIn(BaseModel):
+    signed_by_name: str = Field(min_length=2, max_length=200)
+
+
+class ContractRow(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    case_id: str
+    content: str
+    status: ContractStatus
+    signed_by_name: str | None
+    signed_at: UtcDateTime | None
+    signed_ip: str | None
+    created_by: str
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
+
+
+@router.post("/cases/{case_id}/contract", response_model=Data[ContractRow], status_code=status.HTTP_201_CREATED)
+def issue_contract(
+    case_id: str,
+    body: ContractIn,
+    user: Annotated[AuthUser, Depends(require_role(*STAGE_OWNERS))],
+    db: AuditedDb,
+    _on: PipelineWrites,
+):
+    """POST /api/cases/[id]/contract: Operations issue the contract, sent
+    for the candidate to sign in the portal."""
+    case = _load(db, case_id, user)
+    if case.contract is not None:
+        raise ApiError(409, "contract_exists", "A contract already exists for this case.")
+    contract = Contract(case_id=case_id, content=body.content, status=ContractStatus.sent, created_by=user.user_id)
+    db.add(contract)
+    db.commit()
+    db.refresh(contract)
+    return {"data": contract}
+
+
+def _signer_ip(request: Request) -> str:
+    """Where the signature came from. Through the website the connection is
+    Next.js's own, so the browser's address it forwards is used, and only
+    then: a request without Next.js's credential can't name its own."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded and check_service_header(request) is not None:
+        return forwarded
+    return request.client.host if request.client else "unknown"
+
+
+@router.post("/cases/{case_id}/contract/sign", response_model=Data[ContractRow])
+def sign_contract(
+    case_id: str,
+    body: SignIn,
+    request: Request,
+    user: Annotated[AuthUser, Depends(require_role(Role.candidate))],
+    db: AuditedDb,
+    _on: PipelineWrites,
+):
+    """POST /api/cases/[id]/contract/sign: a simple electronic signature
+    (typed legal name, the signed-in session, time and address). Only the
+    candidate the contract is for can sign; staff never sign for them."""
+    case = db.get(Case, case_id)
+    if case is None:
+        raise ApiError(404, "not_found", "Case not found.")
+    if case.application.candidate.user_id != user.user_id:
+        raise ApiError(403, "forbidden", "Forbidden.")
+    contract = case.contract
+    if contract is None:
+        raise ApiError(404, "not_found", "No contract to sign yet.")
+    if contract.status is ContractStatus.signed:
+        raise ApiError(409, "already_signed", "Contract already signed.")
+    contract.status = ContractStatus.signed
+    contract.signed_by_name = body.signed_by_name
+    contract.signed_at = _now()
+    contract.signed_ip = _signer_ip(request)
+    db.commit()
+    db.refresh(contract)
+    return {"data": contract}
+
+
+# --- retention (SRS FR-4.7) ---------------------------------------------------
+
+
+class RetentionIn(BaseModel):
+    notes: str | None = Field(None, max_length=2000)
+
+
+class RetentionRow(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    case_id: str
+    due_at: UtcDateTime
+    completed_at: UtcDateTime | None
+    notes: str | None
+
+
+@router.patch("/cases/{case_id}/retention", response_model=Data[RetentionRow])
+def complete_retention(
+    case_id: str,
+    body: RetentionIn,
+    user: Annotated[AuthUser, Depends(require_role(*STAGE_OWNERS))],
+    db: AuditedDb,
+    _on: PipelineWrites,
+):
+    """PATCH /api/cases/[id]/retention: the 90-day follow-up is done."""
+    case = _load(db, case_id, user)
+    follow_up = case.retention_follow_up
+    if follow_up is None:
+        raise ApiError(404, "not_found", "No retention follow-up scheduled yet — the case must reach travel & settlement first.")
+    follow_up.completed_at = _now()
+    if body.notes is not None:
+        follow_up.notes = body.notes
+    db.commit()
+    db.refresh(follow_up)
+    return {"data": follow_up}

@@ -71,7 +71,7 @@ def world(db):
     home = Country(name=f"Case home {secrets.token_hex(3)}", region_id=region.id)
     db.add(home)
     db.flush()
-    account, _ = person(db, Role.candidate)
+    account, own = person(db, Role.candidate)
     partner_user, _ = person(db, Role.partner)
     partner = Partner(name="Bridge Agency", partner_type=PartnerType.other, country_of_operation="Kenya", contact_name="Pat", contact_email=f"p-{secrets.token_hex(3)}@test.invalid", contact_phone="1", user_id=partner_user.id)
     agent = ReferralAgent(full_name="Ref Agent", email=f"ra-{secrets.token_hex(3)}@test.invalid", phone="1", country="Kenya", referral_code=f"R{secrets.token_hex(4)}")
@@ -98,7 +98,7 @@ def world(db):
     admin, _ = person(db, Role.admin)
     db.add(ReferralCommissionRule(country_id=home.id, milestone=ReferralMilestone.work_permit_approved, amount=75, currency="EUR", updated_by=admin.id))
     db.flush()
-    return {"account": account, "partner": partner, "agent": agent, "candidate": candidate, "application": application, "case": case, "ops": ops, "hr": hr, "hr_user": hr_user, "recruiter": recruiter}
+    return {"account": account, "own": own, "partner": partner, "agent": agent, "candidate": candidate, "application": application, "case": case, "ops": ops, "hr": hr, "hr_user": hr_user, "recruiter": recruiter}
 
 
 def error(res) -> dict:
@@ -115,13 +115,14 @@ def _ts(path: str) -> str:
 def test_the_roles_match_next_js():
     from app.core.rbac import OPERATIONS_ROLES
 
-    for path in ("stage/route.ts", "ops-review/route.ts", "remind/route.ts"):
+    for path in ("stage/route.ts", "ops-review/route.ts", "remind/route.ts", "contract/route.ts", "retention/route.ts"):
         assert "requireRole(user, OPERATIONS_ROLES)" in _ts(path), path
     assert set(STAGE_OWNERS) == set(OPERATIONS_ROLES)
     assert "const CASE_REJECT_ROLES: Role[] = [...OPERATIONS_ROLES, \"hr\"];" in _ts("reject/route.ts")
     assert set(REJECTERS) == set(OPERATIONS_ROLES) | {Role.hr}
     overturners = re.search(r"const OVERTURN_REJECTION_ROLES: Role\[\] = \[(.*?)\]", _ts("overturn/route.ts")).group(1)
     assert set(re.findall(r'"(\w+)"', overturners)) == {r.value for r in OVERTURNERS}
+    assert 'requireRole(user, ["candidate"])' in _ts("contract/sign/route.ts")
 
 
 def test_the_stage_order_matches_the_website():
@@ -140,11 +141,15 @@ def test_only_operations_move_stages():
 
 def test_every_write_waits_for_the_switch(api, monkeypatch, world):
     monkeypatch.setattr(settings, "PIPELINE_WRITES_ENABLED", False)
-    for verb, path in (("patch", "stage"), ("patch", "ops-review"), ("patch", "reject"), ("patch", "overturn"), ("post", "remind")):
-        headers = world["hr"] if path == "overturn" else world["ops"]
+    calls = (
+        ("patch", "stage"), ("patch", "ops-review"), ("patch", "reject"), ("patch", "overturn"), ("post", "remind"),
+        ("post", "contract"), ("post", "contract/sign"), ("patch", "retention"),
+    )
+    for verb, path in calls:
+        headers = {"overturn": world["hr"], "contract/sign": world["own"]}.get(path, world["ops"])
         res = api.request(verb, f"{URL}/{world['case'].id}/{path}", headers=headers, json={})
         assert (res.status_code, error(res)["code"]) == (503, "pipeline_not_enabled"), path
-    assert len(module.router.routes) == 5
+    assert len(module.router.routes) == len(calls)
 
 
 # --- stages ------------------------------------------------------------------
@@ -288,3 +293,68 @@ def test_the_api_database_role_can_write_them(api, db, world):
     finally:
         db.execute(text("RESET ROLE"))
     assert (moved.status_code, reminded.status_code, rejected.status_code) == (200, 201, 200)
+
+
+# --- the contract ------------------------------------------------------------
+
+
+CONTRACT = "Employment contract terms for the placement in Berlin."
+
+
+def test_operations_issue_and_the_candidate_signs(api, db, world):
+    url = f"{URL}/{world['case'].id}/contract"
+    assert api.post(url, headers=world["ops"], json={"content": "too short"}).status_code == 422
+    issued = api.post(url, headers=world["ops"], json={"content": CONTRACT})
+    assert issued.status_code == 201
+    assert (issued.json()["data"]["status"], issued.json()["data"]["signed_at"]) == ("sent", None)
+    twice = api.post(url, headers=world["ops"], json={"content": CONTRACT})
+    assert (twice.status_code, error(twice)["code"]) == (409, "contract_exists")
+
+    assert api.post(f"{url}/sign", headers=world["ops"], json={"signed_by_name": "Ops"}).status_code == 403  # staff never sign
+    signed = api.post(f"{url}/sign", headers=world["own"], json={"signed_by_name": "Abebe Kebede"})
+    data = signed.json()["data"]
+    assert (data["status"], data["signed_by_name"], data["signed_at"] is not None, data["signed_ip"]) == ("signed", "Abebe Kebede", True, "testclient")
+    again = api.post(f"{url}/sign", headers=world["own"], json={"signed_by_name": "Abebe Kebede"})
+    assert (again.status_code, error(again)["message"]) == (409, "Contract already signed.")
+
+
+def test_only_the_candidate_whose_case_it_is_signs(api, db, world):
+    _, someone = person(db, Role.candidate)
+    assert api.post(f"{URL}/{world['case'].id}/contract/sign", headers=someone, json={"signed_by_name": "Someone"}).status_code == 403
+    nothing = api.post(f"{URL}/{world['case'].id}/contract/sign", headers=world["own"], json={"signed_by_name": "Abebe Kebede"})
+    assert (nothing.status_code, error(nothing)["message"]) == (404, "No contract to sign yet.")
+
+
+def test_a_forwarded_address_counts_only_from_the_website(api, db, world, monkeypatch):
+    from tests.test_service_auth import SERVICE_SECRET, service_token
+
+    monkeypatch.setattr(settings, "SERVICE_AUTH_SECRET", SERVICE_SECRET)
+    monkeypatch.setattr(settings, "SERVICE_AUTH_SECRET_PREVIOUS", None)
+    api.post(f"{URL}/{world['case'].id}/contract", headers=world["ops"], json={"content": CONTRACT})
+    claimed = {"X-Forwarded-For": "203.0.113.9"}
+    via_site = api.post(
+        f"{URL}/{world['case'].id}/contract/sign",
+        headers=world["own"] | claimed | {"X-Vertex-Service": service_token()},
+        json={"signed_by_name": "Abebe Kebede"},
+    )
+    assert via_site.json()["data"]["signed_ip"] == "203.0.113.9"
+
+
+def test_a_forwarded_address_without_the_website_is_ignored(api, db, world):
+    api.post(f"{URL}/{world['case'].id}/contract", headers=world["ops"], json={"content": CONTRACT})
+    direct = api.post(f"{URL}/{world['case'].id}/contract/sign", headers=world["own"] | {"X-Forwarded-For": "203.0.113.9"}, json={"signed_by_name": "Abebe Kebede"})
+    assert direct.json()["data"]["signed_ip"] == "testclient"
+
+
+# --- retention ---------------------------------------------------------------
+
+
+def test_operations_complete_the_retention_follow_up(api, db, world):
+    url = f"{URL}/{world['case'].id}/retention"
+    early = api.patch(url, headers=world["ops"], json={})
+    assert (early.status_code, error(early)["message"]) == (404, "No retention follow-up scheduled yet — the case must reach travel & settlement first.")
+    stage(api, world, "departure_arrival_support")
+    res = api.patch(url, headers=world["ops"], json={"notes": "Settled in, happy with the role."})
+    data = res.json()["data"]
+    assert (data["completed_at"] is not None, data["notes"]) == (True, "Settled in, happy with the role.")
+    assert api.patch(url, headers=world["recruiter"], json={}).status_code == 403

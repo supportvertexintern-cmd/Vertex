@@ -126,7 +126,7 @@ app included) can write through them early. Their tests turn the setting on.
 | 6.2 | Candidates (built, off) | Profile, staff edit, lifecycle status, screening and invites, messages, and the `Candidate` that registration creates |
 | 6.3 | Documents (built, off) | Upload end to end (storage, scan, the CIF upload token), verify, access records |
 | 6.4 | Built, off (#115): `vertex_be/app/api/v1/applications.py` (submission, review, staff corrections) with the "registered" commission and the duplicate-referral flag. The `notify` shapes moved to `app/api/notices.py`. Rejecting and overturning a case (which also write applications) come with 6.5, partner submissions with 6.6 |
-| 6.5 | 6.5a built, off: `vertex_be/app/api/v1/cases.py` (stage, ops review, reject, overturn, reminders) and approval opening the case; `CaseReminder` is now audited on both sides. 6.5b (contract and signing, retention, exceptions) next |
+| 6.5 | Built, off: `vertex_be/app/api/v1/cases.py` (6.5a, #117: approval opening the case, stage, ops review, reject, overturn, reminders; 6.5b: contract, signing, retention) and `exceptions.py` (raise, escalate, decide). `CaseReminder`, `Exception` and `ExceptionCorrectiveAction` are now audited on both sides |
 | 6.4 | Applications (built, off) | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
 | 6.5 | Cases (built, off) | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
 | 6.6 | Partner submissions (built, off) | Partner drafts and submission, HR review, create case, reject and overturn |
@@ -156,6 +156,10 @@ Step 6.7 wires the website to these, so they are fixed here:
   submitted" commission.
 - **Case reminders** are recorded by FastAPI and sent by the website after
   (today the website sends first, then records).
+- **Signing a contract** records the signer's address. Through the website
+  FastAPI sees Next.js's connection, so the website forwards the browser's
+  `X-Forwarded-For`; FastAPI trusts it only alongside Next.js's service
+  credential (`callBackend` sends the header from 6.7).
 - **Uploads** (D2): `POST /api/upload` passes the multipart body on to
   `POST /api/v1/documents` with the user's session, or, with an
   `X-Upload-Token` and no session, to `/documents/form-upload` as itself.
