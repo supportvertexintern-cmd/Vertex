@@ -130,6 +130,34 @@ class CaseReminderEmail(BaseModel):
     message: str | None
 
 
+class PartnerSubmittedEmail(BaseModel):
+    """sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to the
+    website's PARTNER_SUBMISSION_NOTIFY_EMAIL."""
+
+    kind: Literal["partner_candidate_submitted"] = "partner_candidate_submitted"
+    partner_name: str
+    candidate_name: str
+
+
+class PartnerCaseCreatedEmail(BaseModel):
+    """sendPartnerCaseCreatedEmail(email, partner_name, candidate_name)."""
+
+    kind: Literal["partner_case_created"] = "partner_case_created"
+    email: str
+    partner_name: str
+    candidate_name: str
+
+
+class PartnerSubmissionRejectedEmail(BaseModel):
+    """sendPartnerCandidateRejectedEmail(email, partner_name, candidate_name, reason)."""
+
+    kind: Literal["partner_candidate_rejected"] = "partner_candidate_rejected"
+    email: str
+    partner_name: str
+    candidate_name: str
+    reason: str
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -141,7 +169,10 @@ Notice = Annotated[
     | PartnerCaseStageEmail
     | CaseRejectedEmail
     | PartnerCaseRejectedEmail
-    | CaseReminderEmail,
+    | CaseReminderEmail
+    | PartnerSubmittedEmail
+    | PartnerCaseCreatedEmail
+    | PartnerSubmissionRejectedEmail,
     Field(discriminator="kind"),
 ]
 
