@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { passOn, readJson, seg } from "@/lib/pipeline";
 import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
 import { canAccessCandidate } from "@/server/scope";
-import { updateCandidateDetailsSchema } from "@/lib/validations";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
 import { evaluateScreeningGate } from "@/server/services/screening";
 
@@ -154,168 +153,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
-// PATCH /api/candidates/:id — progressive detail edits + consent capture
-// (SRS FR-2.5, FR-2.8). Lifecycle status transitions go through
-// /status instead, which has its own role-gating and screening checks.
+// PATCH and DELETE are written by FastAPI since the pipeline switch (step
+// 6.7; vertex_be/app/api/v1/candidates.py): staff corrections and consent
+// (SRS FR-2.5, FR-2.8), kept in step with a partner submission's copy; and
+// removing an erroneous submission, refused once a case exists.
+
+// PATCH /api/candidates/:id — HR, operations and the director may make the
+// same minor corrections the recruiter and supervisor can.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  // hr/operations_team/operations_director (2026-08-04) — same "minor
-  // corrections without a full reject/resend cycle" capability the
-  // recruiter already had, extended to whoever else now reviews
-  // submissions pre-Case (HR: self-applications + partner submissions;
-  // Operations: partner submissions, read-only until now). director
-  // added (CRM Comments item 5, 2026-08-10) — already had document-upload
-  // access on partner applications via the broader isStaffRole check on
-  // /api/upload, but was missing from this field-edit guard specifically.
   const guardRes = requireRole(user, [
     "regional_recruiter", "country_supervisor", "admin", "hr", "operations_team", "operations_director", "director",
   ]);
   if (guardRes) return guardRes;
-
   const { id } = await params;
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
-  }
-
-  const parsed = updateCandidateDetailsSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    select: { user_id: true, recruiter_id: true, country_id: true },
-  });
-  if (!candidate) {
-    return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
-  }
-
-  const allowed = await canAccessCandidate(user!, candidate);
-  if (!allowed) {
-    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
-  }
-
-  const { date_of_birth, passport_expiry, consent_given, ...rest } = parsed.data;
-
-  const db = auditedPrisma(user!.userId);
-
-  const updated = await db.candidate.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(date_of_birth ? { date_of_birth: new Date(date_of_birth) } : {}),
-      ...(passport_expiry ? { passport_expiry: new Date(passport_expiry) } : {}),
-      ...(consent_given !== undefined
-        ? { consent_given, consent_at: consent_given ? new Date() : null }
-        : {}),
-    },
-    select: {
-      id: true,
-      full_name: true,
-      nationality: true,
-      date_of_birth: true,
-      passport_number: true,
-      phone: true,
-      email: true,
-      desired_role: true,
-      consent_given: true,
-      consent_at: true,
-      second_nationality: true,
-      gender: true,
-      passport_expiry: true,
-      current_occupation: true,
-      highest_education: true,
-      home_address: true,
-      whatsapp_number: true,
-      marital_status: true,
-    },
-  });
-
-  // Keep the PartnerCandidate snapshot in sync too (2026-09-04) — a
-  // partner-sourced candidate's "Personal Information" card on
-  // PartnerSubmissionDetail.tsx displays PartnerCandidate's own columns,
-  // not this bridged Candidate record, so an edit here was silently
-  // invisible on that page despite genuinely persisting. Same precedent
-  // as PATCH /api/candidates/:id/application's own reverse-sync to
-  // PartnerCandidate. phone is deliberately excluded — partner-sourced
-  // candidates never collect one (2026-08-04 decision).
-  const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { bridged_candidate_id: id } });
-  if (partnerCandidate) {
-    await db.partnerCandidate.update({
-      where: { id: partnerCandidate.id },
-      data: {
-        full_name: parsed.data.full_name,
-        email: parsed.data.email,
-        nationality: parsed.data.nationality,
-        second_nationality: parsed.data.second_nationality,
-        gender: parsed.data.gender,
-        passport_number: parsed.data.passport_number,
-        date_of_birth: date_of_birth ? new Date(date_of_birth) : undefined,
-        passport_expiry: passport_expiry ? new Date(passport_expiry) : undefined,
-        current_occupation: parsed.data.current_occupation,
-        highest_education: parsed.data.highest_education,
-        home_address: parsed.data.home_address,
-        whatsapp_number: parsed.data.whatsapp_number,
-        marital_status: parsed.data.marital_status,
-      },
-    });
-  }
-
-  return NextResponse.json({ data: updated });
+  const read = await readJson(req);
+  if (read.invalid) return read.invalid;
+  return passOn(`/api/v1/candidates/${seg(id)}`, { method: "PATCH", body: read.body });
 }
 
-// DELETE /api/candidates/:id — remove an erroneous/duplicate/spam
-// self-submitted (or recruiter-sourced) application (CRM Comments
-// follow-up, 2026-08-12) — HR's/Operations' counterpart to
-// DELETE /api/partner-candidates/:id for the partner pipeline. Blocked
-// once a Case exists (lifecycle_status "approved") — a live operational
-// record at that point, managed through the Case itself. Cascades the
-// candidate's Application(s), Documents, and CandidateMessage thread
-// (all Cascade-on-delete from Candidate).
+// DELETE /api/candidates/:id — HR's and operations' counterpart to deleting
+// a partner submission.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["hr", "operations_team", "operations_director", "director", "admin"]);
   if (guardRes) return guardRes;
-
   const { id } = await params;
-
-  const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    select: { user_id: true, recruiter_id: true, country_id: true, lifecycle_status: true },
-  });
-  if (!candidate) {
-    return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
-  }
-
-  const allowed = await canAccessCandidate(user!, candidate);
-  if (!allowed) {
-    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
-  }
-
-  // A real Case (2026-08-16: checked directly, not inferred from
-  // lifecycle_status === "approved" — that assumption broke once Reject
-  // Case started moving a rejected candidate's lifecycle_status to
-  // "rejected" too, which would otherwise have made a closed-but-real
-  // Case's whole history (stage events, payments, contract, the
-  // rejection record itself) deletable via Candidate's onDelete: Cascade
-  // chain). Blocks deletion regardless of the Case's own status —
-  // rejected is a permanent record, not an invitation to erase it.
-  const existingCase = await prisma.case.findFirst({ where: { application: { candidate_id: id } }, select: { id: true } });
-  if (existingCase) {
-    return NextResponse.json(
-      { error: { code: "case_exists", message: "A case has already been created for this candidate — manage or close it from the Case instead of deleting." } },
-      { status: 409 }
-    );
-  }
-
-  await auditedPrisma(user!.userId).candidate.delete({ where: { id } });
-
-  return NextResponse.json({ data: { id } });
+  return passOn(`/api/v1/candidates/${seg(id)}`, { method: "DELETE" });
 }

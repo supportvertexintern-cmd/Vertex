@@ -43,16 +43,26 @@ export interface CallBackendOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Sent as JSON. */
   body?: unknown;
+  /** Sent as is instead of JSON, with its own content type (a multipart upload). */
+  raw?: { body: ArrayBuffer; contentType: string };
   /** Query string parameters; undefined values are left out. */
   query?: Record<string, string | number | boolean | undefined>;
-  /** Send the signed-in user's session (default). False only for calls Next.js makes for itself. */
-  asUser?: boolean;
+  /**
+   * Send the signed-in user's session: true (default; 401 without one),
+   * false only for calls Next.js makes for itself, or "if-signed-in" for a
+   * route anyone may use (the anonymous application form).
+   */
+  asUser?: boolean | "if-signed-in";
+  /** The few request headers FastAPI reads from the browser's request, passed on. */
+  forward?: Partial<Record<"X-Upload-Token" | "X-Forwarded-For", string | null>>;
+  /** Longer than the default for an upload, which FastAPI scans before storing. */
+  timeoutMs?: number;
 }
 
 const UNAVAILABLE: BackendError = { code: "backend_unavailable", message: "The service is unavailable. Please try again." };
 
 export async function callBackend<T = unknown>(path: string, options: CallBackendOptions = {}): Promise<BackendResult<T>> {
-  const { method = "GET", body, query, asUser = true } = options;
+  const { method = "GET", body, raw, query, asUser = true, forward, timeoutMs = TIMEOUT_MS } = options;
   const base = process.env.BACKEND_URL;
   if (!base) {
     log.error("backend.call_failed", { path, reason: "BACKEND_URL is not set" });
@@ -74,10 +84,14 @@ export async function callBackend<T = unknown>(path: string, options: CallBacken
     if (requestId) headers[REQUEST_ID_HEADER] = requestId;
     if (asUser) {
       const session = (await cookies()).get(ACCESS_COOKIE)?.value;
-      if (!session) return { ok: false, status: 401, error: { code: "unauthorized", message: "Unauthorized. Please log in." } };
-      headers.Authorization = `Bearer ${session}`;
+      if (session) headers.Authorization = `Bearer ${session}`;
+      else if (asUser === true) return { ok: false, status: 401, error: { code: "unauthorized", message: "Unauthorized. Please log in." } };
     }
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    for (const [name, value] of Object.entries(forward ?? {})) {
+      if (value) headers[name] = value;
+    }
+    if (raw) headers["Content-Type"] = raw.contentType;
+    else if (body !== undefined) headers["Content-Type"] = "application/json";
   } catch (err) {
     // SERVICE_AUTH_SECRET missing or too short.
     log.error("backend.call_failed", { path, reason: "service credential", err });
@@ -89,10 +103,10 @@ export async function callBackend<T = unknown>(path: string, options: CallBacken
     res = await fetch(url, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: raw ? raw.body : body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     const timedOut = err instanceof Error && err.name === "TimeoutError";

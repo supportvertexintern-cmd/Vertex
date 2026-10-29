@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   // A "registered"-milestone ReferralCommission row is created for every
   // referred candidate (even a £0 one, which auto-settles as "paid") —
-  // see generateReferralCommissionIfDue — so every milestone count,
+  // see FastAPI's commission_if_due — so every milestone count,
   // including registered, is derivable from this one ledger query.
   const milestoneCounts: Record<string, number> = {
     registered: 0,

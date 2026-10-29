@@ -1,10 +1,8 @@
-import { after } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { sendCandidateInviteEmail } from "@/lib/email";
-import { generateReferralCommissionIfDue } from "@/lib/referralMilestones";
-
-import { log } from "@/lib/log";
+// Screening a candidate, recording the result and the invite are FastAPI's
+// since the pipeline switch (step 6.7; vertex_be/app/services/screening.py,
+// which keeps these rules and messages: its tests read this file). The gate
+// stays here for the candidate detail page, which re-derives why a
+// candidate failed it.
 export interface ScreeningResult {
   passed: boolean;
   failures: string[];
@@ -103,93 +101,3 @@ export function evaluateScreeningGate(candidate: ScreenableCandidate): Screening
   return { passed: failures.length === 0, failures };
 }
 
-export async function evaluateScreeningGateForCandidateId(candidateId: string): Promise<ScreeningResult> {
-  const candidate = await prisma.candidate.findUnique({
-    where: { id: candidateId },
-    select: {
-      full_name: true,
-      nationality: true,
-      date_of_birth: true,
-      passport_number: true,
-      passport_expiry: true,
-      phone: true,
-      email: true,
-      consent_given: true,
-      user: { select: { full_name: true, email: true, phone: true } },
-      applications: {
-        where: { application_status: { not: "rejected" } },
-        orderBy: { submitted_at: "desc" },
-        take: 1,
-        select: { job_id: true, preferred_country_1_id: true, preferred_sector_id: true, earliest_travel_date: true },
-      },
-    },
-  });
-
-  if (!candidate) {
-    return { passed: false, failures: ["Candidate not found."] };
-  }
-
-  return evaluateScreeningGate(candidate);
-}
-
-export interface ScreenAndInviteResult extends ScreeningResult {
-  candidate?: { id: string; lifecycle_status: string; return_reason: string | null };
-}
-
-/**
- * Evaluates the screening gate, persists the result (screening_result is
- * its own standard report-content field regardless of outcome — Regional
- * Supervisory Operational Workflow p.7), and on pass advances the
- * candidate to "screened" and sends the account-creation invite (SRS
- * FR-2.1) — skipped if they already have an account, or there's no email
- * to invite yet (a phone-only lead can still be screened, they just can't
- * self-serve from here).
- *
- * Shared between two callers (2026-08-06): HR's manual PATCH
- * identified→screened action (retained as a retry path for a candidate
- * who initially failed screening and had their data corrected), and the
- * automatic call fired the moment a self-registered candidate submits the
- * CIF — screening only ever depends on the CIF's own Section 1/2 answers,
- * never on documents or an account, so there's no reason to wait for a
- * manual HR click on the common, already-eligible case.
- */
-export async function screenAndInvite(candidateId: string, actorId: string | null): Promise<ScreenAndInviteResult> {
-  const screening = await evaluateScreeningGateForCandidateId(candidateId);
-
-  const db = auditedPrisma(actorId);
-  await db.candidate.update({
-    where: { id: candidateId },
-    data: { screening_result: screening.passed, screening_evaluated_at: new Date() },
-  });
-
-  if (!screening.passed) {
-    return screening;
-  }
-
-  const updated = await db.candidate.update({
-    where: { id: candidateId },
-    data: { lifecycle_status: "screened", return_reason: null },
-    select: { id: true, lifecycle_status: true, return_reason: true, user_id: true, email: true, full_name: true },
-  });
-
-  // Referral commission trigger (2026-08-29) — this single function is
-  // the shared path for both the automatic CIF-submission screening pass
-  // and HR's manual identified->screened action, so hooking here covers
-  // both callers for free. No-ops immediately if the candidate wasn't
-  // referred, or if this milestone was already generated.
-  await generateReferralCommissionIfDue({ candidateId, milestone: "qualified", actorId });
-
-  if (!updated.user_id && updated.email) {
-    // Deferred via next/server's after() (2026-08-06), not awaited inline —
-    // the CIF submission this is called from was taking 30s-150s+ to
-    // respond because live SMTP sends have been observed taking that long.
-    // A bare un-awaited promise would risk Vercel freezing the function
-    // right after the response is sent, silently killing the send before
-    // it completes (the exact reason this used to be awaited) — after()
-    // is the platform-supported way to defer work past the response while
-    // still guaranteeing it runs to completion.
-    after(() => sendCandidateInviteEmail(candidateId, updated.email!, updated.full_name ?? "there").catch((err) => log.error("email.send_failed", { err })));
-  }
-
-  return { passed: true, failures: [], candidate: { id: updated.id, lifecycle_status: updated.lifecycle_status, return_reason: updated.return_reason } };
-}

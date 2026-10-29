@@ -18,7 +18,7 @@ from moto import mock_aws
 from sqlalchemy import select, text
 
 from app.api.v1 import documents as module
-from app.api.v1.documents import DRAFT_STAFF, ON_BEHALF_UPLOADERS, VERIFIERS
+from app.api.v1.documents import VERIFIERS
 from app.core.config import BASE_DIR, settings
 from app.core.tokens import key_for
 from app.db.session import get_db
@@ -37,8 +37,6 @@ from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api mus
 from tests.test_service_auth import SERVICE_SECRET, service_token
 
 WEB = BASE_DIR.parent / "vertex" / "src"
-UPLOAD_ROUTE = (WEB / "app" / "api" / "upload" / "route.ts").read_text(encoding="utf-8")
-UPLOAD_TS = (WEB / "lib" / "upload.ts").read_text(encoding="utf-8")
 URL = "/api/v1/documents"
 BUCKET = "vertex-test"
 PDF = b"%PDF-1.7\n" + b"x" * 100
@@ -164,26 +162,12 @@ def required_universal_types(db) -> list[str]:
 # --- drift -------------------------------------------------------------------
 
 
-def test_the_roles_match_next_js():
-    behalf = re.search(r"const canUploadOnBehalf =(.*?);", UPLOAD_ROUTE, re.S).group(1)
-    assert "isStaffRole(user!.role)" in behalf  # STAFF_ROLES, which test_rbac pins
-    extra = set(re.findall(r'user!\.role === "(\w+)"', behalf))
-    from app.core.rbac import STAFF_ROLES
-
-    assert {r.value for r in ON_BEHALF_UPLOADERS} == {r.value for r in STAFF_ROLES} | extra
-    draft = re.search(r"const isDraftStaff = \[(.*?)\]", UPLOAD_ROUTE).group(1)
-    assert set(re.findall(r'"(\w+)"', draft)) == {r.value for r in DRAFT_STAFF}
+def test_the_verifiers_match_next_js():
+    # The upload rules (who uploads for whom, file types, messages) are only
+    # FastAPI's since the switch (step 6.7): the website passes uploads on.
     verify_ts = (WEB / "app" / "api" / "documents" / "[id]" / "verify" / "route.ts").read_text(encoding="utf-8")
     verifiers = re.search(r"const VERIFIER_ROLES: Role\[\] = \[(.*?)\]", verify_ts).group(1)
     assert set(re.findall(r'"(\w+)"', verifiers)) == {r.value for r in VERIFIERS}
-
-
-def test_the_file_rules_match_next_js():
-    allowed = re.search(r"const ALLOWED_MIME_TYPES = \[(.*?)\];", UPLOAD_TS, re.S).group(1)
-    assert re.findall(r'"([\w/]+)"', allowed) == list(storage.ALLOWED_MIME_TYPES)
-    for message in ("Invalid document type.", "Invalid file type. Only PDF, JPEG, and PNG are allowed.", "File content does not match an allowed type (PDF, JPEG, PNG)."):
-        assert f'"{message}"' in UPLOAD_TS, message
-    assert "This file was rejected by the malware scanner." in UPLOAD_TS
 
 
 def test_the_bytes_decide_the_type():
@@ -296,7 +280,7 @@ def test_a_request_must_name_a_type_and_carry_a_file(api, world):
 def test_malware_is_refused_and_recorded(api, db, world, clamd):
     clamd.reply = f"stream: {EICAR} FOUND"
     res = upload(api, world.own, world.passport)
-    assert (res.status_code, error(res)) == (422, {"code": "malware_detected", "message": "This file was rejected by the malware scanner."})
+    assert (res.status_code, error(res)) == (422, {"code": "malware_detected", "message": "This file was rejected by the malware scanner.", "details": {"signature": EICAR}})
     assert stored() == set()
     event = db.scalars(select(AuditLog).where(AuditLog.entity_id == world.mine.id, AuditLog.action == "malware_rejected")).one()
     assert (event.actor_id, event.after["signature"]) == (world.owner.id, EICAR)
@@ -430,8 +414,10 @@ def test_an_infected_document_is_blocked(api, db, world, unscanned, clamd):
     db.refresh(unscanned)
     assert unscanned.scan_status == "infected"
     assert db.scalars(select(AuditLog).where(AuditLog.entity_id == unscanned.id, AuditLog.action == "malware_blocked_download")).one().actor_id is None
+    assert error(res)["details"] == {"document_id": unscanned.id, "newly_found": True, "signature": EICAR}
     clamd.reply = "stream: OK"
-    assert readable(api, unscanned.storage_path).status_code == 403  # stays blocked
+    again = readable(api, unscanned.storage_path)
+    assert (again.status_code, error(again)["details"]["newly_found"]) == (403, False)  # stays blocked, no new alert
 
 
 def test_with_the_scanner_down_a_document_is_served_unscanned(api, db, unscanned, monkeypatch):

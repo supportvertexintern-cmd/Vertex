@@ -139,8 +139,8 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 | Content | `Job`, `JobPaymentStage`, `JobSector`, `JobPosition`, `EmailTemplate`, `KnowledgeArticle` | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1), **`Job`, `JobPaymentStage`** (step 3.2, with Stripe pricing), **`JobSector`, `JobPosition`** (step 3.3) | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
 | Partners | `Partner`, `EmployerClient`, `ReferralAgent`; `ReferralAgentTarget` (no writer) | **FastAPI: `EmployerClient`** (step 4.1). Next.js: `Partner`, `ReferralAgent`, which move with Users and sessions (§2.3); none | FastAPI | The `User` half of partner accounts stays in Next.js until Users moves (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | **FastAPI: `Campaign`, `CampaignTarget`** (step 5.1), **`RecruiterTarget`, `StaffKpiTarget`, `RecruiterNote`** (step 5.2), **`StaffScorecard`, `StaffScorecardArea`** (step 5.3), **`Report`** (step 5.4: submit, verify, return, resubmit; the list, detail and consolidation preview still read it in Next.js) | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
-| Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp` | Next.js | FastAPI | One handover (§2.2). The S3 cutover must come first if documents will be stored on main (E2) |
-| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommission`, `ReferralCommissionRule` (no writer). `JobPaymentStage` moved with jobs (step 3.2) | Next.js; none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
+| Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp`, `ReferralCommission` | **FastAPI: all of them** (step 6.7, the switch; `docs/architecture/pipeline-handover.md`). Next.js keeps the reads (lists, detail pages, dashboards) and sends the pipeline's emails | FastAPI | One handover (§2.2). Documents are stored in MinIO until the owner chooses a provider; the S3 cutover (E2) must come before real documents on main |
+| Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`; `ReferralCommissionRule`. `JobPaymentStage` moved with jobs (step 3.2); `ReferralCommission` with the pipeline (step 6.7) | Next.js | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
 | Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | Next.js | FastAPI | Last: FastAPI becomes the session issuer |
 | Audit | `AuditLog` | both (insert only) | both (insert only) | §2.5 |
 
@@ -154,7 +154,7 @@ With the areas in §3, only three handlers still write across areas, and all of 
 | Handler | Writes | Resolution |
 |---|---|---|
 | `/api/admin/partners/[id]`, `.../provision-account` | `Partner` + `User` | Moves with Users and sessions (owner's decision, §2.3) |
-| `/api/auth/register` | `User` + `Candidate` | Next.js creates the `Candidate` through FastAPI once the pipeline has moved |
+| `/api/auth/register` | `User` + `Candidate` | Next.js creates the `User`, then FastAPI claims the `Candidate` for it (`POST /api/v1/candidates/claim`, step 6.7); a failed claim removes the `User` again |
 
 **Foreign keys across areas** don't block a move: a service may read and
 reference rows it doesn't own. But **`ON DELETE CASCADE` across areas is a
@@ -245,20 +245,19 @@ updated.
 
 ### Candidate pipeline
 
-| Table | Writers today (Next.js) | Readers today |
+Written by **FastAPI** since the switch (step 6.7, `docs/architecture/pipeline-handover.md`); `vertex_web` has no write grant on any of these. The Next.js routes check the role early and pass the request on (`lib/pipeline.ts`), then send the emails FastAPI lists. Reads stay in Next.js.
+
+| Table | Writer (FastAPI, `vertex_be/app/api/v1/…`) | Readers (Next.js) |
 |---|---|---|
-| `Candidate` | `/api/applications` (create, update)<br>`/api/auth/register` (update)<br>`/api/candidates/[id]` (delete, update)<br>`/api/candidates/[id]/status` (update)<br>`/api/candidates/profile` (update)<br>`/api/cases/[id]/reject` (update)<br>`/api/partner-candidates/[id]/create-case` (update)<br>`/api/partner-candidates/[id]` (delete)<br>`/api/partner/candidates/[id]` (update)<br>`/api/partner/candidates` (create)<br>`/api/upload` (update)<br>`server/services/screening.ts` (update) | 16 files, incl. `/api/admin/backup/candidates-csv`, `/api/applications`, `/api/auth/register`, `/api/candidates/[id]/application`, … |
-| `Document` | `/api/documents/[id]/verify` (update)<br>`/api/upload` (create, delete)<br>`lib/document-access.ts` (update) | 10 files, incl. `/api/cases/[id]/payments/[paymentId]/mark-paid`, `/api/cases/[id]/payments/[paymentId]/receipt`, `/api/cases/[id]/payments/invoice`, `/api/documents/[id]/signed-url`, … |
-| `CandidateMessage` | `/api/candidates/[id]/messages/[messageId]` (delete, update)<br>`/api/candidates/[id]/messages` (create) | `/api/candidates/[id]/messages/[messageId]`, `/api/candidates/[id]/messages`, `/api/partner/candidates`, `server/services/candidateSignals.ts` |
-| `PartnerCandidate` | `/api/candidates/[id]/application` (update)<br>`/api/candidates/[id]/messages` (updateMany)<br>`/api/partner-candidates/[id]/create-case` (update)<br>`/api/partner-candidates/[id]/reject` (update)<br>`/api/partner-candidates/[id]` (delete)<br>`/api/partner/candidates/[id]` (update)<br>`/api/partner/candidates` (create) | 8 files, incl. `/api/candidates/[id]/application`, `/api/candidates/[id]/messages`, `/api/partner-candidates/[id]/create-case`, `/api/partner-candidates/[id]/reject`, … |
-| `Application` | `/api/applications/[id]` (update)<br>`/api/applications` (create)<br>`/api/candidates/[id]/application` (update)<br>`/api/cases/[id]/reject` (update)<br>`/api/partner/candidates/[id]` (update)<br>`/api/partner/candidates` (create) | 7 files, incl. `/api/applications/[id]`, `/api/applications`, `/api/candidates/[id]/application`, `/api/candidates/[id]/status`, … |
-| `Case` | `/api/cases/[id]/ops-review` (update)<br>`/api/cases/[id]/reject` (update)<br>`/api/cases/[id]/stage` (update)<br>`server/services/caseLifecycle.ts` (create) | 17 files, incl. `/api/candidates/[id]`, `/api/cases/[id]/audit-log`, `/api/cases/[id]/contract`, `/api/cases/[id]/contract/sign`, … |
-| `CaseStageEvent` | `/api/cases/[id]/stage` (create, update)<br>`server/services/caseLifecycle.ts` (create) | none |
-| `CaseReminder` | `/api/cases/[id]/remind` (create) | none |
-| `Contract` | `/api/cases/[id]/contract` (create)<br>`/api/cases/[id]/contract/sign` (update) | none |
-| `Exception` | `/api/exceptions/[id]` (update)<br>`/api/exceptions` (create) | `/api/exceptions/[id]`, `/api/exceptions` |
-| `ExceptionCorrectiveAction` | `/api/exceptions` (create (nested)) | none |
-| `RetentionFollowUp` | `/api/cases/[id]/retention` (update)<br>`/api/cases/[id]/stage` (create) | `/api/cases/[id]/stage` |
+| `Candidate` | `candidates.py` (profile, staff edit and delete, status, registration's claim), `applications.py` (submission), `cases.py` (reject, overturn), `partner_submissions.py`, `documents.py` (submitted on the last upload) | 16 files, incl. `/api/admin/backup/candidates-csv`, `/api/candidates`, `/api/candidates/[id]` |
+| `Document` | `documents.py` (upload, the form's upload, verify, scan when opened), `partner_submissions.py` (a draft's documents move to its candidate) | `/api/documents/[id]/signed-url`, `/api/documents/file`, the case payment receipts and invoices, … |
+| `CandidateMessage` | `candidates.py` | `/api/candidates/[id]/messages`, `server/services/candidateSignals.ts`, … |
+| `PartnerCandidate` | `partner_submissions.py`; `candidates.py` and `applications.py` (corrections keep its copy in step; HR's first message marks it under review) | `/api/partner-candidates`, `/api/partner/candidates`, … |
+| `Application` | `applications.py`, `cases.py` (reject, overturn), `partner_submissions.py` | `/api/applications`, `/api/candidates/[id]`, … |
+| `Case`, `CaseStageEvent` | `candidates.py` (approval opens the case), `partner_submissions.py` (create-case), `cases.py` | `/api/cases`, `/api/cases/[id]`, the dashboards |
+| `CaseReminder`, `Contract`, `RetentionFollowUp` | `cases.py` | `/api/cases/[id]`, `/api/cases/[id]/contract` |
+| `Exception`, `ExceptionCorrectiveAction` | `exceptions.py` | `/api/exceptions` |
+| `ReferralCommission` | `app/services/referrals.py` (earned at the milestones), `referral_commissions.py` (approve, mark paid) | `/api/referral-agent/me`, `/api/admin/referral-commissions`, `server/services/kpi.ts` |
 
 ### Payments and finance
 
@@ -269,7 +268,6 @@ updated.
 | `JobPaymentStage` | **FastAPI** `/api/v1/jobs` and `/api/v1/jobs/{id}` (the stages, updated in place), `app/services/stripe_pricing.py` (Stripe ids, after a save and on `/api/v1/jobs/{id}/stripe-pricing/sync`); `vertex_web` has no write grant (step 3.2) | `/api/jobs/[id]`, `/api/cases/[id]/payments/link`, payment routes |
 | `Payment` | `/api/payments/paypal/capture-order` (create)<br>`/api/webhooks/stripe` (create) | `/api/applications`, `/api/payments/me`, `/api/webhooks/stripe` |
 | `ConsultationBooking` | `/api/webhooks/stripe` (create) | `/api/consultation-bookings`, `/api/webhooks/stripe` |
-| `ReferralCommission` | **none** | none |
 | `ReferralCommissionRule` | **none** | none |
 
 ### Users and sessions

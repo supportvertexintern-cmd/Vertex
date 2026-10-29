@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   // Deferred via after() (2026-08-06) — the primary notification above
   // already succeeded (that's the real record this endpoint exists to
   // create), so this second, applicant-facing confirmation shouldn't hold
-  // up the response. See screening.ts's screenAndInvite for why after(),
+  // up the response. See lib/pipeline.ts (sendNotices) for why after(),
   // not a bare un-awaited promise.
   after(async () => {
     try {

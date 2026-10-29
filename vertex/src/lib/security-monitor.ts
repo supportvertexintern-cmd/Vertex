@@ -95,6 +95,15 @@ export function onAuditWriteFailed(what: string, err: unknown): void {
   void raiseAlert(RULES.auditWriteFailed, "audit", "Writing to the audit trail failed", { operation: what, error: err }, { persist: false });
 }
 
+// Malware found by FastAPI, which scans and stores documents since the
+// pipeline switch (step 6.7) and records the security event itself: the
+// alert is raised here, from its answer, without a second audit row.
+export function onMalwareFound(action: "malware_rejected" | "malware_blocked_download", entityId: string, actorId: string | null, signature: unknown): void {
+  void raiseAlert(RULES.malware, `${action}:${entityId}`, action === "malware_rejected" ? "An uploaded file was infected and rejected" : "A stored document was found infected and blocked", {
+    actor_id: actorId, entity_id: entityId, signature,
+  });
+}
+
 export function onScannerUnavailable(reason: string): void {
   void raiseAlert(RULES.scannerUnavailable, "clamd", "The malware scanner is unreachable; uploads are being accepted unscanned", { reason });
 }

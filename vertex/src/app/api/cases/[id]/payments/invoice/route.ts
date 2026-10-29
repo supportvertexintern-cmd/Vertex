@@ -127,7 +127,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     fileContent = await getStorageContent(invoiceDocument.storage_path);
     // Never email a file that fails the malware scan.
-    await assertDocumentReadable(invoiceDocument.storage_path, fileContent.buffer, user!.userId);
+    await assertDocumentReadable(invoiceDocument.storage_path, true);
   } catch (err) {
     if (err instanceof DocumentBlockedError) {
       return NextResponse.json({ error: { code: "invoice_blocked", message: err.message } }, { status: 422 });

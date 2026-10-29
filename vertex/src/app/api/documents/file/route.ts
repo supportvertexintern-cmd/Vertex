@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     ({ buffer, extension, storagePath } = await resolveDocumentContent(token));
     storagePathForAudit = storagePath;
     // The link holder has no session; the token is the grant.
-    await assertDocumentReadable(storagePath, buffer, null);
+    await assertDocumentReadable(storagePath);
   } catch (err) {
     if (err instanceof DocumentBlockedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });

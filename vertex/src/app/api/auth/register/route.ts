@@ -6,7 +6,7 @@ import { sendVerificationEmail } from "@/lib/email";
 import { registerSchema, completeAccountSetupSchema } from "@/lib/validations";
 import { limitByIp, rateLimit } from "@/lib/rate-limit";
 import { verifyCandidateInviteToken, verifyAccountSetupToken } from "@/lib/jwt";
-import { evaluateDocumentCompletenessForCandidateId } from "@/server/services/documentCompleteness";
+import { callBackend } from "@/lib/backend";
 
 import { log } from "@/lib/log";
 // Shared by GET (prefill) and POST (actual account creation) — a
@@ -23,7 +23,6 @@ async function lookupClaimableInvite(token: string) {
       full_name: true,
       email: true,
       phone: true,
-      lifecycle_status: true,
       applications: {
         orderBy: { submitted_at: "desc" },
         take: 1,
@@ -213,33 +212,20 @@ export async function POST(req: NextRequest) {
     select: { id: true, full_name: true, email: true, role: true },
   });
 
-  const justAdvancedToGuidedToApply = candidate.lifecycle_status === "screened";
-  await db.candidate.update({
-    where: { id: candidate.id },
-    data: {
-      user_id: user.id,
-      // Claiming the invite is what "guided to apply" now means — the
-      // candidate has created their own account and can go upload
-      // documents (candidateLifecycle.ts treats this transition as
-      // system-only, not something staff manually advance). Guarded so
-      // this never clobbers a candidate a supervisor has already moved
-      // further along by the time they get around to registering.
-      ...(justAdvancedToGuidedToApply ? { lifecycle_status: "guided_to_apply" } : {}),
-    },
+  // The Candidate is FastAPI's since the pipeline switch (step 6.7): it
+  // links this account to the candidate the invite was for, checking the
+  // invite itself, moves them to guided_to_apply, and to submitted when the
+  // form already carried every required document (vertex_be/app/api/v1/
+  // candidates.py, claim). Called as this app: nobody is signed in yet.
+  const claim = await callBackend("/api/v1/candidates/claim", {
+    method: "POST",
+    body: { invite, user_id: user.id },
+    asUser: false,
   });
-
-  // Real documents can now be attached inline on the CIF itself, before
-  // an account ever exists (2026-08-06, via the cif_upload token) — so a
-  // candidate landing here may already have everything required. Without
-  // this check they'd sit at guided_to_apply indefinitely: the completeness
-  // check that normally flips a candidate to "submitted" only runs inside
-  // /api/upload's own POST handler, triggered by a new upload event, and
-  // no new upload happens here — just the account being claimed.
-  if (justAdvancedToGuidedToApply) {
-    const completeness = await evaluateDocumentCompletenessForCandidateId(candidate.id);
-    if (completeness.complete) {
-      await db.candidate.update({ where: { id: candidate.id }, data: { lifecycle_status: "submitted" } });
-    }
+  if (!claim.ok) {
+    // No half-made account: the User goes again, so the invite can be retried.
+    await db.user.delete({ where: { id: user.id } }).catch((err) => log.error("register.rollback_failed", { err }));
+    return NextResponse.json({ error: claim.error.message }, { status: claim.status });
   }
 
   // Awaited (not truly fire-and-forget, despite the name) — on serverless

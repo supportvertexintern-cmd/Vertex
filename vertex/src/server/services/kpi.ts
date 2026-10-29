@@ -236,7 +236,7 @@ export interface ReferralAgentPerformance {
  * computePartnerPerformance above — same live-aggregate, no-stored-cache
  * shape. qualified/deployed counts read off the ReferralCommission ledger
  * (a milestone row only exists once that milestone is actually reached —
- * see generateReferralCommissionIfDue), not a live lifecycle_status
+ * see FastAPI's commission_if_due), not a live lifecycle_status
  * re-derivation, so this stays consistent with every other Referral
  * Agent System view of the same data (the agent's own /me dashboard, the
  * commissions queue).

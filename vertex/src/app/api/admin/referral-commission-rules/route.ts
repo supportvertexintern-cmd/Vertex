@@ -8,7 +8,7 @@ import { upsertReferralCommissionRuleSchema } from "@/lib/validations";
 // GET /api/admin/referral-commission-rules — every rule on file, optional
 // ?countryId= filter (reused by the Country Management hub, §7.6). A
 // missing (country, milestone) row is treated as an implicit amount-0 rule
-// everywhere it's read (generateReferralCommissionIfDue) — the grid UI
+// everywhere it's read (FastAPI's commission_if_due) — the grid UI
 // fills in the gaps client-side rather than the API pre-seeding every
 // combination.
 export async function GET(req: NextRequest) {

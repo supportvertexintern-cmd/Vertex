@@ -1,6 +1,6 @@
 # Candidate pipeline handover (backend plan step 6)
 
-Status: **decided** (owner, 2026-10-29; §3). Follows `data-ownership.md`
+Status: **switched** (step 6.7): FastAPI writes the candidate pipeline. Decided by the owner on 2026-10-29 (§3). Follows `data-ownership.md`
 §2.2, which makes the pipeline one ownership handover.
 
 ## 1. What moves
@@ -127,7 +127,8 @@ app included) can write through them early. Their tests turn the setting on.
 | 6.3 | Documents (built, off) | Upload end to end (storage, scan, the CIF upload token), verify, access records |
 | 6.4 | Built, off (#115): `vertex_be/app/api/v1/applications.py` (submission, review, staff corrections) with the "registered" commission and the duplicate-referral flag. The `notify` shapes moved to `app/api/notices.py`. Rejecting and overturning a case (which also write applications) come with 6.5, partner submissions with 6.6 |
 | 6.5 | Built, off (#117, #118): `vertex_be/app/api/v1/cases.py` (6.5a, #117: approval opening the case, stage, ops review, reject, overturn, reminders; 6.5b: contract, signing, retention) and `exceptions.py` (raise, escalate, decide). `CaseReminder`, `Exception` and `ExceptionCorrectiveAction` are now audited on both sides |
-| 6.6 | Built, off: `vertex_be/app/api/v1/partner_submissions.py` (drafts, submission, corrections, abandoning a draft; HR's create-case, reject, overturn, delete). Open for the owner: overturning a partner rejection sets the candidate to "approved" with no case (kept as the website does it) |
+| 6.6 | Built, off (#119): `vertex_be/app/api/v1/partner_submissions.py` (drafts, submission, corrections, abandoning a draft; HR's create-case, reject, overturn, delete). Open for the owner: overturning a partner rejection sets the candidate to "approved" with no case (kept as the website does it) |
+| 6.7 | **Switched**: every pipeline route passes requests on (`vertex/src/lib/pipeline.ts`) and sends the emails FastAPI lists; `PIPELINE_WRITES_ENABLED` defaults on; `vertex_web` has no writes on the cluster or `ReferralCommission` (`db-roles.sql`); the website's write code is gone. Commission payouts (approve, mark paid) moved too: they were the last other writers of `ReferralCommission` |
 | 6.4 | Applications (built, off) | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
 | 6.5 | Cases (built, off) | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
 | 6.6 | Partner submissions (built, off) | Partner drafts and submission, HR review, create case, reject and overturn |
@@ -201,3 +202,28 @@ Step 6.7 wires the website to these, so they are fixed here:
 - **Scope drift:** the scoping rules exist in Next.js and FastAPI until
   reads move. Drift tests compare them.
 - **Size:** 32 files. Expect several PRs per step.
+
+## 6. Rolling the switch back
+
+No code change. On the stack:
+
+1. Set `PIPELINE_WRITES_ENABLED=false` for the backend and restart it. Every
+   pipeline write in FastAPI then answers 503 `pipeline_not_enabled`.
+2. Give `vertex_web` its writes back, as the database owner:
+   `GRANT INSERT, UPDATE, DELETE ON "Candidate", "CandidateMessage", "Document", "Application", "Case", "CaseStageEvent", "CaseReminder", "Contract", "RetentionFollowUp", "Exception", "ExceptionCorrectiveAction", "PartnerCandidate", "ReferralCommission" TO vertex_web;`
+3. Deploy the release before the switch: its Next.js routes write the
+   pipeline themselves.
+
+Rows written by FastAPI in between are ordinary rows, audited like any
+other; nothing needs converting.
+
+## 7. Known gaps after the switch
+
+- **The demo site** (`docs/demo-site.md`) runs Next.js without FastAPI, so
+  its pipeline writes now fail, as its job, campaign and report writes have
+  since those areas moved. Its seed, which loads data as `vertex_web`, can
+  no longer write these tables either. Giving the demo a FastAPI (or
+  seeding it as the owner) is a separate change.
+- **Scanner and malware alerts** are raised by the website from FastAPI's
+  answers (an upload rejected or stored unscanned, a download blocked);
+  FastAPI also logs `security.scanner_unavailable`.
