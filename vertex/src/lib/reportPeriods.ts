@@ -1,5 +1,5 @@
 // A weekly report is always a fixed Monday-Sunday, 7-day window (see
-// submitReportSchema in validations.ts for why) — these helpers keep the
+// _period_errors in vertex_be/app/api/v1/reports.py for why) — these helpers keep the
 // UI's date pickers from ever producing a mismatched range in the first
 // place, rather than relying on the server to reject it after the fact.
 

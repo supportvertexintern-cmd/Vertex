@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { reportContentSchema } from "@/lib/validations";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 
+// FastAPI owns report writes since backend plan step 5.4
+// (vertex_be/app/api/v1/reports.py): this handler checks the role early,
+// passes the request on with callBackend() and answers with FastAPI's
+// response. FastAPI re-checks the session, the role and the reporting line
+// (one controlling position per scope, limited to the reviewer's own
+// country or countries), audits every change, and vertex_web may no longer
+// write the table (deploy/db-roles.sql).
+
+// Must match RESUBMITTERS in reports.py (tests check it).
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "admin"] as const;
 
 // PATCH /api/reports/:id/resubmit — only the original submitter can
@@ -14,47 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id } = await params;
-
-  const report = await prisma.report.findUnique({ where: { id } });
-  if (!report) {
-    return NextResponse.json({ error: { code: "not_found", message: "Report not found." } }, { status: 404 });
-  }
-
-  if (report.submitted_by !== user!.userId && user!.role !== "admin") {
-    return forbidden({ error: { code: "forbidden", message: "Only the original submitter can resubmit this report." } });
-  }
-
-  if (report.status !== "returned") {
-    return NextResponse.json({ error: { code: "invalid_transition", message: "Only a returned report can be resubmitted." } }, { status: 422 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsedContent = reportContentSchema.safeParse((body as { content?: unknown })?.content);
-  if (!parsedContent.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsedContent.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  // CRM Submission Ref. is always the report's own id (never user-entered
-  // — see POST /api/reports), so resubmitting re-asserts it regardless of
-  // whatever the corrected content happened to carry.
-  const updated = await auditedPrisma(user!.userId).report.update({
-    where: { id },
-    data: {
-      status: "submitted",
-      return_reason: null,
-      content: { ...parsedContent.data, crm_reference: id },
-    },
-    select: { id: true, status: true },
-  });
-
-  return NextResponse.json({ data: updated });
+  return backendResponse(await callBackend(`/api/v1/reports/${encodeURIComponent(id)}/resubmit`, { method: "PATCH", body }));
 }

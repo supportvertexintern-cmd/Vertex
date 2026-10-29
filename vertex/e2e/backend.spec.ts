@@ -401,3 +401,58 @@ test.describe("Next.js -> FastAPI (staff scorecards, step 5.3)", () => {
   });
 });
 
+test.describe("Next.js -> FastAPI (report writes, step 5.4)", () => {
+  // The reporting line itself: a recruiter submits, their Country
+  // Supervisor returns and verifies, then consolidates it.
+  async function signedIn(browser: import("@playwright/test").Browser, email: string) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    await page.addInitScript(() => window.localStorage.setItem("vertex_welcome_accepted", "true"));
+    await page.goto("/auth/login");
+    await page.fill("#login-email", email);
+    await page.fill("#login-password", "E2ETestPassword123!");
+    await page.click("#login-submit-btn");
+    await page.waitForURL((url) => !url.pathname.startsWith("/auth/login"), { timeout: 25_000 });
+    return { context, page };
+  }
+
+  test("a report goes up the line through the website", async ({ browser }) => {
+    const recruiter = await signedIn(browser, "e2e-recruiter@test.local");
+    const supervisor = await signedIn(browser, "e2e-supervisor@test.local");
+    try {
+      // The last full Monday-to-Sunday week, in UTC as the server reads it.
+      const now = new Date();
+      const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((now.getUTCDay() + 6) % 7) - 7));
+      const sunday = new Date(monday.getTime() + 6 * 86_400_000);
+      const week = { type: "weekly", period_start: monday.toISOString().slice(0, 10), period_end: sunday.toISOString().slice(0, 10) };
+      const content = { certified: true, executive_summary: "E2E week", kpis: [{ label: "Candidate identification", target: 10, actual: 9 }] };
+
+      const tuesday = new Date(monday.getTime() + 86_400_000).toISOString().slice(0, 10);
+      const offWeek = await recruiter.page.request.post("/api/reports", { data: { ...week, period_start: tuesday, content } });
+      expect(offWeek.status()).toBe(422);
+
+      const submitted = await recruiter.page.request.post("/api/reports", { data: { ...week, content } });
+      expect(submitted.status()).toBe(201);
+      const { data: report } = await submitted.json();
+      expect(report).toMatchObject({ scope_level: "recruiter", status: "submitted" });
+
+      const returned = await supervisor.page.request.patch(`/api/reports/${report.id}/return`, { data: { return_reason: "Add the pipeline figures." } });
+      expect((await returned.json()).data.status).toBe("returned");
+      const resubmitted = await recruiter.page.request.patch(`/api/reports/${report.id}/resubmit`, { data: { content: { ...content, executive_summary: "Fixed" } } });
+      expect((await resubmitted.json()).data.status).toBe("submitted");
+      expect((await (await supervisor.page.request.patch(`/api/reports/${report.id}/verify`)).json()).data.status).toBe("verified");
+
+      // The detail is still read by Next.js and sees FastAPI's writes.
+      const detail = (await (await recruiter.page.request.get(`/api/reports/${report.id}`)).json()).data;
+      expect(detail).toMatchObject({ status: "verified", return_reason: null, content: { executive_summary: "Fixed", crm_reference: report.id } });
+
+      const country = await supervisor.page.request.post("/api/reports", { data: { ...week, content, child_report_ids: [report.id] } });
+      expect((await country.json()).data.scope_level).toBe("country");
+      expect((await (await recruiter.page.request.get(`/api/reports/${report.id}`)).json()).data.status).toBe("consolidated");
+    } finally {
+      await recruiter.context.close();
+      await supervisor.context.close();
+    }
+  });
+});
+

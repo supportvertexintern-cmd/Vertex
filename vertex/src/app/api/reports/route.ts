@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { submitReportSchema } from "@/lib/validations";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { getReportScopeFilter } from "@/server/services/reportWorkflow";
-import { getInhouseAssignedCountryIds } from "@/server/scope";
-import type { Prisma, ScopeLevel } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
 const MAX_PAGE_SIZE = 200;
@@ -92,14 +90,15 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/reports — submit a new report (SRS FR-3.4; Supervisory
-// Reporting Framework §3-§5). A recruiter submits at their own scope; a
-// country_supervisor consolidates verified recruiter reports
-// (child_report_ids) into a country report; an inhouse_supervisor
-// consolidates their (single-country, per the existing confirmed
-// portfolio-of-one scoping) verified country report into their own
-// portfolio report, submitted upward to Management/Director.
+// Reporting Framework §3-§5) at the caller's own scope, consolidating the
+// verified child reports it names. FastAPI owns report writes since backend
+// plan step 5.4 (vertex_be/app/api/v1/reports.py): it re-checks the
+// session, the role, the period rules and the reporting line, audits every
+// change, and vertex_web may no longer write the table. This GET stays
+// here: it only reads.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
+  // Must match SUBMITTERS in reports.py (tests check it).
   const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor"]);
   if (guardRes) return guardRes;
 
@@ -109,114 +108,5 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
   }
-
-  const parsed = submitReportSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const scopeLevel: ScopeLevel =
-    user!.role === "regional_recruiter" ? "recruiter" : user!.role === "country_supervisor" ? "country" : "inhouse";
-
-  // In-House can be assigned several countries (2026-07) — their own
-  // country_id is null (a portfolio roll-up, see below), so their
-  // eligibility check is "assigned to at least one country", not a
-  // single scalar FK the way recruiter/country_supervisor still are.
-  let submitterCountryId: string | null = null;
-  let inhouseCountryIds: string[] = [];
-  if (scopeLevel === "inhouse") {
-    inhouseCountryIds = await getInhouseAssignedCountryIds(user!.userId);
-    if (!inhouseCountryIds.length) {
-      return NextResponse.json({ error: { code: "no_country", message: "You must be assigned a country before submitting a report." } }, { status: 422 });
-    }
-  } else {
-    const submitter = await prisma.user.findUnique({ where: { id: user!.userId }, select: { assigned_country_id: true } });
-    if (!submitter?.assigned_country_id) {
-      return NextResponse.json({ error: { code: "no_country", message: "You must be assigned a country before submitting a report." } }, { status: 422 });
-    }
-    submitterCountryId = submitter.assigned_country_id;
-  }
-
-  const { period_start, period_end, child_report_ids, ...rest } = parsed.data;
-
-  if (scopeLevel === "recruiter" && child_report_ids?.length) {
-    return NextResponse.json(
-      { error: { code: "invalid_scope", message: "Only a country-level or portfolio-level report can consolidate child reports." } },
-      { status: 422 }
-    );
-  }
-
-  // A country-scope report consolidates verified recruiter reports from
-  // the same country; a portfolio-scope (inhouse) report consolidates
-  // verified country reports from any of the submitter's assigned
-  // countries (a combined, multi-country portfolio, confirmed with the
-  // business — no longer portfolio-of-one).
-  const childScopeLevel: ScopeLevel = scopeLevel === "country" ? "recruiter" : "country";
-
-  let childReports: { id: string }[] = [];
-  if (child_report_ids?.length) {
-    childReports = await prisma.report.findMany({
-      where: {
-        id: { in: child_report_ids },
-        scope_level: childScopeLevel,
-        status: "verified",
-        country_id: scopeLevel === "inhouse" ? { in: inhouseCountryIds } : submitterCountryId,
-      },
-      select: { id: true },
-    });
-    if (childReports.length !== child_report_ids.length) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "invalid_children",
-            message:
-              scopeLevel === "inhouse"
-                ? "Every consolidated report must be a verified report from one of your assigned countries."
-                : "Every consolidated report must be a verified report from your own country.",
-          },
-        },
-        { status: 422 }
-      );
-    }
-  }
-
-  const db = auditedPrisma(user!.userId);
-
-  // An inhouse-scope report has no single country of its own (it's a
-  // portfolio roll-up, addressed to Management/Director) — country_id
-  // stays null for it, same nullability already used for preferred-
-  // country/current-location fields elsewhere in this schema.
-  const report = await db.report.create({
-    data: {
-      ...rest,
-      scope_level: scopeLevel,
-      country_id: scopeLevel === "inhouse" ? null : submitterCountryId,
-      submitted_by: user!.userId,
-      period_start: new Date(period_start),
-      period_end: new Date(period_end),
-      status: "submitted",
-    },
-    select: { id: true, type: true, scope_level: true, status: true, content: true },
-  });
-
-  // "CRM Submission Ref." (§2.1's report-identification section) is the
-  // report's own id — there's no meaningful value for it until the row
-  // exists, so it's never user-entered; fill it in immediately after
-  // creation rather than asking the submitter to type anything.
-  await prisma.report.update({
-    where: { id: report.id },
-    data: { content: { ...(report.content as object), crm_reference: report.id } },
-  });
-
-  if (childReports.length > 0) {
-    await prisma.report.updateMany({
-      where: { id: { in: childReports.map((c) => c.id) } },
-      data: { parent_report_id: report.id, status: "consolidated" },
-    });
-  }
-
-  return NextResponse.json({ data: { id: report.id, type: report.type, scope_level: report.scope_level, status: report.status } }, { status: 201 });
+  return backendResponse(await callBackend("/api/v1/reports", { method: "POST", body }));
 }
