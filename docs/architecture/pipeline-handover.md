@@ -184,7 +184,7 @@ Step 6.7 wires the website to these, so they are fixed here:
 
 | Step | State |
 |---|---|
-| 6.0 | Provider not chosen yet (owner, 2026-10-29): MinIO meanwhile, on the local and self-hosted stacks. The E2 deadline stands |
+| 6.0 | **Decided** (owner, 2026-10-29): MinIO on every local stack, main included, while Vertex runs locally; no S3 cutover until it's hosted. E2 re-decided to match (`docs/security/exceptions.md`) |
 | 6.1 | Done (#112) |
 | 6.2 | Built, off (#113): `vertex_be/app/api/v1/candidates.py`; the lifecycle rules are checked move for move against the website's through `candidateLifecycle.matrix.json` |
 | 6.3 | Built, off (#114): `vertex_be/app/api/v1/documents.py` (upload, the form's upload, verify, readable), `services/storage.py`, `services/malware_scan.py`. Moving a partner draft's documents onto its candidate comes with 6.6 |
