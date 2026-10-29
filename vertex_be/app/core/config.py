@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # app/services/stripe_pricing.py). Unset = pricing isn't synced: a job
     # still saves, and a manual sync answers 503.
     STRIPE_SECRET_KEY: str | None = None
+    # The candidate pipeline handover (docs/architecture/pipeline-handover.md):
+    # FastAPI's pipeline write endpoints are built group by group but answer
+    # 503 until the switch (step 6.7) turns this on. Off = the website writes.
+    PIPELINE_WRITES_ENABLED: bool = False
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
