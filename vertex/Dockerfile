@@ -9,7 +9,11 @@ WORKDIR /app
 # `prisma generate`.
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm ci
+# A slow or flaky connection to the registry shouldn't fail the build:
+# npm retries each download, and the cache keeps what already arrived for
+# the next attempt (BuildKit only; the cache never enters the image).
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
