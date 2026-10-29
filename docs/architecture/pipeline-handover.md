@@ -151,14 +151,27 @@ Step 6.7 wires the website to these, so they are fixed here:
   invite itself and checks the account is that candidate's.
 - **Approving a candidate** opens their case, so it moves with cases: the
   status endpoint refuses `approved` (501) until step 6.5 builds it.
+- **Uploads** (D2): `POST /api/upload` passes the multipart body on to
+  `POST /api/v1/documents` with the user's session, or, with an
+  `X-Upload-Token` and no session, to `/documents/form-upload` as itself.
+  FastAPI checks, scans and stores the file in the same bucket with the
+  same keys (`S3_*`, `CLAMD_*`), so files stored by either service read
+  the same.
+- **Opening a document:** before serving a stored file (download, email
+  attachment), the website asks `POST /api/v1/documents/readable`, which
+  scans an unscanned file and refuses an infected one (403
+  `document_blocked`). FastAPI logs `security.scanner_unavailable` when
+  clamd is unreachable; the website's alert email for it stays until the
+  security monitor reads FastAPI's logs.
 
 ### 4.2 Progress
 
 | Step | State |
 |---|---|
-| 6.0 | Waiting for the owner's choice of storage provider |
+| 6.0 | Provider not chosen yet (owner, 2026-10-29): MinIO meanwhile, on the local and self-hosted stacks. The E2 deadline stands |
 | 6.1 | Done (#112) |
-| 6.2 | Built, off: `vertex_be/app/api/v1/candidates.py`; the lifecycle rules are checked move for move against the website's through `candidateLifecycle.matrix.json` |
+| 6.2 | Built, off (#113): `vertex_be/app/api/v1/candidates.py`; the lifecycle rules are checked move for move against the website's through `candidateLifecycle.matrix.json` |
+| 6.3 | Built, off: `vertex_be/app/api/v1/documents.py` (upload, the form's upload, verify, readable), `services/storage.py`, `services/malware_scan.py`. Moving a partner draft's documents onto its candidate comes with 6.6 |
 
 ## 5. Risks
 

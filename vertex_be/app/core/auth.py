@@ -104,6 +104,16 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> A
 CurrentUser = Annotated[AuthUser, Depends(current_user)]
 
 
+def optional_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthUser | None:
+    """The caller's session when Next.js sends one, for a service route
+    that acts for a user or for the system. A session sent but not live is
+    still a 401. Not a guard: such a route also depends on calling_service."""
+    return current_user(request, db) if _bearer_token(request) else None
+
+
+OptionalUser = Annotated[AuthUser | None, Depends(optional_user)]
+
+
 SERVICE_HEADER = "X-Vertex-Service"
 
 

@@ -53,6 +53,21 @@ services:
       # The same Stripe account as the web app's: FastAPI syncs each job
       # payment stage's Product and Price (step 3.2). Unset = no sync.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      # The candidate pipeline's writes (pipeline-handover.md). Off until the
+      # switch (step 6.7): the web app writes the pipeline.
+      PIPELINE_WRITES_ENABLED: ${PIPELINE_WRITES_ENABLED:-false}
+      # Document uploads (step 6.3): the same storage and key as the web
+      # app's, this stack's MinIO unless S3_ENDPOINT says otherwise.
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID is required}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-}
+      # The shared ClamAV on the host (docker-compose.av.yml); unreachable =
+      # uploads kept as "unscanned" (fail-open).
+      CLAMD_HOST: ${CLAMD_HOST:-host.docker.internal}
+      CLAMD_PORT: ${CLAMD_PORT:-3310}
       CORS_ORIGINS: ${CORS_ORIGINS}
 
     ports:
@@ -61,8 +76,14 @@ services:
     volumes:
       - uploads:/app/uploads
 
+    # Docker Desktop provides this name; on a Linux host it must be mapped.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
     healthcheck:

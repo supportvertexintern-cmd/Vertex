@@ -9,7 +9,7 @@ tokens it signs, by the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Three purposes are verified here; FastAPI issues nothing.
+Four purposes are verified here; FastAPI issues nothing.
   - "session": a user's session. The signature is necessary, not
     sufficient: app/core/auth.py also checks the session is still live, as
     Next.js does on every request.
@@ -22,6 +22,9 @@ Three purposes are verified here; FastAPI issues nothing.
     their account (signCandidateInviteToken). Registration passes it on so
     FastAPI checks for itself which candidate the new account claims
     (pipeline handover step 6.2).
+  - "cif_upload": lets an anonymous self-applicant attach documents to the
+    Candidate Information Form they have just submitted (signCifUploadToken;
+    step 6.3).
 """
 
 from __future__ import annotations
@@ -40,7 +43,7 @@ ISSUER = "vertex-web"
 SALT = b"vertex-token-keys"
 # Mirrors KEY_VERSION in jwt.ts: bumping it there invalidates every
 # outstanding token of that purpose, so it must be bumped here too.
-KEY_VERSION = {"session": 1, "service": 1, "candidate_invite": 1}
+KEY_VERSION = {"session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1}
 
 
 class InvalidToken(Exception):
@@ -153,23 +156,34 @@ def verify_service_token(token: str) -> ServiceClaims:
     return ServiceClaims(service=payload["sub"], scope=payload["scope"])
 
 
-def verify_candidate_invite_token(token: str) -> str:
-    """The candidate id a screening invite was signed for."""
+def _verify_candidate_token(purpose: str, token: str) -> str:
+    """A token Next.js signs for one candidate: its candidateId."""
     secret = settings.JWT_SECRET
     if not secret or len(secret) < 32:
         raise InvalidToken("JWT_SECRET is not configured")
     try:
         payload = jwt.decode(
             token,
-            key_for("candidate_invite", secret),
+            key_for(purpose, secret),
             algorithms=[ALGORITHM],
             issuer=ISSUER,
-            audience="vertex:candidate_invite",
+            audience=f"vertex:{purpose}",
             options={"require": ["exp", "iss", "aud"]},
         )
     except jwt.PyJWTError as err:
         raise InvalidToken(type(err).__name__) from err
     candidate_id = payload.get("candidateId")
     if not isinstance(candidate_id, str) or not candidate_id:
-        raise InvalidToken("candidate_invite token is missing candidateId")
+        raise InvalidToken(f"{purpose} token is missing candidateId")
     return candidate_id
+
+
+def verify_candidate_invite_token(token: str) -> str:
+    """The candidate id a screening invite was signed for."""
+    return _verify_candidate_token("candidate_invite", token)
+
+
+def verify_cif_upload_token(token: str) -> str:
+    """The candidate id an upload token from the Candidate Information Form
+    was signed for (signCifUploadToken)."""
+    return _verify_candidate_token("cif_upload", token)
