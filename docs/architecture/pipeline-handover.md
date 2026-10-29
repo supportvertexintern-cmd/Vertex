@@ -125,7 +125,8 @@ app included) can write through them early. Their tests turn the setting on.
 | 6.1 | Foundations | `PIPELINE_WRITES_ENABLED`; FastAPI's resource authorization and scoping for candidates, cases and partner candidates (`docs/security/authorization-pipeline.md` stages 5–6), with drift tests against `server/scope.ts`; the referral-milestone service |
 | 6.2 | Candidates (built, off) | Profile, staff edit, lifecycle status, screening and invites, messages, and the `Candidate` that registration creates |
 | 6.3 | Documents (built, off) | Upload end to end (storage, scan, the CIF upload token), verify, access records |
-| 6.4 | Built, off: `vertex_be/app/api/v1/applications.py` (submission, review, staff corrections) with the "registered" commission and the duplicate-referral flag. The `notify` shapes moved to `app/api/notices.py`. Rejecting and overturning a case (which also write applications) come with 6.5, partner submissions with 6.6 |
+| 6.4 | Built, off (#115): `vertex_be/app/api/v1/applications.py` (submission, review, staff corrections) with the "registered" commission and the duplicate-referral flag. The `notify` shapes moved to `app/api/notices.py`. Rejecting and overturning a case (which also write applications) come with 6.5, partner submissions with 6.6 |
+| 6.5 | 6.5a built, off: `vertex_be/app/api/v1/cases.py` (stage, ops review, reject, overturn, reminders) and approval opening the case; `CaseReminder` is now audited on both sides. 6.5b (contract and signing, retention, exceptions) next |
 | 6.4 | Applications (built, off) | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
 | 6.5 | Cases (built, off) | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
 | 6.6 | Partner submissions (built, off) | Partner drafts and submission, HR review, create case, reject and overturn |
@@ -150,8 +151,11 @@ Step 6.7 wires the website to these, so they are fixed here:
   (`callBackend(..., { asUser: false })`; FastAPI refuses it from anyone
   else) with the invite token and the new user's id. FastAPI verifies the
   invite itself and checks the account is that candidate's.
-- **Approving a candidate** opens their case, so it moves with cases: the
-  status endpoint refuses `approved` (501) until step 6.5 builds it.
+- **Approving a candidate** opens their case on their latest application
+  (`app/services/case_lifecycle.py`, step 6.5) and earns the "application
+  submitted" commission.
+- **Case reminders** are recorded by FastAPI and sent by the website after
+  (today the website sends first, then records).
 - **Uploads** (D2): `POST /api/upload` passes the multipart body on to
   `POST /api/v1/documents` with the user's session, or, with an
   `X-Upload-Token` and no session, to `/documents/form-upload` as itself.

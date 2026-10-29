@@ -13,7 +13,7 @@ from typing import Annotated, Generic, Literal, TypeVar
 from pydantic import BaseModel, Field
 
 from app.core.api import Data
-from app.models.enums import ApplicationStatus, ReferralMilestone
+from app.models.enums import ApplicationStatus, CaseReminderChannel, CaseStage, ReferralMilestone
 from app.services.referrals import CommissionEarned
 from app.services.screening import Invite
 
@@ -67,8 +67,81 @@ class ApplicationStatusEmail(BaseModel):
     status: ApplicationStatus
 
 
+class CandidateApprovedEmail(BaseModel):
+    """sendCandidateApprovedEmail(email, full_name)."""
+
+    kind: Literal["candidate_approved"] = "candidate_approved"
+    email: str
+    full_name: str
+
+
+class CaseStageEmail(BaseModel):
+    """sendCaseStageUpdateEmail(email, full_name, job_title, stage)."""
+
+    kind: Literal["case_stage"] = "case_stage"
+    email: str
+    full_name: str
+    job_title: str
+    stage: CaseStage
+
+
+class PartnerCaseStageEmail(BaseModel):
+    """sendPartnerCaseStageUpdateEmail(email, partner_name, candidate_name, job_title, stage)."""
+
+    kind: Literal["partner_case_stage"] = "partner_case_stage"
+    email: str
+    partner_name: str
+    candidate_name: str
+    job_title: str
+    stage: CaseStage
+
+
+class CaseRejectedEmail(BaseModel):
+    """sendCaseRejectedEmail(email, full_name, candidate_name, job_title, reason): one per HR user."""
+
+    kind: Literal["case_rejected"] = "case_rejected"
+    email: str
+    full_name: str
+    candidate_name: str
+    job_title: str
+    reason: str
+
+
+class PartnerCaseRejectedEmail(BaseModel):
+    """sendPartnerCaseRejectedEmail(email, partner_name, candidate_name, job_title, reason)."""
+
+    kind: Literal["partner_case_rejected"] = "partner_case_rejected"
+    email: str
+    partner_name: str
+    candidate_name: str
+    job_title: str
+    reason: str
+
+
+class CaseReminderEmail(BaseModel):
+    """sendCaseReminderEmail(email, recipient_name, candidate_name, programme_title, channel, message)."""
+
+    kind: Literal["case_reminder"] = "case_reminder"
+    email: str
+    recipient_name: str
+    candidate_name: str
+    programme_title: str
+    channel: CaseReminderChannel
+    message: str | None
+
+
 Notice = Annotated[
-    InviteEmail | CommissionEmail | MessageEmail | ApplicationConfirmationEmail | ApplicationStatusEmail,
+    InviteEmail
+    | CommissionEmail
+    | MessageEmail
+    | ApplicationConfirmationEmail
+    | ApplicationStatusEmail
+    | CandidateApprovedEmail
+    | CaseStageEmail
+    | PartnerCaseStageEmail
+    | CaseRejectedEmail
+    | PartnerCaseRejectedEmail
+    | CaseReminderEmail,
     Field(discriminator="kind"),
 ]
 
