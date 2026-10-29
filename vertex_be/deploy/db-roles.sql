@@ -214,7 +214,9 @@ BEGIN
     'ExceptionCorrectiveAction',  -- candidate pipeline, step 6.7
     'PartnerCandidate',  -- candidate pipeline, step 6.7
     'ReferralCommission',  -- candidate pipeline, step 6.7
-    'ReferralCommissionRule'  -- payments, step 7.1
+    'ReferralCommissionRule',  -- payments, step 7.1
+    'Payment',  -- payments, step 7.2 (the Stripe webhook, PayPal)
+    'ConsultationBooking'  -- payments, step 7.2
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

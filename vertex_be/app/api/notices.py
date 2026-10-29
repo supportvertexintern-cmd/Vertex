@@ -180,6 +180,31 @@ class CommissionPaidEmail(BaseModel):
     currency: str
 
 
+class ConsultationBookedEmail(BaseModel):
+    """sendConsultationBookingNotification({fullName, email, phone, amount, currency})."""
+
+    kind: Literal["consultation_booked"] = "consultation_booked"
+    full_name: str | None
+    email: str
+    phone: str | None
+    amount: float
+    currency: str
+
+
+class PaymentReceiptEmail(BaseModel):
+    """createReceiptPdf(payment_id, full_name, email, job_title, amount, transaction_id, date):
+    the PDF receipt, emailed."""
+
+    kind: Literal["payment_receipt"] = "payment_receipt"
+    payment_id: str
+    full_name: str
+    email: str
+    job_title: str
+    amount: float
+    transaction_id: str
+    date: str
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -196,7 +221,9 @@ Notice = Annotated[
     | PartnerCaseCreatedEmail
     | PartnerSubmissionRejectedEmail
     | CommissionApprovedEmail
-    | CommissionPaidEmail,
+    | CommissionPaidEmail
+    | ConsultationBookedEmail
+    | PaymentReceiptEmail,
     Field(discriminator="kind"),
 ]
 

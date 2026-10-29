@@ -15,7 +15,9 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 const GUARD = /requireRole\(|requireAdmin\(|requireAuth\(|if\s*\(\s*!user\b[^)]*\)[\s\S]{0,200}?status:\s*40[13]/;
 const RATE_LIMIT = /limitByIp\(|rateLimit\(/;
 const SIGNED_TOKEN = /verify\w*Token\(|resolveDocumentContent\(/;
-const SIGNATURE = /constructEvent\(/;
+// Checked here, or passed on for FastAPI to check (the Stripe webhook since
+// payments step 7.2; vertex_be/tests/test_payments.py covers that side).
+const SIGNATURE = /constructEvent\(|forward:\s*\{\s*"Stripe-Signature":/;
 
 interface Handler {
   key: string; // "GET /api/jobs/[id]"

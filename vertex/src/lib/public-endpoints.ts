@@ -11,7 +11,8 @@
  * `protection`:
  *  - "rate-limit"       must call limitByIp/rateLimit
  *  - "signed-token"     needs a signed, expiring single-purpose token
- *  - "signature"        needs the sender's cryptographic signature
+ *  - "signature"        needs the sender's cryptographic signature (checked
+ *                       here, or passed on for FastAPI to check)
  *  - "refresh-token"    needs a live server-side refresh token (lib/session.ts)
  *  - "none-needed"      has no effect without a session (e.g. logout)
  */
@@ -40,7 +41,7 @@ export const PUBLIC_ENDPOINTS: Record<string, { purpose: string; protection: Pub
   "POST /api/consultations/checkout": { purpose: "pay for a consultation", protection: ["rate-limit"] },
   "POST /api/chat": { purpose: "website AI assistant over public knowledge", protection: ["rate-limit"] },
   "GET /api/documents/file": { purpose: "download one file named in a short-lived signed URL", protection: ["signed-token"] },
-  "POST /api/webhooks/stripe": { purpose: "payment events from Stripe", protection: ["signature"] },
+  "POST /api/webhooks/stripe": { purpose: "payment events from Stripe; FastAPI checks the signature (payments step 7.2)", protection: ["signature"] },
   "POST /api/referral-agents/register": { purpose: "public referral-agent application; lands at pending_approval", protection: ["rate-limit"] },
   "GET /api/referral-agents/verify-email": { purpose: "confirm a referral-agent applicant's email address", protection: ["rate-limit", "signed-token"] },
   "POST /api/csp-report": { purpose: "browsers' CSP violation reports (E3); logged only, fields clipped", protection: ["rate-limit"] },
