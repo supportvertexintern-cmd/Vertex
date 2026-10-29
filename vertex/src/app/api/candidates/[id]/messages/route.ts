@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { passOn, readJson, seg } from "@/lib/pipeline";
 import { getAuthUser, requireAuth, forbidden } from "@/lib/api-auth";
-import { sendCandidateMessageNotificationEmail } from "@/lib/email";
-
-import { log } from "@/lib/log";
 // One continuous thread per candidate (2026-07-13, confirmed with the
 // business) — not split per-Application or per-Case, so it carries
 // through whether the candidate is still applying or already has a case
@@ -61,93 +58,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({ data: messages });
 }
 
-// POST /api/candidates/:id/messages
+// POST /api/candidates/:id/messages — written by FastAPI since the pipeline
+// switch (step 6.7; vertex_be/app/api/v1/candidates.py, post_message),
+// with the same thread access as GET. It tells whichever side didn't send
+// the message; this app sends that email.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-
   const { id } = await params;
-  const { allowed, candidate } = await resolveAccess(user!.userId, user!.role, id);
-  if (!candidate) {
-    return NextResponse.json({ error: { code: "not_found", message: "Candidate not found." } }, { status: 404 });
-  }
-  if (!allowed) {
-    return forbidden({ error: { code: "forbidden", message: "Forbidden." } });
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
-  }
-
-  const text = (body as { body?: unknown }).body;
-  if (typeof text !== "string" || text.trim().length === 0) {
-    return NextResponse.json({ error: { code: "validation_error", message: "Message body is required." } }, { status: 422 });
-  }
-  if (text.length > 4000) {
-    return NextResponse.json({ error: { code: "validation_error", message: "Message is too long." } }, { status: 422 });
-  }
-
-  const message = await auditedPrisma(user!.userId).candidateMessage.create({
-    data: { candidate_id: id, sender_id: user!.userId, body: text.trim() },
-    select: { id: true, body: true, created_at: true, updated_at: true, sender_id: true, sender: { select: { full_name: true, role: true } } },
-  });
-
-  // A submission HR hasn't looked at yet flips to "under_review" the
-  // moment HR says anything on the thread — a lightweight signal to the
-  // partner that someone is now looking at it, without a separate manual
-  // toggle (2026-07-31, per the Operational Workflow SOP).
-  if (user!.role === "hr" && candidate.partner_id) {
-    await prisma.partnerCandidate.updateMany({
-      where: { bridged_candidate_id: id, status: "submitted" },
-      data: { status: "under_review" },
-    });
-  }
-
-  // Notify whichever side didn't send this. Non-blocking and best-effort,
-  // same pattern as every other notification email in this app.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const isFromCandidate = candidate.user_id === user!.userId;
-  const isFromPartner = user!.role === "partner";
-  const isFromCaseStaff = ["hr", "operations_team", "operations_director", "director"].includes(user!.role);
-
-  let recipient: { email: string; full_name: string } | null = null;
-  let viewUrl = `${appUrl}/dashboard`;
-
-  if (isFromCandidate) {
-    recipient = candidate.recruiter_id
-      ? await prisma.user.findUnique({ where: { id: candidate.recruiter_id }, select: { email: true, full_name: true } })
-      : null;
-    viewUrl = `${appUrl}/recruiter/candidates/${id}`;
-  } else if (isFromPartner && candidate.partner_id) {
-    const origin = await prisma.partnerCandidate.findUnique({
-      where: { bridged_candidate_id: id },
-      select: { reviewed_by: true },
-    });
-    recipient = origin?.reviewed_by
-      ? await prisma.user.findUnique({ where: { id: origin.reviewed_by }, select: { email: true, full_name: true } })
-      : null;
-    viewUrl = `${appUrl}/hr`;
-  } else if (isFromCaseStaff && candidate.partner_id) {
-    const partner = await prisma.partner.findUnique({ where: { id: candidate.partner_id }, select: { contact_email: true, contact_name: true } });
-    recipient = partner ? { email: partner.contact_email, full_name: partner.contact_name } : null;
-    viewUrl = `${appUrl}/partner`;
-  } else if (candidate.user_id) {
-    recipient = await prisma.user.findUnique({ where: { id: candidate.user_id }, select: { email: true, full_name: true } });
-    viewUrl = `${appUrl}/dashboard`;
-  }
-
-  if (recipient) {
-    // Awaited, not fire-and-forget — on a serverless platform (Vercel) the
-    // function instance can freeze right after the response is sent,
-    // silently killing an un-awaited async send before it actually
-    // completes (invisible on a long-running local dev server, where the
-    // process just keeps running regardless).
-    await sendCandidateMessageNotificationEmail(recipient.email, recipient.full_name, viewUrl).catch((err) => log.error("email.send_failed", { err }));
-  }
-
-  return NextResponse.json({ data: message }, { status: 201 });
+  const read = await readJson(req);
+  if (read.invalid) return read.invalid;
+  return passOn(`/api/v1/candidates/${seg(id)}/messages`, { method: "POST", body: read.body });
 }

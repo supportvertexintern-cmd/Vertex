@@ -158,6 +158,28 @@ class PartnerSubmissionRejectedEmail(BaseModel):
     reason: str
 
 
+class CommissionApprovedEmail(BaseModel):
+    """sendReferralCommissionApprovedEmail(email, agent_name, candidate_name, amount, currency)."""
+
+    kind: Literal["referral_commission_approved"] = "referral_commission_approved"
+    email: str
+    agent_name: str
+    candidate_name: str
+    amount: float
+    currency: str
+
+
+class CommissionPaidEmail(BaseModel):
+    """sendReferralCommissionPaidEmail(email, agent_name, candidate_name, amount, currency)."""
+
+    kind: Literal["referral_commission_paid"] = "referral_commission_paid"
+    email: str
+    agent_name: str
+    candidate_name: str
+    amount: float
+    currency: str
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -172,7 +194,9 @@ Notice = Annotated[
     | CaseReminderEmail
     | PartnerSubmittedEmail
     | PartnerCaseCreatedEmail
-    | PartnerSubmissionRejectedEmail,
+    | PartnerSubmissionRejectedEmail
+    | CommissionApprovedEmail
+    | CommissionPaidEmail,
     Field(discriminator="kind"),
 ]
 

@@ -129,8 +129,6 @@ def test_the_stage_order_matches_the_website():
     lifecycle = (WEB / "server" / "services" / "caseLifecycle.ts").read_text(encoding="utf-8")
     order = re.search(r"export const CASE_STAGE_ORDER: CaseStage\[\] = \[(.*?)\];", lifecycle, re.S).group(1)
     assert re.findall(r'"(\w+)"', order) == [s.value for s in CASE_STAGE_ORDER]
-    for reason in ("Case is already at that stage.", "This role cannot update case status."):
-        assert f'"{reason}"' in lifecycle
 
 
 def test_only_operations_move_stages():

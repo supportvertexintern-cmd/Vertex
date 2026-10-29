@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { passOn, seg } from "@/lib/pipeline";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { HR_ROLES } from "@/lib/rbac";
 import { evaluateDocumentCompletenessForCandidateId, getRequiredDocumentTypesForCountryId } from "@/server/services/documentCompleteness";
@@ -58,41 +58,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({ data: { ...partnerCandidate, document_completeness, required_document_types } });
 }
 
-// DELETE /api/partner-candidates/:id — remove an erroneous/duplicate/spam
-// partner submission (CRM Comments follow-up, 2026-08-12). HR + Operations
-// (matching canEditAndUpload's role set on the review page), not just
-// HR-exclusive like Create Case/Reject, since this is closer to
-// housekeeping than a review decision. Blocked once a Case exists
-// (status "job_assigned") — that's a live operational record at that
-// point, managed through the Case itself, not deleted outright. Removes
-// the bridged Candidate too (cascades its Application, Documents, and
-// CandidateMessage thread) — a partial delete that orphaned one or the
-// other would be worse than not deleting at all.
+// DELETE /api/partner-candidates/:id — an erroneous or duplicate submission,
+// with its candidate; refused once a case exists. Written by FastAPI since
+// the pipeline switch (step 6.7; vertex_be/app/api/v1/partner_submissions.py).
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...DELETE_ROLES]);
   if (guardRes) return guardRes;
-
   const { id } = await params;
-
-  const partnerCandidate = await prisma.partnerCandidate.findUnique({ where: { id, status: { not: "draft" } } });
-  if (!partnerCandidate) {
-    return NextResponse.json({ error: { code: "not_found", message: "Partner candidate submission not found." } }, { status: 404 });
-  }
-  if (partnerCandidate.status === "job_assigned") {
-    return NextResponse.json(
-      { error: { code: "case_exists", message: "A case has already been created for this submission — manage or close it from the Case instead of deleting." } },
-      { status: 409 }
-    );
-  }
-
-  const db = auditedPrisma(user!.userId);
-  await db.$transaction(async (tx) => {
-    await tx.partnerCandidate.delete({ where: { id } });
-    if (partnerCandidate.bridged_candidate_id) {
-      await tx.candidate.delete({ where: { id: partnerCandidate.bridged_candidate_id } });
-    }
-  });
-
-  return NextResponse.json({ data: { id } });
+  return passOn(`/api/v1/partner-candidates/${seg(id)}`, { method: "DELETE" });
 }

@@ -98,7 +98,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       expect(candidate.source).toBe("self_registered");
       expect(candidate.recruiter_id).toBeNull();
       // A complete self-application is screened automatically on submit
-      // (screenAndInvite, 2026-08-06), and the account invite goes out.
+      // (FastAPI since the pipeline switch), and the account invite goes out.
       expect(candidate.lifecycle_status).toBe("screened");
     });
 

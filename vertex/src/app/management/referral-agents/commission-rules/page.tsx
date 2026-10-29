@@ -28,7 +28,7 @@ const MILESTONES = [
 
 // Per-country x per-milestone commission-rule grid (2026-08-29) — a
 // missing (country, milestone) row is treated as amount-0 everywhere it's
-// read (generateReferralCommissionIfDue), so this grid always shows all 6
+// read (FastAPI's commission_if_due), so this grid always shows all 6
 // milestones for the selected country, filling in 0 for any row that
 // hasn't been explicitly saved yet.
 export default function ReferralCommissionRulesPage() {

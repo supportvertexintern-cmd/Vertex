@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (user?.password_hash) {
     // Deferred via after() (2026-08-06) — the response is the same generic
     // message either way, so nothing depends on waiting for this to
-    // finish. See screening.ts's screenAndInvite for why after(), not a
+    // finish. See lib/pipeline.ts (sendNotices) for why after(), not a
     // bare un-awaited promise.
     after(async () => {
       try {

@@ -1,8 +1,7 @@
-"""Referral commissions at pipeline milestones (step 6.1) work as
-generateReferralCommissionIfDue (vertex/src/lib/referralMilestones.ts) does,
-and the pipeline's switch stays off until step 6.7."""
+"""Referral commissions at pipeline milestones (step 6.1, ported from the
+website's generateReferralCommissionIfDue, which the switch removed), and
+the pipeline's switch: on since step 6.7, and it can be turned off."""
 
-import re
 import secrets
 
 import pytest
@@ -10,26 +9,13 @@ from sqlalchemy import select
 
 from app.core import pipeline
 from app.core.api import ApiError
-from app.core.config import BASE_DIR, settings
+from app.core.config import settings
 from app.models.audit import AuditLog
 from app.models.candidate import Candidate
 from app.models.enums import ReferralCommissionStatus, ReferralMilestone, Role
 from app.models.identity import Country, Region, User
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
-from app.services.referrals import LIFECYCLE_MILESTONES, STAGE_MILESTONES, commission_if_due
-
-MILESTONES_TS = (BASE_DIR.parent / "vertex" / "src" / "lib" / "referralMilestones.ts").read_text(encoding="utf-8")
-
-
-def _ts_map(name: str) -> dict[str, str]:
-    body = re.search(rf"export const {name}[^=]*= \{{(.*?)\}};", MILESTONES_TS, re.S).group(1)
-    return dict(re.findall(r"(\w+): \"(\w+)\"", body))
-
-
-def test_the_milestone_triggers_match_the_website():
-    assert _ts_map("REFERRAL_LIFECYCLE_TRIGGER") == {k.value: v.value for k, v in LIFECYCLE_MILESTONES.items()}
-    assert _ts_map("REFERRAL_STAGE_TRIGGER") == {k.value: v.value for k, v in STAGE_MILESTONES.items()}
-
+from app.services.referrals import commission_if_due
 
 @pytest.fixture
 def referred(db):
@@ -95,10 +81,12 @@ def test_the_commission_is_on_the_trail(db, referred):
 # --- the switch --------------------------------------------------------------
 
 
-def test_pipeline_writes_are_off_until_the_switch(monkeypatch):
-    assert settings.PIPELINE_WRITES_ENABLED is False
+def test_the_pipeline_switch_is_on_and_can_be_turned_off(monkeypatch):
+    """On since step 6.7; off is the rollback, and every pipeline write then
+    answers 503."""
+    assert settings.PIPELINE_WRITES_ENABLED is True
+    assert pipeline.pipeline_writes_enabled() is None
+    monkeypatch.setattr(settings, "PIPELINE_WRITES_ENABLED", False)
     with pytest.raises(ApiError) as refused:
         pipeline.pipeline_writes_enabled()
     assert (refused.value.status_code, refused.value.code) == (503, "pipeline_not_enabled")
-    monkeypatch.setattr(settings, "PIPELINE_WRITES_ENABLED", True)
-    assert pipeline.pipeline_writes_enabled() is None

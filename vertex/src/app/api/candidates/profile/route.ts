@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isNotFound, prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { candidateProfileSchema } from "@/lib/validations";
+import { prisma } from "@/lib/prisma";
+import { passOn, readJson } from "@/lib/pipeline";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
 
 // GET /api/candidates/profile
@@ -23,39 +22,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(profile);
 }
 
-// PUT /api/candidates/profile
+// PUT /api/candidates/profile — the candidate's own Section 2. Written by
+// FastAPI since the pipeline switch (step 6.7; vertex_be/app/api/v1/
+// candidates.py, update_own_profile); answered in this route's older shape.
 export async function PUT(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
-
-  let body: unknown;
-  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
-
-  const parsed = candidateProfileSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
-  }
-
-  const data: Record<string, unknown> = { ...parsed.data };
-  if (parsed.data.date_of_birth) {
-    data.date_of_birth = new Date(parsed.data.date_of_birth);
-  }
-  if (parsed.data.passport_expiry) {
-    data.passport_expiry = new Date(parsed.data.passport_expiry);
-  }
-
-  let profile;
-  try {
-    profile = await auditedPrisma(user!.userId).candidate.update({
-      where: { user_id: user!.userId },
-      data,
-    });
-  } catch (err) {
-    // Signed in, but no candidate profile linked to this account.
-    if (isNotFound(err)) return NextResponse.json({ error: "No candidate profile for this account." }, { status: 404 });
-    throw err;
-  }
-
-  return NextResponse.json(profile);
+  const read = await readJson(req, true);
+  if (read.invalid) return read.invalid;
+  return passOn("/api/v1/candidates/profile", { method: "PUT", body: read.body }, { unwrap: true, legacyErrors: true });
 }

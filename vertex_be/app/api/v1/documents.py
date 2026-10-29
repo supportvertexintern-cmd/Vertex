@@ -165,7 +165,8 @@ def _store(upload: _Upload, document_type: str, actor_id: str | None, entity_typ
             entity_id=entity_id,
             detail={"signature": err.signature, "document_type": document_type},
         )
-        raise ApiError(422, "malware_detected", str(err)) from None
+        # The signature lets the website raise its malware alert.
+        raise ApiError(422, "malware_detected", str(err), {"signature": err.signature}) from None
     except storage.UploadRejected as err:
         raise ApiError(400, "upload_rejected", str(err)) from None
     except storage.StorageNotConfigured:
@@ -341,6 +342,7 @@ def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineW
     document = db.scalar(select(Document).where(Document.storage_path == body.storage_path))
     if document is None:
         return {"data": {"scan_status": None}}  # not a candidate document
+    found: str | None = None  # the signature, when this scan found it
     if document.scan_status == "unscanned":
         data = storage.read_document(document.storage_path)
         result = scan_bytes(data) if data is not None else None
@@ -349,6 +351,7 @@ def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineW
             document.scanned_at = _now()
             db.commit()
             if result.status == "infected":
+                found = result.signature
                 record_security_event(
                     "malware_blocked_download",
                     actor_id=user.user_id if user else None,
@@ -357,5 +360,7 @@ def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineW
                     detail={"signature": result.signature},
                 )
     if document.scan_status == "infected":
-        raise ApiError(403, "document_blocked", "This document is blocked: it failed a malware scan.")
+        # newly_found: the website alerts on a discovery, not on every refusal.
+        details = {"document_id": document.id, "newly_found": found is not None, "signature": found}
+        raise ApiError(403, "document_blocked", "This document is blocked: it failed a malware scan.", details)
     return {"data": {"scan_status": document.scan_status}}

@@ -66,6 +66,37 @@ describe("callBackend", () => {
     expect(claims.exp! - claims.iat!).toBe(60);
   });
 
+  it("sends the session only when there is one, if asked to", async () => {
+    const { callBackend } = await load();
+    fetchMock.mockResolvedValue(json(201, { data: { id: "a1" } }));
+    state.token = null;
+    expect((await callBackend("/api/v1/applications/submit", { method: "POST", body: {}, asUser: "if-signed-in" })).ok).toBe(true);
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined();
+    state.token = "user-session-token";
+    await callBackend("/api/v1/applications/submit", { method: "POST", body: {}, asUser: "if-signed-in" });
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe("Bearer user-session-token");
+    state.token = null;
+    expect(await callBackend("/api/v1/me")).toMatchObject({ ok: false, status: 401 }); // the default still needs one
+  });
+
+  it("passes an upload's body as is, with only the headers FastAPI reads", async () => {
+    const { callBackend } = await load();
+    fetchMock.mockResolvedValue(json(200, { data: { id: "d1" } }));
+    const body = new TextEncoder().encode("--x\r\n").buffer;
+    await callBackend("/api/v1/documents/form-upload", {
+      method: "POST",
+      raw: { body, contentType: "multipart/form-data; boundary=x" },
+      asUser: false,
+      forward: { "X-Upload-Token": "tok", "X-Forwarded-For": null },
+    });
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.body).toBe(body);
+    expect(init.headers["Content-Type"]).toBe("multipart/form-data; boundary=x");
+    expect(init.headers["X-Upload-Token"]).toBe("tok");
+    expect("X-Forwarded-For" in init.headers).toBe(false);
+    expect(init.headers.Authorization).toBeUndefined();
+  });
+
   it("is not signed with JWT_SECRET", async () => {
     vi.stubEnv("JWT_SECRET", "j".repeat(40));
     const { callBackend } = await load();

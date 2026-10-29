@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
         // Deferred via after() (2026-08-06) — the ConsultationBooking row
         // above is already the durable record, so a slow notification
         // send shouldn't delay Stripe's webhook response (Stripe retries
-        // aggressively on a slow/failed response). See screening.ts's
-        // screenAndInvite for why after(), not a bare un-awaited promise.
+        // aggressively on a slow/failed response). See lib/pipeline.ts's
+        // sendNotices for why after(), not a bare un-awaited promise.
         after(() =>
           sendConsultationBookingNotification({
             fullName: booking.full_name,

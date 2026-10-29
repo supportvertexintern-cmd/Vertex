@@ -53,9 +53,10 @@ services:
       # The same Stripe account as the web app's: FastAPI syncs each job
       # payment stage's Product and Price (step 3.2). Unset = no sync.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      # The candidate pipeline's writes (pipeline-handover.md). Off until the
-      # switch (step 6.7): the web app writes the pipeline.
-      PIPELINE_WRITES_ENABLED: ${PIPELINE_WRITES_ENABLED:-false}
+      # The candidate pipeline's writes (pipeline-handover.md): on since the
+      # switch (step 6.7). The rollback is to set it false and restore the
+      # web app's grants (§6).
+      PIPELINE_WRITES_ENABLED: ${PIPELINE_WRITES_ENABLED:-true}
       # Document uploads (step 6.3): the same storage and key as the web
       # app's, this stack's MinIO unless S3_ENDPOINT says otherwise.
       S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}

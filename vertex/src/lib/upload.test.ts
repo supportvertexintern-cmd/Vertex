@@ -4,14 +4,9 @@ vi.hoisted(() => {
   process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-upload";
 });
 
-import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import {
-  saveUploadedFile,
-  getSignedDocumentUrl,
-  resolveDocumentContent,
-  deleteUploadedFile,
-  DocumentNotFoundError,
-} from "./upload";
+import { randomUUID } from "node:crypto";
+import { S3Client, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedDocumentUrl, resolveDocumentContent, DocumentNotFoundError } from "./upload";
 import { verifyDocumentToken, signDocumentToken } from "./jwt";
 
 // Real integration tests against the configured object store (MinIO in CI
@@ -38,26 +33,18 @@ afterEach(async () => {
   );
 });
 
-// Real PDF magic bytes: uploads are checked by content, not just by type.
-function makeFile(name: string, content = "%PDF-1.4\ntest file bytes\n%%EOF"): File {
-  return new File([content], name, { type: "application/pdf" });
+// FastAPI stores documents since the pipeline switch (step 6.7); this app
+// reads them back. Each test puts its object straight into the bucket.
+async function stored(type: string, content = "%PDF-1.4\ntest file bytes\n%%EOF"): Promise<string> {
+  const storagePath = `${type}/${randomUUID()}.pdf`;
+  await r2.send(new PutObjectCommand({ Bucket: BUCKET, Key: storagePath, Body: content, ContentType: "application/pdf" }));
+  cleanupKeys.push(storagePath);
+  return storagePath;
 }
 
-describe("saveUploadedFile / getSignedDocumentUrl / resolveDocumentContent", () => {
-  it("saves a file to R2 and returns a storage key scoped by document type", async () => {
-    const storagePath = await saveUploadedFile(makeFile("cv.pdf"), "cv");
-    cleanupKeys.push(storagePath);
-    expect(storagePath).toMatch(/^cv\/.+\.pdf$/);
-  });
-
-  it("rejects disallowed mime types", async () => {
-    const badFile = new File(["x"], "malware.exe", { type: "application/x-msdownload" });
-    await expect(saveUploadedFile(badFile, "cv")).rejects.toThrow(/Invalid file type/);
-  });
-
+describe("getSignedDocumentUrl / resolveDocumentContent", () => {
   it("round-trips a signed URL back to the correct file content", async () => {
-    const storagePath = await saveUploadedFile(makeFile("passport.pdf"), "passport");
-    cleanupKeys.push(storagePath);
+    const storagePath = await stored("passport");
     const url = await getSignedDocumentUrl(storagePath, 60);
     const token = new URL(url, "http://localhost").searchParams.get("token")!;
 
@@ -67,30 +54,15 @@ describe("saveUploadedFile / getSignedDocumentUrl / resolveDocumentContent", () 
   });
 
   it("rejects an expired token", async () => {
-    const storagePath = await saveUploadedFile(makeFile("cv.pdf"), "cv");
-    cleanupKeys.push(storagePath);
+    const storagePath = await stored("cv");
     const expiredToken = signDocumentToken({ storagePath }, -1);
     await expect(resolveDocumentContent(expiredToken)).rejects.toThrow();
     // sanity: verifyDocumentToken itself is what throws for expiry
     expect(() => verifyDocumentToken(expiredToken)).toThrow();
   });
 
-  it("throws DocumentNotFoundError when the object doesn't exist in R2", async () => {
+  it("throws DocumentNotFoundError when the object doesn't exist", async () => {
     const forgedToken = signDocumentToken({ storagePath: "cv/does-not-exist.pdf" }, 60);
     await expect(resolveDocumentContent(forgedToken)).rejects.toThrow(DocumentNotFoundError);
-  });
-});
-
-describe("deleteUploadedFile", () => {
-  it("removes the object from R2", async () => {
-    const storagePath = await saveUploadedFile(makeFile("cv.pdf"), "cv");
-    await deleteUploadedFile(storagePath);
-
-    const forgedToken = signDocumentToken({ storagePath }, 60);
-    await expect(resolveDocumentContent(forgedToken)).rejects.toThrow(DocumentNotFoundError);
-  });
-
-  it("does not throw when the object is already gone", async () => {
-    await expect(deleteUploadedFile("cv/does-not-exist.pdf")).resolves.toBeUndefined();
   });
 });

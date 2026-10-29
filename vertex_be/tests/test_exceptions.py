@@ -18,14 +18,12 @@ from app.models.candidate import Candidate
 from app.models.enums import EscalationLevel, ExceptionStatus, Role
 from app.models.identity import Country, InhouseCountryAssignment, Region, User
 from app.models.reporting import ExceptionCorrectiveAction, ExceptionReport
-from app.services import exception_workflow
 from app.services.exception_workflow import ESCALATION_LEVEL_ORDER, next_escalation_level, role_can_act_on_level
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
 WEB = BASE_DIR.parent / "vertex" / "src"
 EXCEPTIONS_TS = (WEB / "app" / "api" / "exceptions" / "route.ts").read_text(encoding="utf-8")
-WORKFLOW_TS = (WEB / "server" / "services" / "exceptionWorkflow.ts").read_text(encoding="utf-8")
 URL = "/api/v1/exceptions"
 
 
@@ -93,12 +91,8 @@ def error(res) -> dict:
 def test_the_roles_and_tiers_match_next_js():
     staff = re.search(r"const STAFF_ROLES: Role\[\] = \[(.*?)\];", EXCEPTIONS_TS).group(1)
     assert set(re.findall(r'"(\w+)"', staff)) == {r.value for r in module.RAISERS}
-    raise_levels = dict(re.findall(r"^  (\w+): \"(\w+)\",", re.search(r"RAISE_LEVEL_BY_ROLE[^{]*\{(.*?)\};", EXCEPTIONS_TS, re.S).group(1), re.M))
-    assert raise_levels == {r.value: level.value for r, level in exception_workflow.RAISE_LEVEL_BY_ROLE.items()}
-    order = re.search(r"ESCALATION_LEVEL_ORDER: EscalationLevel\[\] = \[(.*?)\]", WORKFLOW_TS).group(1)
-    assert re.findall(r'"(\w+)"', order) == [level.value for level in ESCALATION_LEVEL_ORDER]
-    minimums = dict(re.findall(r"^  (\w+): \"(\w+)\",", re.search(r"MIN_ACTIONABLE_LEVEL_BY_ROLE[^{]*\{(.*?)\};", WORKFLOW_TS, re.S).group(1), re.M))
-    assert minimums == {r.value: level.value for r, level in exception_workflow.MIN_ACTIONABLE_LEVEL_BY_ROLE.items()}
+    # The tiers and escalation rules are only FastAPI's since the switch (step 6.7).
+
 
 
 def test_the_escalation_line():

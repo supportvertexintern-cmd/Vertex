@@ -1,45 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { raiseExceptionSchema } from "@/lib/validations";
-import { canAccessCandidate, getInhouseAssignedCountryIds } from "@/server/scope";
-import type { EscalationLevel, Prisma, Role } from "@prisma/client";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { passOn, readJson } from "@/lib/pipeline";
+import { getInhouseAssignedCountryIds } from "@/server/scope";
+import type { Prisma, Role } from "@prisma/client";
 
 const STAFF_ROLES: Role[] = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"];
 const MAX_PAGE_SIZE = 100;
-
-// Where each role's exceptions "start" when they raise one fresh — a
-// recruiter always starts at the bottom, since the escalation line
-// (Supervisory Reporting Framework §6) begins with them regardless of who
-// the exception is actually about.
-const RAISE_LEVEL_BY_ROLE: Record<Role, EscalationLevel> = {
-  regional_recruiter: "regional",
-  country_supervisor: "country",
-  inhouse_supervisor: "inhouse",
-  director: "management",
-  admin: "management",
-  marketing: "regional",
-  partner: "regional",
-  // Unreachable in practice (this route is gated to STAFF_ROLES, and
-  // referral_agent is deliberately excluded from it, same as partner) —
-  // present only so this Record stays exhaustive over the full Role enum.
-  referral_agent: "regional",
-  candidate: "regional",
-  // Separation-of-duties directorates (2026-07-31) sit outside the regional
-  // recruiter -> country_supervisor -> inhouse_supervisor chain this
-  // framework was built around — treated like director/admin (a central,
-  // organizational tier), not the regional starting rung.
-  hr: "management",
-  operations_team: "management",
-  operations_director: "management",
-  finance: "management",
-};
-
-async function generateReference(): Promise<string> {
-  const count = await prisma.exception.count();
-  return `EXC-${String(count + 1).padStart(6, "0")}`;
-}
 
 // GET /api/exceptions — role-scoped, same shape as /api/reports: a
 // recruiter sees their own; a country/in-house supervisor sees their own
@@ -140,105 +107,15 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data, total, page, pageSize });
 }
 
-// POST /api/exceptions — raise a new exception (Supervisory Reporting
-// Framework §6). Any staff role may raise one, at any time, independent
-// of the daily/weekly/monthly reporting cadence.
+// POST /api/exceptions — raise an exception (Supervisory Reporting
+// Framework §6), any staff role, at any time. Written by FastAPI since the
+// pipeline switch (step 6.7; vertex_be/app/api/v1/exceptions.py): the
+// starting tier by role, the sequential reference, the corrective actions.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, STAFF_ROLES);
   if (guardRes) return guardRes;
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
-  }
-
-  const parsed = raiseExceptionSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  // The exception's own country_id: derived from the candidate it's
-  // about when one is given (the correct source of truth once an
-  // In-House Supervisor can be assigned several countries — a candidate
-  // always belongs to exactly one), falling back to the raiser's own
-  // assigned country only when no candidate is specified.
-  let exceptionCountryId: string | null = null;
-  if (parsed.data.candidate_id) {
-    const candidate = await prisma.candidate.findUnique({
-      where: { id: parsed.data.candidate_id },
-      select: { user_id: true, recruiter_id: true, country_id: true },
-    });
-    if (!candidate || !(await canAccessCandidate(user!, candidate))) {
-      return forbidden({ error: { code: "forbidden", message: "You don't have access to that candidate." } });
-    }
-    exceptionCountryId = candidate.country_id;
-  } else if (user!.role === "inhouse_supervisor") {
-    const countryIds = await getInhouseAssignedCountryIds(user!.userId);
-    exceptionCountryId = countryIds.length === 1 ? countryIds[0] : null;
-  } else {
-    const staff = await prisma.user.findUnique({ where: { id: user!.userId }, select: { assigned_country_id: true } });
-    exceptionCountryId = staff?.assigned_country_id ?? null;
-  }
-
-  const { corrective_actions, ...rest } = parsed.data;
-
-  const db = auditedPrisma(user!.userId);
-
-  let exception;
-  try {
-    exception = await db.exception.create({
-      data: {
-        ...rest,
-        reference: await generateReference(),
-        raised_by: user!.userId,
-        role_at_raise: user!.role,
-        country_id: exceptionCountryId,
-        decision_deadline: new Date(parsed.data.decision_deadline),
-        escalation_level: RAISE_LEVEL_BY_ROLE[user!.role],
-        corrective_actions: {
-          create: corrective_actions.map((a) => ({
-            action: a.action,
-            owner_id: a.owner_id,
-            due_date: a.due_date ? new Date(a.due_date) : undefined,
-            success_measure: a.success_measure,
-          })),
-        },
-      },
-      select: { id: true, reference: true },
-    });
-  } catch (err: unknown) {
-    // Extremely rare race on the sequential reference number — retry once.
-    if ((err as { code?: string })?.code === "P2002") {
-      exception = await db.exception.create({
-        data: {
-          ...rest,
-          reference: await generateReference(),
-          raised_by: user!.userId,
-          role_at_raise: user!.role,
-          country_id: exceptionCountryId,
-          decision_deadline: new Date(parsed.data.decision_deadline),
-          escalation_level: RAISE_LEVEL_BY_ROLE[user!.role],
-          corrective_actions: {
-            create: corrective_actions.map((a) => ({
-              action: a.action,
-              owner_id: a.owner_id,
-              due_date: a.due_date ? new Date(a.due_date) : undefined,
-              success_measure: a.success_measure,
-            })),
-          },
-        },
-        select: { id: true, reference: true },
-      });
-    } else {
-      throw err;
-    }
-  }
-
-  return NextResponse.json({ data: exception }, { status: 201 });
+  const read = await readJson(req);
+  if (read.invalid) return read.invalid;
+  return passOn("/api/v1/exceptions", { method: "POST", body: read.body });
 }

@@ -200,7 +200,20 @@ BEGIN
     'RecruiterNote',  -- recruitment operations, step 5.2
     'StaffScorecard',  -- recruitment operations, step 5.3
     'StaffScorecardArea',  -- recruitment operations, step 5.3
-    'Report'  -- recruitment operations, step 5.4
+    'Report',  -- recruitment operations, step 5.4
+    'Candidate',  -- candidate pipeline, step 6.7 (the switch)
+    'CandidateMessage',  -- candidate pipeline, step 6.7
+    'Document',  -- candidate pipeline, step 6.7
+    'Application',  -- candidate pipeline, step 6.7
+    'Case',  -- candidate pipeline, step 6.7
+    'CaseStageEvent',  -- candidate pipeline, step 6.7
+    'CaseReminder',  -- candidate pipeline, step 6.7
+    'Contract',  -- candidate pipeline, step 6.7
+    'RetentionFollowUp',  -- candidate pipeline, step 6.7
+    'Exception',  -- candidate pipeline, step 6.7
+    'ExceptionCorrectiveAction',  -- candidate pipeline, step 6.7
+    'PartnerCandidate',  -- candidate pipeline, step 6.7
+    'ReferralCommission'  -- candidate pipeline, step 6.7
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
