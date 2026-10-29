@@ -60,6 +60,27 @@ class Settings(BaseSettings):
     # FastAPI's pipeline write endpoints are built group by group but answer
     # 503 until the switch (step 6.7) turns this on. Off = the website writes.
     PIPELINE_WRITES_ENABLED: bool = False
+    # Document storage, as the web app's (vertex/src/lib/upload.ts, the same
+    # variables): S3-compatible, so MinIO (S3_ENDPOINT, the local and
+    # self-hosted stacks), AWS S3 (S3_REGION, no endpoint) or R2 (the
+    # legacy R2_* names). Unset = uploads answer 503.
+    S3_ENDPOINT: str | None = None
+    S3_REGION: str | None = None
+    S3_BUCKET: str | None = None
+    S3_ACCESS_KEY_ID: str | None = None
+    S3_SECRET_ACCESS_KEY: str | None = None
+    R2_ENDPOINT: str | None = None
+    R2_ACCOUNT_ID: str | None = None
+    R2_BUCKET_NAME: str | None = None
+    R2_ACCESS_KEY_ID: str | None = None
+    R2_SECRET_ACCESS_KEY: str | None = None
+    MAX_FILE_SIZE_MB: int = 5
+    # Malware scanning with ClamAV's clamd (app/services/malware_scan.py).
+    # Unset or unreachable = fail open: stored as "unscanned", scanned when
+    # next opened (the owner's policy).
+    CLAMD_HOST: str | None = None
+    CLAMD_PORT: int = 3310
+    CLAMD_TIMEOUT_MS: int = 30_000
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
 
@@ -74,6 +95,13 @@ class Settings(BaseSettings):
     @classmethod
     def _name_the_driver(cls, url: str | None) -> str | None:
         return with_driver(url) if url else url
+
+    @field_validator("MAX_FILE_SIZE_MB", mode="before")
+    @classmethod
+    def _blank_size_is_the_default(cls, value: object) -> object:
+        # Compose passes an unset variable as "": the default, as upload.ts
+        # reads it (Number(x) || 5).
+        return 5 if value in ("", None, "0", 0) else value
 
     @model_validator(mode="after")
     def _deployed_envs_are_locked_down(self) -> "Settings":
