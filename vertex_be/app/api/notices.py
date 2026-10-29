@@ -205,6 +205,30 @@ class PaymentReceiptEmail(BaseModel):
     date: str
 
 
+class MilestonePlanStage(BaseModel):
+    """One row of the payment plan in the link email; the website labels trigger_stage."""
+
+    id: str
+    label: str
+    percent: float
+    amount: float
+    trigger_stage: CaseStage
+
+
+class MilestonePaymentLinkEmail(BaseModel):
+    """sendMilestonePaymentLinkEmail(email, recipient_name, candidate_name, programme_title,
+    payment_url, current_stage_id, stages)."""
+
+    kind: Literal["milestone_payment_link"] = "milestone_payment_link"
+    email: str
+    recipient_name: str
+    candidate_name: str
+    programme_title: str
+    payment_url: str
+    current_stage_id: str
+    stages: list[MilestonePlanStage]
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -223,7 +247,8 @@ Notice = Annotated[
     | CommissionApprovedEmail
     | CommissionPaidEmail
     | ConsultationBookedEmail
-    | PaymentReceiptEmail,
+    | PaymentReceiptEmail
+    | MilestonePaymentLinkEmail,
     Field(discriminator="kind"),
 ]
 

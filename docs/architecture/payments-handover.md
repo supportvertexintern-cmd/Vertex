@@ -117,4 +117,5 @@ end-to-end journeys.
 | Step | State |
 |---|---|
 | 7.1 | Done (#124): `vertex_be/app/api/v1/referral_commissions.py`, `upsert_rule` |
-| 7.2 | `vertex_be/app/api/v1/payments.py`: the webhook (signature checked by FastAPI; consultation bookings, application fees, paid case links; each write idempotent and audited) and PayPal create and capture, which now checks with PayPal that the order is this user's, for this job's fee, before capturing (the website's didn't). The webhook secret and PayPal's credentials moved to the backend's environment |
+| 7.2 | Done (#125): `vertex_be/app/api/v1/payments.py`, the Stripe webhook and PayPal |
+| 7.3 | `vertex_be/app/api/v1/case_payments.py`: record, Stripe link (the email in `notify`), invoice, check-status, mark-paid, receipt and delete, rule for rule; Stripe calls through `app/services/stripe_links.py`. The invoice email carries the file and is sent before the payment is recorded, so the website asks `/invoice/check` (writes nothing), sends it, then `/invoice` records it. The list (GET) stays a website read. `vertex_web` loses its writes on `CasePayment` |

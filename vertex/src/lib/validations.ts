@@ -570,60 +570,9 @@ export const signContractSchema = z.object({
   signed_by_name: z.string().min(2).max(200),
 });
 
-// Which of the Job's own payment_stages this record is for (2026-09-16,
-// flexible per-Job payment stages — any number of stages, any shape, not
-// the old fixed documentation/permit/visa/upfront set). Validated
-// server-side to actually belong to the Case's own Job.
-export const recordCasePaymentSchema = z.object({
-  job_payment_stage_id: z.string().cuid(),
-  amount: z.number().positive(),
-  currency: z.string().length(3).default("USD"),
-  receipt_reference: z.string().max(200).optional(),
-  // An uploaded receipt file (2026-07-31 — Stripe restricted to
-  // self-applicants; the standard path for a partner/recruiter-sourced
-  // payment, whose real Stripe checkout never happens on this platform).
-  // Additive to receipt_reference, not a replacement for it.
-  receipt_document_id: z.string().cuid().optional(),
-});
-
-// A director/admin generating a Stripe Payment Link for one of a case's
-// payment stages, sent to whichever party is financially responsible.
-export const generateCasePaymentLinkSchema = z.object({
-  job_payment_stage_id: z.string().cuid(),
-  recipient: z.enum(["candidate", "partner"]),
-});
-
-// Finance emailing a case milestone invoice that isn't going through
-// Stripe (2026-08-04) — partner/recruiter-sourced cases always pay this
-// way, and this also covers a self-applicant case when Stripe itself
-// isn't available. The invoice itself is a real file Finance already
-// generated elsewhere (their bank/Wise, Stripe Invoicing, etc.) and
-// uploaded via the existing /api/upload pipeline first — this just
-// records the amount/recipient and attaches that upload to the email.
-export const sendCaseInvoiceSchema = z.object({
-  job_payment_stage_id: z.string().cuid(),
-  amount: z.number().positive(),
-  recipient: z.enum(["candidate", "partner"]),
-  invoice_document_id: z.string().cuid("Attach the invoice file first."),
-  invoice_reference: z.string().max(200).optional(),
-});
-
-// Finance manually confirming a pending (invoice-emailed) payment was
-// received (2026-08-04) — a real uploaded receipt is required, not
-// optional, since there's no webhook backing this confirmation the way
-// there is for a Stripe payment link; the file is the actual proof.
-export const markCasePaymentPaidSchema = z.object({
-  receipt_document_id: z.string().cuid("A receipt file is required to mark this payment as paid."),
-});
-
-// Finance replacing or removing a payment's already-attached invoice/
-// receipt file (2026-08-16) — previously a one-way attach with no way to
-// fix a wrong upload afterward. `null` clears the attachment; a cuid
-// replaces it with a freshly-uploaded file (uploaded first via the
-// existing /api/upload pipeline, same as every other attachment here).
-export const updateCasePaymentReceiptSchema = z.object({
-  receipt_document_id: z.string().cuid("Invalid document id.").nullable(),
-});
+// A case's milestone payments (record, Stripe link, invoice, mark paid,
+// receipt): validated by FastAPI since payments step 7.3
+// (vertex_be/app/api/v1/case_payments.py).
 
 // Operations sending a manual reminder email for a delayed document or
 // payment (2026-07-31, per the Operational Workflow SOP).
@@ -803,7 +752,7 @@ export const updateReferralAgentStatusSchema = z.object({
 // (vertex_be/app/api/v1/referral_commissions.py, RuleIn).
 
 // Commission payout confirmation (2026-08-29) — receipt is optional here,
-// unlike markCasePaymentPaidSchema's required one: the underlying
+// unlike a case payment's mark-paid, where it's required: the underlying
 // milestone event (the ReferralCommission row itself) is already the
 // record of what happened, so a receipt is a nice-to-have, not the only
 // proof.
