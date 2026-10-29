@@ -18,8 +18,8 @@ The website keeps sending the emails (owner's decision D1, 2026-10-29): a
 response lists the emails now due in `notify`, next to `data`, and the
 website sends them after the write has committed.
 
-Approving a candidate opens their case, so it moves with cases (step 6.5);
-until then the status route refuses it.
+Approving a candidate opens their case (app/services/case_lifecycle.py,
+step 6.5).
 
 Every change is on the audit trail (Candidate, CandidateMessage,
 PartnerCandidate and ReferralCommission are in AUDITED_MODELS). Deleting a
@@ -38,7 +38,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
-from app.api.notices import MessageEmail, Notice, Notifying, commission_email, invite_email
+from app.api.notices import CandidateApprovedEmail, MessageEmail, Notice, Notifying, commission_email, invite_email
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, calling_service
@@ -52,6 +52,8 @@ from app.models.enums import CandidateLifecycleStatus, CandidateSource, Gender, 
 from app.models.identity import User
 from app.models.partners import Partner, PartnerCandidate
 from app.services.candidate_lifecycle import can_set_lifecycle_status
+from app.services.case_lifecycle import open_case
+from app.services.referrals import commission_if_due
 from app.services.documents import document_completeness
 from app.services.screening import screen_and_invite
 
@@ -430,14 +432,31 @@ def set_status(
         db.refresh(candidate)
         return {"data": candidate, "notify": invite_email(result.invite) + commission_email(result.commission)}
 
-    if target is CandidateLifecycleStatus.approved:
-        raise ApiError(501, "not_yet_available", "Approving a candidate opens their case, which moves to this service with cases.")
-
     candidate.lifecycle_status = target
     candidate.return_reason = body.return_reason if needs_reason else None
+    notify: list[Notice] = []
+    if target is CandidateLifecycleStatus.approved:
+        notify = _approve(db, candidate)
     db.commit()
     db.refresh(candidate)
-    return {"data": candidate}
+    return {"data": candidate, "notify": notify}
+
+
+def _approve(db, candidate: Candidate) -> list[Notice]:
+    """"Approved by In-House" opens the case on the candidate's latest
+    application (SRS FR-4.1), which is when a referral earns its
+    "application submitted" commission; the candidate is told."""
+    notify: list[Notice] = []
+    application = db.scalar(select(Application).where(Application.candidate_id == candidate.id).order_by(Application.submitted_at.desc()).limit(1))
+    if application is not None:
+        case = open_case(db, application.id)
+        notify += commission_email(commission_if_due(db, candidate.id, ReferralMilestone.application_submitted, case_id=case.id))
+    account = candidate.user
+    email = account.email if account else candidate.email
+    name = account.full_name if account else candidate.full_name
+    if email and name:
+        notify.append(CandidateApprovedEmail(email=email, full_name=name))
+    return notify
 
 
 # --- messages ----------------------------------------------------------------

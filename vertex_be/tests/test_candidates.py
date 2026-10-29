@@ -297,13 +297,17 @@ def test_hr_rejects_a_self_application(api, db, world):
     assert res.json()["data"]["return_reason"] == "Not eligible for this programme."
 
 
-def test_approval_waits_for_cases(api, db, world):
+def test_approval_opens_the_case(api, db, world):
     world["lead"].lifecycle_status = CandidateLifecycleStatus.verified
     db.flush()
     res = status(api, world, world["admin"], lifecycle_status="approved")
-    assert (res.status_code, error(res)["code"]) == (501, "not_yet_available")
-    db.refresh(world["lead"])
-    assert world["lead"].lifecycle_status is CandidateLifecycleStatus.verified
+    assert res.status_code == 200
+    assert res.json()["data"]["lifecycle_status"] == "approved"
+    assert res.json()["notify"] == [{"kind": "candidate_approved", "email": world["lead"].email, "full_name": "Abebe Kebede"}]
+    application = db.scalar(select(Application).where(Application.candidate_id == world["lead"].id))
+    case = db.scalar(select(Case).where(Case.application_id == application.id))
+    assert (case.current_stage.value, [e.stage.value for e in case.stage_events]) == ("registration_document_submission", ["registration_document_submission"])
+    assert trail(db, case.id) == ["create"]
 
 
 # --- messages ----------------------------------------------------------------
