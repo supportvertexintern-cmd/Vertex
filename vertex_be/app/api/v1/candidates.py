@@ -30,7 +30,7 @@ ORM, so each of those is on the trail too.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Any, Generic, Literal, TypeVar, get_args
+from typing import Annotated, Any, Literal, get_args
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
@@ -38,6 +38,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
+from app.api.notices import MessageEmail, Notice, Notifying, commission_email, invite_email
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, calling_service
@@ -52,8 +53,7 @@ from app.models.identity import User
 from app.models.partners import Partner, PartnerCandidate
 from app.services.candidate_lifecycle import can_set_lifecycle_status
 from app.services.documents import document_completeness
-from app.services.referrals import CommissionEarned
-from app.services.screening import Invite, screen_and_invite
+from app.services.screening import screen_and_invite
 
 router = APIRouter()
 
@@ -290,68 +290,6 @@ class Claimed(BaseModel):
     lifecycle_status: CandidateLifecycleStatus
 
 
-# Emails the website sends once the write has committed (D1).
-
-
-class InviteEmail(BaseModel):
-    """sendCandidateInviteEmail(candidate_id, email, full_name)."""
-
-    kind: Literal["candidate_invite"] = "candidate_invite"
-    candidate_id: str
-    email: str
-    full_name: str
-
-
-class CommissionEmail(BaseModel):
-    """sendReferralCommissionEarnedEmail(agent_email, agent_name, candidate_name, milestone, amount, currency)."""
-
-    kind: Literal["referral_commission_earned"] = "referral_commission_earned"
-    agent_email: str
-    agent_name: str
-    candidate_name: str
-    milestone: ReferralMilestone
-    amount: float
-    currency: str
-
-
-class MessageEmail(BaseModel):
-    """sendCandidateMessageNotificationEmail(email, full_name, app URL + view_path)."""
-
-    kind: Literal["candidate_message"] = "candidate_message"
-    email: str
-    full_name: str
-    view_path: str
-
-
-Notice = Annotated[InviteEmail | CommissionEmail | MessageEmail, Field(discriminator="kind")]
-
-
-T = TypeVar("T")
-
-
-class Notifying(Data[T], Generic[T]):
-    notify: list[Notice] = []
-
-
-def _invite_email(invite: Invite | None) -> list[Notice]:
-    return [InviteEmail(candidate_id=invite.candidate_id, email=invite.email, full_name=invite.full_name)] if invite else []
-
-
-def _commission_email(earned: CommissionEarned | None) -> list[Notice]:
-    if earned is None:
-        return []
-    return [
-        CommissionEmail(
-            agent_email=earned.agent_email,
-            agent_name=earned.agent_name,
-            candidate_name=earned.candidate_name,
-            milestone=earned.milestone,
-            amount=float(earned.amount),
-            currency=earned.currency,
-        )
-    ]
-
-
 # --- the candidate's own profile --------------------------------------------
 
 
@@ -490,7 +428,7 @@ def set_status(
         if not result.passed:
             raise ApiError(422, "screening_gate_failed", "Candidate has not cleared the screening gate.", result.failures)
         db.refresh(candidate)
-        return {"data": candidate, "notify": _invite_email(result.invite) + _commission_email(result.commission)}
+        return {"data": candidate, "notify": invite_email(result.invite) + commission_email(result.commission)}
 
     if target is CandidateLifecycleStatus.approved:
         raise ApiError(501, "not_yet_available", "Approving a candidate opens their case, which moves to this service with cases.")

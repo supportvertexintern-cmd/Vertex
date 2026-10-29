@@ -132,8 +132,13 @@ def screen_and_invite(db: Session, candidate_id: str) -> ScreenAndInviteResult:
     """Records the gate's result whatever it is; on a pass, moves the
     candidate to "screened" and works out the invite and any commission.
     Writes in the caller's session (so its audit actor), uncommitted."""
+    # populate_existing: the caller may have just added the application this
+    # screens, after the candidate was loaded.
     candidate = db.scalar(
-        select(Candidate).where(Candidate.id == candidate_id).options(selectinload(Candidate.applications), selectinload(Candidate.user))
+        select(Candidate)
+        .where(Candidate.id == candidate_id)
+        .options(selectinload(Candidate.applications), selectinload(Candidate.user))
+        .execution_options(populate_existing=True)
     )
     if candidate is None:
         return ScreenAndInviteResult(passed=False, failures=["Candidate not found."])

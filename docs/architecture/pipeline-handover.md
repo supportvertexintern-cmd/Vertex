@@ -125,6 +125,7 @@ app included) can write through them early. Their tests turn the setting on.
 | 6.1 | Foundations | `PIPELINE_WRITES_ENABLED`; FastAPI's resource authorization and scoping for candidates, cases and partner candidates (`docs/security/authorization-pipeline.md` stages 5–6), with drift tests against `server/scope.ts`; the referral-milestone service |
 | 6.2 | Candidates (built, off) | Profile, staff edit, lifecycle status, screening and invites, messages, and the `Candidate` that registration creates |
 | 6.3 | Documents (built, off) | Upload end to end (storage, scan, the CIF upload token), verify, access records |
+| 6.4 | Built, off: `vertex_be/app/api/v1/applications.py` (submission, review, staff corrections) with the "registered" commission and the duplicate-referral flag. The `notify` shapes moved to `app/api/notices.py`. Rejecting and overturning a case (which also write applications) come with 6.5, partner submissions with 6.6 |
 | 6.4 | Applications (built, off) | Self-submission and staff entry, review, the candidate's application edit; referral commissions |
 | 6.5 | Cases (built, off) | Creation (case lifecycle), stage, ops review, reject and overturn, reminders, contract and signing, retention, exceptions |
 | 6.6 | Partner submissions (built, off) | Partner drafts and submission, HR review, create case, reject and overturn |
@@ -157,6 +158,11 @@ Step 6.7 wires the website to these, so they are fixed here:
   FastAPI checks, scans and stores the file in the same bucket with the
   same keys (`S3_*`, `CLAMD_*`), so files stored by either service read
   the same.
+- **Submitting the form** (`POST /api/applications`) calls
+  `POST /api/v1/applications/submit` as Next.js itself, with the user's
+  session when there is one (an anonymous self-applicant has none). Next.js
+  keeps rate-limiting anonymous submissions, and signs the form's upload
+  token when the response says `screening_passed`.
 - **Opening a document:** before serving a stored file (download, email
   attachment), the website asks `POST /api/v1/documents/readable`, which
   scans an unscanned file and refuses an infected one (403
@@ -171,7 +177,7 @@ Step 6.7 wires the website to these, so they are fixed here:
 | 6.0 | Provider not chosen yet (owner, 2026-10-29): MinIO meanwhile, on the local and self-hosted stacks. The E2 deadline stands |
 | 6.1 | Done (#112) |
 | 6.2 | Built, off (#113): `vertex_be/app/api/v1/candidates.py`; the lifecycle rules are checked move for move against the website's through `candidateLifecycle.matrix.json` |
-| 6.3 | Built, off: `vertex_be/app/api/v1/documents.py` (upload, the form's upload, verify, readable), `services/storage.py`, `services/malware_scan.py`. Moving a partner draft's documents onto its candidate comes with 6.6 |
+| 6.3 | Built, off (#114): `vertex_be/app/api/v1/documents.py` (upload, the form's upload, verify, readable), `services/storage.py`, `services/malware_scan.py`. Moving a partner draft's documents onto its candidate comes with 6.6 |
 
 ## 5. Risks
 
