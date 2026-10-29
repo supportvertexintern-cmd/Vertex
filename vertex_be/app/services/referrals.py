@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -99,3 +99,25 @@ def commission_if_due(db: Session, candidate_id: str, milestone: ReferralMilesto
     agent = db.get(ReferralAgent, candidate.referral_agent_id)
     assert agent is not None
     return CommissionEarned(agent.email, agent.full_name, candidate.full_name or "your referral", milestone, amount, currency)
+
+
+def flag_if_duplicate(db: Session, candidate: Candidate) -> bool:
+    """checkReferralDuplicate: a referred candidate who matches another by
+    email, phone or passport number is flagged for HR to look at, never
+    blocked. Runs in the caller's session, uncommitted."""
+    matches = [
+        column == value
+        for column, value in (
+            (Candidate.email, candidate.email),
+            (Candidate.phone, candidate.phone),
+            (Candidate.passport_number, candidate.passport_number),
+        )
+        if value
+    ]
+    if not matches:
+        return False
+    other = db.scalar(select(Candidate.id).where(Candidate.id != candidate.id, or_(*matches)).limit(1))
+    if other is None:
+        return False
+    candidate.referral_duplicate_flag = True
+    return True
