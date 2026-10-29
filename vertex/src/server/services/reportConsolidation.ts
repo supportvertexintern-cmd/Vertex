@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import type { ReportCycle } from "@prisma/client";
 
-// Mirrors src/lib/validations.ts's reportContentSchema — a local, loosely
-// typed shape (content is stored as Json) rather than importing the
-// Zod-inferred type, matching this file's existing convention.
+// Mirrors the report content FastAPI validates and stores (ReportContent
+// in vertex_be/app/api/v1/reports.py, since backend plan step 5.4) — a
+// local, loosely typed shape, since content is stored as Json.
 interface ReportContentRow {
   label: string;
   target?: number;
