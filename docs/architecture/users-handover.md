@@ -1,7 +1,8 @@
 # Users and sessions handover (backend plan step 8)
 
-Status: **proposed, awaiting the owner's decisions** (§3). Security
-review of 2026-10-30: approved with conditions, folded into §6. Follows
+Status: **decided** (owner, 2026-10-30: D1 A, D2 A, D3 A, D4 A, D5 A, D6 A;
+§3; exceptions E8 to E10 signed). Security review of 2026-10-30: approved
+with conditions, folded into §6. Follows
 `data-ownership.md` §3 (Users and sessions) and §2.3 (the owner's decision
 of 2026-10-27: `Partner` and `ReferralAgent` move with this area), and
 reuses the patterns of `pipeline-handover.md` and `payments-handover.md`.
@@ -206,7 +207,7 @@ checked against the code where it could be, and where it lands:
 | 15 | Google flow details | `state` now has a nonce (#131) | 8.2: exact redirect URI, ID token checks (issuer, audience, expiry, signature), match on `sub` after the first link |
 | 16 | The D5 exemption growing quietly | — | D5 A: exact-list test; expired-row clean-up keeps its `DELETE` |
 
-**Exceptions to register** (owner sign-off needed; `docs/security/exceptions.md`):
+**Exceptions registered** (signed by the owner 2026-10-30; `docs/security/exceptions.md`):
 
 | Id | Exception | Compensating controls | Expiry |
 |---|---|---|---|
@@ -223,4 +224,4 @@ check the G19 rows of `verify-stack.sh`.
 |---|---|
 | Google fix | #131: state nonce, verified email, linked accounts by `google_id`, pre-hijack |
 | 8.1 | Done (this PR): `vertex_be/app/api/v1/referral_agents.py`, `create_target`; `vertex_web` loses its writes on `ReferralAgentTarget`. Needs none of D1–D6 or E8–E10 |
-| 8.2–8.5 | Not started: 8.2 waits for D1–D6 and the signing of E8–E10 |
+| 8.2–8.5 | Not started. D1–D6 decided and E8–E10 signed (2026-10-30), so nothing blocks 8.2 |
