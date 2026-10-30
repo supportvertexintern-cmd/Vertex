@@ -12,3 +12,6 @@ services:
     volumes:
       - .:/app
       - uploads:/app/uploads
+
+volumes:
+  uploads:
