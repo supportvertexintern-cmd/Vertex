@@ -1,6 +1,7 @@
 # Users and sessions handover (backend plan step 8)
 
-Status: **proposed, awaiting the owner's decisions** (§3). Follows
+Status: **proposed, awaiting the owner's decisions** (§3). Security
+review of 2026-10-30: approved with conditions, folded into §6. Follows
 `data-ownership.md` §3 (Users and sessions) and §2.3 (the owner's decision
 of 2026-10-27: `Partner` and `ReferralAgent` move with this area), and
 reuses the patterns of `pipeline-handover.md` and `payments-handover.md`.
@@ -60,10 +61,15 @@ existing hashes are read as they are.
 The callback exchanges Google's code for tokens, reads the user's email,
 and signs in an account that already exists, linking `google_id` on first use.
 
-**Finding:** the callback matches an existing account by email **without
-checking Google's `email_verified`**. A Google account whose address isn't
-verified could link itself to, and sign in as, the Vertex account with that
-email. The fix is proposed with the move (D3).
+**Fixed ahead of the move (#131):** the callback linked by email without
+checking Google's `email_verified`; it found accounts by `google_id` *or*
+email, so a linked account also let in another Google account reporting the
+same address; and `state` carried no nonce (login CSRF). It now checks a
+state nonce against a short-lived cookie, finds linked accounts by
+`google_id` only, links by email only when Google has verified it, never
+re-links an account linked elsewhere, and drops a password set on an
+unverified account when linking (pre-hijack). FastAPI keeps these rules
+in 8.2.
 
 ### 2.4 Tokens sent by email
 
@@ -109,14 +115,14 @@ Each one has a recommended option, as in the earlier handovers.
 
 | Option | How | Cost |
 |---|---|---|
-| **A. The same key and format (recommended)** | FastAPI signs access tokens exactly as `lib/jwt.ts` does (HS256, the HKDF `session` key from `JWT_SECRET`, the same claims). The proxy and `getAuthUser()` keep verifying them unchanged | No change for the website or outstanding tokens. Next.js keeps `JWT_SECRET` and so *could* still mint a token, but it would need a live session to pass, and a compromised website already sees every user's cookies |
-| B. Asymmetric keys | FastAPI signs with a private key (EdDSA); Next.js and FastAPI verify with the public key; `JWT_SECRET` is removed from the website for sessions | A new key to manage and rotate; tokens issued before the switch stop working within 15 minutes (refresh mends them). Small gain, for the reason in A |
+| **A. The same key and format for the migration, then asymmetric (recommended)** | FastAPI signs access tokens exactly as `lib/jwt.ts` does (HS256, the HKDF `session` key from `JWT_SECRET`, the same claims). The proxy and `getAuthUser()` keep verifying them unchanged. After 8.5, the key is rotated to B | No change for the website or outstanding tokens during the move. Next.js keeps `JWT_SECRET`, and it can read `RefreshToken` (it checks sessions), so a compromised website could read a live session's id and mint a token for that user. Registered as exception E8 until the rotation |
+| B. Asymmetric keys from the start | FastAPI signs with a private key (EdDSA); Next.js and FastAPI verify with the public key; `JWT_SECRET` is removed from the website for sessions | A new key to manage and rotate while everything else is moving; tokens issued before the switch stop working within 15 minutes (refresh mends them) |
 
 ### D2. Where are sign-in attempts rate-limited?
 
 | Option | How | Cost |
 |---|---|---|
-| **A. The website keeps the limits (recommended)** | It sees the client's address; the limits stay in each handler (`route-guards.test.ts` checks them). FastAPI records the security events | None: today's behaviour |
+| **A. The website keeps the per-address limits; FastAPI adds a per-account one (recommended)** | The limits stay in each handler (`route-guards.test.ts` checks them), and the website tells FastAPI about a blocked attempt so `login_rate_limited` is still recorded. FastAPI adds a per-account limit on failed sign-ins as a backstop | A little more than today. The per-address limit is only as good as the address (§6, #5) |
 | B. FastAPI | The website would forward the client address and FastAPI would have to trust it | No gain while FastAPI is reachable only through the website |
 
 ### D3. Who talks to Google?
@@ -137,14 +143,14 @@ Each one has a recommended option, as in the earlier handovers.
 
 | Option | How | Cost |
 |---|---|---|
-| **A. No: sessions are recorded as security events (recommended)** | Exempt `RefreshToken` from `test_audit_coverage.py`, by name and with this reason. Starting, refreshing after reuse, revoking and the kill switch stay recorded as events, as they are today | One named exception to the 2026-10-26 rule |
+| **A. No: sessions are recorded as security events (recommended)** | Exempt `RefreshToken` from `test_audit_coverage.py`, by name and with this reason; the test asserts the exemption list is exactly `{RefreshToken}`. Starting, refreshing after reuse, revoking and the kill switch stay recorded as events, as they are today | One named exception to the 2026-10-26 rule, registered as E9 |
 | B. Yes, like every table | Every rotation writes an audit row | The log grows by one row per user every 15 minutes, each holding a token hash |
 
 ### D6. How does it switch?
 
 | Option | How | Cost |
 |---|---|---|
-| **A. In sub-steps, like payments (recommended)** | §4. `User` keeps two writers, both audited, between 8.2 and 8.4 (as `CasePayment` did between 7.2 and 7.3) | One release per sub-step |
+| **A. In sub-steps, like payments (recommended)** | §4. `User` keeps two writers, both audited, between 8.2 and 8.4 (as `CasePayment` did between 7.2 and 7.3) | One release per sub-step. The two writers are registered as E10, ending at 8.4 |
 | B. Built behind a flag, one switch | As the pipeline did | Sign-in, every account page and partner provisioning would switch in one release |
 
 ## 4. Steps
@@ -175,8 +181,45 @@ and the end-to-end journeys, which sign in on every run.
 - **Behaviour change in 8.2:** with D3 A, a Google account with an
   unverified email can no longer link itself by email.
 
-## 6. Progress
+## 6. Security review (2026-10-30)
+
+An outside design review approved the plan with conditions. Each finding,
+checked against the code where it could be, and where it lands:
+
+| # | Finding | Checked in the code | Where |
+|---|---|---|---|
+| 1 | Google links by email without `email_verified` | Confirmed | **Fixed, #131** |
+| 2 | Pre-hijack through Google linking | Confirmed in principle; hard to reach today, because a password is set only from an invite or setup link sent to the address | **Fixed, #131**: linking drops a password on an unverified account |
+| — | Accounts found by `google_id` *or* email; `state` without a nonce | Found while fixing #1 | **Fixed, #131** |
+| 3 | D1 A: the website could mint tokens for live sessions | Confirmed: `loadSession()` reads `RefreshToken.family_id` | D1, exception E8, rotation after 8.5 |
+| 4 | Email tokens resting in the database | Not the case: `notify` exists only in the response, isn't stored, audited or logged (`lib/backend.ts` logs path and status only) | 8.3: tokens short-lived and single-use (#9), never logged; a test checks `notify` is absent from logs |
+| 5 | How FastAPI knows a call came from the website; spoofable client address | The first holds already: every call carries the website's service token (`X-Vertex-Service`, G18). The second is **confirmed**: the stacks publish Next.js directly, so `X-Forwarded-For` is whatever the client sends, and the per-address limits (sign-in, forgot password, Google) can be dodged by changing it | Before 8.2: take the address from a trusted proxy hop only (or the socket when there's none); a test sends a forged header |
+| 6 | 422 errors echoing a password | Already safe: FastAPI's validation handler (`app/core/api.py`) returns field names and messages, never the input | 8.2: a test on every `/auth` route that the submitted values never come back or reach the logs |
+| 7 | Blocked sign-ins unrecorded; no limit in FastAPI | Follows from D2 | D2 A as revised |
+| 8 | The website can read password and token hashes | Confirmed: `vertex_web` has `SELECT` on all of `User` and `RefreshToken` | After 8.3: column-level grants; `vertex_web` loses `password_hash`, `token_hash` and `google_id` |
+| 9 | Reset tokens not single-use | Confirmed: stateless JWTs, valid until expiry | 8.3: bound to the current password hash, so a used link or a password change ends it; a password change bumps `token_version` (the trigger does) |
+| 10 | bcrypt differences, blocking, timing | `bcryptjs` truncates at 72 bytes, Python's `bcrypt` rejects longer input; no maximum length in the schemas | 8.2: truncate to 72 bytes exactly as `bcryptjs` does (tested with a long password set on the website), hash in a worker thread, a dummy check for unknown emails |
+| 11 | Mass assignment on public writes | — | 8.3, 8.4: schemas forbid unknown fields; the server sets role and status |
+| 12 | Who may grant admin; `onPrivilegeGranted` | — | 8.3: checked in FastAPI; the last admin can't be removed or demoted, nobody promotes themselves; the alert moves |
+| 13 | Concurrent refreshes | The 30-second grace exists today | 8.2: kept, with a test |
+| 14 | Cookie flags from FastAPI's answer | — | 8.2: the website still sets the cookies; a test pins the flags to today's |
+| 15 | Google flow details | `state` now has a nonce (#131) | 8.2: exact redirect URI, ID token checks (issuer, audience, expiry, signature), match on `sub` after the first link |
+| 16 | The D5 exemption growing quietly | — | D5 A: exact-list test; expired-row clean-up keeps its `DELETE` |
+
+**Exceptions to register** (owner sign-off needed; `docs/security/exceptions.md`):
+
+| Id | Exception | Compensating controls | Expiry |
+|---|---|---|---|
+| E8 | Shared symmetric session key (D1 A) | Secret in the environment only; the live-session check on every request; column-level grants (#8) | Key rotation to asymmetric keys after 8.5 |
+| E9 | `RefreshToken` not row-audited (D5 A) | Security events for every session decision; the exact-list test | Reviewed at 8.5 |
+| E10 | Two writers of `User` between 8.2 and 8.4 (D6 A) | Both audited, both fire the `token_version` trigger | 8.4 |
+
+After 8.2 and again after 8.5, run the kill-switch drill on staging and
+check the G19 rows of `verify-stack.sh`.
+
+## 7. Progress
 
 | Step | State |
 |---|---|
-| 8.1–8.5 | Not started: waiting for D1–D6 |
+| Google fix | #131: state nonce, verified email, linked accounts by `google_id`, pre-hijack |
+| 8.1–8.5 | Not started: waiting for D1–D6 and E8–E10 |
