@@ -761,12 +761,6 @@ export const markReferralCommissionPaidSchema = z.object({
   payment_method: z.string().max(100).optional(),
 });
 
-export const createReferralAgentTargetSchema = z.object({
-  period_start: z.string().min(1, "Start date is required"),
-  period_end: z.string().min(1, "End date is required"),
-  target_referrals: z.coerce.number().int().min(0),
-});
-
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SubmitApplicationInput = z.infer<typeof submitApplicationSchema>;
