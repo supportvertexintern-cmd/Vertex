@@ -293,7 +293,7 @@ def test_the_handover_list_is_read():
     }
     assert pipeline <= set(fastapi_owned_tables())
     # Payments and finance, table by table (step 7).
-    assert {"ReferralCommissionRule", "Payment", "ConsultationBooking", "CasePayment"} <= set(fastapi_owned_tables())
+    assert {"ReferralCommissionRule", "Payment", "ConsultationBooking", "CasePayment", "JobMilestonePrice"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
