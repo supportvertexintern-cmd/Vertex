@@ -9,6 +9,13 @@ import { clearSessionCookies, REFRESH_COOKIE, setSessionCookies } from "@/lib/se
 // this is the one place a 15-minute access token is renewed. FastAPI spends
 // the presented refresh token and issues a new one since users step 8.2
 // (vertex_be/app/api/v1/sessions.py, refresh); this route sets the cookies.
+//
+// No refresh cookie at all is answered here, before the rate limit: there's
+// no token to guess, and signed-out pages ask often (every 401 from an API
+// call), which would otherwise use up the limit for everyone behind one
+// address.
+
+const ENDED = { error: { code: "session_ended", message: "Please sign in again." } };
 
 async function refresh(req: NextRequest) {
   const result = await callBackend<SignedIn>("/api/v1/auth/refresh", {
@@ -23,6 +30,11 @@ async function refresh(req: NextRequest) {
 
 // POST /api/auth/refresh: from the client fetch wrapper after a 401.
 export async function POST(req: NextRequest) {
+  if (!req.cookies.get(REFRESH_COOKIE)?.value) {
+    const res = NextResponse.json(ENDED, { status: 401 });
+    clearSessionCookies(res);
+    return res;
+  }
   const limited = limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
   if (limited) return limited;
   const result = await refresh(req);
@@ -30,7 +42,7 @@ export async function POST(req: NextRequest) {
     const refused = refreshRefusal(result);
     // FastAPI unreachable isn't a refusal: the cookies stay for the retry.
     if (!refused) return NextResponse.json({ error: result.error }, { status: result.status });
-    const res = NextResponse.json({ error: { code: "session_ended", message: "Please sign in again." } }, { status: 401 });
+    const res = NextResponse.json(ENDED, { status: 401 });
     // A lost race leaves the winner's fresh cookies in place.
     if (refused !== "superseded") clearSessionCookies(res);
     return res;
@@ -45,13 +57,21 @@ export async function POST(req: NextRequest) {
 // or goes to sign-in.
 export async function GET(req: NextRequest) {
   const target = safeRedirectPath(req.nextUrl.searchParams.get("redirect"));
+  const toSignIn = () => {
+    const login = new URL("/auth/login", req.url);
+    login.searchParams.set("redirect", target);
+    return NextResponse.redirect(login, 303);
+  };
+  if (!req.cookies.get(REFRESH_COOKIE)?.value) {
+    const res = toSignIn();
+    clearSessionCookies(res);
+    return res;
+  }
   const limited = limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
   if (limited) return limited;
   const result = await refresh(req);
   if (!result.ok) {
-    const login = new URL("/auth/login", req.url);
-    login.searchParams.set("redirect", target);
-    const res = NextResponse.redirect(login, 303);
+    const res = toSignIn();
     const refused = refreshRefusal(result);
     if (refused && refused !== "superseded") clearSessionCookies(res);
     return res;

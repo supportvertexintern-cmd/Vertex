@@ -50,8 +50,10 @@ RefreshFailure = Literal["missing", "unknown", "revoked", "expired", "superseded
 
 
 def _now() -> datetime:
-    # Prisma stores timestamps as UTC without a time zone.
-    return datetime.now(UTC).replace(tzinfo=None)
+    # Prisma stores timestamps as UTC without a time zone, to the millisecond:
+    # a value kept finer would answer differently from the row once read back.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    return now.replace(microsecond=now.microsecond // 1000 * 1000)
 
 
 def session_lifetime_seconds(role: Role) -> int:
