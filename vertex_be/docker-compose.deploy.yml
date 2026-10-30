@@ -43,7 +43,8 @@ services:
       DATABASE_URL: postgresql://vertex_api:${DB_API_PASSWORD:?DB_API_PASSWORD is required}@db:5432/${POSTGRES_DB}
       MIGRATION_DATABASE_URL: postgresql://vertex_migrator:${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
-      # The web app's: FastAPI verifies the sessions Next.js issues (G9).
+      # Shared with the web app: FastAPI issues sessions (users step 8.2)
+      # and the website still verifies them (exception E8).
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       # Next.js's credential when it calls this service (G18). Required
       # outside development (app/core/config.py); _PREVIOUS only while
@@ -59,6 +60,10 @@ services:
       PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
       PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
       PAYPAL_API_BASE: ${PAYPAL_API_BASE:-}
+      # Google sign-in (users step 8.2): FastAPI exchanges the code. Unset =
+      # Google sign-in is unavailable.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # The candidate pipeline's writes (pipeline-handover.md): on since the
       # switch (step 6.7). The rollback is to set it false and restore the
       # web app's grants (§6).
@@ -166,8 +171,8 @@ services:
       APP_ORIGINS: ${APP_ORIGINS:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
+      # Only to send visitors to Google; the secret is the backend's alone.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Unset = this stack's Mailpit (nothing leaves the PC).

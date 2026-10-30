@@ -150,10 +150,6 @@ BEGIN
     -- (Next.js: case history, security monitor). FastAPI may append, not read.
     REVOKE SELECT ON "AuditLog" FROM vertex_api;
   END IF;
-  -- G19: sessions belong to the service that signs users in (Next.js).
-  IF to_regclass('public."RefreshToken"') IS NOT NULL THEN
-    REVOKE ALL ON "RefreshToken" FROM vertex_api;
-  END IF;
   -- G9: FastAPI verifies those sessions, so it may ask whether one is live
   -- (yes/no, migration 0007) without reading any session row.
   IF to_regprocedure('public.vertex_session_is_live(text, text)') IS NOT NULL THEN
@@ -219,7 +215,8 @@ BEGIN
     'ConsultationBooking',  -- payments, step 7.2
     'CasePayment',  -- payments, step 7.3 (a case's milestone payments)
     'JobMilestonePrice',  -- payments, step 7.4 (kept with its data; Prisma has no model for it)
-    'ReferralAgentTarget'  -- users and sessions, step 8.1 (users-handover.md)
+    'ReferralAgentTarget',  -- users and sessions, step 8.1 (users-handover.md)
+    'RefreshToken'  -- users and sessions, step 8.2: FastAPI issues sessions; Next.js still reads them on every request
   ] LOOP
     IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
       EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);

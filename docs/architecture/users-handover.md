@@ -224,4 +224,5 @@ check the G19 rows of `verify-stack.sh`.
 |---|---|
 | Google fix | #131: state nonce, verified email, linked accounts by `google_id`, pre-hijack |
 | 8.1 | Done (this PR): `vertex_be/app/api/v1/referral_agents.py`, `create_target`; `vertex_web` loses its writes on `ReferralAgentTarget`. Needs none of D1–D6 or E8–E10 |
-| 8.2–8.5 | Not started. D1–D6 decided and E8–E10 signed (2026-10-30), so nothing blocks 8.2 |
+| 8.2 | Done (this PR): `vertex_be/app/api/v1/sessions.py` and `app/services/sessions.py`, `app/services/google_signin.py`; the website's `/api/auth` routes pass requests on (`lib/auth-backend.ts`); `vertex_web` loses its writes on `RefreshToken`. Review items done here: #6, #10, #13, #14, #15, #16 and D2's per-account limit. #5 (the forwarded address) is still open and blocks promotion beyond dev |
+| 8.3–8.5 | Not started |

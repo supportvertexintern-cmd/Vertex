@@ -15,6 +15,8 @@ boto3==1.43.100
 python-multipart==0.0.32
 # PayPal's API (app/services/paypal.py); also the test client's transport.
 httpx==0.28.1
+# Passwords (users step 8.2): the hashes bcryptjs wrote, read as they are.
+bcrypt==5.0.0
 
 # tests
 pytest==9.1.1

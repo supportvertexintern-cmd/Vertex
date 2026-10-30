@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setSessionCookies, startSession } from "@/lib/session";
+import { setSessionCookies } from "@/lib/session";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordSecurityEvent } from "@/lib/audit";
-import { verifyPasswordLogin } from "@/lib/password-login";
+import { callBackend } from "@/lib/backend";
+import { alertOnRefusal, clientHeaders, issued, legacyError, type SignedIn } from "@/lib/auth-backend";
 
 // Browser sign-in: the session goes into HttpOnly cookies. The mobile app
-// signs in through /api/auth/app/login instead (tokens in the body); both
-// share verifyPasswordLogin().
+// signs in through /api/auth/app/login instead (tokens in the body). FastAPI
+// checks the password and issues the session since users and sessions step
+// 8.2 (vertex_be/app/api/v1/sessions.py, login), with the same messages and
+// status codes; the per-address limit stays here.
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
   // 10 attempts a minute per client. LOGIN_RATE_LIMIT_MAX exists only so the
@@ -21,11 +24,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const login = await verifyPasswordLogin(req, "web");
-  if (!login.ok) return login.response;
-  const { user } = login;
+  let body: { email?: unknown; password?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
 
-  const session = await startSession(user, req);
+  const result = await callBackend<SignedIn>("/api/v1/auth/login", {
+    method: "POST",
+    body: { email: body?.email, password: body?.password, client: "web" },
+    asUser: false,
+    forward: await clientHeaders(req),
+  });
+  if (!result.ok) {
+    await alertOnRefusal(result);
+    return NextResponse.json(legacyError(result.error, result.status), { status: result.status });
+  }
+  const { user, session } = result.body.data;
 
   const res = NextResponse.json({
     message: "Login successful",
@@ -36,7 +52,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
     },
   });
-  setSessionCookies(res, session);
+  setSessionCookies(res, issued(session));
 
   return res;
 }

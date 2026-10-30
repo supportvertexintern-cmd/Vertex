@@ -112,8 +112,9 @@ class InhouseCountryAssignment(Base):
 class RefreshToken(Base):
     """A server-side refresh token (G19). Only the SHA-256 of the token is
     stored. Each refresh rotates it: the old row gets used_at and a new row
-    joins the same family_id, which is the session the user sees. Owned by
-    the Next.js app; FastAPI has no grants on it."""
+    joins the same family_id, which is the session the user sees. Written
+    by FastAPI since users step 8.2 (app/services/sessions.py); the website
+    reads it to check every request."""
 
     __tablename__ = "RefreshToken"
 
