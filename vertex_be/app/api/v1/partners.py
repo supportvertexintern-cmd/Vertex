@@ -10,7 +10,7 @@ change is on the audit trail (EmployerClient is in AUDITED_MODELS).
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -31,8 +31,8 @@ EMPLOYER_CLIENT_READERS: tuple[Role, ...] = (Role.marketing, Role.director, Role
 # In-House Supervisor no longer manages them (confirmed with the business).
 EMPLOYER_CLIENT_MANAGERS: tuple[Role, ...] = (Role.director, Role.admin)
 
-Reader = Annotated[AuthUser, Depends(require_role(*EMPLOYER_CLIENT_READERS))]
-Manager = Annotated[AuthUser, Depends(require_role(*EMPLOYER_CLIENT_MANAGERS))]
+Reader: TypeAlias = Annotated[AuthUser, Depends(require_role(*EMPLOYER_CLIENT_READERS))]
+Manager: TypeAlias = Annotated[AuthUser, Depends(require_role(*EMPLOYER_CLIENT_MANAGERS))]
 
 
 class EmployerClientOut(BaseModel):
