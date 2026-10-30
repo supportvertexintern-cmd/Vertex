@@ -41,16 +41,16 @@ There is one exception: a spent token presented within **30 seconds** is answere
   - `ApiService` renews the token a minute before it expires, or once after a 401, sharing one refresh between concurrent calls; if that fails, the user is signed out;
   - roles the app has no screens for (candidate, referral agent) are refused, and the session just opened is ended.
 
-Code: `vertex/src/lib/session.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
+Code: FastAPI issues, rotates and revokes sessions since users and sessions step 8.2 (`vertex_be/app/services/sessions.py`, `vertex_be/app/api/v1/sessions.py`; `docs/architecture/users-handover.md`). The website's `/api/auth` routes pass requests on and set the cookies (`vertex/src/lib/auth-backend.ts`); `vertex/src/lib/session.ts` keeps the per-request check and the cookies. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
 
-**FastAPI verifies the same sessions (G9).** Next.js stays the only issuer until users and sessions move (`docs/architecture/data-ownership.md` §5). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:
+**FastAPI verifies the same sessions (G9).** Since step 8.2 FastAPI is also the issuer, with the same key and format (exception E8). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:
 - the signature, with the same per-purpose key (`app/core/tokens.py`; pinned to tokens the Node code signs by `tests/node_session_vectors.py`);
 - the user still exists, and `token_version` matches;
 - the family has a live token.
 
 So logout, the kill switch, and a password or role change end FastAPI access on the next request too. Differences, both deliberate:
 - **Bearer only.** FastAPI reads the token from `Authorization: Bearer`, never from the `auth_token` cookie, so other sites can't make a browser send authenticated requests to it (CSRF). The Flutter app and Next.js's server-side calls send the header.
-- **No session rows.** `vertex_api` still has no grants on `RefreshToken`. It asks `vertex_session_is_live(user_id, family_id)` (migration `0007`), a `SECURITY DEFINER` function that answers only yes or no and is executable by `vertex_api` alone.
+- **Session rows.** Since step 8.2 `vertex_api` writes `RefreshToken` and `vertex_web` only reads it. The request check still asks `vertex_session_is_live(user_id, family_id)` (migration `0007`), a `SECURITY DEFINER` function that answers only yes or no and is executable by `vertex_api` alone.
 
 ## 2. What ends a session
 
@@ -127,7 +127,7 @@ Effects:
 | 15-minute access tokens, 12 h / 14 d sessions, cookie flags and path | same, and `jwt.test.ts` |
 | Logout, per-session end (and not another user's), log out everywhere, admin revoke (and non-admin refused) | same |
 | Trigger bumps `token_version` on password or role change only | `vertex_be/tests/test_schema.py` |
-| FastAPI (`vertex_api`) has no access to `RefreshToken`; runtime roles can't disable or replace the trigger; new columns hidden from the read-only role | `vertex_be/tests/test_db_roles.py` |
+| Since step 8.2, only FastAPI (`vertex_api`) writes `RefreshToken` and Next.js reads it; runtime roles can't disable or replace the trigger; new columns hidden from the read-only role | `vertex_be/tests/test_db_roles.py` |
 | Live: a validly signed token without a live session → 401; refresh without a token → 401 | `deploy/verify-stack.sh` |
 
 ## 7. Evidence

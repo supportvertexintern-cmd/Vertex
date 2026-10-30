@@ -114,7 +114,7 @@ def test_no_session_is_401(api):
 
 def test_the_api_database_role_can_read_it(api, db, policies):
     # FastAPI connects as vertex_api (deploy/db-roles.sql). The session is
-    # set up first: vertex_api can't touch RefreshToken, by design.
+    # set up first, as the test's own role.
     headers = as_role(db, Role.admin)
     db.execute(text("SET LOCAL ROLE vertex_api"))
     try:

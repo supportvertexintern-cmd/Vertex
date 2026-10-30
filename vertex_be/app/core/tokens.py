@@ -1,15 +1,19 @@
-"""Verifies the session tokens the Next.js app issues (vertex/src/lib/jwt.ts).
+"""Signs and verifies session tokens, and verifies the other tokens the
+Next.js app issues (vertex/src/lib/jwt.ts).
 
-Next.js stays the session issuer until users and sessions move to FastAPI
-(docs/architecture/data-ownership.md §5), so FastAPI accepts exactly the
-tokens it signs, by the same rules:
+FastAPI is the session issuer since users and sessions step 8.2
+(docs/architecture/users-handover.md, D1 A): it signs access tokens exactly
+as jwt.ts did, so the website (which still verifies them on every request)
+and tokens issued before the switch are unaffected. Exception E8 records the
+shared key until the move to asymmetric keys after step 8.5. Every token
+follows the same rules:
   - HS256 only (no algorithm from the token is trusted);
   - one key per token purpose, derived from JWT_SECRET with HKDF-SHA256
     (gap G17), so a password-reset or upload token never passes as a session;
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Four purposes are verified here; FastAPI issues nothing.
+Four purposes are verified here; FastAPI issues "session" only.
   - "session": a user's session. The signature is necessary, not
     sufficient: app/core/auth.py also checks the session is still live, as
     Next.js does on every request.
@@ -31,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import time
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -109,6 +114,22 @@ def verify_session_token(token: str) -> SessionClaims:
         sid=payload["sid"],
         ver=ver,
     )
+
+
+ACCESS_TOKEN_TTL_SECONDS = 15 * 60  # ACCESS_TOKEN_EXPIRES_IN in jwt.ts
+
+
+def sign_session_token(*, user_id: str, email: str, role: str, sid: str, ver: int) -> str:
+    """A 15-minute access token, as signToken() in jwt.ts signed it."""
+    secret = settings.JWT_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("JWT_SECRET is not configured")
+    now = int(time.time())
+    payload = {
+        "userId": user_id, "email": email, "role": role, "sid": sid, "ver": ver,
+        "iat": now, "exp": now + ACCESS_TOKEN_TTL_SECONDS, "iss": ISSUER, "aud": "vertex:session",
+    }
+    return jwt.encode(payload, key_for("session", secret), algorithm=ALGORITHM)
 
 
 # Next.js signs one per call, valid for a minute; anything longer-lived is

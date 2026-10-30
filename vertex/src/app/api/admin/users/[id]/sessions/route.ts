@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireAdmin } from "@/lib/api-auth";
-import { recordSecurityEvent } from "@/lib/audit";
-import { listSessions, revokeAllForUser } from "@/lib/session";
+import { backendResponse, callBackend } from "@/lib/backend";
+import { clientHeaders } from "@/lib/auth-backend";
+import { seg } from "@/lib/pipeline";
+
+// A user's sessions, for admins. FastAPI keeps them since users step 8.2
+// (vertex_be/app/api/v1/sessions.py) and checks the caller is an admin.
 
 // GET /api/admin/users/:id/sessions: a user's live sessions.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const guardRes = requireAdmin(user);
   if (guardRes) return guardRes;
   const { id } = await params;
-  return NextResponse.json({ data: await listSessions(id, null) });
+  return backendResponse(await callBackend(`/api/v1/users/${seg(id)}/sessions`));
 }
 
 // DELETE /api/admin/users/:id/sessions: sign a user out everywhere, at once
@@ -21,16 +24,5 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const guardRes = requireAdmin(user);
   if (guardRes) return guardRes;
   const { id } = await params;
-  const target = await prisma.user.findUnique({ where: { id }, select: { id: true } });
-  if (!target) {
-    return NextResponse.json({ error: { code: "not_found", message: "User not found." } }, { status: 404 });
-  }
-  const ended = await revokeAllForUser(id, "revoked_by_admin");
-  await recordSecurityEvent("sessions_revoked", {
-    actorId: user!.userId,
-    entityType: "User",
-    entityId: id,
-    detail: { reason: "revoked_by_admin", sessions: ended },
-  });
-  return NextResponse.json({ data: { ended } });
+  return backendResponse(await callBackend(`/api/v1/users/${seg(id)}/sessions`, { method: "DELETE", forward: await clientHeaders(req) }));
 }

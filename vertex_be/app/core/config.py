@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # development = no service token verifies.
     SERVICE_AUTH_SECRET: str | None = None
     SERVICE_AUTH_SECRET_PREVIOUS: str | None = None
+    # Google sign-in (users and sessions step 8.2, D3 A): FastAPI exchanges
+    # the code the website passes on. The website keeps only the client id,
+    # to send visitors to Google. Unset = Google sign-in answers 503.
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
     # Stripe, for each job payment stage's Product and Price (step 3.2,
     # app/services/stripe_pricing.py). Unset = pricing isn't synced: a job
     # still saves, and a manual sync answers 503.

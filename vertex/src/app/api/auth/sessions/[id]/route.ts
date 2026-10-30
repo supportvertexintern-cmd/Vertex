@@ -1,26 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
-import { recordSecurityEvent } from "@/lib/audit";
-import { clearSessionCookies, revokeFamily } from "@/lib/session";
+import { backendResponse, callBackend } from "@/lib/backend";
+import { clientHeaders } from "@/lib/auth-backend";
+import { seg } from "@/lib/pipeline";
+import { clearSessionCookies } from "@/lib/session";
 
 // DELETE /api/auth/sessions/:id: end one of the caller's own sessions. Scoped
-// to the caller, so another user's session id matches nothing (404).
+// to the caller by FastAPI (users step 8.2), so another user's session id
+// matches nothing (404). Ending this browser's own session clears its cookies.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const authError = requireAuth(user);
   if (authError) return authError;
   const { id } = await params;
-  const revoked = await revokeFamily(id, "revoked_by_user", user!.userId);
-  if (!revoked) {
-    return NextResponse.json({ error: { code: "not_found", message: "Session not found." } }, { status: 404 });
-  }
-  await recordSecurityEvent("sessions_revoked", {
-    actorId: user!.userId,
-    entityType: "Session",
-    entityId: id,
-    detail: { reason: "revoked_by_user", current: id === user!.sid },
-  });
-  const res = NextResponse.json({ data: { id } });
-  if (id === user!.sid) clearSessionCookies(res);
+  const result = await callBackend(`/api/v1/auth/sessions/${seg(id)}`, { method: "DELETE", forward: await clientHeaders(req) });
+  const res = backendResponse(result);
+  if (result.ok && id === user!.sid) clearSessionCookies(res);
   return res;
 }

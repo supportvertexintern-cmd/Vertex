@@ -18,6 +18,9 @@ const SIGNED_TOKEN = /verify\w*Token\(|resolveDocumentContent\(/;
 // Checked here, or passed on for FastAPI to check (the Stripe webhook since
 // payments step 7.2; vertex_be/tests/test_payments.py covers that side).
 const SIGNATURE = /constructEvent\(|forward:\s*\{\s*"Stripe-Signature":/;
+// A refresh token is spent by FastAPI since users step 8.2: the handler passes
+// it on, directly (the app's) or through the file's refresh() (the browser's).
+const REFRESH_TOKEN = /"\/api\/v1\/auth\/refresh"|\brefresh\(req\)/;
 
 interface Handler {
   key: string; // "GET /api/jobs/[id]"
@@ -70,7 +73,7 @@ describe("API route guards", () => {
       if (entry.protection.includes("rate-limit") && !RATE_LIMIT.test(h.body)) missing.push(`${h.key}: rate-limit`);
       if (entry.protection.includes("signed-token") && !SIGNED_TOKEN.test(h.body)) missing.push(`${h.key}: signed-token`);
       if (entry.protection.includes("signature") && !SIGNATURE.test(h.body)) missing.push(`${h.key}: signature`);
-      if (entry.protection.includes("refresh-token") && !/refreshSession\(/.test(h.body)) missing.push(`${h.key}: refresh-token`);
+      if (entry.protection.includes("refresh-token") && !REFRESH_TOKEN.test(h.body)) missing.push(`${h.key}: refresh-token`);
     }
     expect(missing).toEqual([]);
   });

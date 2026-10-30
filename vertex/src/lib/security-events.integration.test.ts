@@ -15,6 +15,26 @@ vi.mock("next/headers", () => ({
   headers: async () => state.headers,
   cookies: async () => ({ get: (name: string) => (name === "auth_token" && state.token ? { value: state.token } : undefined) }),
 }));
+// Sign-in is FastAPI's since users step 8.2: it checks the password and
+// records login_failed (vertex_be/tests/test_sessions.py covers what it
+// records). This stand-in writes the row as FastAPI does, with the
+// fingerprint and address the website's monitor counts.
+vi.mock("@/lib/backend", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/backend")>();
+  const { prisma } = await import("@/lib/prisma");
+  const { emailFingerprint } = await import("@/lib/audit");
+  return {
+    ...real,
+    callBackend: async (path: string, call: { body: { email: string }; forward: Record<string, string | null> }) => {
+      if (path !== "/api/v1/auth/login") return real.callBackend(path, call as never);
+      const email_fp = emailFingerprint(call.body.email);
+      await prisma.auditLog.create({
+        data: { entity_type: "Auth", entity_id: "unknown_account", action: "login_failed", after: { reason: "bad_password", method: "password", email_fp, ip: call.forward["X-Forwarded-For"] } },
+      });
+      return { ok: false, status: 401, error: { code: "invalid_credentials", message: "Invalid email or password.", details: { email_fp } } };
+    },
+  };
+});
 vi.mock("@/lib/email", () => ({
   sendSecurityAlertEmail: async (to: string[], subject: string, text: string) => {
     state.sent.push({ to, subject, text });
@@ -84,15 +104,17 @@ afterEach(() => {
 describe("tracing (item 8)", () => {
   it("one request ID links the response, the log line and the audit row", async () => {
     const rid = `${tag}-trace-1`;
-    inRequest(rid);
-    const res = await login(loginRequest("wrong-password"));
-    expect(res.status).toBe(401);
+    // Sign-in events are FastAPI's since users step 8.2, under the same ID
+    // (callBackend() passes X-Request-ID on); this app's own events here.
+    inRequest(rid, "/api/admin/users");
+    expect(requireRole({ userId, email, role: "candidate", sid: "test", ver: 0 }, ["admin"])?.status).toBe(403);
+    await settle();
 
     const row = await prisma.auditLog.findFirst({ where: { request_id: rid } });
-    expect(row).toMatchObject({ action: "login_failed", entity_type: "Auth", entity_id: `user:${userId}` });
-    expect(row?.after).toMatchObject({ reason: "bad_password", email_fp: emailFingerprint(email), ip: "203.0.113.7", path: "/api/auth/login" });
+    expect(row).toMatchObject({ action: "access_denied", entity_type: "Route", entity_id: "/api/admin/users" });
+    expect(row?.after).toMatchObject({ ip: "203.0.113.7", path: "/api/admin/users" });
 
-    const logged = lines.find((l) => l.event === "security.login_failed");
+    const logged = lines.find((l) => l.event === "security.access_denied");
     expect(logged).toMatchObject({ request_id: rid, level: "warn" });
   });
 
@@ -105,39 +127,17 @@ describe("tracing (item 8)", () => {
 });
 
 describe("what gets recorded (items 3, 4)", () => {
-  it("records successful sign-in, unknown accounts and denials", async () => {
-    inRequest(`${tag}-ok`);
-    expect((await login(loginRequest(PASSWORD))).status).toBe(200);
-    inRequest(`${tag}-unknown`);
-    expect((await login(loginRequest("whatever", `${tag}-nobody@test.invalid`))).status).toBe(401);
-
+  it("records denials", async () => {
     inRequest(`${tag}-deny`, "/api/admin/users");
     const denied = requireRole({ userId, email, role: "candidate", sid: "test", ver: 0 }, ["admin"]);
     expect(denied?.status).toBe(403);
     await settle();
 
     const actions = await prisma.auditLog.findMany({
-      where: { request_id: { in: [`${tag}-ok`, `${tag}-unknown`, `${tag}-deny`] } },
+      where: { request_id: `${tag}-deny` },
       select: { action: true, entity_id: true, actor_id: true },
     });
-    expect(actions).toEqual(
-      expect.arrayContaining([
-        { action: "login_succeeded", entity_id: `user:${userId}`, actor_id: userId },
-        { action: "login_failed", entity_id: "unknown_account", actor_id: null },
-        { action: "access_denied", entity_id: "/api/admin/users", actor_id: userId },
-      ]),
-    );
-  });
-
-  it("never stores what was typed: no password, no raw email for failures", async () => {
-    const typed = `${tag}-typed-secret-in-email-field`;
-    inRequest(`${tag}-typed`);
-    await login(loginRequest("P@ssw0rd-typed-here", typed));
-    const row = await prisma.auditLog.findFirst({ where: { request_id: `${tag}-typed` } });
-    const text = JSON.stringify(row);
-    expect(text).not.toContain("P@ssw0rd-typed-here");
-    expect(text).not.toContain(typed);
-    expect(JSON.stringify(lines)).not.toContain("P@ssw0rd-typed-here");
+    expect(actions).toEqual([{ action: "access_denied", entity_id: "/api/admin/users", actor_id: userId }]);
   });
 
   it("records who opened a candidate document, and refused links (G21)", async () => {
@@ -189,7 +189,7 @@ describe("alerts (item 6)", () => {
     expect(state.sent.filter((m) => m.subject.includes("failed sign-ins for one account"))).toHaveLength(1);
     expect(state.sent[0].to).toEqual(["security@test.invalid"]);
     expect(lines.some((l) => l.level === "alert" && l.event === "alert.raised" && l.rule === "brute_force_account")).toBe(true);
-  }, 30_000); // 12 real bcrypt sign-ins
+  }, 30_000);
 
   it("authorization probing by one user", async () => {
     const prober = `${tag}-prober`;
@@ -237,13 +237,6 @@ describe("logging failures cannot grant access (item 7)", () => {
     inRequest(`${tag}-f2`, "/api/cases/x");
     expect(forbidden().status).toBe(403);
     await settle();
-  });
-
-  it("a wrong password is still refused, and a right one still needs to be right", async () => {
-    breakAuditTrail();
-    inRequest(`${tag}-f3`);
-    expect((await login(loginRequest("wrong-password"))).status).toBe(401);
-    expect((await login(loginRequest(PASSWORD))).status).toBe(200);
   });
 
   it("an invalid session stays invalid when logging itself throws", async () => {

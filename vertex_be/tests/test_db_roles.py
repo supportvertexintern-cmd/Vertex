@@ -95,10 +95,12 @@ def test_only_the_web_service_reads_the_audit_trail(conn):
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
 
 
-def test_only_the_web_service_touches_sessions(conn):
-    # G19: refresh tokens belong to the service that signs users in.
+def test_sessions_are_written_by_the_api_and_read_by_both(conn):
+    # G19: refresh tokens belong to the service that signs users in, FastAPI
+    # since users step 8.2; Next.js still checks every request against them.
+    # That vertex_web can't write them is test_a_handed_over_table_has_one_writer.
     assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "RefreshToken"') is None
-    assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "RefreshToken"') == INSUFFICIENT_PRIVILEGE
+    assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "RefreshToken"') is None
 
 
 def test_only_the_api_may_ask_whether_a_session_is_live(conn):
@@ -295,7 +297,7 @@ def test_the_handover_list_is_read():
     # Payments and finance, table by table (step 7).
     assert {"ReferralCommissionRule", "Payment", "ConsultationBooking", "CasePayment", "JobMilestonePrice"} <= set(fastapi_owned_tables())
     # Users and sessions, step by step (step 8).
-    assert {"ReferralAgentTarget"} <= set(fastapi_owned_tables())
+    assert {"ReferralAgentTarget", "RefreshToken"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())

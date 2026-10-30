@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
-import { setSessionCookies, startSession } from "@/lib/session";
-import { auditedPrisma, emailFingerprint, recordSecurityEvent } from "@/lib/audit";
+import { setSessionCookies } from "@/lib/session";
+import { callBackend } from "@/lib/backend";
+import { alertOnRefusal, clientHeaders, issued, type SignedIn } from "@/lib/auth-backend";
 import { checkGoogleState, clearGoogleState } from "@/lib/google-oauth";
 import { log } from "@/lib/log";
 
-interface GoogleTokenResponse {
-  access_token: string;
-  id_token: string;
-  error?: string;
-}
+// Google's way back after sign-in. This route checks the state (only the
+// browser that started the sign-in may finish it) and sets the cookies;
+// FastAPI exchanges the code with Google, finds or links the account and
+// issues the session since users step 8.2 (D3 A; vertex_be/app/api/v1/
+// sessions.py, google_sign_in), with #131's rules: a linked account is found
+// by Google's id, linking by email needs Google to have verified it, and a
+// password nobody proved is dropped.
 
-interface GoogleUserInfo {
-  sub: string;       // Google's unique user ID
-  name: string;
-  email: string;
-  email_verified: boolean;
-  picture: string;
-}
+// FastAPI's refusals, as the codes the login page is sent back with.
+const KNOWN_ERRORS = new Set([
+  "google_token_failed",
+  "google_user_failed",
+  "google_no_email",
+  "google_no_account",
+  "google_email_unverified",
+  "google_unavailable",
+]);
 
 export async function GET(req: NextRequest) {
   const limited = limitByIp(req, "google-callback", { windowMs: 15 * 60_000, max: 20 });
@@ -35,12 +39,6 @@ export async function GET(req: NextRequest) {
     clearGoogleState(res);
     return res;
   };
-  const failed = async (reason: string, userId: string | null, email: string) => {
-    await recordSecurityEvent("login_failed", {
-      actorId: null, entityType: "Auth", entityId: userId ? `user:${userId}` : "unknown_account",
-      detail: { reason, method: "google", email_fp: emailFingerprint(email) },
-    });
-  };
 
   // Only the browser that started this sign-in may finish it (login CSRF):
   // otherwise a link could sign a visitor into someone else's account.
@@ -54,91 +52,19 @@ export async function GET(req: NextRequest) {
     return redirect(`${appUrl}/auth/login?error=google_cancelled`);
   }
 
-  // 1. Exchange auth code for access token
-  let tokens: GoogleTokenResponse;
-  try {
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }),
-    });
-    tokens = await tokenRes.json();
-    if (tokens.error) throw new Error(tokens.error);
-  } catch (e) {
-    log.warn("auth.google_token_exchange_failed", { err: e });
-    return redirect(`${appUrl}/auth/login?error=google_token_failed`);
-  }
-
-  // 2. Fetch user info from Google
-  let googleUser: GoogleUserInfo;
-  try {
-    const userRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    });
-    googleUser = await userRes.json();
-  } catch (e) {
-    log.warn("auth.google_userinfo_failed", { err: e });
-    return redirect(`${appUrl}/auth/login?error=google_user_failed`);
-  }
-
-  if (!googleUser.email) {
-    return redirect(`${appUrl}/auth/login?error=google_no_email`);
-  }
-
-  // 3. Find the existing user — never create one here. A candidate
-  // account only ever comes into being via the screening invite (Candidate
-  // Information Form -> screened -> invite -> set password), so Google
-  // sign-in is login-only: it must match an account that already exists,
-  // the same way email/password login can't conjure one up either.
-  //
-  // An account already linked is found by Google's own id, never by email:
-  // another Google account claiming the same address doesn't get in.
-  let user = await prisma.user.findUnique({ where: { google_id: googleUser.sub } });
-
-  if (!user) {
-    const byEmail = await prisma.user.findUnique({ where: { email: googleUser.email } });
-    if (!byEmail) {
-      await failed("unknown_account", null, googleUser.email);
-      return redirect(`${appUrl}/auth/login?error=google_no_account`);
-    }
-    // Linking by email trusts Google's word for the address, so only when
-    // Google has verified it; and never to an account linked to another
-    // Google account.
-    if (googleUser.email_verified !== true) {
-      await failed("google_email_unverified", byEmail.id, googleUser.email);
-      return redirect(`${appUrl}/auth/login?error=google_email_unverified`);
-    }
-    if (byEmail.google_id) {
-      await failed("google_account_mismatch", byEmail.id, googleUser.email);
-      return redirect(`${appUrl}/auth/login?error=google_no_account`);
-    }
-    // Pre-hijack: a password set on an account whose email was never
-    // verified may not be the owner's. Linking proves the address, so that
-    // password is dropped (its sessions end with it: token_version moves
-    // on). The owner signs in with Google from then on; an admin's password
-    // reset gives them a password again.
-    const unprovenPassword = !byEmail.email_verified && byEmail.password_hash !== null;
-    user = await auditedPrisma(byEmail.id).user.update({
-      where: { id: byEmail.id },
-      data: { google_id: googleUser.sub, email_verified: true, ...(unprovenPassword ? { password_hash: null } : {}) },
-    });
-    if (unprovenPassword) log.info("auth.google_link_dropped_password", { user_id: user.id });
-  }
-
-  await recordSecurityEvent("login_succeeded", {
-    actorId: user.id, entityType: "Auth", entityId: `user:${user.id}`, detail: { method: "google", role: user.role },
+  const result = await callBackend<SignedIn>("/api/v1/auth/google", {
+    method: "POST",
+    body: { code, redirect_uri: redirectUri },
+    asUser: false,
+    forward: await clientHeaders(req),
   });
+  if (!result.ok) {
+    await alertOnRefusal(result);
+    const reason = KNOWN_ERRORS.has(result.error.code) ? result.error.code : "google_failed";
+    return redirect(`${appUrl}/auth/login?error=${reason}`);
+  }
 
-  // 4. Start a session (lib/session.ts) and set its cookies
-  const session = await startSession(user, req);
   const response = redirect(`${appUrl}${redirectTo}`);
-  setSessionCookies(response, session);
-
+  setSessionCookies(response, issued(result.body.data.session));
   return response;
 }

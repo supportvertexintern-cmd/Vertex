@@ -48,9 +48,21 @@ def unique(prefix: str) -> str:
     return f"{prefix} {secrets.token_hex(4)}"
 
 
-@pytest.mark.parametrize("table", fastapi_owned_tables())
+# Exception E9 (docs/security/exceptions.md, users-handover.md D5): sessions
+# rotate every 15 minutes per signed-in user, so they're recorded as security
+# events, not row by row. Nothing else may join this list quietly.
+NOT_ROW_AUDITED = {"RefreshToken"}
+
+
+@pytest.mark.parametrize("table", sorted(set(fastapi_owned_tables()) - NOT_ROW_AUDITED))
 def test_every_fastapi_owned_table_is_audited(table):
     assert table in AUDITED_MODELS
+
+
+def test_only_sessions_are_excused():
+    assert NOT_ROW_AUDITED == {"RefreshToken"}
+    assert NOT_ROW_AUDITED <= set(fastapi_owned_tables())
+    assert not NOT_ROW_AUDITED & set(AUDITED_MODELS)
 
 
 def test_regions_and_countries(api, db, admin):

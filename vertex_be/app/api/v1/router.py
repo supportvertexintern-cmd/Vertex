@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import applications, campaigns, candidates, case_payments, cases, content, documents, exceptions, fee_policy, geography, health, jobs, me, partner_submissions, partners, payments, reference, referral_agents, referral_commissions, reports, scorecards, settings, targets
+from app.api.v1 import applications, campaigns, candidates, case_payments, cases, content, documents, exceptions, fee_policy, geography, health, jobs, me, partner_submissions, partners, payments, reference, referral_agents, referral_commissions, reports, scorecards, sessions, settings, targets
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -26,3 +26,4 @@ api_router.include_router(referral_commissions.router, tags=["candidate pipeline
 api_router.include_router(payments.router, tags=["payments and finance"])
 api_router.include_router(case_payments.router, tags=["payments and finance"])
 api_router.include_router(referral_agents.router, tags=["users and sessions"])
+api_router.include_router(sessions.router, tags=["users and sessions"])
