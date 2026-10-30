@@ -4,6 +4,10 @@ import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireAdmin } from "@/lib/api-auth";
 import { updateStaffUserSchema } from "@/lib/validations";
 import { isStaffRole } from "@/lib/rbac";
+import { callBackend } from "@/lib/backend";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn, pipelineResponse, seg } from "@/lib/pipeline";
+import { alertOnPrivilegeGranted } from "@/lib/auth-backend";
 
 // PATCH /api/admin/users/:id — assign role, supervisor, and/or country
 // (SRS FR-1.1, FR-1.3 "support reassignment", FR-1.4).
@@ -19,6 +23,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
+  }
+
+  // FastAPI writes since users step 8.3 (vertex_be/app/api/v1/users.py),
+  // refusing a change to one's own role and the last admin's demotion. Below
+  // is the way back, behind FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS (lib/flags.ts),
+  // until step 8.5.
+  if (accountsOnFastApi("ADMIN_USERS")) {
+    const result = await callBackend(`/api/v1/users/${seg(id)}`, { method: "PATCH", body });
+    alertOnPrivilegeGranted(result, user!.userId);
+    return pipelineResponse(result);
   }
 
   const parsed = updateStaffUserSchema.safeParse(body);
@@ -117,6 +131,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (guardRes) return guardRes;
 
   const { id } = await params;
+  // FastAPI deletes since users step 8.3, keeping the last admin; below is
+  // the way back, behind FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS, until step 8.5.
+  if (accountsOnFastApi("ADMIN_USERS")) return passOn(`/api/v1/users/${seg(id)}`, { method: "DELETE" });
+
   if (id === user!.userId) {
     return NextResponse.json(
       { error: { code: "self_delete", message: "You can't remove your own account." } },

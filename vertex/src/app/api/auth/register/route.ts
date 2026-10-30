@@ -7,6 +7,8 @@ import { registerSchema, completeAccountSetupSchema } from "@/lib/validations";
 import { limitByIp, rateLimit } from "@/lib/rate-limit";
 import { verifyCandidateInviteToken, verifyAccountSetupToken } from "@/lib/jwt";
 import { callBackend } from "@/lib/backend";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn } from "@/lib/pipeline";
 
 import { log } from "@/lib/log";
 // Shared by GET (prefill) and POST (actual account creation) — a
@@ -125,6 +127,16 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  // FastAPI creates the account and claims the candidate in one transaction
+  // since users step 8.3 (vertex_be/app/api/v1/accounts.py), signs the
+  // verification link and lists the email, which is sent from here. The
+  // code below is the way back, behind FLAG_ACCOUNTS_FASTAPI_REGISTRATION
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REGISTRATION")) {
+    const setup = typeof body === "object" && body !== null && "setup" in body;
+    return passOn(setup ? "/api/v1/accounts/setup" : "/api/v1/accounts/register", { method: "POST", body, asUser: false }, { legacyErrors: true, unwrap: true });
   }
 
   // A staff/partner account setting its own password for the first time

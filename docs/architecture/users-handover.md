@@ -160,9 +160,9 @@ Each one has a recommended option, as in the earlier handovers.
 |---|---|---|
 | 8.1 | Referral-agent targets: the admin create | `ReferralAgentTarget` |
 | 8.2 | Sessions: password sign-in (web and app), refresh, sign-out, the session lists and revoking, Google sign-in; bcrypt and the session signer in FastAPI | `RefreshToken` |
-| 8.3 | Accounts: registration (with the candidate claim in the same transaction, so no rollback is needed), email verification, forgot and reset password, the admin user pages (create, update, delete, reset, country assignments) | `InhouseCountryAssignment` |
+| 8.3 | Accounts: registration (with the candidate claim in the same transaction, so no rollback is needed), email verification, forgot and reset password, the admin user pages (create, update, delete, reset, country assignments), behind one flag per area | none (owner, 2026-10-30: `InhouseCountryAssignment` is revoked at the end of 8.5, when the old code behind the flags goes) |
 | 8.4 | Partners and referral agents: partner create, update, delete, provisioning and reset; referral-agent registration, verification, approval, rejection and suspension | `User`, `Partner`, `ReferralAgent` |
-| 8.5 | Clean-up: remove the website's session signing and its password, Google and token helpers; update `data-ownership.md` and the session docs | none |
+| 8.5 | Clean-up: remove the website's session signing and its password, Google and token helpers, and the 8.3 flags with the code behind them; column grants (#8); update `data-ownership.md` and the session docs | `InhouseCountryAssignment` |
 
 Each PR has the usual checks: role drift tests against the Next.js files,
 the audit trail, writes as `vertex_api`, Google mocked in the backend tests,
@@ -197,11 +197,11 @@ checked against the code where it could be, and where it lands:
 | 5 | How FastAPI knows a call came from the website; spoofable client address | The first holds already: every call carries the website's service token (`X-Vertex-Service`, G18). The second is **confirmed**: the stacks publish Next.js directly, so `X-Forwarded-For` is whatever the client sends, and the per-address limits (sign-in, forgot password, Google) can be dodged by changing it | Before 8.2: take the address from a trusted proxy hop only (or the socket when there's none); a test sends a forged header |
 | 6 | 422 errors echoing a password | Already safe: FastAPI's validation handler (`app/core/api.py`) returns field names and messages, never the input | 8.2: a test on every `/auth` route that the submitted values never come back or reach the logs |
 | 7 | Blocked sign-ins unrecorded; no limit in FastAPI | Follows from D2 | D2 A as revised |
-| 8 | The website can read password and token hashes | Confirmed: `vertex_web` has `SELECT` on all of `User` and `RefreshToken` | After 8.3: column-level grants; `vertex_web` loses `password_hash`, `token_hash` and `google_id` |
-| 9 | Reset tokens not single-use | Confirmed: stateless JWTs, valid until expiry | 8.3: bound to the current password hash, so a used link or a password change ends it; a password change bumps `token_version` (the trigger does) |
+| 8 | The website can read password and token hashes | Confirmed: `vertex_web` has `SELECT` on all of `User` and `RefreshToken` | 8.5 (owner, 2026-10-30; was after 8.3): column-level grants; `vertex_web` loses `password_hash`, `token_hash` and `google_id` |
+| 9 | Reset tokens not single-use | Confirmed: stateless JWTs, valid until expiry | **Done, 8.3**: a reset link carries a keyed fingerprint of the password it was issued for, so a used link or a password change ends it; links signed before the switch keep working until they expire (24 hours) |
 | 10 | bcrypt differences, blocking, timing | `bcryptjs` truncates at 72 bytes, Python's `bcrypt` rejects longer input; no maximum length in the schemas | 8.2: truncate to 72 bytes exactly as `bcryptjs` does (tested with a long password set on the website), hash in a worker thread, a dummy check for unknown emails |
-| 11 | Mass assignment on public writes | — | 8.3, 8.4: schemas forbid unknown fields; the server sets role and status |
-| 12 | Who may grant admin; `onPrivilegeGranted` | — | 8.3: checked in FastAPI; the last admin can't be removed or demoted, nobody promotes themselves; the alert moves |
+| 11 | Mass assignment on public writes | — | 8.3 (done), 8.4: unknown fields are **ignored**, not refused (owner, 2026-10-30), so forms sending extra fields keep working; the server sets role and status, with tests that a sent `role` or status never takes effect |
+| 12 | Who may grant admin; `onPrivilegeGranted` | — | **Done, 8.3**: admins only, in FastAPI; nobody changes their own role; the last admin can't be demoted or deleted, checked with the admin rows locked (a test runs two demotions at once); the answer reports a grant and the website raises the alert |
 | 13 | Concurrent refreshes | The 30-second grace exists today | 8.2: kept, with a test |
 | 14 | Cookie flags from FastAPI's answer | — | 8.2: the website still sets the cookies; a test pins the flags to today's |
 | 15 | Google flow details | `state` now has a nonce (#131) | 8.2: exact redirect URI, ID token checks (issuer, audience, expiry, signature), match on `sub` after the first link |
@@ -225,4 +225,5 @@ check the G19 rows of `verify-stack.sh`.
 | Google fix | #131: state nonce, verified email, linked accounts by `google_id`, pre-hijack |
 | 8.1 | Done (this PR): `vertex_be/app/api/v1/referral_agents.py`, `create_target`; `vertex_web` loses its writes on `ReferralAgentTarget`. Needs none of D1–D6 or E8–E10 |
 | 8.2 | Done (this PR): `vertex_be/app/api/v1/sessions.py` and `app/services/sessions.py`, `app/services/google_signin.py`; the website's `/api/auth` routes pass requests on (`lib/auth-backend.ts`); `vertex_web` loses its writes on `RefreshToken`. Review items done here: #6, #10, #13, #14, #15, #16 and D2's per-account limit. #5 (the forwarded address) is still open and blocks promotion beyond dev |
-| 8.3–8.5 | Not started |
+| 8.3 | Done (this PR): `vertex_be/app/api/v1/accounts.py` and `users.py`; FastAPI signs the email links (D4 A, notices `email_verification`, `password_reset`, `account_setup`); the website routes pass on while `FLAG_ACCOUNTS_FASTAPI_REGISTRATION`, `_RESET` and `_ADMIN_USERS` are on (the default; `lib/flags.ts`). Rollback: set a flag to `"false"` and restart the website, one area at a time; or revert. No migration, no grant change. Review items done here: #9, #11, #12; #4's "never logged" test. #5 still blocks promotion; #8 moves to 8.5 |
+| 8.4–8.5 | Not started |

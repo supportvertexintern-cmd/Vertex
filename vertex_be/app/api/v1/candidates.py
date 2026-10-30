@@ -578,27 +578,42 @@ def claim(body: ClaimIn, db: DbSession, _on: PipelineWrites):
     who attached every required document on the form is submitted at once,
     since no upload will come along to do it."""
     set_audit_actor(db, None)  # self-service: no signed-in actor yet
-    try:
-        candidate_id = verify_candidate_invite_token(body.invite)
-    except InvalidToken:
-        raise ApiError(400, "invalid_invite", "This invite link is invalid or has expired.") from None
-
-    candidate = db.scalar(select(Candidate).where(Candidate.id == candidate_id).with_for_update())
-    if candidate is None or candidate.user_id:
-        raise ApiError(410, "invite_used", "This invite has already been used or is no longer valid.")
+    candidate = claimable_candidate(db, body.invite)
     account = db.get(User, body.user_id)
     if account is None or account.role is not Role.candidate or account.email != candidate.email:
         raise ApiError(422, "account_mismatch", "This account isn't the one the invite was for.")
-
-    candidate.user_id = account.id
-    if candidate.lifecycle_status is CandidateLifecycleStatus.screened:
-        candidate.lifecycle_status = CandidateLifecycleStatus.guided_to_apply
-        db.flush()
-        if document_completeness(db, candidate_id).complete:
-            candidate.lifecycle_status = CandidateLifecycleStatus.submitted
+    link_account(db, candidate, account)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()  # the account already has a candidate
-        raise ApiError(410, "invite_used", "This invite has already been used or is no longer valid.") from None
+        raise invite_used() from None
     return {"data": candidate}
+
+
+def invite_used() -> ApiError:
+    return ApiError(410, "invite_used", "This invite has already been used or is no longer valid.")
+
+
+def claimable_candidate(db, invite: str) -> Candidate:
+    """The candidate a screening invite is for, locked, if nobody has claimed
+    it yet. Shared with registration (app/api/v1/accounts.py, step 8.3), which
+    creates the account and claims in one transaction."""
+    try:
+        candidate_id = verify_candidate_invite_token(invite)
+    except InvalidToken:
+        raise ApiError(400, "invalid_invite", "This invite link is invalid or has expired.") from None
+    candidate = db.scalar(select(Candidate).where(Candidate.id == candidate_id).with_for_update())
+    if candidate is None or candidate.user_id:
+        raise invite_used()
+    return candidate
+
+
+def link_account(db, candidate: Candidate, account: User) -> None:
+    """Claims the candidate for the account. The caller commits."""
+    candidate.user_id = account.id
+    if candidate.lifecycle_status is CandidateLifecycleStatus.screened:
+        candidate.lifecycle_status = CandidateLifecycleStatus.guided_to_apply
+        db.flush()
+        if document_completeness(db, candidate.id).complete:
+            candidate.lifecycle_status = CandidateLifecycleStatus.submitted

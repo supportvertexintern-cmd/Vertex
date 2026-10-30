@@ -68,18 +68,21 @@ class User(Base):
     supervisor: Mapped[User | None] = relationship(
         remote_side="User.id", back_populates="direct_reports"
     )
-    direct_reports: Mapped[list[User]] = relationship(back_populates="supervisor")
+    # Deleting a user leaves its dependants to the foreign keys (SET NULL or
+    # CASCADE), as Prisma's delete did, rather than loading and changing them
+    # (users step 8.3): passive_deletes on each of these.
+    direct_reports: Mapped[list[User]] = relationship(back_populates="supervisor", passive_deletes=True)
     assigned_country: Mapped[Country | None] = relationship()
     inhouse_country_assignments: Mapped[list[InhouseCountryAssignment]] = relationship(
-        back_populates="inhouse_supervisor", cascade="all, delete-orphan"
+        back_populates="inhouse_supervisor", cascade="all, delete-orphan", passive_deletes=True
     )
 
     candidate: Mapped[Candidate | None] = relationship(
-        back_populates="user", foreign_keys="Candidate.user_id"
+        back_populates="user", foreign_keys="Candidate.user_id", passive_deletes=True
     )
-    partner: Mapped[Partner | None] = relationship(back_populates="user")
+    partner: Mapped[Partner | None] = relationship(back_populates="user", passive_deletes=True)
     referral_agent: Mapped[ReferralAgent | None] = relationship(
-        back_populates="user", foreign_keys="ReferralAgent.user_id"
+        back_populates="user", foreign_keys="ReferralAgent.user_id", passive_deletes=True
     )
 
 

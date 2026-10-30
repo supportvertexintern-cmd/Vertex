@@ -171,6 +171,11 @@ services:
       APP_ORIGINS: ${APP_ORIGINS:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       EMAIL_TOKEN_EXPIRES_IN: ${EMAIL_TOKEN_EXPIRES_IN:-}
+      # Users step 8.3 (lib/flags.ts): "false" sends that area's routes back
+      # to the website's own code, after a restart. Until step 8.5.
+      FLAG_ACCOUNTS_FASTAPI_REGISTRATION: ${FLAG_ACCOUNTS_FASTAPI_REGISTRATION:-true}
+      FLAG_ACCOUNTS_FASTAPI_RESET: ${FLAG_ACCOUNTS_FASTAPI_RESET:-true}
+      FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS: ${FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS:-true}
       # Only to send visitors to Google; the secret is the backend's alone.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}

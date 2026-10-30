@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import type { BackendError, BackendResult } from "@/lib/backend";
 import { currentRequest } from "@/lib/request-context";
-import { onSecurityEvent } from "@/lib/security-monitor";
+import { onPrivilegeGranted, onSecurityEvent } from "@/lib/security-monitor";
 import type { IssuedSession } from "@/lib/session";
 
 /**
@@ -69,6 +69,19 @@ export async function alertOnRefusal(result: BackendResult<unknown>): Promise<vo
   } else if (d.reason === "reused" && d.session) {
     await onSecurityEvent("refresh_token_reused", d.user_id ?? null, d.session, { used_at: d.used_at });
   }
+}
+
+/**
+ * The admin user pages are FastAPI's since users step 8.3
+ * (vertex_be/app/api/v1/users.py). When a write makes someone an admin, its
+ * answer says so in privilege_granted, and the alert auditedPrisma() used to
+ * raise is raised here.
+ */
+export function alertOnPrivilegeGranted(result: BackendResult<unknown>, actorId: string): void {
+  if (!result.ok) return;
+  const granted = result.body.privilege_granted as { from: string | null; to: string } | null | undefined;
+  const userId = (result.body.data as { id?: string } | undefined)?.id;
+  if (granted && userId) onPrivilegeGranted(actorId, userId, granted.from, granted.to);
 }
 
 /** A refusal as the older routes answered it: { error: message }, with details only for a validation error. */
