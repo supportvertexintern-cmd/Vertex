@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+import { newGoogleState, setGoogleStateCookie } from "@/lib/google-oauth";
 
 export async function GET(req: NextRequest) {
   const limited = limitByIp(req, "google-signin", { windowMs: 15 * 60_000, max: 20 });
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const redirectTo = safeRedirectPath(searchParams.get("redirect"));
 
+  const { state, nonce } = newGoogleState(redirectTo);
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -25,9 +27,10 @@ export async function GET(req: NextRequest) {
     scope: "openid email profile",
     access_type: "offline",
     prompt: "select_account",
-    state: encodeURIComponent(redirectTo),
+    state,
   });
 
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  return NextResponse.redirect(googleAuthUrl);
+  const res = NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+  setGoogleStateCookie(res, nonce);
+  return res;
 }
