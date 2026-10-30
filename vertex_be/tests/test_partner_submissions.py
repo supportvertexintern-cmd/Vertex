@@ -280,6 +280,7 @@ def test_hr_opens_the_case(api, db, world):
 
 def test_hr_rejects_and_overturns(api, db, world):
     data = submit(api, world).json()["data"]
+    submitted_as = db.get(Candidate, data["candidateId"]).lifecycle_status
     res = api.patch(f"{URL}/partner-candidates/{data['id']}/reject", headers=world["hr"], json={"rejection_reason": "Passport scan unreadable"})
     assert res.json()["data"]["status"] == "rejected"
     assert res.json()["notify"] == [{
@@ -290,8 +291,10 @@ def test_hr_rejects_and_overturns(api, db, world):
     assert (cannot.status_code, error(cannot)["code"]) == (422, "rejected")
     back = api.patch(f"{URL}/partner-candidates/{data['id']}/overturn", headers=world["hr"], json={"status": "submitted"})
     assert back.json()["data"] == {"id": data["id"], "status": "submitted", "rejection_reason": None}
-    # As the website does today (flagged in the step 6.6 PR).
-    assert db.get(Candidate, data["candidateId"]).lifecycle_status is CandidateLifecycleStatus.approved
+    # The candidate's status is reinstated, not set to "approved" (owner's decision, 2026-10-30).
+    db.expire_all()
+    assert db.get(Candidate, data["candidateId"]).lifecycle_status is submitted_as
+    assert submitted_as is not CandidateLifecycleStatus.approved
     not_rejected = api.patch(f"{URL}/partner-candidates/{data['id']}/overturn", headers=world["hr"], json={"status": "submitted"})
     assert (not_rejected.status_code, error(not_rejected)["code"]) == (400, "not_rejected")
 
