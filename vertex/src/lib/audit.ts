@@ -53,6 +53,7 @@ const AUDITED_MODELS = new Set([
   "EmailTemplate",
   "Job",
   "JobPaymentStage",
+  "JobMilestonePrice",
   "JobSector",
   "JobPosition",
   "CampaignTarget",

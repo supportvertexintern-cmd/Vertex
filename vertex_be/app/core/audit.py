@@ -85,6 +85,7 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "EmailTemplate",
         "Job",
         "JobPaymentStage",
+        "JobMilestonePrice",
         "JobSector",
         "JobPosition",
         "CampaignTarget",
