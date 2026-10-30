@@ -94,7 +94,7 @@ table by table.
 | 7.1 | Commission rules: the admin upsert | `ReferralCommissionRule` |
 | 7.2 | The Stripe webhook (all three branches: consultation, application fee, paid case link) and PayPal create and capture; receipts in `notify` | `Payment`, `ConsultationBooking` |
 | 7.3 | Case payments: record, Stripe link, invoice, check-status, mark-paid, receipt, delete | `CasePayment` |
-| 7.4 | `JobMilestonePrice`: decide whether it's still used (only the seed writes it), then revoke or drop | `JobMilestonePrice` |
+| 7.4 | `JobMilestonePrice`: the owner confirmed it's still used, so it's kept with its data and its writes go to FastAPI (revoked from Next.js) | `JobMilestonePrice` |
 
 In 7.2 the webhook's case branch already writes `CasePayment` through
 FastAPI; `CasePayment` keeps two writers (both audited) until 7.3.
@@ -118,4 +118,5 @@ end-to-end journeys.
 |---|---|
 | 7.1 | Done (#124): `vertex_be/app/api/v1/referral_commissions.py`, `upsert_rule` |
 | 7.2 | Done (#125): `vertex_be/app/api/v1/payments.py`, the Stripe webhook and PayPal |
-| 7.3 | `vertex_be/app/api/v1/case_payments.py`: record, Stripe link (the email in `notify`), invoice, check-status, mark-paid, receipt and delete, rule for rule; Stripe calls through `app/services/stripe_links.py`. The invoice email carries the file and is sent before the payment is recorded, so the website asks `/invoice/check` (writes nothing), sends it, then `/invoice` records it. The list (GET) stays a website read. `vertex_web` loses its writes on `CasePayment` |
+| 7.3 | Done (#126): `vertex_be/app/api/v1/case_payments.py`, a case's milestone payments |
+| 7.4 | `JobMilestonePrice` kept (the owner confirmed it's used, 2026-10-30) with its data; FastAPI owns its writes and `vertex_web` loses them. No endpoints: nothing writes it today. With this, every payments table is FastAPI's |
