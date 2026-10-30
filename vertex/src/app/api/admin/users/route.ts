@@ -8,6 +8,10 @@ import { isStaffRole } from "@/lib/rbac";
 import type { Role } from "@prisma/client";
 
 import { log } from "@/lib/log";
+import { callBackend } from "@/lib/backend";
+import { accountsOnFastApi } from "@/lib/flags";
+import { pipelineResponse } from "@/lib/pipeline";
+import { alertOnPrivilegeGranted } from "@/lib/auth-backend";
 const STAFF_ROLES: Role[] = [
   "regional_recruiter",
   "country_supervisor",
@@ -92,6 +96,16 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
+  }
+
+  // FastAPI creates the account since users step 8.3
+  // (vertex_be/app/api/v1/users.py) and lists the setup email, sent from
+  // here. Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("ADMIN_USERS")) {
+    const result = await callBackend("/api/v1/users", { method: "POST", body });
+    alertOnPrivilegeGranted(result, user!.userId);
+    return pipelineResponse(result);
   }
 
   const parsed = createStaffUserSchema.safeParse(body);

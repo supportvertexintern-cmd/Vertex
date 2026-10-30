@@ -81,7 +81,7 @@ def _user_agent(request: Request) -> str | None:
     return request.headers.get("user-agent") if check_service_header(request) is not None else None
 
 
-def _event(request: Request, action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:
+def security_event(request: Request, action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:
     detail = {**detail, "ip": _client_ip(request), "path": request.url.path}
     record_security_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
 
@@ -196,14 +196,14 @@ def login(body: LoginIn, request: Request, db: DbSession):
     refusal itself; this one is per account."""
     fp = email_fingerprint(body.email)
     if _account_locked(fp):
-        _event(request, "login_rate_limited", actor_id=None, entity_type="Auth", entity_id="login",
+        security_event(request, "login_rate_limited", actor_id=None, entity_type="Auth", entity_id="login",
                detail={"scope": "account", "client": body.client, "email_fp": fp})
         raise ApiError(429, "rate_limited", "Too many login attempts. Please try again later.")
 
     user = db.scalar(select(User).where(User.email == body.email))
 
     def refuse(reason: str, status: int, code: str, message: str) -> ApiError:
-        _event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}" if user else "unknown_account",
+        security_event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}" if user else "unknown_account",
                detail={"reason": reason, "method": "password", "client": body.client, "email_fp": fp})
         # The website raises the brute-force alerts from this fingerprint.
         return ApiError(status, code, message, {"email_fp": fp})
@@ -218,7 +218,7 @@ def login(body: LoginIn, request: Request, db: DbSession):
     if not user.email_verified:
         raise refuse("email_unverified", 403, "email_unverified", "Please verify your email before logging in.")
 
-    _event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
+    security_event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
            detail={"method": "password", "client": body.client, "role": user.role.value})
     return _signed_in(user, start_session(db, user, _user_agent(request)))
 
@@ -249,7 +249,7 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
     fp = email_fingerprint(found.email)
 
     def refuse(reason: str, user_id: str | None, code: str) -> ApiError:
-        _event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user_id}" if user_id else "unknown_account",
+        security_event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user_id}" if user_id else "unknown_account",
                detail={"reason": reason, "method": "google", "email_fp": fp})
         return ApiError(401, code, "Google sign-in was refused.", {"email_fp": fp})
 
@@ -277,7 +277,7 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
             log_event(logging.INFO, "auth.google_link_dropped_password", user_id=by_email.id)
         user = by_email
 
-    _event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
+    security_event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
            detail={"method": "google", "role": user.role.value})
     return _signed_in(user, start_session(db, user, _user_agent(request)))
 
@@ -300,7 +300,7 @@ def refresh(body: RefreshIn, request: Request, db: DbSession):
         details: dict[str, Any] = {"reason": outcome.reason}
         if outcome.reason == "reused":
             used_at = outcome.used_at.isoformat(timespec="milliseconds") + "Z" if outcome.used_at else None
-            _event(request, "refresh_token_reused", actor_id=outcome.user_id, entity_type="Session", entity_id=outcome.family_id or "unknown",
+            security_event(request, "refresh_token_reused", actor_id=outcome.user_id, entity_type="Session", entity_id=outcome.family_id or "unknown",
                    detail={"used_at": used_at, "device": _user_agent(request)})
             details |= {"session": outcome.family_id, "user_id": outcome.user_id, "used_at": used_at}
         raise ApiError(401, "session_ended", SESSION_ENDED, details)
@@ -323,7 +323,7 @@ def logout(body: LogoutIn, request: Request, db: DbSession, user: OptionalUser):
     if family_id and user_id:
         revoke_family(db, family_id, "logout", user_id)
         detail: dict[str, Any] = {"session": family_id} | ({"client": "app"} if body.client == "app" else {})
-        _event(request, "logout", actor_id=user_id, entity_type="Auth", entity_id=f"user:{user_id}", detail=detail)
+        security_event(request, "logout", actor_id=user_id, entity_type="Auth", entity_id=f"user:{user_id}", detail=detail)
     return {"data": {"signed_out": True}}
 
 
@@ -343,7 +343,7 @@ def my_sessions(user: CurrentUser, db: DbSession):
 @router.delete("/auth/sessions", response_model=Data[Ended])
 def sign_out_everywhere(user: CurrentUser, request: Request, db: DbSession):
     ended = revoke_all_for_user(db, user.user_id, "logout_everywhere")
-    _event(request, "sessions_revoked", actor_id=user.user_id, entity_type="User", entity_id=user.user_id,
+    security_event(request, "sessions_revoked", actor_id=user.user_id, entity_type="User", entity_id=user.user_id,
            detail={"reason": "logout_everywhere", "sessions": ended})
     return {"data": {"ended": ended}}
 
@@ -353,7 +353,7 @@ def end_my_session(session_id: str, user: CurrentUser, request: Request, db: DbS
     """Scoped to the caller: another user's session id matches nothing (404)."""
     if not revoke_family(db, session_id, "revoked_by_user", user.user_id):
         raise ApiError(404, "not_found", "Session not found.")
-    _event(request, "sessions_revoked", actor_id=user.user_id, entity_type="Session", entity_id=session_id,
+    security_event(request, "sessions_revoked", actor_id=user.user_id, entity_type="Session", entity_id=session_id,
            detail={"reason": "revoked_by_user", "current": session_id == user.sid})
     return {"data": {"id": session_id}}
 
@@ -370,6 +370,6 @@ def sign_user_out_everywhere(user_id: str, admin: Admin, request: Request, db: D
     if db.get(User, user_id) is None:
         raise ApiError(404, "not_found", "User not found.")
     ended = revoke_all_for_user(db, user_id, "revoked_by_admin")
-    _event(request, "sessions_revoked", actor_id=admin.user_id, entity_type="User", entity_id=user_id,
+    security_event(request, "sessions_revoked", actor_id=admin.user_id, entity_type="User", entity_id=user_id,
            detail={"reason": "revoked_by_admin", "sessions": ended})
     return {"data": {"ended": ended}}

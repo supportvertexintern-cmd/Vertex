@@ -229,6 +229,34 @@ class MilestonePaymentLinkEmail(BaseModel):
     stages: list[MilestonePlanStage]
 
 
+class _LinkEmail(BaseModel):
+    """An email carrying a signed link (users step 8.3, D4 A): FastAPI signs
+    the token, the website builds the URL and sends it. The token is a
+    credential: the website never logs a notice's fields, only its kind."""
+
+    email: str
+    full_name: str
+    token: str
+
+
+class VerificationEmail(_LinkEmail):
+    """sendVerificationLinkEmail(token, email, full_name)."""
+
+    kind: Literal["email_verification"] = "email_verification"
+
+
+class PasswordResetEmail(_LinkEmail):
+    """sendPasswordResetLinkEmail(token, email, full_name)."""
+
+    kind: Literal["password_reset"] = "password_reset"
+
+
+class AccountSetupEmail(_LinkEmail):
+    """sendAccountSetupLinkEmail(token, email, full_name)."""
+
+    kind: Literal["account_setup"] = "account_setup"
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -248,7 +276,10 @@ Notice = Annotated[
     | CommissionPaidEmail
     | ConsultationBookedEmail
     | PaymentReceiptEmail
-    | MilestonePaymentLinkEmail,
+    | MilestonePaymentLinkEmail
+    | VerificationEmail
+    | PasswordResetEmail
+    | AccountSetupEmail,
     Field(discriminator="kind"),
 ]
 

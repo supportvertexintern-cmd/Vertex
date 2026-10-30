@@ -131,8 +131,16 @@ export async function sendSecurityAlertEmail(to: string[], subject: string, text
   await transporter.sendMail({ from: FROM, to, subject, text });
 }
 
+// The three emails carrying a signed link come in two forms since users step
+// 8.3 (D4 A): FastAPI signs the link and lists the email in `notify`
+// (lib/pipeline.ts), which sends it with the *LinkEmail form; the website's
+// own code, kept behind the flags in lib/flags.ts until step 8.5, signs it
+// here. Both build the same email. A link is a credential: never log one.
 export async function sendVerificationEmail(userId: string, email: string, fullName: string) {
-  const token = signEmailToken({ userId, email, type: "email_verification" });
+  await sendVerificationLinkEmail(signEmailToken({ userId, email, type: "email_verification" }), email, fullName);
+}
+
+export async function sendVerificationLinkEmail(token: string, email: string, fullName: string) {
   const verifyUrl = `${APP_URL}/auth/verify-email?token=${token}`;
 
   const defaultHtml = emailLayout({
@@ -154,7 +162,10 @@ export async function sendVerificationEmail(userId: string, email: string, fullN
 }
 
 export async function sendPasswordResetEmail(userId: string, email: string, fullName: string) {
-  const token = signEmailToken({ userId, email, type: "password_reset" });
+  await sendPasswordResetLinkEmail(signEmailToken({ userId, email, type: "password_reset" }), email, fullName);
+}
+
+export async function sendPasswordResetLinkEmail(token: string, email: string, fullName: string) {
   const resetUrl = `${APP_URL}/auth/reset-password?token=${token}`;
 
   const defaultHtml = emailLayout({
@@ -207,7 +218,10 @@ export async function sendCandidateInviteEmail(candidateId: string, to: string, 
 // setting a password on it, same shape as sendCandidateInviteEmail but for
 // an account instead of a not-yet-existing one.
 export async function sendAccountSetupInviteEmail(userId: string, to: string, name: string) {
-  const token = signAccountSetupToken(userId);
+  await sendAccountSetupLinkEmail(signAccountSetupToken(userId), to, name);
+}
+
+export async function sendAccountSetupLinkEmail(token: string, to: string, name: string) {
   const setupUrl = `${APP_URL}/auth/register?setup=${token}`;
 
   const defaultHtml = emailLayout({

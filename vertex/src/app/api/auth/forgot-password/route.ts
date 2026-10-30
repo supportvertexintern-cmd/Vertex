@@ -5,6 +5,9 @@ import { forgotPasswordSchema } from "@/lib/validations";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { emailFingerprint, recordSecurityEvent } from "@/lib/audit";
 import { log } from "@/lib/log";
+import { accountsOnFastApi } from "@/lib/flags";
+import { clientHeaders } from "@/lib/auth-backend";
+import { passOn } from "@/lib/pipeline";
 
 const GENERIC_MESSAGE = "If an account exists for that email, we've sent a password reset link.";
 
@@ -20,6 +23,14 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  // FastAPI decides and signs the link since users step 8.3
+  // (vertex_be/app/api/v1/accounts.py); the email goes from here after the
+  // answer, which is the same either way. Below is the way back, behind
+  // FLAG_ACCOUNTS_FASTAPI_RESET (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("RESET")) {
+    return passOn("/api/v1/accounts/forgot-password", { method: "POST", body, asUser: false, forward: await clientHeaders(req) }, { legacyErrors: true, unwrap: true });
+  }
 
   const parsed = forgotPasswordSchema.safeParse(body);
   if (!parsed.success) {

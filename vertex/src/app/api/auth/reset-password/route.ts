@@ -5,6 +5,9 @@ import { auditedPrisma, recordSecurityEvent } from "@/lib/audit";
 import { resetPasswordSchema } from "@/lib/validations";
 import { verifyEmailToken } from "@/lib/jwt";
 import { hashPassword } from "@/lib/auth";
+import { accountsOnFastApi } from "@/lib/flags";
+import { clientHeaders } from "@/lib/auth-backend";
+import { passOn } from "@/lib/pipeline";
 
 // POST /api/auth/reset-password — consumes the emailed
 // sendPasswordResetEmail link (2026-08-05). No authenticated session
@@ -15,6 +18,13 @@ export async function POST(req: NextRequest) {
   if (limited) return limited;
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  // FastAPI checks the link and sets the password since users step 8.3
+  // (vertex_be/app/api/v1/accounts.py); a link now works once. Below is the
+  // way back, behind FLAG_ACCOUNTS_FASTAPI_RESET (lib/flags.ts), until 8.5.
+  if (accountsOnFastApi("RESET")) {
+    return passOn("/api/v1/accounts/reset-password", { method: "POST", body, asUser: false, forward: await clientHeaders(req) }, { legacyErrors: true, unwrap: true });
+  }
 
   const parsed = resetPasswordSchema.safeParse(body);
   if (!parsed.success) {

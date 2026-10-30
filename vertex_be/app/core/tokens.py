@@ -13,7 +13,8 @@ follows the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Four purposes are verified here; FastAPI issues "session" only.
+Seven purposes are verified here; FastAPI issues "session" and, since
+users step 8.3 (D4 A), the three email links.
   - "session": a user's session. The signature is necessary, not
     sufficient: app/core/auth.py also checks the session is still live, as
     Next.js does on every request.
@@ -29,6 +30,13 @@ Four purposes are verified here; FastAPI issues "session" only.
   - "cif_upload": lets an anonymous self-applicant attach documents to the
     Candidate Information Form they have just submitted (signCifUploadToken;
     step 6.3).
+  - "email_verification", "password_reset", "account_setup": the links in
+    the verification, reset and setup emails, signed with the claims
+    signEmailToken() and signAccountSetupToken() use, so the website still
+    accepts them if it takes the writes back. A reset link also carries
+    "pwd", a keyed fingerprint of the password it was issued for: once that
+    password changes (the link used, or changed another way) the link stops
+    working (security review #9).
 """
 
 from __future__ import annotations
@@ -48,7 +56,13 @@ ISSUER = "vertex-web"
 SALT = b"vertex-token-keys"
 # Mirrors KEY_VERSION in jwt.ts: bumping it there invalidates every
 # outstanding token of that purpose, so it must be bumped here too.
-KEY_VERSION = {"session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1}
+KEY_VERSION = {
+    "session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1,
+    "email_verification": 1, "password_reset": 1, "account_setup": 1,
+}
+# EMAIL_TOKEN_EXPIRES_IN's default in jwt.ts, and signAccountSetupToken()'s.
+EMAIL_TOKEN_TTL_SECONDS = 24 * 60 * 60
+ACCOUNT_SETUP_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
 class InvalidToken(Exception):
@@ -208,3 +222,88 @@ def verify_cif_upload_token(token: str) -> str:
     """The candidate id an upload token from the Candidate Information Form
     was signed for (signCifUploadToken)."""
     return _verify_candidate_token("cif_upload", token)
+
+
+# --- email links (users step 8.3) ----------------------------------------------
+
+
+def _secret() -> str:
+    secret = settings.JWT_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("JWT_SECRET is not configured")
+    return secret
+
+
+def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:
+    now = int(time.time())
+    payload = {**claims, "iat": now, "exp": now + ttl_seconds, "iss": ISSUER, "aud": f"vertex:{purpose}"}
+    return jwt.encode(payload, key_for(purpose, _secret()), algorithm=ALGORITHM)
+
+
+def _decode(purpose: str, token: str) -> dict:
+    try:
+        return jwt.decode(
+            token,
+            key_for(purpose, _secret()),
+            algorithms=[ALGORITHM],
+            issuer=ISSUER,
+            audience=f"vertex:{purpose}",
+            options={"require": ["exp", "iss", "aud"]},
+        )
+    except jwt.PyJWTError as err:
+        raise InvalidToken(type(err).__name__) from err
+
+
+def _text(payload: dict, field: str, purpose: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str) or not value:
+        raise InvalidToken(f"{purpose} token is missing {field}")
+    return value
+
+
+def password_fingerprint(password_hash: str | None) -> str:
+    """Names the password a reset link was issued for without revealing
+    anything about it: keyed with the reset purpose's key, and a link's
+    claims are readable by whoever holds it."""
+    key = key_for("password_reset", _secret())
+    return hmac.new(key, (password_hash or "").encode(), hashlib.sha256).hexdigest()[:32]
+
+
+@dataclass(frozen=True)
+class EmailLink:
+    user_id: str
+    email: str
+    # The reset link's password fingerprint; None on a verification link and
+    # on a reset link the website signed before 8.3 (valid for 24 hours).
+    pwd: str | None
+
+
+def sign_verification_token(user_id: str, email: str) -> str:
+    return _sign("email_verification", {"userId": user_id, "email": email, "type": "email_verification"}, EMAIL_TOKEN_TTL_SECONDS)
+
+
+def sign_reset_token(user_id: str, email: str, password_hash: str | None) -> str:
+    claims = {"userId": user_id, "email": email, "type": "password_reset", "pwd": password_fingerprint(password_hash)}
+    return _sign("password_reset", claims, EMAIL_TOKEN_TTL_SECONDS)
+
+
+def verify_email_token(token: str, kind: str) -> EmailLink:
+    """verifyEmailToken(token, kind): kind is "email_verification" or
+    "password_reset", each with its own key."""
+    if kind not in ("email_verification", "password_reset"):
+        raise ValueError(kind)
+    payload = _decode(kind, token)
+    user_id, email = _text(payload, "userId", kind), _text(payload, "email", kind)
+    if payload.get("type") != kind:
+        raise InvalidToken(f"{kind} token has the wrong type")
+    pwd = payload.get("pwd")
+    return EmailLink(user_id, email, pwd if isinstance(pwd, str) and pwd else None)
+
+
+def sign_account_setup_token(user_id: str) -> str:
+    return _sign("account_setup", {"userId": user_id, "type": "account_setup"}, ACCOUNT_SETUP_TTL_SECONDS)
+
+
+def verify_account_setup_token(token: str) -> str:
+    """The user id a setup link (staff or partner account) was signed for."""
+    return _text(_decode("account_setup", token), "userId", "account_setup")

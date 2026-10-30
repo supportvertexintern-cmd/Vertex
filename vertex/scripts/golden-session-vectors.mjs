@@ -17,6 +17,7 @@ const resetKey = derive("password_reset");
 // A screening invite (signCandidateInviteToken), for registration's claim.
 const inviteKey = derive("candidate_invite");
 const invite = { candidateId: "cgoldencandidate01", type: "candidate_invite", iat: 1792800000 };
+const link = (purpose, payload) => jwt.sign({ ...payload, iat: 1792800000 }, derive(purpose), { ...options, audience: `vertex:${purpose}` });
 console.log(
   JSON.stringify(
     {
@@ -27,6 +28,11 @@ console.log(
       resetToken: jwt.sign(claims, resetKey, options),
       inviteKeyHex: inviteKey.toString("hex"),
       inviteToken: jwt.sign(invite, inviteKey, { ...options, audience: "vertex:candidate_invite" }),
+      // Email links as the website signed them before users step 8.3
+      // (signEmailToken, signAccountSetupToken): FastAPI accepts them.
+      verificationToken: link("email_verification", { userId: "golden-user", email: "golden@test.invalid", type: "email_verification" }),
+      passwordResetToken: link("password_reset", { userId: "golden-user", email: "golden@test.invalid", type: "password_reset" }),
+      accountSetupToken: link("account_setup", { userId: "golden-user", type: "account_setup" }),
     },
     null,
     1,

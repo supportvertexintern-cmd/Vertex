@@ -50,6 +50,10 @@ export const NOTICE_SENDERS = {
   milestone_payment_link: (n) =>
     email.sendMilestonePaymentLinkEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.payment_url, n.current_stage_id,
       n.stages.map((s: PlanStage) => ({ id: s.id, label: s.label, percent: s.percent, amount: s.amount, triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage] }))),
+  // Accounts (users step 8.3): FastAPI signs the link, the token is sent as is.
+  email_verification: (n) => email.sendVerificationLinkEmail(n.token, n.email, n.full_name),
+  password_reset: (n) => email.sendPasswordResetLinkEmail(n.token, n.email, n.full_name),
+  account_setup: (n) => email.sendAccountSetupLinkEmail(n.token, n.email, n.full_name),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
 } satisfies Record<string, (notice: any) => Promise<unknown>>;
 

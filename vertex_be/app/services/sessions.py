@@ -21,7 +21,7 @@ import hashlib
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Literal
 
@@ -29,6 +29,7 @@ import bcrypt
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.clock import utc_now_ms
 from app.core.tokens import sign_session_token
 from app.models.enums import Role
 from app.models.identity import RefreshToken, User
@@ -50,10 +51,9 @@ RefreshFailure = Literal["missing", "unknown", "revoked", "expired", "superseded
 
 
 def _now() -> datetime:
-    # Prisma stores timestamps as UTC without a time zone, to the millisecond:
-    # a value kept finer would answer differently from the row once read back.
-    now = datetime.now(UTC).replace(tzinfo=None)
-    return now.replace(microsecond=now.microsecond // 1000 * 1000)
+    # As Prisma stores it: a value kept finer would answer differently from
+    # the row once read back.
+    return utc_now_ms()
 
 
 def session_lifetime_seconds(role: Role) -> int:
@@ -254,3 +254,13 @@ def check_password(password: str, password_hash: str | None) -> bool:
         return bcrypt.checkpw(_secret(password), password_hash.encode())
     except ValueError:  # not a bcrypt hash
         return False
+
+
+# hashPassword() in lib/auth.ts: cost 12. Python's bcrypt writes $2b$, which
+# bcryptjs reads, so a password set here still works if the website takes
+# the writes back (tested in vertex/src/lib/auth.test.ts).
+BCRYPT_COST = 12
+
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(_secret(password), bcrypt.gensalt(BCRYPT_COST)).decode()

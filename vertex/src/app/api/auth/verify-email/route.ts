@@ -2,11 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { limitByIp } from "@/lib/rate-limit";
 import { verifyEmailToken } from "@/lib/jwt";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn } from "@/lib/pipeline";
 
 export async function GET(req: NextRequest) {
   const limited = limitByIp(req, "verify-email", { windowMs: 15 * 60_000, max: 10 });
   if (limited) return limited;
   const token = req.nextUrl.searchParams.get("token");
+
+  // FastAPI checks the link and verifies since users step 8.3
+  // (vertex_be/app/api/v1/accounts.py); below is the way back, behind
+  // FLAG_ACCOUNTS_FASTAPI_REGISTRATION (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REGISTRATION")) {
+    return passOn("/api/v1/accounts/verify-email", { method: "POST", body: { token }, asUser: false }, { legacyErrors: true, unwrap: true });
+  }
 
   if (!token) {
     return NextResponse.json({ error: "Verification token is required." }, { status: 400 });
