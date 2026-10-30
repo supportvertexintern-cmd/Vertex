@@ -222,4 +222,5 @@ check the G19 rows of `verify-stack.sh`.
 | Step | State |
 |---|---|
 | Google fix | #131: state nonce, verified email, linked accounts by `google_id`, pre-hijack |
-| 8.1–8.5 | Not started: waiting for D1–D6 and E8–E10 |
+| 8.1 | Done (this PR): `vertex_be/app/api/v1/referral_agents.py`, `create_target`; `vertex_web` loses its writes on `ReferralAgentTarget`. Needs none of D1–D6 or E8–E10 |
+| 8.2–8.5 | Not started: 8.2 waits for D1–D6 and the signing of E8–E10 |
