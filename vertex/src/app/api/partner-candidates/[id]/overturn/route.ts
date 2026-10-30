@@ -6,9 +6,10 @@ import type { Role } from "@prisma/client";
 
 const OVERTURN_REJECTION_ROLES: Role[] = [...HR_ROLES];
 
-// PATCH /api/partner-candidates/:id/overturn — HR undoing a rejection, the
-// submission back to "submitted". Written by FastAPI since the pipeline
-// switch (step 6.7; vertex_be/app/api/v1/partner_submissions.py).
+// PATCH /api/partner-candidates/:id/overturn — HR undoing a rejection: the
+// submission back to "submitted", the candidate keeping its status. Written
+// by FastAPI since the pipeline switch (step 6.7;
+// vertex_be/app/api/v1/partner_submissions.py).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, OVERTURN_REJECTION_ROLES);

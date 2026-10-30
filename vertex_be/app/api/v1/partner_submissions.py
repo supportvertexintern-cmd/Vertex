@@ -543,11 +543,12 @@ def reject(submission_id: str, body: RejectIn, user: Reviewer, db: AuditedDb, _o
 @router.patch("/partner-candidates/{submission_id}/overturn", response_model=Data[Overturned])
 def overturn(submission_id: str, body: OverturnIn, user: Reviewer, db: AuditedDb, _on: PipelineWrites):
     """PATCH /api/partner-candidates/[id]/overturn: a rejection undone, the
-    submission back to "submitted".
+    submission back to "submitted", where it was when it was rejected.
 
-    The linked candidate is set to "approved", as the website does today,
-    although no case exists yet (rejecting never changed the candidate):
-    kept for the switch, flagged for the owner (step 6.6 PR)."""
+    The linked candidate keeps its status: rejecting never changed it, so
+    undoing the rejection leaves it as it was. (Until 2026-10-30 this set
+    the candidate to "approved", as the website did, though no case
+    existed; the owner decided an overturn reinstates the previous status.)"""
     row = db.get(PartnerCandidate, submission_id)
     if row is None:
         raise ApiError(404, "not_found", "Partner candidate submission not found.")
@@ -556,8 +557,6 @@ def overturn(submission_id: str, body: OverturnIn, user: Reviewer, db: AuditedDb
     row.status = PartnerCandidateStatus(body.status)
     row.rejection_reason = None
     row.reviewed_by = None
-    if row.bridged_candidate_id:
-        db.get(Candidate, row.bridged_candidate_id).lifecycle_status = CandidateLifecycleStatus.approved
     db.commit()
     db.refresh(row)
     return {"data": row}
