@@ -173,12 +173,21 @@ describe("refresh", () => {
     expect(out.headers.get("location")).toContain("/auth/login?redirect=%2Fadmin%2Fusers");
   });
 
+  it("no refresh token at all is answered here, never rate-limited: signed-out pages ask often", async () => {
+    const from = { "x-forwarded-for": "198.51.100.88" };
+    const codes = new Set<number>();
+    for (let i = 0; i < 70; i++) codes.add((await webRefresh(post("/api/auth/refresh", undefined, from))).status);
+    const page = await refreshPage(new NextRequest("http://localhost/api/auth/refresh?redirect=/partner", { headers: from }));
+    expect([...codes, page.status, page.headers.get("location")?.includes("/auth/login?redirect=%2Fpartner")]).toEqual([401, 303, true]);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
   it("the app's: the token from the body only, never the cookie", async () => {
     callBackend.mockResolvedValue(signedIn);
-    await appRefresh(post("/api/auth/app/refresh", {}, cookie));
-    expect(callBackend.mock.calls[0][1].body).toEqual({ refresh_token: null });
+    const cookieOnly = await appRefresh(post("/api/auth/app/refresh", {}, cookie));
+    expect([cookieOnly.status, callBackend.mock.calls.length]).toEqual([401, 0]);
     const res = as(await appRefresh(post("/api/auth/app/refresh", { refreshToken: "refresh-0" })));
-    expect(callBackend.mock.calls[1][1].body).toEqual({ refresh_token: "refresh-0" });
+    expect(callBackend.mock.calls[0][1].body).toEqual({ refresh_token: "refresh-0" });
     expect([(await res.json()).data.refreshToken, res.cookies.getAll()]).toEqual(["refresh-1", []]);
   });
 });
