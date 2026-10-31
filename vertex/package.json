@@ -13,7 +13,8 @@
     "seed:partners": "tsx scripts/seed-partners.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "api:types": "openapi-typescript ../vertex_be/openapi.json -o src/lib/api.generated.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -61,6 +62,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "eslint": "^9",
     "eslint-config-next": "^16.4.3",
+    "openapi-typescript": "7.13.0",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",

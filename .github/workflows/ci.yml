@@ -4,7 +4,8 @@ name: CI
 # (build.yml) without running CI again. The repo is private on GitHub Free
 # (2,000 Actions minutes a month; October's ran out on 2026-10-13), so:
 #   - PRs into dev run the secret scan plus only the suites whose folders
-#     changed;
+#     changed, and the end-to-end journeys whenever the website, the backend
+#     or the deploy files change (auth hardening plan E.1);
 #   - PRs into staging or main, manual runs, and promote.yml (which calls
 #     this before fast-forwarding staging or main) run everything,
 #     including the end-to-end journeys and the image builds and scans.
@@ -237,11 +238,21 @@ jobs:
 
       - run: npx vitest run
 
-  # The most expensive job: promotions and manual runs only.
+      # FastAPI's schema and the types generated from it (auth hardening
+      # plan D.3): a renamed field fails here and in tsc, not in production.
+      - name: API types match FastAPI's schema
+        run: |
+          npx openapi-typescript ../vertex_be/openapi.json -o "$RUNNER_TEMP/api.generated.ts" >/dev/null
+          diff -u src/lib/api.generated.ts "$RUNNER_TEMP/api.generated.ts" || {
+            echo "Stale: run python scripts/export_openapi.py in vertex_be, then npm run api:types in vertex" >&2; exit 1; }
+
+  # The most expensive job: every PR that could break a journey (website,
+  # backend or deploy files), promotions and manual runs. A test that only
+  # passes on its retry fails the job (flaky tests are reported, not hidden).
   e2e:
     name: End-to-end journeys
-    needs: nextjs
-    if: github.base_ref != 'dev'
+    needs: [changes, nextjs]
+    if: github.base_ref != 'dev' || needs.changes.outputs.web == 'true' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -346,7 +357,7 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test --reporter=line
+      - run: npx playwright test --reporter=line --fail-on-flaky-tests
 
       - name: FastAPI's log
         if: failure()
