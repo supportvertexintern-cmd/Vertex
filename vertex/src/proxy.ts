@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/jwt";
-import { ACCESS_COOKIE, PROTECTED_PATHS } from "@/lib/session-constants";
+import { ACCESS_COOKIE, PROTECTED_PATHS, SIGNED_IN_COOKIE } from "@/lib/session-constants";
 import { canAccessPortal, homeFor } from "@/lib/rbac";
 import { checkRequestSize } from "@/lib/request-size";
 import { REQUEST_ID_HEADER, REQUEST_PATH_HEADER, resolveRequestId } from "@/lib/request-context";
@@ -45,11 +45,14 @@ function route(req: NextRequest, requestId: string, extra: Record<string, string
 
   // A portal page with no usable access token goes through
   // /api/auth/refresh, which renews the 15-minute token from the refresh
-  // cookie (scoped to /api/auth, so not visible here) or sends the visitor
-  // to sign in. Only the signature is checked here, for routing; every API
-  // call re-checks the session against the database (lib/api-auth.ts).
+  // cookie (scoped to /api/auth, so not visible here), but only when the
+  // signed-in marker says there is a session to renew (A.4); otherwise
+  // straight to sign-in. Only the signature is checked here, for routing;
+  // every API call re-checks the session against the database
+  // (lib/api-auth.ts).
   const token = req.cookies.get(ACCESS_COOKIE)?.value;
-  if (!token) return toRefresh(req, pathname);
+  const marked = req.cookies.has(SIGNED_IN_COOKIE);
+  if (!token) return marked ? toRefresh(req, pathname) : toSignIn(req, pathname);
 
   try {
     const payload = verifyToken(token);
@@ -58,17 +61,24 @@ function route(req: NextRequest, requestId: string, extra: Record<string, string
       return NextResponse.redirect(new URL(homeFor(payload.role), req.url));
     }
 
-    return next(req, requestId, extra);
+    const res = next(req, requestId, extra);
+    // Signed in before the marker existed: mark this browser now, for the
+    // browser session, so its next expiry still goes through refresh.
+    if (!marked) res.cookies.set(SIGNED_IN_COOKIE, "1", { sameSite: "strict", secure: process.env.NODE_ENV === "production", path: "/" });
+    return res;
   } catch {
-    return toRefresh(req, pathname);
+    return marked ? toRefresh(req, pathname) : toSignIn(req, pathname);
   }
 }
 
-function toRefresh(req: NextRequest, pathname: string): NextResponse {
-  const url = new URL("/api/auth/refresh", req.url);
+function withReturn(req: NextRequest, path: string, pathname: string): NextResponse {
+  const url = new URL(path, req.url);
   url.searchParams.set("redirect", pathname + req.nextUrl.search);
   return NextResponse.redirect(url);
 }
+
+const toRefresh = (req: NextRequest, pathname: string) => withReturn(req, "/api/auth/refresh", pathname);
+const toSignIn = (req: NextRequest, pathname: string) => withReturn(req, "/auth/login", pathname);
 
 // Everything except build assets and public files, which aren't documents.
 export const config = {

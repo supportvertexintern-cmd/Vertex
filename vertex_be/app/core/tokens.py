@@ -43,12 +43,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import time
 from dataclasses import dataclass
 from functools import lru_cache
 
 import jwt
 
+from app.core.clock import epoch_seconds
 from app.core.config import settings
 
 ALGORITHM = "HS256"
@@ -138,7 +138,7 @@ def sign_session_token(*, user_id: str, email: str, role: str, sid: str, ver: in
     secret = settings.JWT_SECRET
     if not secret or len(secret) < 32:
         raise InvalidToken("JWT_SECRET is not configured")
-    now = int(time.time())
+    now = epoch_seconds()
     payload = {
         "userId": user_id, "email": email, "role": role, "sid": sid, "ver": ver,
         "iat": now, "exp": now + ACCESS_TOKEN_TTL_SECONDS, "iss": ISSUER, "aud": "vertex:session",
@@ -235,7 +235,7 @@ def _secret() -> str:
 
 
 def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:
-    now = int(time.time())
+    now = epoch_seconds()
     payload = {**claims, "iat": now, "exp": now + ttl_seconds, "iss": ISSUER, "aud": f"vertex:{purpose}"}
     return jwt.encode(payload, key_for(purpose, _secret()), algorithm=ALGORITHM)
 

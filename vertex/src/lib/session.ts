@@ -23,8 +23,8 @@ import { prisma } from "./prisma";
 // role (a database trigger bumps token_version) stops access on the very
 // next request, not when the token expires.
 
-import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH } from "./session-constants";
-export { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH };
+import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH, SIGNED_IN_COOKIE } from "./session-constants";
+export { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH, SIGNED_IN_COOKIE };
 
 // The access token's lifetime, for the cookie and the app's body. The
 // session lifetimes, rotation and its race window are FastAPI's.
@@ -84,9 +84,18 @@ export function setSessionCookies(res: NextResponse, session: IssuedSession): vo
     maxAge: Math.max(0, Math.floor((session.refreshExpiresAt.getTime() - Date.now()) / 1000)),
     path: REFRESH_COOKIE_PATH,
   });
+  // Lives as long as the refresh cookie; not HttpOnly (see session-constants.ts).
+  res.cookies.set(SIGNED_IN_COOKIE, "1", {
+    httpOnly: false,
+    secure: secure(),
+    sameSite: "strict",
+    maxAge: Math.max(0, Math.floor((session.refreshExpiresAt.getTime() - Date.now()) / 1000)),
+    path: "/",
+  });
 }
 
 export function clearSessionCookies(res: NextResponse): void {
   res.cookies.set(ACCESS_COOKIE, "", { httpOnly: true, secure: secure(), sameSite: "strict", maxAge: 0, path: "/" });
   res.cookies.set(REFRESH_COOKIE, "", { httpOnly: true, secure: secure(), sameSite: "strict", maxAge: 0, path: REFRESH_COOKIE_PATH });
+  res.cookies.set(SIGNED_IN_COOKIE, "", { httpOnly: false, secure: secure(), sameSite: "strict", maxAge: 0, path: "/" });
 }

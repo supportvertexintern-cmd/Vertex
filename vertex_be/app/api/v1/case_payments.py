@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 import stripe
@@ -37,6 +37,7 @@ from app.api.notices import MilestonePaymentLinkEmail, MilestonePlanStage, Notif
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.logging import log_event
 from app.core.rbac import FINANCE_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_case
@@ -65,7 +66,7 @@ Stripe = Annotated[PaymentLinkClient | None, Depends(stripe_client)]
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 # --- input and output --------------------------------------------------------

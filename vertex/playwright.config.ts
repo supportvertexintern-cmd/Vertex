@@ -14,7 +14,9 @@ export default defineConfig({
   workers: 1,
   // Each test is a whole multi-role journey (forms, uploads, several logins).
   timeout: 180_000,
-  retries: process.env.CI ? 2 : 0,
+  // One retry in CI, with --fail-on-flaky-tests: a test that needs it fails
+  // the job, so a flaky journey is reported rather than hidden.
+  retries: process.env.CI ? 1 : 0,
   reporter: "list",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import type { components } from "@/lib/api.generated";
 import type { BackendError, BackendResult } from "@/lib/backend";
 import { currentRequest } from "@/lib/request-context";
 import { onPrivilegeGranted, onSecurityEvent } from "@/lib/security-monitor";
@@ -14,18 +15,10 @@ import type { IssuedSession } from "@/lib/session";
  * from what it reports, as for malware (onMalwareFound).
  */
 
-/** A session as FastAPI issues it. */
-export interface BackendSession {
-  family_id: string;
-  access_token: string;
-  refresh_token: string;
-  refresh_expires_at: string;
-}
+/** A session as FastAPI issues it (generated from its schema, D.3). */
+export type BackendSession = components["schemas"]["SessionOut"];
 
-export interface SignedIn {
-  user: { id: string; full_name: string; email: string; role: string };
-  session: BackendSession;
-}
+export type SignedIn = components["schemas"]["SignedIn"];
 
 export function issued(session: BackendSession): IssuedSession {
   return {

@@ -30,7 +30,7 @@ AUDITED_MODELS); a malware rejection is a security event.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -43,6 +43,7 @@ from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb, record_security_event, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, OptionalUser, calling_service
+from app.core.clock import utc_now_ms
 from app.core.config import settings
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
@@ -80,7 +81,7 @@ FORM_OVERHEAD = 64 * 1024
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 class DocumentRow(BaseModel):
