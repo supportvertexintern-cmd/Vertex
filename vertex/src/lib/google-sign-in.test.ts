@@ -16,12 +16,15 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
 }));
 const alerts = vi.fn();
 vi.mock("@/lib/security-monitor", () => ({ onSecurityEvent: (...args: unknown[]) => alerts(...args) }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7" }) }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 
 import { NextRequest, type NextResponse } from "next/server";
 import { GOOGLE_STATE_COOKIE } from "@/lib/google-oauth";
 import { GET as start } from "@/app/api/auth/google/route";
 import { GET as callback } from "@/app/api/auth/google/callback/route";
+// As behind the stack's edge proxy (lib/client-ip.ts).
+process.env.TRUST_PROXY_HEADERS = "true";
+
 
 const session = { family_id: "f1", access_token: "at", refresh_token: "rt", refresh_expires_at: "2026-11-13T00:00:00.000Z" };
 const signedIn = { ok: true, status: 200, body: { data: { user: { id: "u1", full_name: "G", email: "g@test.invalid", role: "candidate" }, session } } };

@@ -52,6 +52,9 @@ import { resetAlertDedupe } from "@/lib/security-monitor";
 import { POST as login } from "@/app/api/auth/login/route";
 import { GET as issueLink } from "@/app/api/documents/[id]/signed-url/route";
 import { GET as openFile } from "@/app/api/documents/file/route";
+// As behind the stack's edge proxy (lib/client-ip.ts).
+process.env.TRUST_PROXY_HEADERS = "true";
+
 
 const tag = `p10-${Date.now()}`;
 const email = `${tag}@test.invalid`;
@@ -60,7 +63,7 @@ let userId = "";
 let lines: Record<string, unknown>[] = [];
 
 function inRequest(requestId: string, path = "/api/auth/login", ip = "203.0.113.7") {
-  state.headers = new Headers({ "x-request-id": requestId, "x-vertex-path": path, "x-forwarded-for": ip });
+  state.headers = new Headers({ "x-request-id": requestId, "x-vertex-path": path, "x-real-ip": ip });
 }
 
 function loginRequest(password: string, as = email) {

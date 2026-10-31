@@ -25,7 +25,7 @@ const KNOWN_ERRORS = new Set([
 ]);
 
 export async function GET(req: NextRequest) {
-  const limited = limitByIp(req, "google-callback", { windowMs: 15 * 60_000, max: 20 });
+  const limited = await limitByIp(req, "google-callback", { windowMs: 15 * 60_000, max: 20 });
   if (limited) return limited;
   const { searchParams } = req.nextUrl;
   const code = searchParams.get("code");

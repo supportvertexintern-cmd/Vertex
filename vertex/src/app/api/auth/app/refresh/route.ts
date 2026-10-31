@@ -15,7 +15,7 @@ const ENDED = { error: { code: "session_ended", message: "Please sign in again."
 export async function POST(req: NextRequest) {
   const refreshToken = await refreshTokenFromBody(req);
   if (!refreshToken) return appJson(req, ENDED, 401);
-  const limited = limitByIp(req, "auth-app-refresh", { windowMs: 60_000, max: 60 });
+  const limited = await limitByIp(req, "auth-app-refresh", { windowMs: 60_000, max: 60 });
   if (limited) return limited;
   const result = await callBackend<SignedIn>("/api/v1/auth/refresh", {
     method: "POST",

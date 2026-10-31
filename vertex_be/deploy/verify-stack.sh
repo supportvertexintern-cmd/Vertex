@@ -41,6 +41,13 @@ missing=$(set -o pipefail; cd "$BE" && IMAGE_TAG=x docker compose -p "$P" --env-
 ok "Containers missing a network" "$missing" 0
 ok "Backend connects as" "$(docker exec ${P}-backend-1 printenv DATABASE_URL | sed -E 's#postgresql://([^:]+):.*#\1#')" vertex_api
 ok "Next.js connects as" "$(docker exec ${P}-nextjs-1 printenv DATABASE_URL | sed -E 's#postgresql://([^:]+):.*#\1#')" vertex_web
+# Workstream B: Next.js only behind the edge proxy; Redis internal and locked.
+ok "Next.js published to host (edge proxy only)" "$(docker port ${P}-nextjs-1 2>/dev/null | wc -l | tr -d ' ')" 0
+ok "Next.js trusts the proxy's address" "$(docker exec ${P}-nextjs-1 printenv TRUST_PROXY_HEADERS)" true
+ok "Redis published to host" "$(docker port ${P}-redis-1 2>/dev/null | wc -l | tr -d ' ')" 0
+ok "Redis without its password" "$(docker exec ${P}-redis-1 redis-cli ping 2>&1 | grep -oE '^NOAUTH')" NOAUTH
+ok "Next.js → Redis" "$(docker exec ${P}-nextjs-1 nc -z -w 3 redis 6379 >/dev/null 2>&1 && echo yes || echo no)" yes
+ok "Backend → Redis" "$(docker exec ${P}-backend-1 python -c 'import socket; socket.create_connection(("redis", 6379), 3)' >/dev/null 2>&1 && echo yes || echo no)" yes
 ok "vertex_readonly: SELECT id FROM User" "$( [ -n "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select count(id) from "User"')" ] && echo allowed)" allowed
 ok "vertex_readonly: SELECT password_hash" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
 ok "vertex_readonly: SELECT email (personal data)" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select email from "User" limit 1')" "permission denied"

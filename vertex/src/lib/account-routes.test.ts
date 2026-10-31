@@ -23,7 +23,7 @@ vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
   after: (fn: () => unknown) => fn(),
 }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7" }) }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 vi.mock("@/lib/email", () => {
   const senders = ["sendVerificationLinkEmail", "sendPasswordResetLinkEmail", "sendAccountSetupLinkEmail", "sendPasswordResetEmail", "sendVerificationEmail", "sendAccountSetupInviteEmail"];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
@@ -47,13 +47,16 @@ import * as users from "@/app/api/admin/users/route";
 import * as oneUser from "@/app/api/admin/users/[id]/route";
 import * as adminReset from "@/app/api/admin/users/[id]/reset-password/route";
 import { accountsOnFastApi } from "@/lib/flags";
+// As behind the stack's edge proxy (lib/client-ip.ts).
+process.env.TRUST_PROXY_HEADERS = "true";
+
 
 let seq = 0;
 // A fresh client address per request, so the per-address limits never trip across tests.
 function request(method: string, url: string, body?: unknown) {
   return new NextRequest(`http://localhost${url}`, {
     method,
-    headers: { "content-type": "application/json", "x-forwarded-for": `10.8.${seq}.${seq++ % 250}`, "user-agent": "Browser/1" },
+    headers: { "content-type": "application/json", "x-real-ip": `10.8.${seq}.${seq++ % 250}`, "user-agent": "Browser/1" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
@@ -108,7 +111,7 @@ describe("registration and verification (flag on)", () => {
   });
 
   it("refuses unreadable JSON before calling FastAPI", async () => {
-    const res = await register.POST(new NextRequest("http://localhost/api/auth/register", { method: "POST", body: "{nope", headers: { "x-forwarded-for": "10.7.0.1" } }));
+    const res = await register.POST(new NextRequest("http://localhost/api/auth/register", { method: "POST", body: "{nope", headers: { "x-real-ip": "10.7.0.1" } }));
     expect([res.status, await res.json(), callBackend.mock.calls.length]).toEqual([400, { error: "Invalid JSON" }, 0]);
   });
 
@@ -143,7 +146,7 @@ describe("forgot and reset password (flag on)", () => {
   it("keeps the per-address limit", async () => {
     callBackend.mockResolvedValue(ok({ message: "m" }));
     const same = () => forgot.POST(new NextRequest("http://localhost/api/auth/forgot-password", {
-      method: "POST", body: JSON.stringify({ email: "a@test.invalid" }), headers: { "content-type": "application/json", "x-forwarded-for": "10.6.6.6" },
+      method: "POST", body: JSON.stringify({ email: "a@test.invalid" }), headers: { "content-type": "application/json", "x-real-ip": "10.6.6.6" },
     }));
     const statuses = [];
     for (let i = 0; i < 6; i++) statuses.push((await same()).status);

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     clearSessionCookies(res);
     return res;
   }
-  const limited = limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
+  const limited = await limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
   if (limited) return limited;
   const result = await refresh(req);
   if (!result.ok) {
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     clearSessionCookies(res);
     return res;
   }
-  const limited = limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
+  const limited = await limitByIp(req, "auth-refresh", { windowMs: 60_000, max: 60 });
   if (limited) return limited;
   const result = await refresh(req);
   if (!result.ok) {

@@ -4,7 +4,8 @@ import { auditedPrisma } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth";
 import { sendVerificationEmail } from "@/lib/email";
 import { registerSchema, completeAccountSetupSchema } from "@/lib/validations";
-import { limitByIp, rateLimit } from "@/lib/rate-limit";
+import { limitByIp, limitedResponse, rateLimit, retryAfter } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/client-ip";
 import { verifyCandidateInviteToken, verifyAccountSetupToken } from "@/lib/jwt";
 import { callBackend } from "@/lib/backend";
 import { accountsOnFastApi } from "@/lib/flags";
@@ -61,7 +62,7 @@ async function lookupClaimableAccountSetup(token: string) {
 // instead of a not-yet-existing Candidate.
 export async function GET(req: NextRequest) {
   // Invite-link lookup: limit guessing of setup tokens.
-  const limited = limitByIp(req, "register-invite", { windowMs: 15 * 60_000, max: 20 });
+  const limited = await limitByIp(req, "register-invite", { windowMs: 15 * 60_000, max: 20, failClosed: true });
   if (limited) return limited;
   const setupToken = req.nextUrl.searchParams.get("setup");
   if (setupToken) {
@@ -113,12 +114,13 @@ export async function GET(req: NextRequest) {
 // what was actually screened.
 export async function POST(req: NextRequest) {
   // Rate limit: 5 registrations per minute per IP
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`register:${ip}`, { max: 5 });
+  const ip = clientKey(req.headers);
+  const rl = await rateLimit(`register:${ip}`, { max: 5, failClosed: true });
+  if (rl.unavailable) return limitedResponse(rl);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many registration attempts. Please try again later." },
-      { status: 429 }
+      { status: 429, headers: { "Retry-After": retryAfter(rl) } }
     );
   }
 

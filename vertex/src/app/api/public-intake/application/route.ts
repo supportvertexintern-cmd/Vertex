@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { submitApplicationSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, retryAfter } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/client-ip";
 import { sendPublicIntakeEmail, sendPublicIntakeConfirmationEmail } from "@/lib/email";
 
 import { log } from "@/lib/log";
@@ -15,10 +16,10 @@ import { log } from "@/lib/log";
 // "crm", ApplicationForm posts to /api/applications instead and this route
 // stops being used by the public form (though it stays reachable).
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`public-intake:${ip}`, { max: 5, windowMs: 60_000 });
+  const ip = clientKey(req.headers);
+  const rl = await rateLimit(`public-intake:${ip}`, { max: 5, windowMs: 60_000 });
   if (!rl.success) {
-    return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429 });
+    return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429, headers: { "Retry-After": retryAfter(rl) } });
   }
 
   let body: unknown;

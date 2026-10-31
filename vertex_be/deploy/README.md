@@ -191,3 +191,24 @@ Admin commands run inside the container, with its own credentials:
 ```sh
 docker exec -it vertex-dev-minio-1 sh -c   'export MC_CONFIG_DIR=/tmp/.mc; mc alias set local http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null; mc ls --recursive local/$VERTEX_S3_BUCKET'
 ```
+
+## Edge proxy and Redis (auth hardening, workstream B)
+
+Next.js is no longer published. The `edge` service (Caddy, `deploy/edge/Caddyfile`)
+is published on `NEXTJS_PORT` instead and overwrites `X-Real-IP` and
+`X-Forwarded-For` with the address that actually connected; Next.js reads only
+`X-Real-IP`, and only because the stack sets `TRUST_PROXY_HEADERS=true`
+(`vertex/src/lib/client-ip.ts`). Nothing else may publish Next.js, or a client
+could send its own `X-Real-IP`.
+
+Rate-limit counters live in the `redis` service: internal network only, a
+password, nothing on disk. Each env file needs a random `REDIS_PASSWORD`
+(for example `openssl rand -hex 24`); a deploy without one stops with
+"REDIS_PASSWORD is required".
+
+If Redis is down, ordinary limits let requests through and log
+`ratelimit.store_unavailable`; forgot password, registration and the
+verification links answer 503 instead (fail closed). Each side gives Redis
+half a second per call and leaves it alone for 30 seconds after a failure.
+
+Rollback: redeploy the previous image tag. Counters expire on their own.

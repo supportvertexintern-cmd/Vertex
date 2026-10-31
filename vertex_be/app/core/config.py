@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     # to send visitors to Google. Unset = Google sign-in answers 503.
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
+    # Shared rate-limit counters (auth hardening plan, workstream B):
+    # redis://:<password>@redis:6379/0 on the stack. Unset = each process
+    # keeps its own (tests, a bare uvicorn).
+    REDIS_URL: str | None = None
     # Stripe, for each job payment stage's Product and Price (step 3.2,
     # app/services/stripe_pricing.py). Unset = pricing isn't synced: a job
     # still saves, and a manual sync answers 503.

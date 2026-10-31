@@ -1,0 +1,16 @@
+# The stack's edge proxy (auth hardening plan B.1, security review #5): the
+# only published way in to the website. It replaces whatever address headers
+# a client sent with the address that actually connected, so the website can
+# trust X-Real-IP (TRUST_PROXY_HEADERS=true) for rate limits and the audit
+# trail. Plain HTTP on this PC; on a server, TLS terminates here (decision 3).
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	reverse_proxy nextjs:3000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+	}
+}
