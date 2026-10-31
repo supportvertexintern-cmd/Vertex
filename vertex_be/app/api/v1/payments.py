@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -40,6 +40,7 @@ from app.api.notices import ConsultationBookedEmail, Notice, Notifying, PaymentR
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import CurrentUser, calling_service
+from app.core.clock import utc_now_ms
 from app.core.config import settings
 from app.core.logging import log_event
 from app.models.cases import CasePayment
@@ -55,7 +56,7 @@ SIGNATURE_HEADER = "Stripe-Signature"
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 def _iso(value: datetime) -> str:

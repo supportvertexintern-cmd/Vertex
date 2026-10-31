@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.clock import utc_now_ms
 from app.models.candidate import Application, Candidate
 from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, ReferralMilestone
 from app.services.referrals import CommissionEarned, commission_if_due
@@ -55,7 +56,7 @@ class ScreenAndInviteResult:
 
 def _now() -> datetime:
     # Stored dates are UTC without a time zone; the website runs in UTC.
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 def _age(dob: datetime, now: datetime) -> int:

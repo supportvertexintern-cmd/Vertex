@@ -22,7 +22,7 @@ AUDITED_MODELS).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, status
@@ -43,6 +43,7 @@ from app.api.v1.candidates import _date
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser, check_service_header
+from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import OPERATIONS_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_case
@@ -72,7 +73,7 @@ RETENTION_DAYS = 90
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 # --- input -------------------------------------------------------------------

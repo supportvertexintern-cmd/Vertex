@@ -20,10 +20,11 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from functools import lru_cache
 from typing import Any, Literal
 
+from app.core.clock import utc_now_ms
 from app.core.config import settings
 from app.core.logging import log_event
 from app.services.malware_scan import scan_bytes
@@ -140,7 +141,7 @@ def save_document(data: bytes, declared_type: str, document_type: str) -> SavedD
     storage_path = f"{document_type}/{uuid.uuid4()}.{ext}"
     _client(config).put_object(Bucket=config.bucket, Key=storage_path, Body=data, ContentType=mime)
     clean = scan.status == "clean"
-    return SavedDocument(storage_path, "clean" if clean else "unscanned", datetime.now(UTC).replace(tzinfo=None) if clean else None)
+    return SavedDocument(storage_path, "clean" if clean else "unscanned", utc_now_ms() if clean else None)
 
 
 def read_document(storage_path: str) -> bytes | None:

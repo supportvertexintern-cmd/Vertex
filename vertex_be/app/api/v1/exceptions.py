@@ -16,7 +16,7 @@ ExceptionCorrectiveAction are in AUDITED_MODELS).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, status
@@ -28,6 +28,7 @@ from app.api.v1.candidates import _date
 from app.core.api import ApiError, Data, js_date
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate, inhouse_country_ids
@@ -46,7 +47,7 @@ FOREIGN_KEY_VIOLATION = "23503"
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 # --- input -------------------------------------------------------------------

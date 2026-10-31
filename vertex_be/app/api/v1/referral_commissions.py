@@ -15,7 +15,7 @@ AUDITED_MODELS).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -27,6 +27,7 @@ from app.api.notices import CommissionApprovedEmail, CommissionPaidEmail, Notify
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import REFERRAL_AGENT_MANAGER_ROLES, require_role
 from app.models.enums import ReferralCommissionStatus, ReferralMilestone
@@ -38,7 +39,7 @@ Manager = Annotated[AuthUser, Depends(require_role(*REFERRAL_AGENT_MANAGER_ROLES
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 class PaidIn(BaseModel):
