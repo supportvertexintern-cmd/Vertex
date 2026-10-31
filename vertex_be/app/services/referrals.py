@@ -15,12 +15,12 @@ The website sends the "commission earned" email (owner's decision D1, 2026-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.clock import utc_now_ms
 from app.models.candidate import Candidate
 from app.models.enums import CandidateLifecycleStatus, CaseStage, ReferralCommissionStatus, ReferralMilestone
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
@@ -82,7 +82,7 @@ def commission_if_due(db: Session, candidate_id: str, milestone: ReferralMilesto
         amount=amount,
         currency=currency,
         status=ReferralCommissionStatus.pending if amount > 0 else ReferralCommissionStatus.paid,
-        paid_at=None if amount > 0 else datetime.now(UTC).replace(tzinfo=None),
+        paid_at=None if amount > 0 else utc_now_ms(),
     )
     savepoint = db.begin_nested()
     db.add(commission)

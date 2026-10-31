@@ -26,7 +26,7 @@ PartnerCandidate and ReferralCommission are in AUDITED_MODELS).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, status
@@ -39,6 +39,7 @@ from app.api.v1.candidates import DETAIL_EDITORS, MaritalStatus, _blank_is_missi
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, OptionalUser, calling_service
+from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate
@@ -72,7 +73,7 @@ FALLBACK_JOB_TITLE = "your Vertex programme"
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 Blank = _blank_is_missing

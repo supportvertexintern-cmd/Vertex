@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -6,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import DbSession
+from app.core.clock import utc_now_ms
 from app.core.config import settings
 
 router = APIRouter()
@@ -26,6 +26,6 @@ def health(db: DbSession) -> JSONResponse:
             "database": database,
             "version": settings.VERSION,
             "environment": settings.APP_ENV,
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": utc_now_ms().isoformat(timespec="milliseconds") + "Z",
         },
     )

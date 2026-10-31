@@ -31,7 +31,7 @@ in AUDITED_MODELS).
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, Depends, status
@@ -42,6 +42,7 @@ from sqlalchemy import select
 from app.core.api import ApiError, Data, js_date
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
 from app.db.base import new_id
 from app.models.enums import ReportCycle, ReportStatus, Role, ScopeLevel
@@ -188,7 +189,7 @@ def _period_errors(body: SubmitIn) -> dict[str, list[str]]:
     start, end = body.period_start, body.period_end
     if body.type is not ReportCycle.daily and end <= start:
         errors.setdefault("period_end", []).append("Period end must be after the period start.")
-    if end > datetime.now(UTC).replace(tzinfo=None):
+    if end > utc_now_ms():
         errors.setdefault("period_end", []).append("A report can't cover a period that hasn't happened yet.")
     if body.type is ReportCycle.weekly:
         if start.weekday() != 0:

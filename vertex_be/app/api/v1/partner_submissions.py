@@ -24,7 +24,7 @@ Candidate, Application and Document are in AUDITED_MODELS).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, status
@@ -38,6 +38,7 @@ from app.api.v1.cases import CaseRow
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import HR_ROLES, require_role
 from app.models.candidate import Application, Candidate, Document
@@ -60,7 +61,7 @@ Channel = Literal["email", "whatsapp"]
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return utc_now_ms()
 
 
 def _required_date(message: str):

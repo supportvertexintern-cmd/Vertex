@@ -22,7 +22,7 @@ accepted 3.5, which the integer column then refused with a 500.
 from __future__ import annotations
 
 import math
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
@@ -35,6 +35,7 @@ from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime, js_date
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
 from app.models.enums import Role, ScorecardStatus
 from app.models.identity import User
@@ -280,7 +281,7 @@ def finalize(scorecard_id: str, body: FinalizeIn, db: AuditedDb, user: Reviewer)
     scorecard.overall_score = score
     scorecard.performance_category = category
     scorecard.required_action = action
-    scorecard.review_date = body.review_date or datetime.now(UTC).replace(tzinfo=None)
+    scorecard.review_date = body.review_date or utc_now_ms()
     db.commit()
     db.refresh(scorecard)
     return Data(data=FinalizedOut.model_validate(scorecard))
