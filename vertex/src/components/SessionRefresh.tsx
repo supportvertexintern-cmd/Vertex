@@ -1,6 +1,6 @@
 "use client";
 
-import { PROTECTED_PATHS } from "@/lib/session-constants";
+import { PROTECTED_PATHS, SIGNED_IN_COOKIE } from "@/lib/session-constants";
 
 // Access tokens last 15 minutes (G19, lib/session.ts). When an API call
 // comes back 401, renew the session once through /api/auth/refresh and
@@ -38,6 +38,8 @@ function install(): void {
     return pending;
   };
 
+  const signedIn = () => document.cookie.split("; ").some((c) => c.startsWith(`${SIGNED_IN_COOKIE}=`));
+
   const toSignIn = () => {
     const { pathname, search } = window.location;
     if (redirecting || !PROTECTED_PATHS.some((p) => pathname.startsWith(p))) return;
@@ -60,7 +62,8 @@ function install(): void {
     const replay = input instanceof Request ? input.clone() : input;
     const res = await original(input, init);
     if (res.status !== 401) return res;
-    if (!(await refresh())) {
+    // No session to renew (A.4): sign in, without a refresh call.
+    if (!signedIn() || !(await refresh())) {
       toSignIn();
       return res;
     }

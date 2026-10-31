@@ -21,6 +21,18 @@ test.describe("RBAC portal gating", () => {
     }
   });
 
+  test("a signed-out portal visit never calls the refresh endpoint (A.4)", async ({ page }) => {
+    const refreshCalls: string[] = [];
+    page.on("request", (r) => {
+      if (new URL(r.url()).pathname.startsWith("/api/auth/refresh")) refreshCalls.push(r.url());
+    });
+    for (const path of ["/dashboard", "/admin", "/partner"]) {
+      await page.goto(path);
+      await expect(page).toHaveURL(new RegExp(`/auth/login\\?redirect=${encodeURIComponent(path)}`));
+    }
+    expect(refreshCalls).toEqual([]);
+  });
+
   test("public pages remain accessible without auth", async ({ page }) => {
     await page.goto("/jobs");
     await expect(page).not.toHaveURL(/auth\/login/);
