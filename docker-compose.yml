@@ -113,6 +113,13 @@ services:
       db-roles-after-migrate:
         condition: service_completed_successfully
 
+  # Workstream B: the only way in to the website, and the shared counters.
+  edge:
+    extends: { <<: *deploy, service: edge }
+
+  redis:
+    extends: { <<: *deploy, service: redis }
+
   flutter-web:
     extends: { <<: *deploy, service: flutter-web }
     build: ./vertex_app

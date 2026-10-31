@@ -9,7 +9,7 @@ import { limitByIp } from "@/lib/rate-limit";
 // working at once (FastAPI and Next.js both check the session is live).
 // Always answers the same way, so it reveals nothing about the token.
 export async function POST(req: NextRequest) {
-  const limited = limitByIp(req, "auth-app-logout", { windowMs: 60_000, max: 30 });
+  const limited = await limitByIp(req, "auth-app-logout", { windowMs: 60_000, max: 30 });
   if (limited) return limited;
   await callBackend("/api/v1/auth/logout", {
     method: "POST",

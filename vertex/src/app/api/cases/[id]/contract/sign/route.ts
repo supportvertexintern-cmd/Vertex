@@ -1,3 +1,4 @@
+import { clientIp } from "@/lib/client-ip";
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { passOn, readJson, seg } from "@/lib/pipeline";
@@ -14,5 +15,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (guardRes) return guardRes;
   const read = await readJson(req, true);
   if (read.invalid) return read.invalid;
-  return passOn(`/api/v1/cases/${seg(id)}/contract/sign`, { method: "POST", body: read.body, forward: { "X-Forwarded-For": req.headers.get("x-forwarded-for") } }, { legacyErrors: true });
+  return passOn(`/api/v1/cases/${seg(id)}/contract/sign`, { method: "POST", body: read.body, forward: { "X-Forwarded-For": clientIp(req.headers) } }, { legacyErrors: true });
 }

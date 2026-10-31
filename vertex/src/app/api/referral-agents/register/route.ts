@@ -11,7 +11,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 // POST /api/referral-agents/register — public, unauthenticated. Same
 // anonymous-submission rate limit as /api/contact and /api/applications.
 export async function POST(req: NextRequest) {
-  const limited = limitByIp(req, "referral-agent-register", { max: 5, windowMs: 60_000 });
+  const limited = await limitByIp(req, "referral-agent-register", { max: 5, windowMs: 60_000, failClosed: true });
   if (limited) return limited;
 
   let body: unknown;

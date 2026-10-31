@@ -18,7 +18,7 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
 const alerts = vi.fn();
 vi.mock("@/lib/security-monitor", () => ({ onSecurityEvent: (...args: unknown[]) => alerts(...args) }));
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "203.0.113.7" }) }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
   requireAuth: (user: unknown) => (user ? null : Response.json({ error: "denied" }, { status: 401 })),
@@ -35,6 +35,9 @@ import { POST as appLogout } from "@/app/api/auth/app/logout/route";
 import { DELETE as signOutEverywhere, GET as mySessions } from "@/app/api/auth/sessions/route";
 import { DELETE as endOne } from "@/app/api/auth/sessions/[id]/route";
 import { DELETE as adminRevoke, GET as adminList } from "@/app/api/admin/users/[id]/sessions/route";
+// As behind the stack's edge proxy (lib/client-ip.ts).
+process.env.TRUST_PROXY_HEADERS = "true";
+
 
 const session = { family_id: "f1", access_token: "access-1", refresh_token: "refresh-1", refresh_expires_at: "2026-11-13T00:00:00.000Z" };
 const user = { id: "u1", full_name: "Abebe", email: "a@test.invalid", role: "director" };
@@ -46,7 +49,7 @@ let seq = 0;
 function post(url: string, body?: unknown, headers: Record<string, string> = {}) {
   return new NextRequest(`http://localhost${url}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-forwarded-for": `10.9.${seq}.${seq++ % 250}`, "user-agent": "Browser/1", ...headers },
+    headers: { "content-type": "application/json", "x-real-ip": `10.9.${seq}.${seq++ % 250}`, "user-agent": "Browser/1", ...headers },
     body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
   });
 }
@@ -91,7 +94,7 @@ describe("browser sign-in", () => {
   it("the per-address limit answers before FastAPI is asked", async () => {
     vi.stubEnv("LOGIN_RATE_LIMIT_MAX", "2");
     callBackend.mockResolvedValue(signedIn);
-    const from = { "x-forwarded-for": "198.51.100.77" };
+    const from = { "x-real-ip": "198.51.100.77" };
     const codes = [];
     for (let i = 0; i < 3; i++) codes.push((await webLogin(post("/api/auth/login", { email: "a@test.invalid", password: "pw" }, from))).status);
     expect(codes).toEqual([200, 200, 429]);
@@ -174,7 +177,7 @@ describe("refresh", () => {
   });
 
   it("no refresh token at all is answered here, never rate-limited: signed-out pages ask often", async () => {
-    const from = { "x-forwarded-for": "198.51.100.88" };
+    const from = { "x-real-ip": "198.51.100.88" };
     const codes = new Set<number>();
     for (let i = 0; i < 70; i++) codes.add((await webRefresh(post("/api/auth/refresh", undefined, from))).status);
     const page = await refreshPage(new NextRequest("http://localhost/api/auth/refresh?redirect=/partner", { headers: from }));

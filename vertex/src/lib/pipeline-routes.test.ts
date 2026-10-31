@@ -55,6 +55,9 @@ import * as partnerDraft from "@/app/api/partner/candidates/[id]/route";
 import * as createCase from "@/app/api/partner-candidates/[id]/create-case/route";
 import * as exceptionsRoute from "@/app/api/exceptions/route";
 import * as approve from "@/app/api/admin/referral-commissions/[id]/approve/route";
+// As behind the stack's edge proxy (lib/client-ip.ts).
+process.env.TRUST_PROXY_HEADERS = "true";
+
 
 const req = (method: string, body?: string, headers: Record<string, string> = {}, url = "http://localhost/api/x") =>
   new NextRequest(url, { method, body, headers: body ? { "content-type": "application/json", ...headers } : headers });
@@ -168,7 +171,7 @@ describe("the application form", () => {
     vi.stubEnv("JWT_SECRET", "test-only-signing-value-not-a-real-secret-pipeline");
     state.role = null;
     callBackend.mockResolvedValueOnce(ok({ id: "a1", candidate_id: "cand1" }, { screening_passed: true, notify: [] }, 201));
-    const res = await applications.POST(req("POST", "{}", { "x-forwarded-for": "198.51.100.7" }));
+    const res = await applications.POST(req("POST", "{}", { "x-real-ip": "198.51.100.7" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/applications/submit", { method: "POST", body: {}, asUser: "if-signed-in" });
     const body = await res.json();
     expect([res.status, body.id, typeof body.upload_token]).toEqual([201, "a1", "string"]);
@@ -235,7 +238,7 @@ describe("uploads", () => {
 describe("signing a contract", () => {
   it("passes the browser's address on", async () => {
     state.role = "candidate";
-    await sign.POST(req("POST", '{"signed_by_name":"Abebe"}', { "x-forwarded-for": "203.0.113.9" }), params("c1"));
+    await sign.POST(req("POST", '{"signed_by_name":"Abebe"}', { "x-real-ip": "203.0.113.9" }), params("c1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/cases/c1/contract/sign", {
       method: "POST",
       body: { signed_by_name: "Abebe" },

@@ -17,6 +17,7 @@ python-multipart==0.0.32
 httpx==0.28.1
 # Passwords (users step 8.2): the hashes bcryptjs wrote, read as they are.
 bcrypt==5.0.0
+redis==8.1.0
 
 # tests
 pytest==9.1.1

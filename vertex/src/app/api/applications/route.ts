@@ -6,7 +6,8 @@ import { pipelineResponse, readJson } from "@/lib/pipeline";
 import { isStaffRole } from "@/lib/rbac";
 import { scopeCandidatesToRequester } from "@/server/scope";
 import { getRequiredDocumentTypesForCountryIds } from "@/server/services/documentCompleteness";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, retryAfter } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/client-ip";
 import { signCifUploadToken } from "@/lib/jwt";
 const MAX_PAGE_SIZE = 200;
 
@@ -121,10 +122,10 @@ export async function POST(req: NextRequest) {
   if (read.invalid) return read.invalid;
 
   if (!user) {
-    const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-    const rl = rateLimit(`applications-new:${ip}`, { max: 5, windowMs: 60_000 });
+    const ip = clientKey(req.headers);
+    const rl = await rateLimit(`applications-new:${ip}`, { max: 5, windowMs: 60_000 });
     if (!rl.success) {
-      return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429 });
+      return NextResponse.json({ error: "Too many submissions. Please try again later." }, { status: 429, headers: { "Retry-After": retryAfter(rl) } });
     }
   }
 

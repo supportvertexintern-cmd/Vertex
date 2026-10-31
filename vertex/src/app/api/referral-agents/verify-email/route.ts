@@ -8,7 +8,7 @@ import { limitByIp } from "@/lib/rate-limit";
 // this point (the agent isn't approved/provisioned), so this is a public,
 // unauthenticated route gated only by the token itself.
 export async function GET(req: NextRequest) {
-  const limited = limitByIp(req, "referral-agent-verify-email", { windowMs: 15 * 60_000, max: 10 });
+  const limited = await limitByIp(req, "referral-agent-verify-email", { windowMs: 15 * 60_000, max: 10, failClosed: true });
   if (limited) return limited;
 
   const token = req.nextUrl.searchParams.get("token");

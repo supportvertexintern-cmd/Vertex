@@ -69,7 +69,7 @@ const chatSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const limited = limitByIp(req, "chat", { windowMs: 10 * 60_000, max: 30 });
+  const limited = await limitByIp(req, "chat", { windowMs: 10 * 60_000, max: 30 });
   if (limited) return limited;
 
   let body: unknown;

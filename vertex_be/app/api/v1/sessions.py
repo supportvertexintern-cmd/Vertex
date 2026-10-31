@@ -38,7 +38,9 @@ from app.api.deps import DbSession
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import record_security_event, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, OptionalUser, calling_service, check_service_header
+from app.core.config import settings
 from app.core.logging import log_event
+from app.core.redis_store import StoreUnavailable, call, counter_store
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
@@ -88,9 +90,12 @@ def security_event(request: Request, action: str, *, actor_id: str | None, entit
 
 # --- the per-account limit (D2) -----------------------------------------------
 
-# Failed sign-ins per account, in this process, as lib/rate-limit.ts keeps
-# the website's per-address ones. The security monitor's brute-force alert
-# fires at the same count over the same window.
+# Failed sign-ins per account (the email's fingerprint), in Redis when
+# REDIS_URL is set so every worker shares the count, as lib/rate-limit.ts
+# keeps the website's per-address ones; otherwise in this process. The
+# security monitor's brute-force alert fires at the same count over the same
+# window. If Redis is down, sign-in carries on (B.4): bcrypt and the
+# website's limit still stand, and the outage is logged.
 ACCOUNT_WINDOW_SECONDS = 15 * 60
 ACCOUNT_MAX_FAILURES = 10
 _failures: dict[str, deque[float]] = {}
@@ -104,12 +109,37 @@ def _recent_failures(fp: str, now: float) -> deque[float]:
     return times
 
 
+def _account_key(fp: str) -> str:
+    return f"{settings.APP_ENV}:rl:login-account:{fp}"
+
+
 def _account_locked(fp: str) -> bool:
+    store = counter_store()
+    if store is not None:
+        try:
+            return int(call(store, lambda r: r.get(_account_key(fp))) or 0) >= ACCOUNT_MAX_FAILURES
+        except StoreUnavailable as err:
+            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
+            return False
     with _failures_lock:
         return len(_recent_failures(fp, time.monotonic())) >= ACCOUNT_MAX_FAILURES
 
 
 def _note_failure(fp: str) -> None:
+    store = counter_store()
+    if store is not None:
+        def note(r):
+            # The window starts at the first failure.
+            pipe = r.pipeline()
+            pipe.incr(_account_key(fp))
+            pipe.expire(_account_key(fp), ACCOUNT_WINDOW_SECONDS, nx=True)
+            pipe.execute()
+
+        try:
+            call(store, note)
+        except StoreUnavailable as err:
+            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
+        return
     with _failures_lock:
         now = time.monotonic()
         _recent_failures(fp, now).append(now)
