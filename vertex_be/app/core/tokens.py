@@ -8,8 +8,9 @@ and tokens issued before the switch are unaffected. Exception E8 records the
 shared key; docs/architecture/session-keys-handover.md ends it. Since its
 step K1 a session token may also be ES256, signed with FastAPI's private key
 and named by its `kid` (app/core/session_keys.py), and an account link may
-be keyed from ACCOUNT_LINK_SECRET, which the website never holds; both forms
-are accepted until K3. Every other token follows the same rules:
+be keyed from ACCOUNT_LINK_SECRET, which the website never holds. Since K2
+FastAPI signs those forms when the stack has the keys; both forms are
+accepted until K3. Every other token follows the same rules:
   - HS256 only (no algorithm from the token is trusted);
   - one key per token purpose, derived from JWT_SECRET with HKDF-SHA256
     (gap G17), so a password-reset or upload token never passes as a session;
@@ -161,16 +162,22 @@ def verify_session_token(token: str) -> SessionClaims:
 ACCESS_TOKEN_TTL_SECONDS = 15 * 60  # ACCESS_TOKEN_EXPIRES_IN in jwt.ts
 
 
-def sign_session_token(*, user_id: str, email: str, role: str, sid: str, ver: int) -> str:
-    """A 15-minute access token, as signToken() in jwt.ts signed it."""
-    secret = settings.JWT_SECRET
-    if not secret or len(secret) < 32:
-        raise InvalidToken("JWT_SECRET is not configured")
+def sign_session_token(*, user_id: str, email: str, role: str, sid: str, ver: int, ttl_seconds: int = ACCESS_TOKEN_TTL_SECONDS) -> str:
+    """A 15-minute access token. Since session keys K2, ES256 with this
+    service's private key, named by its `kid`, when the stack has one
+    (deploy/session-keys.sh); else as signToken() in jwt.ts signed it, until
+    K3. Only the security tools (deploy/zap) ask for another lifetime."""
     now = epoch_seconds()
     payload = {
         "userId": user_id, "email": email, "role": role, "sid": sid, "ver": ver,
-        "iat": now, "exp": now + ACCESS_TOKEN_TTL_SECONDS, "iss": ISSUER, "aud": "vertex:session",
+        "iat": now, "exp": now + ttl_seconds, "iss": ISSUER, "aud": "vertex:session",
     }
+    if settings.SESSION_PRIVATE_KEY:
+        kid, private = session_keys.private_key(settings.SESSION_PRIVATE_KEY)
+        return jwt.encode(payload, private, algorithm=session_keys.ALGORITHM, headers={"kid": kid})
+    secret = settings.JWT_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("JWT_SECRET is not configured")
     return jwt.encode(payload, key_for("session", secret), algorithm=ALGORITHM)
 
 
@@ -256,10 +263,12 @@ def verify_cif_upload_token(token: str) -> str:
 
 
 def _secret() -> str:
-    secret = settings.JWT_SECRET
-    if not secret or len(secret) < 32:
-        raise InvalidToken("JWT_SECRET is not configured")
-    return secret
+    """The secret new account links are keyed from: ACCOUNT_LINK_SECRET since
+    session keys K2 when the stack has one, else JWT_SECRET until K3."""
+    for secret in (settings.ACCOUNT_LINK_SECRET, settings.JWT_SECRET):
+        if secret and len(secret) >= 32:
+            return secret
+    raise InvalidToken("JWT_SECRET is not configured")
 
 
 def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:

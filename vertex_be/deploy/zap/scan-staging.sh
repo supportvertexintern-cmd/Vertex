@@ -35,17 +35,22 @@ psql_su() { docker exec "$PROJECT-db-1" psql -U "$SU" -d "$DB" -tAc "$1"; }
 # The scan account goes however the script ends (including a failure).
 cleanup() {
   unset ZAP_AUTH_TOKEN
+  psql_su "delete from \"RefreshToken\" where user_id = 'zap-scan-admin'" >/dev/null 2>&1
   psql_su "delete from \"User\" where id = 'zap-scan-admin'" >/dev/null 2>&1 || echo "scan account kept (referenced by rows the scan created); its token expires in 2 hours"
 }
 trap cleanup EXIT
 
 echo "== scan account"
 psql_su "insert into \"User\" (id, full_name, email, role, updated_at) values ('zap-scan-admin', 'ZAP Scan', 'zap-scan@test.invalid', 'admin', now()) on conflict (id) do nothing" >/dev/null
-ZAP_AUTH_TOKEN=$(docker exec -w /app "$PROJECT-nextjs-1" node -e '
-  const c = require("crypto"), j = require("jsonwebtoken");
-  const k = Buffer.from(c.hkdfSync("sha256", process.env.JWT_SECRET, "vertex-token-keys", "vertex/jwt/session/v1", 32));
-  console.log(j.sign({ userId: "zap-scan-admin", email: "zap-scan@test.invalid", role: "admin" }, k,
-    { expiresIn: 7200, algorithm: "HS256", issuer: "vertex-web", audience: "vertex:session" }));' | tail -1)
+# A live session for the scan (G19: a signed token alone isn't accepted),
+# ending with the scan account. FastAPI signs its token, as it signs every
+# session (with its private key once the stack has one; session-keys-handover.md).
+psql_su "insert into \"RefreshToken\" (id, user_id, family_id, token_hash, token_version, expires_at) select 'zap-scan-session', id, 'zap-scan-family', md5(random()::text), token_version, now() + interval '2 hours' from \"User\" where id = 'zap-scan-admin' on conflict (id) do nothing" >/dev/null
+VER=$(psql_su "select token_version from \"User\" where id = 'zap-scan-admin'")
+ZAP_AUTH_TOKEN=$(docker exec -e VER="$VER" "$PROJECT-backend-1" python -c '
+import os
+from app.core.tokens import sign_session_token
+print(sign_session_token(user_id="zap-scan-admin", email="zap-scan@test.invalid", role="admin", sid="zap-scan-family", ver=int(os.environ["VER"]), ttl_seconds=7200))' 2>/dev/null | tail -1)
 export ZAP_AUTH_TOKEN
 
 python "$HERE/make_plans.py" "$HERE/routes.json" "$OUT"

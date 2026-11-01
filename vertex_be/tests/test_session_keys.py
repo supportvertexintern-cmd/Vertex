@@ -26,6 +26,7 @@ from app.main import app
 from app.models.enums import Role
 from app.models.identity import RefreshToken, User
 from tests.test_auth import add_session
+from tests.test_sessions import account, api, google, refresh, sign_in  # noqa: F401  (fixtures)
 from tests.node_session_vectors import ES256_SESSION_TOKEN, SECRET, SESSION_KEY_ID, SESSION_PUBLIC_KEY_B64
 
 LINK_SECRET = "test-only-account-link-secret-0123456789abcdef"  # gitleaks:allow
@@ -234,9 +235,54 @@ def test_a_fingerprint_from_the_other_secret_does_not_pass(link_secrets):
     assert not got.issued_for(hashed)
 
 
-def test_links_are_still_signed_with_the_shared_secret_in_k1(link_secrets):
+def test_links_are_keyed_from_the_new_secret_when_the_stack_has_it(link_secrets):
+    # K2: a link the website could forge is never issued once the stack has
+    # ACCOUNT_LINK_SECRET.
     token = tokens.sign_account_setup_token("u1")
-    jwt.decode(token, tokens.key_for("account_setup", SECRET), algorithms=["HS256"], audience="vertex:account_setup")
+    jwt.decode(token, tokens.key_for("account_setup", LINK_SECRET), algorithms=["HS256"], audience="vertex:account_setup")
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt.decode(token, tokens.key_for("account_setup", SECRET), algorithms=["HS256"], audience="vertex:account_setup")
+    hashed = "$2b$12$abcdefghijklmnopqrstuv"
+    reset = tokens.verify_email_token(tokens.sign_reset_token("u1", "e@test.invalid", hashed), "password_reset")
+    assert reset.issued_for(hashed) and reset.pwd == tokens.password_fingerprint(hashed, LINK_SECRET)
+
+
+def test_links_stay_on_the_shared_secret_without_it(link_secrets, monkeypatch):
+    monkeypatch.setattr(settings, "ACCOUNT_LINK_SECRET", None)
+    token = tokens.sign_verification_token("u1", "e@test.invalid")
+    jwt.decode(token, tokens.key_for("email_verification", SECRET), algorithms=["HS256"], audience="vertex:email_verification")
+
+
+# --- signing sessions (K2) ---------------------------------------------------------------
+
+
+def test_sessions_are_signed_with_the_private_key_when_the_stack_has_it(keys, monkeypatch):
+    current, previous = keys
+    monkeypatch.setattr(settings, "SESSION_PRIVATE_KEY", b64_private(current))
+    token = tokens.sign_session_token(user_id="u1", email="u1@test.invalid", role="admin", sid="f1", ver=2)
+    assert jwt.get_unverified_header(token) == {"alg": "ES256", "kid": key_id(current.public_key()), "typ": "JWT"}
+    assert tokens.verify_session_token(token).ver == 2
+    body = jwt.decode(token, options={"verify_signature": False})
+    assert body["exp"] - body["iat"] == 900
+    # Only the listed keys verify it: not the shared key, not another listed key.
+    with pytest.raises(jwt.InvalidSignatureError):
+        jwt.decode(token, previous.public_key(), algorithms=["ES256"], audience="vertex:session")
+
+
+def test_sessions_stay_on_the_shared_key_without_it(keys):
+    token = tokens.sign_session_token(user_id="u1", email="u1@test.invalid", role="admin", sid="f1", ver=0)
+    assert jwt.get_unverified_header(token)["alg"] == "HS256"
+    assert tokens.verify_session_token(token).user_id == "u1"
+
+
+def test_a_sign_in_and_a_refresh_issue_es256_sessions_the_api_accepts(keys, api, db, monkeypatch):
+    current, _ = keys
+    monkeypatch.setattr(settings, "SESSION_PRIVATE_KEY", b64_private(current))
+    session = sign_in(api, account(db, role=Role.director)).json()["data"]["session"]
+    assert jwt.get_unverified_header(session["access_token"])["alg"] == "ES256"
+    assert api.get("/api/v1/me", headers={"Authorization": f"Bearer {session['access_token']}"}).status_code == 200
+    renewed = refresh(api, session["refresh_token"]).json()["data"]["session"]
+    assert jwt.get_unverified_header(renewed["access_token"])["alg"] == "ES256"
 
 
 # --- through current_user (app/core/auth.py) ------------------------------------------
