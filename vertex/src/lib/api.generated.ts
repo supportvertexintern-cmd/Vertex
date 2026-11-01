@@ -1607,6 +1607,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Partner */
+        post: operations["create_partner_api_v1_partners_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partner_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Partner
+         * @description Refused while any candidate or submission is on file (PartnerCandidate
+         *     rows would cascade away). The partner's login goes with it.
+         */
+        delete: operations["delete_partner_api_v1_partners__partner_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Partner
+         * @description Every editable field. Marking the MOU signed stamps mou_signed_at. A
+         *     new contact_email on a partner with a login moves the login too: its
+         *     password is cleared and the setup email goes to the new address, so the
+         *     old password stops working and the new address proves itself.
+         */
+        patch: operations["update_partner_api_v1_partners__partner_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/partners/{partner_id}/provision-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision Account
+         * @description The partner's own login (SRS FR-5.1), with no password: the setup
+         *     email lets them set it.
+         */
+        post: operations["provision_account_api_v1_partners__partner_id__provision_account_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partner_id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Clears the login's password, so it stops working at once (and its
+         *     sessions end: the token_version trigger), and sends the setup email.
+         */
+        post: operations["reset_password_api_v1_partners__partner_id__reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments/paypal/orders": {
         parameters: {
             query?: never;
@@ -1713,6 +1800,92 @@ export interface paths {
          * @description Sets one recruiter's share of a campaign target (creates or replaces it).
          */
         post: operations["set_recruiter_target_api_v1_recruiter_targets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply
+         * @description A pending application, its referral code made here. The applicant is
+         *     emailed the verification link, and the team told.
+         */
+        post: operations["apply_api_v1_referral_agents_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description The application's email, verified from the link. Needed before
+         *     approval.
+         */
+        post: operations["verify_email_api_v1_referral_agents_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Decide
+         * @description Reject a pending application, suspend an active agent, or reactivate a
+         *     suspended one. Suspending keeps the history: earned commissions stay
+         *     payable.
+         */
+        patch: operations["decide_api_v1_referral_agents__agent_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/referral-agents/{agent_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve
+         * @description Activates a verified, pending application and creates the agent's
+         *     login, without a password: the approval email carries their code and
+         *     link, the setup email lets them set a password.
+         */
+        post: operations["approve_api_v1_referral_agents__agent_id__approve_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2199,6 +2372,62 @@ export interface components {
             /** Role */
             role?: string;
         };
+        /** AgentRow */
+        AgentRow: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /** City */
+            city: string | null;
+            /** Country */
+            country: string;
+            /** Country Id */
+            country_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Current Occupation */
+            current_occupation: string | null;
+            /** Date Of Birth */
+            date_of_birth: string | null;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Nationality */
+            nationality: string | null;
+            /** Network Size */
+            network_size: number | null;
+            /** Payment Details */
+            payment_details: string | null;
+            /** Phone */
+            phone: string;
+            /** Preferred Contact Channel */
+            preferred_contact_channel: string | null;
+            /** Previous Experience */
+            previous_experience: string | null;
+            /** Promotion Plan */
+            promotion_plan: string | null;
+            /** Referral Code */
+            referral_code: string;
+            /** Rejection Reason */
+            rejection_reason: string | null;
+            /** Social Media Profiles */
+            social_media_profiles: string | null;
+            status: components["schemas"]["ReferralAgentStatus"];
+            /** Suspended Reason */
+            suspended_reason: string | null;
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+            /** Whatsapp Number */
+            whatsapp_number: string | null;
+        };
         /**
          * ApplicationConfirmationEmail
          * @description sendApplicationConfirmationEmail(email, full_name, job_title, has_account).
@@ -2217,6 +2446,42 @@ export interface components {
              * @enum {string}
              */
             kind: "application_confirmation";
+        };
+        /**
+         * ApplicationIn
+         * @description registerReferralAgentSchema.
+         */
+        ApplicationIn: {
+            /** City */
+            city?: string | null;
+            /** Country */
+            country: string;
+            /** Current Occupation */
+            current_occupation?: string | null;
+            /** Date Of Birth */
+            date_of_birth?: string | null;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Nationality */
+            nationality?: string | null;
+            /** Network Size */
+            network_size?: number | null;
+            /** Payment Details */
+            payment_details?: string | null;
+            /** Phone */
+            phone: string;
+            /** Preferred Contact Channel */
+            preferred_contact_channel?: ("email" | "whatsapp" | "phone") | null;
+            /** Previous Experience */
+            previous_experience?: string | null;
+            /** Promotion Plan */
+            promotion_plan?: string | null;
+            /** Social Media Profiles */
+            social_media_profiles?: string | null;
+            /** Whatsapp Number */
+            whatsapp_number?: string | null;
         };
         /**
          * ApplicationRow
@@ -2300,6 +2565,22 @@ export interface components {
              */
             kind: "application_status";
             status: components["schemas"]["ApplicationStatus"];
+        };
+        /** Applied */
+        Applied: {
+            /** Id */
+            id: string;
+            /** Referral Code */
+            referral_code: string;
+        };
+        /**
+         * ApproveIn
+         * @description approveReferralAgentSchema: the login's address, the application's
+         *     unless given.
+         */
+        ApproveIn: {
+            /** Email */
+            email?: string | null;
         };
         /** AreaIn */
         AreaIn: {
@@ -3031,20 +3312,6 @@ export interface components {
             /** Region Id */
             region_id: string;
         };
-        /** CreateIn */
-        CreateIn: {
-            /** Assigned Country Id */
-            assigned_country_id?: string | null;
-            /** Assigned Country Ids */
-            assigned_country_ids?: string[] | null;
-            /** Email */
-            email: string;
-            /** Full Name */
-            full_name: string;
-            role: components["schemas"]["Role"];
-            /** Supervisor Id */
-            supervisor_id?: string | null;
-        };
         /** Creator */
         Creator: {
             /** Full Name */
@@ -3152,6 +3419,10 @@ export interface components {
         Data_MessageOut_: {
             data: components["schemas"]["MessageOut"];
         };
+        /** Data[Message] */
+        Data_Message_: {
+            data: components["schemas"]["Message"];
+        };
         /** Data[NoteOut] */
         Data_NoteOut_: {
             data: components["schemas"]["NoteOut"];
@@ -3172,6 +3443,10 @@ export interface components {
         Data_PartnerCandidateRow_: {
             data: components["schemas"]["PartnerCandidateRow"];
         };
+        /** Data[PartnerRow] */
+        Data_PartnerRow_: {
+            data: components["schemas"]["PartnerRow"];
+        };
         /** Data[PositionOut] */
         Data_PositionOut_: {
             data: components["schemas"]["PositionOut"];
@@ -3191,10 +3466,6 @@ export interface components {
         /** Data[RegionOut] */
         Data_RegionOut_: {
             data: components["schemas"]["RegionOut"];
-        };
-        /** Data[Removed] */
-        Data_Removed_: {
-            data: components["schemas"]["app__api__v1__users__Removed"];
         };
         /** Data[RetentionRow] */
         Data_RetentionRow_: {
@@ -3331,6 +3602,20 @@ export interface components {
             decision: components["schemas"]["ExceptionDecision"];
             /** Decision Notes */
             decision_notes?: string | null;
+        };
+        /**
+         * DecisionIn
+         * @description updateReferralAgentStatusSchema. The reason is required to reject or
+         *     suspend, and ignored when reactivating.
+         */
+        DecisionIn: {
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "rejected" | "suspended" | "active";
         };
         /** DecisionOut */
         DecisionOut: {
@@ -3876,18 +4161,10 @@ export interface components {
             /** Title */
             title: string;
         };
-        /** LoginIn */
-        LoginIn: {
-            /**
-             * Client
-             * @default web
-             * @enum {string}
-             */
-            client: "web" | "app";
+        /** LoginAddress */
+        LoginAddress: {
             /** Email */
             email: string;
-            /** Password */
-            password: string;
         };
         /** LogoutIn */
         LogoutIn: {
@@ -3907,6 +4184,11 @@ export interface components {
             /** Id */
             id: string;
             role: components["schemas"]["Role"];
+        };
+        /** Message */
+        Message: {
+            /** Message */
+            message: string;
         };
         /**
          * MessageEmail
@@ -3985,6 +4267,11 @@ export interface components {
             percent: number;
             trigger_stage: components["schemas"]["CaseStage"];
         };
+        /**
+         * MouStatus
+         * @enum {string}
+         */
+        MouStatus: "none" | "sent" | "signed";
         /** NoteIn */
         NoteIn: {
             /** Message */
@@ -4002,6 +4289,15 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** Notifying[AgentRow] */
+        Notifying_AgentRow_: {
+            data: components["schemas"]["AgentRow"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
         /** Notifying[ApplicationRow] */
         Notifying_ApplicationRow_: {
             data: components["schemas"]["ApplicationRow"];
@@ -4009,7 +4305,16 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
+        /** Notifying[Applied] */
+        Notifying_Applied_: {
+            data: components["schemas"]["Applied"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[Bridged] */
         Notifying_Bridged_: {
@@ -4018,7 +4323,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[CaseWithEvents] */
         Notifying_CaseWithEvents_: {
@@ -4027,7 +4332,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[CommissionRow] */
         Notifying_CommissionRow_: {
@@ -4036,7 +4341,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[DecisionOut] */
         Notifying_DecisionOut_: {
@@ -4045,7 +4350,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[Done] */
         Notifying_Done_: {
@@ -4054,7 +4359,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[LinkOut] */
         Notifying_LinkOut_: {
@@ -4063,7 +4368,16 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
+        /** Notifying[LoginAddress] */
+        Notifying_LoginAddress_: {
+            data: components["schemas"]["LoginAddress"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[MessageOut] */
         Notifying_MessageOut_: {
@@ -4072,7 +4386,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[PartnerCandidateRow] */
         Notifying_PartnerCandidateRow_: {
@@ -4081,7 +4395,16 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
+        /** Notifying[PartnerRow] */
+        Notifying_PartnerRow_: {
+            data: components["schemas"]["PartnerRow"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[PaymentRow] */
         Notifying_PaymentRow_: {
@@ -4090,7 +4413,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[Received] */
         Notifying_Received_: {
@@ -4099,7 +4422,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[Registered] */
         Notifying_Registered_: {
@@ -4108,7 +4431,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[ReminderRow] */
         Notifying_ReminderRow_: {
@@ -4117,7 +4440,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[StatusOut] */
         Notifying_StatusOut_: {
@@ -4126,7 +4449,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** Notifying[Submission] */
         Notifying_Submission_: {
@@ -4135,7 +4458,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
         /** OpsReviewIn */
         OpsReviewIn: {
@@ -4328,6 +4651,41 @@ export interface components {
             partner_name: string;
             stage: components["schemas"]["CaseStage"];
         };
+        /** PartnerRow */
+        PartnerRow: {
+            /** Business Registration Number */
+            business_registration_number: string | null;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Country Of Operation */
+            country_of_operation: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Mou Signed At */
+            mou_signed_at: string | null;
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            partner_type: components["schemas"]["PartnerType"];
+            status: components["schemas"]["PartnerStatus"];
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+        };
+        /**
+         * PartnerStatus
+         * @enum {string}
+         */
+        PartnerStatus: "pending" | "active" | "suspended";
         /**
          * PartnerSubmissionRejectedEmail
          * @description sendPartnerCandidateRejectedEmail(email, partner_name, candidate_name, reason).
@@ -4363,6 +4721,11 @@ export interface components {
             /** Partner Name */
             partner_name: string;
         };
+        /**
+         * PartnerType
+         * @enum {string}
+         */
+        PartnerType: "travel_agency" | "visa_consultancy" | "manpower_supplier" | "other";
         /**
          * PasswordResetEmail
          * @description sendPasswordResetLinkEmail(token, email, full_name).
@@ -4657,6 +5020,96 @@ export interface components {
             target_value: number;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * ReferralAgentAdminEmail
+         * @description sendReferralAgentAdminNotificationEmail(full_name, country), to the
+         *     website's REFERRAL_AGENT_NOTIFY_EMAIL.
+         */
+        ReferralAgentAdminEmail: {
+            /** Country */
+            country: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "referral_agent_admin_notification";
+        };
+        /**
+         * ReferralAgentApplicationEmail
+         * @description sendReferralAgentApplicationLinkEmail(token, email, full_name): the
+         *     application received, with the verification link (users step 8.4).
+         */
+        ReferralAgentApplicationEmail: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "referral_agent_application";
+            /** Token */
+            token: string;
+        };
+        /**
+         * ReferralAgentApprovedEmail
+         * @description sendReferralAgentApprovedEmail(email, full_name, referral_code, app URL + /apply?ref=code).
+         */
+        ReferralAgentApprovedEmail: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "referral_agent_approved";
+            /** Referral Code */
+            referral_code: string;
+        };
+        /**
+         * ReferralAgentRejectedEmail
+         * @description sendReferralAgentRejectedEmail(email, full_name, reason).
+         */
+        ReferralAgentRejectedEmail: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "referral_agent_rejected";
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * ReferralAgentStatus
+         * @enum {string}
+         */
+        ReferralAgentStatus: "pending_approval" | "active" | "suspended" | "rejected";
+        /**
+         * ReferralAgentSuspendedEmail
+         * @description sendReferralAgentSuspendedEmail(email, full_name, reason).
+         */
+        ReferralAgentSuspendedEmail: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "referral_agent_suspended";
+            /** Reason */
+            reason: string;
         };
         /**
          * ReferralCommissionStatus
@@ -5272,7 +5725,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
             /**
              * Screening Passed
              * @default false
@@ -5367,16 +5820,6 @@ export interface components {
             /** Temporarypassword */
             temporaryPassword: string;
         };
-        /** UpdateIn */
-        UpdateIn: {
-            /** Assigned Country Id */
-            assigned_country_id?: string | null;
-            /** Assigned Country Ids */
-            assigned_country_ids?: string[] | null;
-            role?: components["schemas"]["Role"] | null;
-            /** Supervisor Id */
-            supervisor_id?: string | null;
-        };
         /** Updated */
         Updated: {
             decision?: components["schemas"]["ExceptionDecision"] | null;
@@ -5427,7 +5870,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
             privilege_granted?: components["schemas"]["Granted"] | null;
         };
         /** VerifyIn */
@@ -5571,6 +6014,65 @@ export interface components {
             sector: string;
             /** Updated At */
             updated_at: string;
+        };
+        /**
+         * CreateIn
+         * @description createPartnerSchema.
+         */
+        app__api__v1__partner_agencies__CreateIn: {
+            /** Business Registration Number */
+            business_registration_number?: string | null;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Country Of Operation */
+            country_of_operation: string;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+            partner_type: components["schemas"]["PartnerType"];
+        };
+        /**
+         * LoginIn
+         * @description provisionPartnerAccountSchema: the login's address, the contact
+         *     email unless given.
+         */
+        app__api__v1__partner_agencies__LoginIn: {
+            /** Email */
+            email?: string | null;
+        };
+        /** Removed */
+        app__api__v1__partner_agencies__Removed: {
+            /** Id */
+            id: string;
+        };
+        /**
+         * UpdateIn
+         * @description updatePartnerSchema: a field left out is left alone. Only
+         *     business_registration_number and notes may be cleared with null.
+         */
+        app__api__v1__partner_agencies__UpdateIn: {
+            /** Business Registration Number */
+            business_registration_number?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Name */
+            contact_name?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Country Of Operation */
+            country_of_operation?: string | null;
+            mou_status?: components["schemas"]["MouStatus"] | null;
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            partner_type?: components["schemas"]["PartnerType"] | null;
+            status?: components["schemas"]["PartnerStatus"] | null;
         };
         /**
          * DetailsIn
@@ -5804,6 +6306,11 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** VerifyIn */
+        app__api__v1__referral_agents__VerifyIn: {
+            /** Token */
+            token?: string | null;
+        };
         /** StatusOut */
         app__api__v1__reports__StatusOut: {
             /** Id */
@@ -5839,12 +6346,39 @@ export interface components {
             /** Staff Id */
             staff_id: string;
         };
+        /** LoginIn */
+        app__api__v1__sessions__LoginIn: {
+            /**
+             * Client
+             * @default web
+             * @enum {string}
+             */
+            client: "web" | "app";
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /** Named */
         app__api__v1__targets__Named: {
             /** Id */
             id: string;
             /** Name */
             name: string;
+        };
+        /** CreateIn */
+        app__api__v1__users__CreateIn: {
+            /** Assigned Country Id */
+            assigned_country_id?: string | null;
+            /** Assigned Country Ids */
+            assigned_country_ids?: string[] | null;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            role: components["schemas"]["Role"];
+            /** Supervisor Id */
+            supervisor_id?: string | null;
         };
         /** Named */
         app__api__v1__users__Named: {
@@ -5857,6 +6391,24 @@ export interface components {
         app__api__v1__users__Removed: {
             /** Id */
             id: string;
+        };
+        /** UpdateIn */
+        app__api__v1__users__UpdateIn: {
+            /** Assigned Country Id */
+            assigned_country_id?: string | null;
+            /** Assigned Country Ids */
+            assigned_country_ids?: string[] | null;
+            role?: components["schemas"]["Role"] | null;
+            /** Supervisor Id */
+            supervisor_id?: string | null;
+        };
+        /** Data[Removed] */
+        app__core__api__Data_Removed___1: {
+            data: components["schemas"]["app__api__v1__partner_agencies__Removed"];
+        };
+        /** Data[Removed] */
+        app__core__api__Data_Removed___2: {
+            data: components["schemas"]["app__api__v1__users__Removed"];
         };
         /** Data[SectorOut] */
         app__core__api__Data_SectorOut___1: {
@@ -6150,7 +6702,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LoginIn"];
+                "application/json": components["schemas"]["app__api__v1__sessions__LoginIn"];
             };
         };
         responses: {
@@ -8802,6 +9354,171 @@ export interface operations {
             };
         };
     };
+    create_partner_api_v1_partners_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__partner_agencies__CreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PartnerRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_partner_api_v1_partners__partner_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__api__Data_Removed___1"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_partner_api_v1_partners__partner_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__partner_agencies__UpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_PartnerRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    provision_account_api_v1_partners__partner_id__provision_account_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__partner_agencies__LoginIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_PartnerRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_password_api_v1_partners__partner_id__reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_LoginAddress_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_paypal_order_api_v1_payments_paypal_orders_post: {
         parameters: {
             query?: never;
@@ -9005,6 +9722,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_RecruiterTargetOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_api_v1_referral_agents_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplicationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_Applied_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_api_v1_referral_agents_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__referral_agents__VerifyIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Message_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_api_v1_referral_agents__agent_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_AgentRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_v1_referral_agents__agent_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_AgentRow_"];
                 };
             };
             /** @description Validation Error */
@@ -9652,7 +10505,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateIn"];
+                "application/json": components["schemas"]["app__api__v1__users__CreateIn"];
             };
         };
         responses: {
@@ -9693,7 +10546,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Data_Removed_"];
+                    "application/json": components["schemas"]["app__core__api__Data_Removed___2"];
                 };
             };
             /** @description Validation Error */
@@ -9718,7 +10571,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateIn"];
+                "application/json": components["schemas"]["app__api__v1__users__UpdateIn"];
             };
         };
         responses: {

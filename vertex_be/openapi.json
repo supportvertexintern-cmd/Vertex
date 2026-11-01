@@ -116,6 +116,267 @@
     "title": "ActivityRow",
     "type": "object"
    },
+   "AgentRow": {
+    "properties": {
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "country_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_occupation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Occupation"
+     },
+     "date_of_birth": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Of Birth"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "email_verified": {
+      "title": "Email Verified",
+      "type": "boolean"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "nationality": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nationality"
+     },
+     "network_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Network Size"
+     },
+     "payment_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Details"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "preferred_contact_channel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Contact Channel"
+     },
+     "previous_experience": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Experience"
+     },
+     "promotion_plan": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Plan"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     },
+     "rejection_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejection Reason"
+     },
+     "social_media_profiles": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Social Media Profiles"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralAgentStatus"
+     },
+     "suspended_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Suspended Reason"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "whatsapp_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp Number"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "phone",
+     "whatsapp_number",
+     "country",
+     "country_id",
+     "city",
+     "date_of_birth",
+     "nationality",
+     "preferred_contact_channel",
+     "previous_experience",
+     "current_occupation",
+     "network_size",
+     "social_media_profiles",
+     "promotion_plan",
+     "payment_details",
+     "status",
+     "referral_code",
+     "email_verified",
+     "approved_by_id",
+     "approved_at",
+     "rejection_reason",
+     "suspended_reason",
+     "user_id",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "AgentRow",
+    "type": "object"
+   },
    "ApplicationConfirmationEmail": {
     "description": "sendApplicationConfirmationEmail(email, full_name, job_title, has_account).",
     "properties": {
@@ -149,6 +410,174 @@
      "has_account"
     ],
     "title": "ApplicationConfirmationEmail",
+    "type": "object"
+   },
+   "ApplicationIn": {
+    "description": "registerReferralAgentSchema.",
+    "properties": {
+     "city": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "country": {
+      "maxLength": 100,
+      "title": "Country",
+      "type": "string"
+     },
+     "current_occupation": {
+      "anyOf": [
+       {
+        "maxLength": 150,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Occupation"
+     },
+     "date_of_birth": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Of Birth"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "maxLength": 150,
+      "title": "Full Name",
+      "type": "string"
+     },
+     "nationality": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nationality"
+     },
+     "network_size": {
+      "anyOf": [
+       {
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Network Size"
+     },
+     "payment_details": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Details"
+     },
+     "phone": {
+      "maxLength": 30,
+      "title": "Phone",
+      "type": "string"
+     },
+     "preferred_contact_channel": {
+      "anyOf": [
+       {
+        "enum": [
+         "email",
+         "whatsapp",
+         "phone"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Contact Channel"
+     },
+     "previous_experience": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Experience"
+     },
+     "promotion_plan": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Plan"
+     },
+     "social_media_profiles": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Social Media Profiles"
+     },
+     "whatsapp_number": {
+      "anyOf": [
+       {
+        "maxLength": 30,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp Number"
+     }
+    },
+    "required": [
+     "full_name",
+     "email",
+     "phone",
+     "country"
+    ],
+    "title": "ApplicationIn",
     "type": "object"
    },
    "ApplicationRow": {
@@ -477,6 +906,42 @@
      "status"
     ],
     "title": "ApplicationStatusEmail",
+    "type": "object"
+   },
+   "Applied": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "referral_code"
+    ],
+    "title": "Applied",
+    "type": "object"
+   },
+   "ApproveIn": {
+    "description": "approveReferralAgentSchema: the login's address, the application's\nunless given.",
+    "properties": {
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     }
+    },
+    "title": "ApproveIn",
     "type": "object"
    },
    "AreaIn": {
@@ -2868,69 +3333,6 @@
     "title": "CountryWithRegion",
     "type": "object"
    },
-   "CreateIn": {
-    "properties": {
-     "assigned_country_id": {
-      "anyOf": [
-       {
-        "pattern": "^c[^\\s-]{8,}$",
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Assigned Country Id"
-     },
-     "assigned_country_ids": {
-      "anyOf": [
-       {
-        "items": {
-         "pattern": "^c[^\\s-]{8,}$",
-         "type": "string"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Assigned Country Ids"
-     },
-     "email": {
-      "title": "Email",
-      "type": "string"
-     },
-     "full_name": {
-      "maxLength": 100,
-      "minLength": 2,
-      "title": "Full Name",
-      "type": "string"
-     },
-     "role": {
-      "$ref": "#/components/schemas/Role"
-     },
-     "supervisor_id": {
-      "anyOf": [
-       {
-        "pattern": "^c[^\\s-]{8,}$",
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Supervisor Id"
-     }
-    },
-    "required": [
-     "full_name",
-     "email",
-     "role"
-    ],
-    "title": "CreateIn",
-    "type": "object"
-   },
    "Creator": {
     "properties": {
      "full_name": {
@@ -3249,6 +3651,18 @@
     "title": "Data[MessageOut]",
     "type": "object"
    },
+   "Data_Message_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Message"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Message]",
+    "type": "object"
+   },
    "Data_NoteOut_": {
     "properties": {
      "data": {
@@ -3309,6 +3723,18 @@
     "title": "Data[PartnerCandidateRow]",
     "type": "object"
    },
+   "Data_PartnerRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PartnerRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PartnerRow]",
+    "type": "object"
+   },
    "Data_PositionOut_": {
     "properties": {
      "data": {
@@ -3367,18 +3793,6 @@
      "data"
     ],
     "title": "Data[RegionOut]",
-    "type": "object"
-   },
-   "Data_Removed_": {
-    "properties": {
-     "data": {
-      "$ref": "#/components/schemas/app__api__v1__users__Removed"
-     }
-    },
-    "required": [
-     "data"
-    ],
-    "title": "Data[Removed]",
     "type": "object"
    },
    "Data_RetentionRow_": {
@@ -3793,6 +4207,37 @@
      "decision"
     ],
     "title": "DecideIn",
+    "type": "object"
+   },
+   "DecisionIn": {
+    "description": "updateReferralAgentStatusSchema. The reason is required to reject or\nsuspend, and ignored when reactivating.",
+    "properties": {
+     "reason": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "enum": [
+       "rejected",
+       "suspended",
+       "active"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "DecisionIn",
     "type": "object"
    },
    "DecisionOut": {
@@ -5489,31 +5934,17 @@
     "title": "LinkedJob",
     "type": "object"
    },
-   "LoginIn": {
+   "LoginAddress": {
     "properties": {
-     "client": {
-      "default": "web",
-      "enum": [
-       "web",
-       "app"
-      ],
-      "title": "Client",
-      "type": "string"
-     },
      "email": {
       "title": "Email",
-      "type": "string"
-     },
-     "password": {
-      "title": "Password",
       "type": "string"
      }
     },
     "required": [
-     "email",
-     "password"
+     "email"
     ],
-    "title": "LoginIn",
+    "title": "LoginAddress",
     "type": "object"
    },
    "LogoutIn": {
@@ -5562,6 +5993,19 @@
      "role"
     ],
     "title": "Me",
+    "type": "object"
+   },
+   "Message": {
+    "properties": {
+     "message": {
+      "title": "Message",
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "title": "Message",
     "type": "object"
    },
    "MessageEmail": {
@@ -5726,6 +6170,15 @@
     "title": "MilestonePlanStage",
     "type": "object"
    },
+   "MouStatus": {
+    "enum": [
+     "none",
+     "sent",
+     "signed"
+    ],
+    "title": "MouStatus",
+    "type": "string"
+   },
    "NoteIn": {
     "properties": {
      "message": {
@@ -5774,10 +6227,10 @@
     "title": "NoteOut",
     "type": "object"
    },
-   "Notifying_ApplicationRow_": {
+   "Notifying_AgentRow_": {
     "properties": {
      "data": {
-      "$ref": "#/components/schemas/ApplicationRow"
+      "$ref": "#/components/schemas/AgentRow"
      },
      "notify": {
       "default": [],
@@ -5803,6 +6256,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -5875,6 +6333,155 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[AgentRow]",
+    "type": "object"
+   },
+   "Notifying_ApplicationRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ApplicationRow"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -5886,6 +6493,140 @@
      "data"
     ],
     "title": "Notifying[ApplicationRow]",
+    "type": "object"
+   },
+   "Notifying_Applied_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Applied"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[Applied]",
     "type": "object"
    },
    "Notifying_Bridged_": {
@@ -5917,6 +6658,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -5989,6 +6735,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6031,6 +6792,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6103,6 +6869,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6145,6 +6926,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6217,6 +7003,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6259,6 +7060,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6331,6 +7137,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6373,6 +7194,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6445,6 +7271,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6487,6 +7328,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6559,6 +7405,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6570,6 +7431,140 @@
      "data"
     ],
     "title": "Notifying[LinkOut]",
+    "type": "object"
+   },
+   "Notifying_LoginAddress_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LoginAddress"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[LoginAddress]",
     "type": "object"
    },
    "Notifying_MessageOut_": {
@@ -6601,6 +7596,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6673,6 +7673,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6715,6 +7730,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6787,6 +7807,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6798,6 +7833,140 @@
      "data"
     ],
     "title": "Notifying[PartnerCandidateRow]",
+    "type": "object"
+   },
+   "Notifying_PartnerRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PartnerRow"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[PartnerRow]",
     "type": "object"
    },
    "Notifying_PaymentRow_": {
@@ -6829,6 +7998,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -6901,6 +8075,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -6943,6 +8132,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -7015,6 +8209,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -7057,6 +8266,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -7129,6 +8343,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -7171,6 +8400,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -7243,6 +8477,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -7285,6 +8534,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -7357,6 +8611,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -7399,6 +8668,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -7471,6 +8745,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -8215,6 +9504,123 @@
     "title": "PartnerCaseStageEmail",
     "type": "object"
    },
+   "PartnerRow": {
+    "properties": {
+     "business_registration_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Registration Number"
+     },
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "contact_name": {
+      "title": "Contact Name",
+      "type": "string"
+     },
+     "contact_phone": {
+      "title": "Contact Phone",
+      "type": "string"
+     },
+     "country_of_operation": {
+      "title": "Country Of Operation",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mou Signed At"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "partner_type": {
+      "$ref": "#/components/schemas/PartnerType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "partner_type",
+     "country_of_operation",
+     "business_registration_number",
+     "contact_name",
+     "contact_email",
+     "contact_phone",
+     "status",
+     "mou_status",
+     "mou_signed_at",
+     "notes",
+     "created_at",
+     "updated_at",
+     "user_id"
+    ],
+    "title": "PartnerRow",
+    "type": "object"
+   },
+   "PartnerStatus": {
+    "enum": [
+     "pending",
+     "active",
+     "suspended"
+    ],
+    "title": "PartnerStatus",
+    "type": "string"
+   },
    "PartnerSubmissionRejectedEmail": {
     "description": "sendPartnerCandidateRejectedEmail(email, partner_name, candidate_name, reason).",
     "properties": {
@@ -8274,6 +9680,16 @@
     ],
     "title": "PartnerSubmittedEmail",
     "type": "object"
+   },
+   "PartnerType": {
+    "enum": [
+     "travel_agency",
+     "visa_consultancy",
+     "manpower_supplier",
+     "other"
+    ],
+    "title": "PartnerType",
+    "type": "string"
    },
    "PasswordResetEmail": {
     "description": "sendPasswordResetLinkEmail(token, email, full_name).",
@@ -9138,6 +10554,161 @@
      "recruiter"
     ],
     "title": "RecruiterTargetOut",
+    "type": "object"
+   },
+   "ReferralAgentAdminEmail": {
+    "description": "sendReferralAgentAdminNotificationEmail(full_name, country), to the\nwebsite's REFERRAL_AGENT_NOTIFY_EMAIL.",
+    "properties": {
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "referral_agent_admin_notification",
+      "default": "referral_agent_admin_notification",
+      "title": "Kind",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name",
+     "country"
+    ],
+    "title": "ReferralAgentAdminEmail",
+    "type": "object"
+   },
+   "ReferralAgentApplicationEmail": {
+    "description": "sendReferralAgentApplicationLinkEmail(token, email, full_name): the\napplication received, with the verification link (users step 8.4).",
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "referral_agent_application",
+      "default": "referral_agent_application",
+      "title": "Kind",
+      "type": "string"
+     },
+     "token": {
+      "title": "Token",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "token"
+    ],
+    "title": "ReferralAgentApplicationEmail",
+    "type": "object"
+   },
+   "ReferralAgentApprovedEmail": {
+    "description": "sendReferralAgentApprovedEmail(email, full_name, referral_code, app URL + /apply?ref=code).",
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "referral_agent_approved",
+      "default": "referral_agent_approved",
+      "title": "Kind",
+      "type": "string"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "referral_code"
+    ],
+    "title": "ReferralAgentApprovedEmail",
+    "type": "object"
+   },
+   "ReferralAgentRejectedEmail": {
+    "description": "sendReferralAgentRejectedEmail(email, full_name, reason).",
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "referral_agent_rejected",
+      "default": "referral_agent_rejected",
+      "title": "Kind",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "reason"
+    ],
+    "title": "ReferralAgentRejectedEmail",
+    "type": "object"
+   },
+   "ReferralAgentStatus": {
+    "enum": [
+     "pending_approval",
+     "active",
+     "suspended",
+     "rejected"
+    ],
+    "title": "ReferralAgentStatus",
+    "type": "string"
+   },
+   "ReferralAgentSuspendedEmail": {
+    "description": "sendReferralAgentSuspendedEmail(email, full_name, reason).",
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "referral_agent_suspended",
+      "default": "referral_agent_suspended",
+      "title": "Kind",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "reason"
+    ],
+    "title": "ReferralAgentSuspendedEmail",
     "type": "object"
    },
    "ReferralCommissionStatus": {
@@ -11320,6 +12891,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -11392,6 +12968,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -11682,61 +13273,6 @@
     "title": "TemporaryPassword",
     "type": "object"
    },
-   "UpdateIn": {
-    "properties": {
-     "assigned_country_id": {
-      "anyOf": [
-       {
-        "pattern": "^c[^\\s-]{8,}$",
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Assigned Country Id"
-     },
-     "assigned_country_ids": {
-      "anyOf": [
-       {
-        "items": {
-         "pattern": "^c[^\\s-]{8,}$",
-         "type": "string"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Assigned Country Ids"
-     },
-     "role": {
-      "anyOf": [
-       {
-        "$ref": "#/components/schemas/Role"
-       },
-       {
-        "type": "null"
-       }
-      ]
-     },
-     "supervisor_id": {
-      "anyOf": [
-       {
-        "pattern": "^c[^\\s-]{8,}$",
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Supervisor Id"
-     }
-    },
-    "title": "UpdateIn",
-    "type": "object"
-   },
    "Updated": {
     "properties": {
      "decision": {
@@ -11876,6 +13412,11 @@
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
          "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
          "referral_commission_earned": "#/components/schemas/CommissionEmail",
          "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
@@ -11948,6 +13489,21 @@
         },
         {
          "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
         }
        ]
       },
@@ -12540,6 +14096,227 @@
      "positions"
     ],
     "title": "SectorOut",
+    "type": "object"
+   },
+   "app__api__v1__partner_agencies__CreateIn": {
+    "description": "createPartnerSchema.",
+    "properties": {
+     "business_registration_number": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Registration Number"
+     },
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "contact_name": {
+      "maxLength": 150,
+      "title": "Contact Name",
+      "type": "string"
+     },
+     "contact_phone": {
+      "maxLength": 30,
+      "title": "Contact Phone",
+      "type": "string"
+     },
+     "country_of_operation": {
+      "maxLength": 100,
+      "title": "Country Of Operation",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 150,
+      "title": "Name",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "partner_type": {
+      "$ref": "#/components/schemas/PartnerType"
+     }
+    },
+    "required": [
+     "name",
+     "partner_type",
+     "country_of_operation",
+     "contact_name",
+     "contact_email",
+     "contact_phone"
+    ],
+    "title": "CreateIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_agencies__LoginIn": {
+    "description": "provisionPartnerAccountSchema: the login's address, the contact\nemail unless given.",
+    "properties": {
+     "email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email"
+     }
+    },
+    "title": "LoginIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_agencies__Removed": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id"
+    ],
+    "title": "Removed",
+    "type": "object"
+   },
+   "app__api__v1__partner_agencies__UpdateIn": {
+    "description": "updatePartnerSchema: a field left out is left alone. Only\nbusiness_registration_number and notes may be cleared with null.",
+    "properties": {
+     "business_registration_number": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Registration Number"
+     },
+     "contact_email": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Email"
+     },
+     "contact_name": {
+      "anyOf": [
+       {
+        "maxLength": 150,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Name"
+     },
+     "contact_phone": {
+      "anyOf": [
+       {
+        "maxLength": 30,
+        "minLength": 3,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Phone"
+     },
+     "country_of_operation": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country Of Operation"
+     },
+     "mou_status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/MouStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "name": {
+      "anyOf": [
+       {
+        "maxLength": 150,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "partner_type": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PartnerType"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PartnerStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "title": "UpdateIn",
     "type": "object"
    },
    "app__api__v1__partner_submissions__DetailsIn": {
@@ -13606,6 +15383,23 @@
     "title": "SectorOut",
     "type": "object"
    },
+   "app__api__v1__referral_agents__VerifyIn": {
+    "properties": {
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token"
+     }
+    },
+    "title": "VerifyIn",
+    "type": "object"
+   },
    "app__api__v1__reports__StatusOut": {
     "properties": {
      "id": {
@@ -13695,6 +15489,33 @@
     "title": "DraftIn",
     "type": "object"
    },
+   "app__api__v1__sessions__LoginIn": {
+    "properties": {
+     "client": {
+      "default": "web",
+      "enum": [
+       "web",
+       "app"
+      ],
+      "title": "Client",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "password": {
+      "title": "Password",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "password"
+    ],
+    "title": "LoginIn",
+    "type": "object"
+   },
    "app__api__v1__targets__Named": {
     "properties": {
      "id": {
@@ -13711,6 +15532,69 @@
      "name"
     ],
     "title": "Named",
+    "type": "object"
+   },
+   "app__api__v1__users__CreateIn": {
+    "properties": {
+     "assigned_country_id": {
+      "anyOf": [
+       {
+        "pattern": "^c[^\\s-]{8,}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Country Id"
+     },
+     "assigned_country_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "pattern": "^c[^\\s-]{8,}$",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Country Ids"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "maxLength": 100,
+      "minLength": 2,
+      "title": "Full Name",
+      "type": "string"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     },
+     "supervisor_id": {
+      "anyOf": [
+       {
+        "pattern": "^c[^\\s-]{8,}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Supervisor Id"
+     }
+    },
+    "required": [
+     "full_name",
+     "email",
+     "role"
+    ],
+    "title": "CreateIn",
     "type": "object"
    },
    "app__api__v1__users__Named": {
@@ -13742,6 +15626,85 @@
      "id"
     ],
     "title": "Removed",
+    "type": "object"
+   },
+   "app__api__v1__users__UpdateIn": {
+    "properties": {
+     "assigned_country_id": {
+      "anyOf": [
+       {
+        "pattern": "^c[^\\s-]{8,}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Country Id"
+     },
+     "assigned_country_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "pattern": "^c[^\\s-]{8,}$",
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Country Ids"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Role"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "supervisor_id": {
+      "anyOf": [
+       {
+        "pattern": "^c[^\\s-]{8,}$",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Supervisor Id"
+     }
+    },
+    "title": "UpdateIn",
+    "type": "object"
+   },
+   "app__core__api__Data_Removed___1": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__partner_agencies__Removed"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Removed]",
+    "type": "object"
+   },
+   "app__core__api__Data_Removed___2": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__users__Removed"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Removed]",
     "type": "object"
    },
    "app__core__api__Data_SectorOut___1": {
@@ -14188,7 +16151,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/LoginIn"
+        "$ref": "#/components/schemas/app__api__v1__sessions__LoginIn"
        }
       }
      },
@@ -18460,6 +20423,262 @@
     ]
    }
   },
+  "/api/v1/partners": {
+   "post": {
+    "operationId": "create_partner_api_v1_partners_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__partner_agencies__CreateIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PartnerRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Create Partner",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/partners/{partner_id}": {
+   "delete": {
+    "description": "Refused while any candidate or submission is on file (PartnerCandidate\nrows would cascade away). The partner's login goes with it.",
+    "operationId": "delete_partner_api_v1_partners__partner_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__core__api__Data_Removed___1"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Delete Partner",
+    "tags": [
+     "users and sessions"
+    ]
+   },
+   "patch": {
+    "description": "Every editable field. Marking the MOU signed stamps mou_signed_at. A\nnew contact_email on a partner with a login moves the login too: its\npassword is cleared and the setup email goes to the new address, so the\nold password stops working and the new address proves itself.",
+    "operationId": "update_partner_api_v1_partners__partner_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__partner_agencies__UpdateIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_PartnerRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Update Partner",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/partners/{partner_id}/provision-account": {
+   "post": {
+    "description": "The partner's own login (SRS FR-5.1), with no password: the setup\nemail lets them set it.",
+    "operationId": "provision_account_api_v1_partners__partner_id__provision_account_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__partner_agencies__LoginIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_PartnerRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Provision Account",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/partners/{partner_id}/reset-password": {
+   "post": {
+    "description": "Clears the login's password, so it stops working at once (and its\nsessions end: the token_version trigger), and sends the setup email.",
+    "operationId": "reset_password_api_v1_partners__partner_id__reset_password_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_LoginAddress_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Reset Password",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
   "/api/v1/payments/paypal/orders": {
    "post": {
     "description": "A PayPal order for the signed-in user's application fee.",
@@ -18789,6 +21008,216 @@
     "summary": "Set Recruiter Target",
     "tags": [
      "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/apply": {
+   "post": {
+    "description": "A pending application, its referral code made here. The applicant is\nemailed the verification link, and the team told.",
+    "operationId": "apply_api_v1_referral_agents_apply_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApplicationIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_Applied_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Apply",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/verify-email": {
+   "post": {
+    "description": "The application's email, verified from the link. Needed before\napproval.",
+    "operationId": "verify_email_api_v1_referral_agents_verify_email_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__referral_agents__VerifyIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Message_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Verify Email",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/{agent_id}": {
+   "patch": {
+    "description": "Reject a pending application, suspend an active agent, or reactivate a\nsuspended one. Suspending keeps the history: earned commissions stay\npayable.",
+    "operationId": "decide_api_v1_referral_agents__agent_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "agent_id",
+      "required": true,
+      "schema": {
+       "title": "Agent Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_AgentRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Decide",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/{agent_id}/approve": {
+   "post": {
+    "description": "Activates a verified, pending application and creates the agent's\nlogin, without a password: the approval email carries their code and\nlink, the setup email lets them set a password.",
+    "operationId": "approve_api_v1_referral_agents__agent_id__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "agent_id",
+      "required": true,
+      "schema": {
+       "title": "Agent Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApproveIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_AgentRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Approve",
+    "tags": [
+     "users and sessions"
     ]
    }
   },
@@ -19744,7 +22173,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/CreateIn"
+        "$ref": "#/components/schemas/app__api__v1__users__CreateIn"
        }
       }
      },
@@ -19803,7 +22232,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Data_Removed_"
+         "$ref": "#/components/schemas/app__core__api__Data_Removed___2"
         }
        }
       },
@@ -19848,7 +22277,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/UpdateIn"
+        "$ref": "#/components/schemas/app__api__v1__users__UpdateIn"
        }
       }
      },

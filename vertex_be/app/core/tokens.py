@@ -13,8 +13,8 @@ follows the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Seven purposes are verified here; FastAPI issues "session" and, since
-users step 8.3 (D4 A), the three email links.
+Eight purposes are verified here; FastAPI issues "session" and, since
+users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
   - "session": a user's session. The signature is necessary, not
     sufficient: app/core/auth.py also checks the session is still live, as
     Next.js does on every request.
@@ -37,6 +37,9 @@ users step 8.3 (D4 A), the three email links.
     "pwd", a keyed fingerprint of the password it was issued for: once that
     password changes (the link used, or changed another way) the link stops
     working (security review #9).
+  - "referral_agent_email_verification": the link in a referral agent's
+    application email (signReferralAgentEmailVerificationToken). It names
+    an application, not an account: the agent has none until approved.
 """
 
 from __future__ import annotations
@@ -59,6 +62,7 @@ SALT = b"vertex-token-keys"
 KEY_VERSION = {
     "session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1,
     "email_verification": 1, "password_reset": 1, "account_setup": 1,
+    "referral_agent_email_verification": 1,
 }
 # EMAIL_TOKEN_EXPIRES_IN's default in jwt.ts, and signAccountSetupToken()'s.
 EMAIL_TOKEN_TTL_SECONDS = 24 * 60 * 60
@@ -307,3 +311,18 @@ def sign_account_setup_token(user_id: str) -> str:
 def verify_account_setup_token(token: str) -> str:
     """The user id a setup link (staff or partner account) was signed for."""
     return _text(_decode("account_setup", token), "userId", "account_setup")
+
+
+def sign_referral_agent_verification_token(agent_id: str) -> str:
+    claims = {"referralAgentId": agent_id, "type": "referral_agent_email_verification"}
+    return _sign("referral_agent_email_verification", claims, EMAIL_TOKEN_TTL_SECONDS)
+
+
+def verify_referral_agent_verification_token(token: str) -> str:
+    """The referral agent application a verification link was signed for."""
+    purpose = "referral_agent_email_verification"
+    payload = _decode(purpose, token)
+    agent_id = _text(payload, "referralAgentId", purpose)
+    if payload.get("type") != purpose:
+        raise InvalidToken(f"{purpose} token has the wrong type")
+    return agent_id

@@ -165,7 +165,7 @@ def _check_countries(db, country_id: str | None, country_ids: list[str] | None) 
             raise ApiError(404, "not_found", "One or more countries not found.")
 
 
-def _keep_an_admin(db, actor_id: str, target_id: str) -> None:
+def keep_an_admin(db, actor_id: str, target_id: str) -> None:
     """Before an admin is demoted or deleted: locks every admin row, in id
     order, so two such requests wait for each other and the second sees the
     first's change. Refuses if the target is the last admin, or if the
@@ -245,7 +245,7 @@ def update_user(user_id: str, body: UpdateIn, admin: Admin, db: AuditedDb):
         if user_id == admin.user_id:
             raise ApiError(400, "self_role_change", "You can't change your own role.")
         if was is Role.admin:
-            _keep_an_admin(db, admin.user_id, user_id)
+            keep_an_admin(db, admin.user_id, user_id)
             db.refresh(user)  # as the lock left it
             was = user.role
         user.role = body.role
@@ -276,7 +276,7 @@ def delete_user(user_id: str, admin: Admin, db: AuditedDb):
     if user is None:
         raise ApiError(404, "not_found", "User not found.")
     if user.role is Role.admin:
-        _keep_an_admin(db, admin.user_id, user_id)
+        keep_an_admin(db, admin.user_id, user_id)
     db.delete(user)
     db.commit()
     return {"data": {"id": user_id}}

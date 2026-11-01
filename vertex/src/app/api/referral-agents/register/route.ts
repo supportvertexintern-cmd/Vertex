@@ -5,6 +5,8 @@ import { limitByIp } from "@/lib/rate-limit";
 import { generateReferralCode } from "@/lib/referralMilestones";
 import { signReferralAgentEmailVerificationToken } from "@/lib/jwt";
 import { log } from "@/lib/log";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn } from "@/lib/pipeline";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -16,6 +18,14 @@ export async function POST(req: NextRequest) {
 
   let body: unknown;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
+
+  // FastAPI takes the application since users step 8.4
+  // (vertex_be/app/api/v1/referral_agents.py) and signs the verification
+  // link; the emails go after the response, as below. Below is the way back,
+  // behind FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REFERRAL_AGENTS")) {
+    return passOn("/api/v1/referral-agents/apply", { method: "POST", body, asUser: false }, { legacyErrors: true });
+  }
 
   const parsed = registerReferralAgentSchema.safeParse(body);
   if (!parsed.success) {

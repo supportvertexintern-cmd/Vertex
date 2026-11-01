@@ -54,6 +54,13 @@ export const NOTICE_SENDERS = {
   email_verification: (n) => email.sendVerificationLinkEmail(n.token, n.email, n.full_name),
   password_reset: (n) => email.sendPasswordResetLinkEmail(n.token, n.email, n.full_name),
   account_setup: (n) => email.sendAccountSetupLinkEmail(n.token, n.email, n.full_name),
+  // Referral agents (users step 8.4).
+  referral_agent_application: (n) => email.sendReferralAgentApplicationLinkEmail(n.token, n.email, n.full_name),
+  referral_agent_admin_notification: (n) => email.sendReferralAgentAdminNotificationEmail(n.full_name, n.country),
+  referral_agent_approved: (n) =>
+    email.sendReferralAgentApprovedEmail(n.email, n.full_name, n.referral_code, `${APP_URL()}/apply?ref=${n.referral_code}`),
+  referral_agent_rejected: (n) => email.sendReferralAgentRejectedEmail(n.email, n.full_name, n.reason),
+  referral_agent_suspended: (n) => email.sendReferralAgentSuspendedEmail(n.email, n.full_name, n.reason),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
 } satisfies Record<string, (notice: any) => Promise<unknown>>;
 

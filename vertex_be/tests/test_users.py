@@ -255,10 +255,10 @@ def only_admin(db, keep: User) -> None:
 def test_the_last_admin_stays(db, world):
     only_admin(db, world["me"])
     with pytest.raises(ApiError) as last:
-        module._keep_an_admin(db, world["me"].id, world["me"].id)
+        module.keep_an_admin(db, world["me"].id, world["me"].id)
     assert (last.value.status_code, last.value.code) == (409, "last_admin")
     with pytest.raises(ApiError) as gone:
-        module._keep_an_admin(db, world["boss"].id, "someone-else")  # the caller isn't an admin (any more)
+        module.keep_an_admin(db, world["boss"].id, "someone-else")  # the caller isn't an admin (any more)
     assert gone.value.status_code == 403
 
 
@@ -354,13 +354,13 @@ def two_admins():
 def test_two_admins_demoting_each_other_at_once_leave_one(two_admins, monkeypatch):
     (a, b), (as_a, as_b) = two_admins
     barrier = threading.Barrier(2, timeout=20)
-    real = module._keep_an_admin
+    real = module.keep_an_admin
 
     def both_checked(db, actor_id, target_id):
         barrier.wait()  # both requests are past every other check
         return real(db, actor_id, target_id)
 
-    monkeypatch.setattr(module, "_keep_an_admin", both_checked)
+    monkeypatch.setattr(module, "keep_an_admin", both_checked)
     results: dict[str, int] = {}
 
     def demote(actor: str, headers: dict, target: str) -> None:

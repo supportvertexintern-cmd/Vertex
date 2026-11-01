@@ -6,6 +6,8 @@ import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { approveReferralAgentSchema } from "@/lib/validations";
 import { sendAccountSetupInviteEmail, sendReferralAgentApprovedEmail } from "@/lib/email";
 import { log } from "@/lib/log";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn, seg } from "@/lib/pipeline";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -21,6 +23,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (guardRes) return guardRes;
 
   const { id } = await params;
+
+  // FastAPI approves since users step 8.4 (vertex_be/app/api/v1/referral_agents.py),
+  // with the agent's row locked so two approvals can't both create a login.
+  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REFERRAL_AGENTS")) {
+    let sent: unknown;
+    try { sent = await req.json(); } catch { sent = {}; }
+    return passOn(`/api/v1/referral-agents/${seg(id)}/approve`, { method: "POST", body: sent });
+  }
+
   const agent = await prisma.referralAgent.findUnique({ where: { id } });
   if (!agent) {
     return NextResponse.json({ error: { code: "not_found", message: "Referral agent not found." } }, { status: 404 });

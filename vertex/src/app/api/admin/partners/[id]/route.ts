@@ -4,6 +4,8 @@ import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { updatePartnerSchema } from "@/lib/validations";
 import { sendAccountSetupInviteEmail } from "@/lib/email";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn, readJson, seg } from "@/lib/pipeline";
 
 import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
@@ -48,6 +50,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id } = await params;
+
+  // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py),
+  // with the partner's row locked. Below is the way back, behind
+  // FLAG_ACCOUNTS_FASTAPI_PARTNERS (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("PARTNERS")) {
+    const read = await readJson(req);
+    if (read.invalid) return read.invalid;
+    return passOn(`/api/v1/partners/${seg(id)}`, { method: "PATCH", body: read.body });
+  }
+
   const existing = await prisma.partner.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: { code: "not_found", message: "Partner not found." } }, { status: 404 });
@@ -125,6 +137,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (guardRes) return guardRes;
 
   const { id } = await params;
+  if (accountsOnFastApi("PARTNERS")) {
+    return passOn(`/api/v1/partners/${seg(id)}`, { method: "DELETE" });
+  }
+
   const existing = await prisma.partner.findUnique({
     where: { id },
     select: { id: true, user_id: true, _count: { select: { candidates: true, partner_candidates: true } } },
