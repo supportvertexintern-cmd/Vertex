@@ -1,8 +1,8 @@
-"""Session keys, step K1 (docs/architecture/session-keys-handover.md, E8).
+"""Session keys (docs/architecture/session-keys-handover.md), which closed E8.
 
-Both forms are accepted until K3: an ES256 session token from a listed public
-key, and today's shared-key one; an account link keyed from
-ACCOUNT_LINK_SECRET, and today's. Keys here are made per test, except the
+Since K3 only an ES256 session from a listed public key is accepted, and
+only an account link keyed from ACCOUNT_LINK_SECRET: never one keyed from
+JWT_SECRET, which the website holds. Keys here are made per test, except the
 golden vector the website checks too (node_session_vectors.py).
 """
 
@@ -27,9 +27,9 @@ from app.models.enums import Role
 from app.models.identity import RefreshToken, User
 from tests.test_auth import add_session
 from tests.test_sessions import account, api, google, refresh, sign_in  # noqa: F401  (fixtures)
+from tests.node_session_vectors import ACCOUNT_LINK_SECRET as LINK_SECRET
 from tests.node_session_vectors import ES256_SESSION_TOKEN, SECRET, SESSION_KEY_ID, SESSION_PUBLIC_KEY_B64
 
-LINK_SECRET = "test-only-account-link-secret-0123456789abcdef"  # gitleaks:allow
 OTHER_SECRET = "test-only-some-other-secret-0123456789abcdefgh"  # gitleaks:allow
 
 
@@ -77,9 +77,11 @@ def test_a_session_signed_by_a_listed_key_verifies(keys):
     assert tokens.verify_session_token(es256(previous)).user_id == "u1"  # mid-rotation
 
 
-def test_a_shared_key_session_still_verifies_until_k3(keys):
-    hs = jwt.encode(claims(), tokens.key_for("session", SECRET), algorithm="HS256")
-    assert tokens.verify_session_token(hs).sid == "f1"
+def test_a_session_keyed_from_jwt_secret_is_refused(keys):
+    # E8: the website holds JWT_SECRET, so it could have minted this one.
+    key = tokens.hkdf_sha256(SECRET.encode(), b"vertex-token-keys", b"vertex/jwt/session/v1")
+    with pytest.raises(tokens.InvalidToken, match="not ES256"):
+        tokens.verify_session_token(jwt.encode(claims(), key, algorithm="HS256"))
 
 
 def test_the_golden_vector_the_website_also_checks(monkeypatch):
@@ -142,8 +144,10 @@ def test_no_listed_keys_means_no_es256_session_verifies(keys, monkeypatch):
 
 
 def make_settings(**env) -> Settings:
-    base = {"DATABASE_URL": "postgresql://u:p@localhost/db", "APP_ENV": "development"}
-    return Settings(_env_file=None, **base, **env)
+    # None unless given: the suite's own keys are in the environment.
+    base = {"DATABASE_URL": "postgresql://u:p@localhost/db", "APP_ENV": "development",
+            "SESSION_PRIVATE_KEY": None, "SESSION_PUBLIC_KEYS": None, "ACCOUNT_LINK_SECRET": None}
+    return Settings(_env_file=None, **{**base, **env})
 
 
 def test_a_matching_key_pair_starts():
@@ -163,6 +167,7 @@ def test_blank_keys_are_unset():
         (lambda k: {"SESSION_PRIVATE_KEY": b64_private(k), "SESSION_PUBLIC_KEYS": b64_public(new_key())}, "not in SESSION_PUBLIC_KEYS"),
         (lambda k: {"SESSION_PRIVATE_KEY": b64_private(k)}, "not in SESSION_PUBLIC_KEYS"),
         (lambda k: {"SESSION_PUBLIC_KEYS": "not base64!"}, "not base64"),
+        (lambda k: {"SESSION_PRIVATE_KEY": "not base64!", "SESSION_PUBLIC_KEYS": b64_public(k)}, "SESSION_PRIVATE_KEY is not base64"),
         (lambda k: {"SESSION_PUBLIC_KEYS": base64.b64encode(b"hello").decode()}, "not a PEM public key"),
         (lambda k: {"SESSION_PUBLIC_KEYS": b64_public(new_key(ec.SECP384R1()))}, "not a P-256"),
         (lambda k: {"SESSION_PRIVATE_KEY": "aGVsbG8=", "SESSION_PUBLIC_KEYS": b64_public(k)}, "not an unencrypted PEM private key"),
@@ -197,13 +202,27 @@ def link(purpose: str, secret: str, **payload) -> str:
     return jwt.encode(body, tokens.key_for(purpose, secret), algorithm="HS256")
 
 
-@pytest.mark.parametrize("secret", [LINK_SECRET, SECRET])
-def test_a_link_keyed_either_way_verifies_until_k3(link_secrets, secret):
+def test_a_link_keyed_from_fastapis_secret_verifies(link_secrets):
+    secret = LINK_SECRET
     assert tokens.verify_account_setup_token(link("account_setup", secret, userId="u1", type="account_setup")) == "u1"
     got = tokens.verify_email_token(link("email_verification", secret, userId="u1", email="e@test.invalid", type="email_verification"), "email_verification")
     assert got.user_id == "u1"
     agent = link("referral_agent_email_verification", secret, referralAgentId="a1", type="referral_agent_email_verification")
     assert tokens.verify_referral_agent_verification_token(agent) == "a1"
+
+
+@pytest.mark.parametrize("purpose", ["account_setup", "email_verification", "password_reset", "referral_agent_email_verification"])
+def test_a_link_keyed_from_jwt_secret_is_refused(link_secrets, purpose):
+    # E8: the website holds JWT_SECRET, so it could forge one.
+    token = link(purpose, SECRET, userId="u1", email="e@test.invalid", referralAgentId="a1", type=purpose)
+    verify = {
+        "account_setup": tokens.verify_account_setup_token,
+        "email_verification": lambda t: tokens.verify_email_token(t, "email_verification"),
+        "password_reset": lambda t: tokens.verify_email_token(t, "password_reset"),
+        "referral_agent_email_verification": tokens.verify_referral_agent_verification_token,
+    }[purpose]
+    with pytest.raises(tokens.InvalidToken):
+        verify(token)
 
 
 def test_a_link_keyed_from_any_other_secret_is_refused(link_secrets):
@@ -219,8 +238,8 @@ def test_an_expired_link_is_refused_without_trying_the_next_secret(link_secrets)
         tokens.verify_account_setup_token(expired)
 
 
-@pytest.mark.parametrize("secret", [LINK_SECRET, SECRET])
-def test_a_reset_link_names_its_password_under_its_own_secret(link_secrets, secret):
+def test_a_reset_link_names_its_password_under_its_own_secret(link_secrets):
+    secret = LINK_SECRET
     hashed = "$2b$12$abcdefghijklmnopqrstuv"
     pwd = tokens.password_fingerprint(hashed, secret)
     got = tokens.verify_email_token(link("password_reset", secret, userId="u1", email="e@test.invalid", type="password_reset", pwd=pwd), "password_reset")
@@ -247,10 +266,13 @@ def test_links_are_keyed_from_the_new_secret_when_the_stack_has_it(link_secrets)
     assert reset.issued_for(hashed) and reset.pwd == tokens.password_fingerprint(hashed, LINK_SECRET)
 
 
-def test_links_stay_on_the_shared_secret_without_it(link_secrets, monkeypatch):
+def test_no_link_is_signed_or_checked_without_fastapis_secret(link_secrets, monkeypatch):
+    token = tokens.sign_account_setup_token("u1")
     monkeypatch.setattr(settings, "ACCOUNT_LINK_SECRET", None)
-    token = tokens.sign_verification_token("u1", "e@test.invalid")
-    jwt.decode(token, tokens.key_for("email_verification", SECRET), algorithms=["HS256"], audience="vertex:email_verification")
+    with pytest.raises(tokens.InvalidToken, match="ACCOUNT_LINK_SECRET"):
+        tokens.sign_verification_token("u1", "e@test.invalid")
+    with pytest.raises(tokens.InvalidToken, match="ACCOUNT_LINK_SECRET"):
+        tokens.verify_account_setup_token(token)
 
 
 # --- signing sessions (K2) ---------------------------------------------------------------
@@ -269,10 +291,22 @@ def test_sessions_are_signed_with_the_private_key_when_the_stack_has_it(keys, mo
         jwt.decode(token, previous.public_key(), algorithms=["ES256"], audience="vertex:session")
 
 
-def test_sessions_stay_on_the_shared_key_without_it(keys):
-    token = tokens.sign_session_token(user_id="u1", email="u1@test.invalid", role="admin", sid="f1", ver=0)
-    assert jwt.get_unverified_header(token)["alg"] == "HS256"
-    assert tokens.verify_session_token(token).user_id == "u1"
+def test_no_session_is_signed_without_the_private_key(keys, monkeypatch):
+    monkeypatch.setattr(settings, "SESSION_PRIVATE_KEY", None)
+    with pytest.raises(tokens.InvalidToken, match="SESSION_PRIVATE_KEY"):
+        tokens.sign_session_token(user_id="u1", email="u1@test.invalid", role="admin", sid="f1", ver=0)
+
+
+@pytest.mark.parametrize("missing", ["SESSION_PRIVATE_KEY", "SESSION_PUBLIC_KEYS", "ACCOUNT_LINK_SECRET"])
+def test_a_deployed_stack_wont_start_without_its_keys(missing):
+    key = new_key()
+    env = {
+        "APP_ENV": "staging", "SECRET_KEY": "s" * 40, "JWT_SECRET": SECRET, "SERVICE_AUTH_SECRET": "v" * 40,
+        "SESSION_PRIVATE_KEY": b64_private(key), "SESSION_PUBLIC_KEYS": b64_public(key), "ACCOUNT_LINK_SECRET": LINK_SECRET,
+    }
+    assert make_settings(**env).APP_ENV == "staging"
+    with pytest.raises(ValueError, match=missing):
+        make_settings(**{**env, missing: None})
 
 
 def test_a_sign_in_and_a_refresh_issue_es256_sessions_the_api_accepts(keys, api, db, monkeypatch):

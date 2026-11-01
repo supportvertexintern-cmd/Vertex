@@ -17,6 +17,27 @@ from tests.node_session_vectors import SECRET as TEST_JWT_SECRET  # noqa: E402
 
 os.environ["JWT_SECRET"] = TEST_JWT_SECRET
 
+
+def _test_session_keys() -> None:
+    """A fresh TEST-ONLY session key pair per run, and a test-only link
+    secret (session keys K3: no session or account link without them)."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from tests.node_session_vectors import ACCOUNT_LINK_SECRET
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    private = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    public = key.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+    os.environ["SESSION_PRIVATE_KEY"] = base64.b64encode(private).decode()
+    os.environ["SESSION_PUBLIC_KEYS"] = base64.b64encode(public).decode()
+    os.environ["ACCOUNT_LINK_SECRET"] = ACCOUNT_LINK_SECRET
+
+
+_test_session_keys()
+
 from collections.abc import Iterator  # noqa: E402
 
 import pytest  # noqa: E402

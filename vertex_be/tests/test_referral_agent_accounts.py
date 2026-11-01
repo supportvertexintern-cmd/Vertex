@@ -183,12 +183,13 @@ def test_the_link_verifies_once(api, db):
     assert again.json()["data"] == {"message": "Email is already verified."}
 
 
-def test_a_link_the_website_signed_before_the_switch_still_works(api, db, monkeypatch):
+def test_a_link_keyed_from_jwt_secret_is_refused(api, db, monkeypatch):
+    # Session keys K3: the website holds JWT_SECRET, so it could forge one.
     monkeypatch.setattr(settings, "JWT_SECRET", SECRET)
     agent(db, id=REFERRAL_AGENT_ID)
     res = api.post(f"{URL}/verify-email", headers=svc(), json={"token": REFERRAL_AGENT_VERIFICATION_TOKEN})
-    assert res.status_code == 200
-    assert db.get(ReferralAgent, REFERRAL_AGENT_ID).email_verified is True
+    assert res.status_code == 400
+    assert db.get(ReferralAgent, REFERRAL_AGENT_ID).email_verified is False
 
 
 @pytest.mark.parametrize(

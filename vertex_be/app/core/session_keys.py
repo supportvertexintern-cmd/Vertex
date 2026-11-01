@@ -56,8 +56,9 @@ def public_keys(raw: str | None) -> dict[str, ec.EllipticCurvePublicKey]:
     keys: dict[str, ec.EllipticCurvePublicKey] = {}
     for i, part in enumerate(p for p in (raw or "").split(",") if p.strip()):
         name = f"SESSION_PUBLIC_KEYS[{i}]"
+        pem = _pem(part, name)
         try:
-            public = serialization.load_pem_public_key(_pem(part, name))
+            public = serialization.load_pem_public_key(pem)
         except ValueError as err:
             raise BadKey(f"{name} is not a PEM public key") from err
         public = _p256(public, name)
@@ -68,8 +69,9 @@ def public_keys(raw: str | None) -> dict[str, ec.EllipticCurvePublicKey]:
 @lru_cache
 def private_key(raw: str) -> tuple[str, ec.EllipticCurvePrivateKey]:
     """SESSION_PRIVATE_KEY and the id of its public half."""
+    pem = _pem(raw, "SESSION_PRIVATE_KEY")
     try:
-        private = serialization.load_pem_private_key(_pem(raw, "SESSION_PRIVATE_KEY"), password=None)
+        private = serialization.load_pem_private_key(pem, password=None)
     except (ValueError, TypeError) as err:
         raise BadKey("SESSION_PRIVATE_KEY is not an unencrypted PEM private key") from err
     private = _p256(private, "SESSION_PRIVATE_KEY")

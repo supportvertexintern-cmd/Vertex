@@ -1,27 +1,29 @@
-"""Signs and verifies session tokens, and verifies the other tokens the
-Next.js app issues (vertex/src/lib/jwt.ts).
+"""Signs and verifies session tokens and FastAPI's account links, and
+verifies the tokens the Next.js app issues (vertex/src/lib/jwt.ts).
 
 FastAPI is the session issuer since users and sessions step 8.2
-(docs/architecture/users-handover.md, D1 A): it signs access tokens exactly
-as jwt.ts did, so the website (which still verifies them on every request)
-and tokens issued before the switch are unaffected. Exception E8 records the
-shared key; docs/architecture/session-keys-handover.md ends it. Since its
-step K1 a session token may also be ES256, signed with FastAPI's private key
-and named by its `kid` (app/core/session_keys.py), and an account link may
-be keyed from ACCOUNT_LINK_SECRET, which the website never holds. Since K2
-FastAPI signs those forms when the stack has the keys; both forms are
-accepted until K3. Every other token follows the same rules:
+(docs/architecture/users-handover.md). Since session keys step K3
+(docs/architecture/session-keys-handover.md, which closed exception E8):
+  - a session is ES256, signed with SESSION_PRIVATE_KEY, which only this
+    service holds, and names its key in `kid`; FastAPI and the website
+    verify it with SESSION_PUBLIC_KEYS (app/core/session_keys.py). A session
+    signed with a key derived from JWT_SECRET is refused, so the website,
+    which holds JWT_SECRET, can't mint one;
+  - an account link is keyed from ACCOUNT_LINK_SECRET, which the website
+    never holds; one keyed from JWT_SECRET is refused.
+Every other token follows the same rules:
   - HS256 only (no algorithm from the token is trusted);
-  - one key per token purpose, derived from JWT_SECRET with HKDF-SHA256
-    (gap G17), so a password-reset or upload token never passes as a session;
+  - one key per token purpose, derived with HKDF-SHA256 (gap G17) from
+    the purpose's secret, so a password-reset or upload token never passes
+    for another purpose;
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
 Eight purposes are verified here; FastAPI issues "session" and, since
 users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
-  - "session": a user's session. The signature is necessary, not
-    sufficient: app/core/auth.py also checks the session is still live, as
-    Next.js does on every request.
+  - "session": a user's session, ES256 (above). The signature is
+    necessary, not sufficient: app/core/auth.py also checks the session is
+    still live, as Next.js does on every request.
   - "service": Next.js's own credential when it calls FastAPI
     (callBackend() in vertex/src/lib/backend.ts; gap G18, zero-trust §6).
     Keyed from SERVICE_AUTH_SECRET, never JWT_SECRET, so one leaking
@@ -35,9 +37,9 @@ users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
     Candidate Information Form they have just submitted (signCifUploadToken;
     step 6.3).
   - "email_verification", "password_reset", "account_setup": the links in
-    the verification, reset and setup emails, with the claims the website's
-    signEmailToken() and signAccountSetupToken() used before step 8.3, so
-    links it signed then still work. A reset link also carries
+    the verification, reset and setup emails, keyed from
+    ACCOUNT_LINK_SECRET, with the claims the website's signEmailToken() and
+    signAccountSetupToken() used before step 8.3. A reset link also carries
     "pwd", a keyed fingerprint of the password it was issued for: once that
     password changes (the link used, or changed another way) the link stops
     working (security review #9).
@@ -55,6 +57,8 @@ from functools import lru_cache
 
 import jwt
 
+from cryptography.hazmat.primitives.asymmetric import ec
+
 from app.core import session_keys
 from app.core.clock import epoch_seconds
 from app.core.config import settings
@@ -66,7 +70,7 @@ SALT = b"vertex-token-keys"
 # account links are FastAPI's alone since users step 8.5): bumping one there
 # invalidates every outstanding token of that purpose, so bump it here too.
 KEY_VERSION = {
-    "session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1,
+    "service": 1, "candidate_invite": 1, "cif_upload": 1,
     "email_verification": 1, "password_reset": 1, "account_setup": 1,
     "referral_agent_email_verification": 1,
 }
@@ -106,34 +110,28 @@ def key_for(purpose: str, secret: str) -> bytes:
     return hkdf_sha256(secret.encode(), SALT, info)
 
 
-def _session_key(token: str) -> tuple[object, str]:
-    """The key and the one algorithm a session token may be checked with:
-    the listed public key its `kid` names for ES256, else the shared key
-    (until K3). The token's own `alg` only picks between the two; each is
-    checked with its own algorithm alone, so neither key passes for the
-    other."""
+def _session_key(token: str) -> ec.EllipticCurvePublicKey:
+    """The listed public key a session token's `kid` names. Only an ES256
+    token gets one: the token's `alg` is never trusted to pick another."""
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError as err:
         raise InvalidToken(type(err).__name__) from err
-    if header.get("alg") == session_keys.ALGORITHM:
-        public = session_keys.public_keys(settings.SESSION_PUBLIC_KEYS).get(str(header.get("kid")))
-        if public is None:
-            raise InvalidToken("session token names an unknown key")
-        return public, session_keys.ALGORITHM
-    secret = settings.JWT_SECRET
-    if not secret or len(secret) < 32:
-        raise InvalidToken("JWT_SECRET is not configured")
-    return key_for("session", secret), ALGORITHM
+    if header.get("alg") != session_keys.ALGORITHM:
+        raise InvalidToken("session token is not ES256")
+    public = session_keys.public_keys(settings.SESSION_PUBLIC_KEYS).get(str(header.get("kid")))
+    if public is None:
+        raise InvalidToken("session token names an unknown key")
+    return public
 
 
 def verify_session_token(token: str) -> SessionClaims:
-    key, algorithm = _session_key(token)
+    key = _session_key(token)
     try:
         payload = jwt.decode(
             token,
             key,
-            algorithms=[algorithm],
+            algorithms=[session_keys.ALGORITHM],
             issuer=ISSUER,
             audience="vertex:session",
             options={"require": ["exp", "iss", "aud"]},
@@ -163,23 +161,18 @@ ACCESS_TOKEN_TTL_SECONDS = 15 * 60  # ACCESS_TOKEN_EXPIRES_IN in jwt.ts
 
 
 def sign_session_token(*, user_id: str, email: str, role: str, sid: str, ver: int, ttl_seconds: int = ACCESS_TOKEN_TTL_SECONDS) -> str:
-    """A 15-minute access token. Since session keys K2, ES256 with this
-    service's private key, named by its `kid`, when the stack has one
-    (deploy/session-keys.sh); else as signToken() in jwt.ts signed it, until
-    K3. Only the security tools (deploy/zap) ask for another lifetime."""
+    """A 15-minute access token, ES256 with this service's private key,
+    named by its `kid`. Only the security tools (deploy/zap) ask for another
+    lifetime."""
+    if not settings.SESSION_PRIVATE_KEY:
+        raise InvalidToken("SESSION_PRIVATE_KEY is not configured")
     now = epoch_seconds()
     payload = {
         "userId": user_id, "email": email, "role": role, "sid": sid, "ver": ver,
         "iat": now, "exp": now + ttl_seconds, "iss": ISSUER, "aud": "vertex:session",
     }
-    if settings.SESSION_PRIVATE_KEY:
-        kid, private = session_keys.private_key(settings.SESSION_PRIVATE_KEY)
-        return jwt.encode(payload, private, algorithm=session_keys.ALGORITHM, headers={"kid": kid})
-    secret = settings.JWT_SECRET
-    if not secret or len(secret) < 32:
-        raise InvalidToken("JWT_SECRET is not configured")
-    return jwt.encode(payload, key_for("session", secret), algorithm=ALGORITHM)
-
+    kid, private = session_keys.private_key(settings.SESSION_PRIVATE_KEY)
+    return jwt.encode(payload, private, algorithm=session_keys.ALGORITHM, headers={"kid": kid})
 
 # Next.js signs one per call, valid for a minute; anything longer-lived is
 # refused, so a leaked token is of little use.
@@ -263,13 +256,12 @@ def verify_cif_upload_token(token: str) -> str:
 
 
 def _secret() -> str:
-    """The secret new account links are keyed from: ACCOUNT_LINK_SECRET since
-    session keys K2 when the stack has one, else JWT_SECRET until K3."""
-    for secret in (settings.ACCOUNT_LINK_SECRET, settings.JWT_SECRET):
-        if secret and len(secret) >= 32:
-            return secret
-    raise InvalidToken("JWT_SECRET is not configured")
-
+    """The secret account links are keyed from (session-keys-handover.md D4):
+    the website never holds it."""
+    secret = settings.ACCOUNT_LINK_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("ACCOUNT_LINK_SECRET is not configured")
+    return secret
 
 def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:
     now = epoch_seconds()
@@ -277,34 +269,21 @@ def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:
     return jwt.encode(payload, key_for(purpose, _secret()), algorithm=ALGORITHM)
 
 
-def _link_secrets() -> list[str]:
-    """The secrets an account link may be keyed from: ACCOUNT_LINK_SECRET
-    (session-keys-handover.md D4) and, until K3, JWT_SECRET."""
-    return [s for s in (settings.ACCOUNT_LINK_SECRET, settings.JWT_SECRET) if s and len(s) >= 32]
-
-
 def _decode_with_secret(purpose: str, token: str) -> tuple[dict, str]:
     """The link's claims and the secret its key came from."""
-    secrets = _link_secrets()
-    if not secrets:
-        raise InvalidToken("JWT_SECRET is not configured")
-    for secret in secrets:
-        try:
-            payload = jwt.decode(
-                token,
-                key_for(purpose, secret),
-                algorithms=[ALGORITHM],
-                issuer=ISSUER,
-                audience=f"vertex:{purpose}",
-                options={"require": ["exp", "iss", "aud"]},
-            )
-            return payload, secret
-        except jwt.InvalidSignatureError:
-            continue
-        except jwt.PyJWTError as err:
-            raise InvalidToken(type(err).__name__) from err
-    raise InvalidToken("InvalidSignatureError")
-
+    secret = _secret()
+    try:
+        payload = jwt.decode(
+            token,
+            key_for(purpose, secret),
+            algorithms=[ALGORITHM],
+            issuer=ISSUER,
+            audience=f"vertex:{purpose}",
+            options={"require": ["exp", "iss", "aud"]},
+        )
+    except jwt.PyJWTError as err:
+        raise InvalidToken(type(err).__name__) from err
+    return payload, secret
 
 def _decode(purpose: str, token: str) -> dict:
     return _decode_with_secret(purpose, token)[0]

@@ -1,15 +1,18 @@
-"""app/core/tokens.py verifies exactly the session tokens Next.js signs
-(vertex/src/lib/jwt.ts) and nothing else. The golden vectors come from the
-Node code path itself (tests/node_session_vectors.py)."""
+"""app/core/tokens.py verifies exactly the session tokens FastAPI signs (ES256
+with its private key, since session keys K3) and nothing else; in particular
+not the shared-key sessions the website's code signed (exception E8, closed
+by K3). The golden vectors come from the Node code path itself
+(tests/node_session_vectors.py)."""
 
 import re
 import time
 
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 
-from app.core import tokens
-from app.core.config import BASE_DIR
+from app.core import session_keys, tokens
+from app.core.config import BASE_DIR, settings
 from app.core.tokens import InvalidToken, SessionClaims, hkdf_sha256, key_for, verify_candidate_invite_token, verify_session_token
 from tests.node_session_vectors import (
     INVITE_CANDIDATE_ID,
@@ -25,7 +28,13 @@ from tests.node_session_vectors import (
 CLAIMS = {"userId": "u1", "email": "u1@test.invalid", "role": "admin", "sid": "fam1", "ver": 0}
 
 
-def mint(claims=None, *, key=None, alg="HS256", iss="vertex-web", aud="vertex:session", exp_in=900, **extra):
+def stack_key():
+    """The suite's session key (tests/conftest.py) and its id."""
+    kid, private = session_keys.private_key(settings.SESSION_PRIVATE_KEY)
+    return private, kid
+
+
+def mint(claims=None, *, key=None, alg="ES256", kid=None, iss="vertex-web", aud="vertex:session", exp_in=900, **extra):
     payload = {**(CLAIMS if claims is None else claims), "iat": int(time.time()), **extra}
     if exp_in is not None:
         payload["exp"] = int(time.time()) + exp_in
@@ -33,11 +42,17 @@ def mint(claims=None, *, key=None, alg="HS256", iss="vertex-web", aud="vertex:se
         payload["iss"] = iss
     if aud is not None:
         payload["aud"] = aud
-    return jwt.encode(payload, key if key is not None else key_for("session", SECRET), algorithm=alg)
+    private, stack_kid = stack_key()
+    return jwt.encode(payload, private if key is None else key, algorithm=alg, headers={"kid": kid or stack_kid})
+
+
+def node_session_key() -> bytes:
+    """The session key the website's code derived from JWT_SECRET."""
+    return hkdf_sha256(SECRET.encode(), b"vertex-token-keys", b"vertex/jwt/session/v1")
 
 
 def test_key_derivation_matches_node_hkdf():
-    assert key_for("session", SECRET).hex() == SESSION_KEY_HEX
+    assert node_session_key().hex() == SESSION_KEY_HEX
     info = b"vertex/jwt/password_reset/v1"
     assert hkdf_sha256(SECRET.encode(), b"vertex-token-keys", info).hex() == PASSWORD_RESET_KEY_HEX
 
@@ -50,10 +65,18 @@ def test_hkdf_matches_rfc5869_test_case_1():
     assert hkdf_sha256(ikm, salt, info, 42).hex() == okm
 
 
-def test_a_token_signed_by_nextjs_verifies():
-    assert verify_session_token(SESSION_TOKEN) == SessionClaims(
-        user_id="golden-user", email="golden@test.invalid", role="admin", sid="golden-family", ver=3
-    )
+def test_a_session_fastapi_signs_verifies():
+    token = tokens.sign_session_token(user_id="u1", email="u1@test.invalid", role="admin", sid="fam1", ver=2)
+    assert verify_session_token(token) == SessionClaims(user_id="u1", email="u1@test.invalid", role="admin", sid="fam1", ver=2)
+
+
+def test_a_session_the_websites_code_signed_is_refused():
+    # E8, closed by K3: the website holds JWT_SECRET, so a session keyed from
+    # it would be one the website could mint.
+    with pytest.raises(InvalidToken, match="not ES256"):
+        verify_session_token(SESSION_TOKEN)
+    with pytest.raises(InvalidToken, match="not ES256"):
+        verify_session_token(mint(key=node_session_key(), alg="HS256"))
 
 
 def test_a_token_signed_with_another_purposes_key_is_refused():
@@ -70,10 +93,11 @@ def test_a_token_signed_with_another_purposes_key_is_refused():
         pytest.param(lambda: mint(aud=None), id="no audience"),
         pytest.param(lambda: mint(iss="someone-else"), id="wrong issuer"),
         pytest.param(lambda: mint(iss=None), id="no issuer"),
-        pytest.param(lambda: mint(key=b"x" * 32), id="wrong key"),
-        pytest.param(lambda: mint(key=SECRET.encode()), id="signed with JWT_SECRET itself (pre-G17)"),
-        pytest.param(lambda: mint(alg="HS512"), id="other algorithm"),
-        pytest.param(lambda: mint(alg="none", key=""), id="alg none"),
+        pytest.param(lambda: mint(key=ec.generate_private_key(ec.SECP256R1())), id="another key under the stack's key id"),
+        pytest.param(lambda: mint(kid="unknown"), id="unknown key id"),
+        pytest.param(lambda: mint(key=SECRET.encode(), alg="HS256"), id="signed with JWT_SECRET itself (pre-G17)"),
+        pytest.param(lambda: mint(key=ec.generate_private_key(ec.SECP384R1()), alg="ES384"), id="other algorithm"),
+        pytest.param(lambda: jwt.encode({**CLAIMS, "exp": int(time.time()) + 60, "iss": "vertex-web", "aud": "vertex:session"}, None, algorithm="none"), id="alg none"),
         pytest.param(lambda: "not-a-token", id="garbage"),
     ],
 )
@@ -105,11 +129,14 @@ def test_ver_must_be_an_integer(ver):
         verify_session_token(mint(claims))
 
 
-@pytest.mark.parametrize("secret", [None, "too-short"])
-def test_nothing_verifies_without_a_proper_secret(monkeypatch, secret):
-    monkeypatch.setattr(tokens.settings, "JWT_SECRET", secret)
+def test_nothing_verifies_without_listed_keys_or_signs_without_the_private_key(monkeypatch):
+    token = mint()
+    monkeypatch.setattr(tokens.settings, "SESSION_PUBLIC_KEYS", None)
     with pytest.raises(InvalidToken):
-        verify_session_token(SESSION_TOKEN)
+        verify_session_token(token)
+    monkeypatch.setattr(tokens.settings, "SESSION_PRIVATE_KEY", None)
+    with pytest.raises(InvalidToken, match="SESSION_PRIVATE_KEY"):
+        tokens.sign_session_token(user_id="u1", email="e", role="admin", sid="f", ver=0)
 
 
 # --- screening invites (pipeline handover step 6.2) ---------------------------
@@ -120,7 +147,10 @@ def test_the_key_versions_match_jwt_ts():
     versions = dict(re.findall(r"^  (\w+): (\d+),$", re.search(r"const KEY_VERSION[^{]*\{(.*?)\};", src, re.S).group(1), re.M))
     # The account links are FastAPI's alone since users step 8.5; every
     # purpose the website still has must keep the same version.
-    shared = {"session", "service", "candidate_invite", "cif_upload"}
+    # Sessions are ES256 and the account links FastAPI's alone since session
+    # keys K3; every purpose both sides still key from a shared secret must
+    # keep the same version.
+    shared = {"service", "candidate_invite", "cif_upload"}
     assert set(versions) == shared | {"document"}  # documents are the website's alone
     assert {purpose: int(versions[purpose]) for purpose in shared} == {purpose: tokens.KEY_VERSION[purpose] for purpose in shared}
 
