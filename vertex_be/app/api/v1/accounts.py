@@ -43,7 +43,6 @@ from app.core.auth import calling_service
 from app.core.pipeline import PipelineWrites
 from app.core.tokens import (
     InvalidToken,
-    password_fingerprint,
     sign_reset_token,
     sign_verification_token,
     verify_account_setup_token,
@@ -310,7 +309,7 @@ def reset_password(body: ResetIn, request: Request, db: DbSession):
     user = db.scalar(select(User).where(User.id == link.user_id).with_for_update())
     if user is None:
         raise ApiError(404, "not_found", "Account not found.")
-    if link.pwd is not None and link.pwd != password_fingerprint(user.password_hash):
+    if not link.issued_for(user.password_hash):
         db.rollback()
         security_event(request, "password_reset_completed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}",
                        detail={"outcome": "link_already_used"})

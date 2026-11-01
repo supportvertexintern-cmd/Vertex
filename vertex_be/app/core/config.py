@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core import session_keys
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 # The driver installed (requirements.txt: psycopg2-binary). A bare
@@ -52,6 +54,16 @@ class Settings(BaseSettings):
     # development = no service token verifies.
     SERVICE_AUTH_SECRET: str | None = None
     SERVICE_AUTH_SECRET_PREVIOUS: str | None = None
+    # Session keys (docs/architecture/session-keys-handover.md, E8): base64
+    # of each PEM, written by deploy/session-keys.sh. The private key is this
+    # service's alone; the public keys (comma-separated) are shared with the
+    # website. Checked at startup (app/core/session_keys.py).
+    SESSION_PRIVATE_KEY: str | None = None
+    SESSION_PUBLIC_KEYS: str | None = None
+    # Keys FastAPI's account links (verification, reset, setup, a referral
+    # agent's verification) once the website no longer holds their secret
+    # (session-keys-handover.md D4). Never given to the website.
+    ACCOUNT_LINK_SECRET: str | None = None
     # Google sign-in (users and sessions step 8.2, D3 A): FastAPI exchanges
     # the code the website passes on. The website keeps only the client id,
     # to send visitors to Google. Unset = Google sign-in answers 503.
@@ -122,6 +134,22 @@ class Settings(BaseSettings):
         # Compose passes an unset variable as "": the default, as upload.ts
         # reads it (Number(x) || 5).
         return 5 if value in ("", None, "0", 0) else value
+
+    @field_validator("SESSION_PRIVATE_KEY", "SESSION_PUBLIC_KEYS", "ACCOUNT_LINK_SECRET", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        # Compose passes an unset variable as "".
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @model_validator(mode="after")
+    def _keys_are_usable(self) -> "Settings":
+        session_keys.check(self.SESSION_PRIVATE_KEY, self.SESSION_PUBLIC_KEYS)
+        if self.ACCOUNT_LINK_SECRET is not None:
+            if len(self.ACCOUNT_LINK_SECRET) < 32:
+                raise ValueError("ACCOUNT_LINK_SECRET must be a 32+ char secret")
+            if self.ACCOUNT_LINK_SECRET in (self.JWT_SECRET, self.SERVICE_AUTH_SECRET):
+                raise ValueError("ACCOUNT_LINK_SECRET must differ from JWT_SECRET and SERVICE_AUTH_SECRET")
+        return self
 
     @model_validator(mode="after")
     def _deployed_envs_are_locked_down(self) -> "Settings":

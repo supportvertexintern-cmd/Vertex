@@ -53,6 +53,13 @@ services:
       # rotating it.
       SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
       SERVICE_AUTH_SECRET_PREVIOUS: ${SERVICE_AUTH_SECRET_PREVIOUS:-}
+      # Session keys (session-keys-handover.md, E8), written by
+      # deploy/session-keys.sh. The private key and the account-link secret
+      # are this service's alone; the public keys are shared with Next.js.
+      # Checked at startup. Unset = today's shared-key sessions only.
+      SESSION_PRIVATE_KEY: ${SESSION_PRIVATE_KEY:-}
+      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:-}
+      ACCOUNT_LINK_SECRET: ${ACCOUNT_LINK_SECRET:-}
       # The same Stripe account as the web app's: FastAPI syncs each job
       # payment stage's Product and Price (step 3.2). Unset = no sync.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -169,6 +176,9 @@ services:
       TRUST_PROXY_HEADERS: "true"
       REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
+      # To verify the sessions FastAPI signs with its private key (never
+      # given here; session-keys-handover.md).
+      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:-}
       # callBackend() (lib/backend.ts): FastAPI on the stack's own network,
       # and the credential it signs each call with (G18).
       BACKEND_URL: http://backend:8000

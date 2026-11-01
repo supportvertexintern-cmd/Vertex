@@ -5,8 +5,11 @@ FastAPI is the session issuer since users and sessions step 8.2
 (docs/architecture/users-handover.md, D1 A): it signs access tokens exactly
 as jwt.ts did, so the website (which still verifies them on every request)
 and tokens issued before the switch are unaffected. Exception E8 records the
-shared key until the move to asymmetric keys after step 8.5. Every token
-follows the same rules:
+shared key; docs/architecture/session-keys-handover.md ends it. Since its
+step K1 a session token may also be ES256, signed with FastAPI's private key
+and named by its `kid` (app/core/session_keys.py), and an account link may
+be keyed from ACCOUNT_LINK_SECRET, which the website never holds; both forms
+are accepted until K3. Every other token follows the same rules:
   - HS256 only (no algorithm from the token is trusted);
   - one key per token purpose, derived from JWT_SECRET with HKDF-SHA256
     (gap G17), so a password-reset or upload token never passes as a session;
@@ -31,9 +34,9 @@ users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
     Candidate Information Form they have just submitted (signCifUploadToken;
     step 6.3).
   - "email_verification", "password_reset", "account_setup": the links in
-    the verification, reset and setup emails, signed with the claims
-    signEmailToken() and signAccountSetupToken() use, so the website still
-    accepts them if it takes the writes back. A reset link also carries
+    the verification, reset and setup emails, with the claims the website's
+    signEmailToken() and signAccountSetupToken() used before step 8.3, so
+    links it signed then still work. A reset link also carries
     "pwd", a keyed fingerprint of the password it was issued for: once that
     password changes (the link used, or changed another way) the link stops
     working (security review #9).
@@ -46,11 +49,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 import jwt
 
+from app.core import session_keys
 from app.core.clock import epoch_seconds
 from app.core.config import settings
 
@@ -101,15 +105,34 @@ def key_for(purpose: str, secret: str) -> bytes:
     return hkdf_sha256(secret.encode(), SALT, info)
 
 
-def verify_session_token(token: str) -> SessionClaims:
+def _session_key(token: str) -> tuple[object, str]:
+    """The key and the one algorithm a session token may be checked with:
+    the listed public key its `kid` names for ES256, else the shared key
+    (until K3). The token's own `alg` only picks between the two; each is
+    checked with its own algorithm alone, so neither key passes for the
+    other."""
+    try:
+        header = jwt.get_unverified_header(token)
+    except jwt.PyJWTError as err:
+        raise InvalidToken(type(err).__name__) from err
+    if header.get("alg") == session_keys.ALGORITHM:
+        public = session_keys.public_keys(settings.SESSION_PUBLIC_KEYS).get(str(header.get("kid")))
+        if public is None:
+            raise InvalidToken("session token names an unknown key")
+        return public, session_keys.ALGORITHM
     secret = settings.JWT_SECRET
     if not secret or len(secret) < 32:
         raise InvalidToken("JWT_SECRET is not configured")
+    return key_for("session", secret), ALGORITHM
+
+
+def verify_session_token(token: str) -> SessionClaims:
+    key, algorithm = _session_key(token)
     try:
         payload = jwt.decode(
             token,
-            key_for("session", secret),
-            algorithms=[ALGORITHM],
+            key,
+            algorithms=[algorithm],
             issuer=ISSUER,
             audience="vertex:session",
             options={"require": ["exp", "iss", "aud"]},
@@ -245,18 +268,37 @@ def _sign(purpose: str, claims: dict, ttl_seconds: int) -> str:
     return jwt.encode(payload, key_for(purpose, _secret()), algorithm=ALGORITHM)
 
 
+def _link_secrets() -> list[str]:
+    """The secrets an account link may be keyed from: ACCOUNT_LINK_SECRET
+    (session-keys-handover.md D4) and, until K3, JWT_SECRET."""
+    return [s for s in (settings.ACCOUNT_LINK_SECRET, settings.JWT_SECRET) if s and len(s) >= 32]
+
+
+def _decode_with_secret(purpose: str, token: str) -> tuple[dict, str]:
+    """The link's claims and the secret its key came from."""
+    secrets = _link_secrets()
+    if not secrets:
+        raise InvalidToken("JWT_SECRET is not configured")
+    for secret in secrets:
+        try:
+            payload = jwt.decode(
+                token,
+                key_for(purpose, secret),
+                algorithms=[ALGORITHM],
+                issuer=ISSUER,
+                audience=f"vertex:{purpose}",
+                options={"require": ["exp", "iss", "aud"]},
+            )
+            return payload, secret
+        except jwt.InvalidSignatureError:
+            continue
+        except jwt.PyJWTError as err:
+            raise InvalidToken(type(err).__name__) from err
+    raise InvalidToken("InvalidSignatureError")
+
+
 def _decode(purpose: str, token: str) -> dict:
-    try:
-        return jwt.decode(
-            token,
-            key_for(purpose, _secret()),
-            algorithms=[ALGORITHM],
-            issuer=ISSUER,
-            audience=f"vertex:{purpose}",
-            options={"require": ["exp", "iss", "aud"]},
-        )
-    except jwt.PyJWTError as err:
-        raise InvalidToken(type(err).__name__) from err
+    return _decode_with_secret(purpose, token)[0]
 
 
 def _text(payload: dict, field: str, purpose: str) -> str:
@@ -266,11 +308,12 @@ def _text(payload: dict, field: str, purpose: str) -> str:
     return value
 
 
-def password_fingerprint(password_hash: str | None) -> str:
+def password_fingerprint(password_hash: str | None, secret: str | None = None) -> str:
     """Names the password a reset link was issued for without revealing
-    anything about it: keyed with the reset purpose's key, and a link's
-    claims are readable by whoever holds it."""
-    key = key_for("password_reset", _secret())
+    anything about it: keyed with the reset purpose's key (from the secret
+    the link is signed with), and a link's claims are readable by whoever
+    holds it."""
+    key = key_for("password_reset", secret or _secret())
     return hmac.new(key, (password_hash or "").encode(), hashlib.sha256).hexdigest()[:32]
 
 
@@ -281,6 +324,12 @@ class EmailLink:
     # The reset link's password fingerprint; None on a verification link and
     # on a reset link the website signed before 8.3 (valid for 24 hours).
     pwd: str | None
+    # The secret the link's key came from, for its fingerprint.
+    secret: str = field(default="", repr=False, compare=False)
+
+    def issued_for(self, password_hash: str | None) -> bool:
+        """Whether a reset link still names the account's password."""
+        return self.pwd is None or hmac.compare_digest(self.pwd, password_fingerprint(password_hash, self.secret))
 
 
 def sign_verification_token(user_id: str, email: str) -> str:
@@ -297,12 +346,12 @@ def verify_email_token(token: str, kind: str) -> EmailLink:
     "password_reset", each with its own key."""
     if kind not in ("email_verification", "password_reset"):
         raise ValueError(kind)
-    payload = _decode(kind, token)
+    payload, secret = _decode_with_secret(kind, token)
     user_id, email = _text(payload, "userId", kind), _text(payload, "email", kind)
     if payload.get("type") != kind:
         raise InvalidToken(f"{kind} token has the wrong type")
     pwd = payload.get("pwd")
-    return EmailLink(user_id, email, pwd if isinstance(pwd, str) and pwd else None)
+    return EmailLink(user_id, email, pwd if isinstance(pwd, str) and pwd else None, secret)
 
 
 def sign_account_setup_token(user_id: str) -> str:

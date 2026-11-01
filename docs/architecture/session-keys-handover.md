@@ -1,6 +1,6 @@
 # Session keys: ending the shared secret (E8)
 
-Status: **plan, waiting for the owner's decisions** (2026-11-01). Follows
+Status: **approved by the owner, 2026-11-01: D1 to D5 all option A.** K1 next. Follows
 [users-handover.md](users-handover.md), whose D1 A kept one shared key while
 the area moved and registered exception E8 until "rotation to asymmetric
 keys after 8.5". Steps 8.1 to 8.5 are done on `dev`.
@@ -126,3 +126,11 @@ Each PR has the usual checks:
 | Id | Change |
 |---|---|
 | E8 | Closed at K3, on each stack, main last. With D4 B instead, it stays open for the account links |
+
+## 7. Progress
+
+| Step | State |
+|---|---|
+| K1 | Done (this PR): `app/core/session_keys.py` (key parsing, the key id, the startup check), `verify_session_token` and `lib/jwt.ts` `verifyToken` accept an ES256 session from a listed key as well as today's, each checked with its own algorithm only; account links verify keyed from `ACCOUNT_LINK_SECRET` or `JWT_SECRET`, a reset link's fingerprint under its own secret; `deploy/session-keys.sh`; the deploy file passes the keys (private key and link secret to the backend only). Nothing signs the new forms yet. Golden vector: an ES256 token FastAPI's code signed passes the website's check (`node_session_vectors.py`, `jwt.test.ts`). Rollback: revert; no migration, and stacks without keys behave as today |
+| K2 | Not started. Before it: the owner runs `deploy/session-keys.sh` for each stack's env file and redeploys K1 |
+| K3 | Not started |
