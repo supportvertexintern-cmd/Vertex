@@ -212,7 +212,7 @@ checked against the code where it could be, and where it lands:
 
 | Id | Exception | Compensating controls | Expiry |
 |---|---|---|---|
-| E8 | Shared symmetric session key (D1 A) | Secret in the environment only; the live-session check on every request; column-level grants (#8) | Key rotation to asymmetric keys after 8.5 |
+| E8 | Shared symmetric session key (D1 A) | Secret in the environment only; the live-session check on every request; column-level grants (#8) | Key rotation to asymmetric keys after 8.5: [session-keys-handover.md](session-keys-handover.md) |
 | E9 | `RefreshToken` not row-audited (D5 A) | Security events for every session decision; the exact-list test | Reviewed at 8.5 |
 | E10 | Two writers of `User` between 8.2 and the end of 8.5 (D6 A; `Partner` and `ReferralAgent` too from 8.4) | Both audited, both fire the `token_version` trigger | End of 8.5: met in code (8.5 database PR); closed on each stack when deployed there |
 
