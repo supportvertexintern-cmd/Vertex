@@ -161,8 +161,8 @@ Each one has a recommended option, as in the earlier handovers.
 | 8.1 | Referral-agent targets: the admin create | `ReferralAgentTarget` |
 | 8.2 | Sessions: password sign-in (web and app), refresh, sign-out, the session lists and revoking, Google sign-in; bcrypt and the session signer in FastAPI | `RefreshToken` |
 | 8.3 | Accounts: registration (with the candidate claim in the same transaction, so no rollback is needed), email verification, forgot and reset password, the admin user pages (create, update, delete, reset, country assignments), behind one flag per area | none (owner, 2026-10-30: `InhouseCountryAssignment` is revoked at the end of 8.5, when the old code behind the flags goes) |
-| 8.4 | Partners and referral agents: partner create, update, delete, provisioning and reset; referral-agent registration, verification, approval, rejection and suspension | `User`, `Partner`, `ReferralAgent` |
-| 8.5 | Clean-up: remove the website's session signing and its password, Google and token helpers, and the 8.3 flags with the code behind them; column grants (#8); update `data-ownership.md` and the session docs | `InhouseCountryAssignment` |
+| 8.4 | Partners and referral agents: partner create, update, delete, provisioning and reset; referral-agent registration, verification, approval, rejection and suspension, behind one flag per area | none (owner, 2026-11-01: like 8.3, a flag sends an area back to the website, which needs its write grants for that; `User`, `Partner` and `ReferralAgent` are revoked at the end of 8.5) |
+| 8.5 | Clean-up: remove the website's session signing and its password, Google and token helpers, and the 8.3 and 8.4 flags with the code behind them; column grants (#8); update `data-ownership.md` and the session docs | `InhouseCountryAssignment`, `User`, `Partner`, `ReferralAgent` (at the end, when the code behind the flags goes) |
 
 Each PR has the usual checks: role drift tests against the Next.js files,
 the audit trail, writes as `vertex_api`, Google mocked in the backend tests,
@@ -177,8 +177,9 @@ and the end-to-end journeys, which sign in on every run.
 - **Lockout during the switch:** none expected, since refresh tokens carry
   over (§2.1). The end-to-end suite signs in, refreshes and signs out on every
   run.
-- **Two writers of `User` between 8.2 and 8.4** (D6 A), both audited and
-  both firing the `token_version` trigger.
+- **Two writers of `User` between 8.2 and the end of 8.5** (D6 A; until
+  8.4 in the plan, extended by the owner, 2026-11-01 so the flags keep working),
+  both audited and both firing the `token_version` trigger.
 - **Behaviour change in 8.2:** with D3 A, a Google account with an
   unverified email can no longer link itself by email.
 
@@ -213,7 +214,7 @@ checked against the code where it could be, and where it lands:
 |---|---|---|---|
 | E8 | Shared symmetric session key (D1 A) | Secret in the environment only; the live-session check on every request; column-level grants (#8) | Key rotation to asymmetric keys after 8.5 |
 | E9 | `RefreshToken` not row-audited (D5 A) | Security events for every session decision; the exact-list test | Reviewed at 8.5 |
-| E10 | Two writers of `User` between 8.2 and 8.4 (D6 A) | Both audited, both fire the `token_version` trigger | 8.4 |
+| E10 | Two writers of `User` between 8.2 and the end of 8.5 (D6 A; `Partner` and `ReferralAgent` too from 8.4) | Both audited, both fire the `token_version` trigger | End of 8.5 |
 
 After 8.2 and again after 8.5, run the kill-switch drill on staging and
 check the G19 rows of `verify-stack.sh`.
@@ -226,4 +227,5 @@ check the G19 rows of `verify-stack.sh`.
 | 8.1 | Done (this PR): `vertex_be/app/api/v1/referral_agents.py`, `create_target`; `vertex_web` loses its writes on `ReferralAgentTarget`. Needs none of D1–D6 or E8–E10 |
 | 8.2 | Done (this PR): `vertex_be/app/api/v1/sessions.py` and `app/services/sessions.py`, `app/services/google_signin.py`; the website's `/api/auth` routes pass requests on (`lib/auth-backend.ts`); `vertex_web` loses its writes on `RefreshToken`. Review items done here: #6, #10, #13, #14, #15, #16 and D2's per-account limit. #5 (the forwarded address) was closed by workstream B |
 | 8.3 | Done (this PR): `vertex_be/app/api/v1/accounts.py` and `users.py`; FastAPI signs the email links (D4 A, notices `email_verification`, `password_reset`, `account_setup`); the website routes pass on while `FLAG_ACCOUNTS_FASTAPI_REGISTRATION`, `_RESET` and `_ADMIN_USERS` are on (the default; `lib/flags.ts`). Rollback: set a flag to `"false"` and restart the website, one area at a time; or revert. No migration, no grant change. Review items done here: #9, #11, #12; #4's "never logged" test. #5 closed by workstream B; #8 moves to 8.5 |
-| 8.4–8.5 | Not started |
+| 8.4 | Done (this PR): `vertex_be/app/api/v1/partner_agencies.py` and the agent routes in `referral_agents.py`; FastAPI signs the referral agent's verification link (notice `referral_agent_application`; links the website signed before keep working); the website routes pass on while `FLAG_ACCOUNTS_FASTAPI_PARTNERS` and `_REFERRAL_AGENTS` are on (the default; `lib/flags.ts`). Rollback: set a flag to `"false"` and restart the website, one area at a time; or revert. No migration, no grant change. Review items done here: #11 for partners and agents; the partner row and the agent row are locked while a login is created (a test runs two at once) |
+| 8.5 | Not started |

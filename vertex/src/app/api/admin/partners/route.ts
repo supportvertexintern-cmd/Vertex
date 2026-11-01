@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { createPartnerSchema } from "@/lib/validations";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn } from "@/lib/pipeline";
 
 // Who "sets policy & criteria" for partner agreements (Regional Supervisory
 // Operational Workflow p.3) — same manager tier as Fee Policy.
@@ -40,6 +42,13 @@ export async function POST(req: NextRequest) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
+  }
+
+  // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py).
+  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_PARTNERS
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("PARTNERS")) {
+    return passOn("/api/v1/partners", { method: "POST", body });
   }
 
   const parsed = createPartnerSchema.safeParse(body);

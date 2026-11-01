@@ -257,6 +257,49 @@ class AccountSetupEmail(_LinkEmail):
     kind: Literal["account_setup"] = "account_setup"
 
 
+class ReferralAgentApplicationEmail(_LinkEmail):
+    """sendReferralAgentApplicationLinkEmail(token, email, full_name): the
+    application received, with the verification link (users step 8.4)."""
+
+    kind: Literal["referral_agent_application"] = "referral_agent_application"
+
+
+class ReferralAgentAdminEmail(BaseModel):
+    """sendReferralAgentAdminNotificationEmail(full_name, country), to the
+    website's REFERRAL_AGENT_NOTIFY_EMAIL."""
+
+    kind: Literal["referral_agent_admin_notification"] = "referral_agent_admin_notification"
+    full_name: str
+    country: str
+
+
+class ReferralAgentApprovedEmail(BaseModel):
+    """sendReferralAgentApprovedEmail(email, full_name, referral_code, app URL + /apply?ref=code)."""
+
+    kind: Literal["referral_agent_approved"] = "referral_agent_approved"
+    email: str
+    full_name: str
+    referral_code: str
+
+
+class ReferralAgentRejectedEmail(BaseModel):
+    """sendReferralAgentRejectedEmail(email, full_name, reason)."""
+
+    kind: Literal["referral_agent_rejected"] = "referral_agent_rejected"
+    email: str
+    full_name: str
+    reason: str
+
+
+class ReferralAgentSuspendedEmail(BaseModel):
+    """sendReferralAgentSuspendedEmail(email, full_name, reason)."""
+
+    kind: Literal["referral_agent_suspended"] = "referral_agent_suspended"
+    email: str
+    full_name: str
+    reason: str
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -279,7 +322,12 @@ Notice = Annotated[
     | MilestonePaymentLinkEmail
     | VerificationEmail
     | PasswordResetEmail
-    | AccountSetupEmail,
+    | AccountSetupEmail
+    | ReferralAgentApplicationEmail
+    | ReferralAgentAdminEmail
+    | ReferralAgentApprovedEmail
+    | ReferralAgentRejectedEmail
+    | ReferralAgentSuspendedEmail,
     Field(discriminator="kind"),
 ]
 

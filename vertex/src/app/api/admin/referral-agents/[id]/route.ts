@@ -6,6 +6,8 @@ import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { updateReferralAgentStatusSchema } from "@/lib/validations";
 import { sendReferralAgentRejectedEmail, sendReferralAgentSuspendedEmail } from "@/lib/email";
 import { log } from "@/lib/log";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn, readJson, seg } from "@/lib/pipeline";
 
 // GET /api/admin/referral-agents/:id — detail, including referred
 // candidates and the commission ledger, Director/Admin only.
@@ -56,6 +58,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guardRes) return guardRes;
 
   const { id } = await params;
+
+  // FastAPI decides since users step 8.4 (vertex_be/app/api/v1/referral_agents.py).
+  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REFERRAL_AGENTS")) {
+    const read = await readJson(req);
+    if (read.invalid) return read.invalid;
+    return passOn(`/api/v1/referral-agents/${seg(id)}`, { method: "PATCH", body: read.body });
+  }
+
   const existing = await prisma.referralAgent.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: { code: "not_found", message: "Referral agent not found." } }, { status: 404 });

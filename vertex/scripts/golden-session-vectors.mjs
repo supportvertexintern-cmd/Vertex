@@ -33,6 +33,12 @@ console.log(
       verificationToken: link("email_verification", { userId: "golden-user", email: "golden@test.invalid", type: "email_verification" }),
       passwordResetToken: link("password_reset", { userId: "golden-user", email: "golden@test.invalid", type: "password_reset" }),
       accountSetupToken: link("account_setup", { userId: "golden-user", type: "account_setup" }),
+      // A referral agent's verification link as signed before step 8.4
+      // (signReferralAgentEmailVerificationToken).
+      referralAgentVerificationToken: link("referral_agent_email_verification", {
+        referralAgentId: "cgoldenagent0001",
+        type: "referral_agent_email_verification",
+      }),
     },
     null,
     1,

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyReferralAgentEmailVerificationToken } from "@/lib/jwt";
 import { limitByIp } from "@/lib/rate-limit";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn } from "@/lib/pipeline";
 
 // GET /api/referral-agents/verify-email — mirrors /api/auth/verify-email,
 // but updates ReferralAgent.email_verified. No User/session exists yet at
@@ -12,6 +14,13 @@ export async function GET(req: NextRequest) {
   if (limited) return limited;
 
   const token = req.nextUrl.searchParams.get("token");
+
+  // FastAPI checks the link and verifies since users step 8.4
+  // (vertex_be/app/api/v1/referral_agents.py); below is the way back, behind
+  // FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("REFERRAL_AGENTS")) {
+    return passOn("/api/v1/referral-agents/verify-email", { method: "POST", body: { token }, asUser: false }, { legacyErrors: true, unwrap: true });
+  }
 
   if (!token) {
     return NextResponse.json({ error: "Verification token is required." }, { status: 400 });

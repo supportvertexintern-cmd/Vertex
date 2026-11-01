@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { sendAccountSetupInviteEmail } from "@/lib/email";
+import { accountsOnFastApi } from "@/lib/flags";
+import { passOn, seg } from "@/lib/pipeline";
 
 import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
@@ -20,6 +22,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (guardRes) return guardRes;
 
   const { id } = await params;
+
+  // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py).
+  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_PARTNERS
+  // (lib/flags.ts), until step 8.5.
+  if (accountsOnFastApi("PARTNERS")) {
+    return passOn(`/api/v1/partners/${seg(id)}/reset-password`, { method: "POST" });
+  }
+
   const partner = await prisma.partner.findUnique({ where: { id } });
   if (!partner) {
     return NextResponse.json({ error: { code: "not_found", message: "Partner not found." } }, { status: 404 });

@@ -592,6 +592,11 @@ export async function sendReferralAgentApplicationReceivedEmail(to: string, full
   }
 }
 
+// The verification link FastAPI signed (users step 8.4), in the same email.
+export async function sendReferralAgentApplicationLinkEmail(token: string, to: string, fullName: string) {
+  await sendReferralAgentApplicationReceivedEmail(to, fullName, `${APP_URL}/become-a-referral-agent/verify-email?token=${token}`);
+}
+
 export async function sendReferralAgentAdminNotificationEmail(fullName: string, country: string) {
   const to = process.env.REFERRAL_AGENT_NOTIFY_EMAIL;
   if (!to) {
