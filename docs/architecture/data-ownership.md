@@ -137,11 +137,11 @@ does to other tables on a delete (`SET NULL`, `CASCADE`) is not recorded.
 |---|---|---|---|---|
 | Reference data | `Country`, `Region`, `Sector`, `DocumentRequirementType`, `CountryDocumentRequirement`, `FeePolicy`, `SystemSetting` | **FastAPI: `FeePolicy`** (handed over 2026-10-24, step 1.2), **`Region`, `Country`** (step 2.1), **`Sector`, `CountryDocumentRequirement`** (step 2.2), **`SystemSetting`** (step 2.3), **`DocumentRequirementType`** (step 3.2, with jobs, because job writes create its receipt types) | FastAPI | Read by 17+ handlers; reads may stay in Next.js |
 | Content | `Job`, `JobPaymentStage`, `JobSector`, `JobPosition`, `EmailTemplate`, `KnowledgeArticle` | **FastAPI: `KnowledgeArticle`, `EmailTemplate`** (step 3.1), **`Job`, `JobPaymentStage`** (step 3.2, with Stripe pricing), **`JobSector`, `JobPosition`** (step 3.3) | FastAPI | Public job pages: public-register rules. Chat reads `SystemSetting` and `KnowledgeArticle` |
-| Partners | `Partner`, `EmployerClient`, `ReferralAgent`, `ReferralAgentTarget` | **FastAPI: `EmployerClient`** (step 4.1), **`ReferralAgentTarget`** (step 8.1, `users-handover.md`), **`Partner`, `ReferralAgent`** (step 8.4, with their `User` logins, in one transaction). Next.js keeps its write grants on both until the end of 8.5 (E10), unused since 8.5's first PR removed the flags | FastAPI | Moved with Users and sessions (§2.3) |
+| Partners | `Partner`, `EmployerClient`, `ReferralAgent`, `ReferralAgentTarget` | **FastAPI: `EmployerClient`** (step 4.1), **`ReferralAgentTarget`** (step 8.1, `users-handover.md`), **`Partner`, `ReferralAgent`** (step 8.4, with their `User` logins, in one transaction; `vertex_web` lost its writes at 8.5). Next.js: none | FastAPI | Moved with Users and sessions (§2.3) |
 | Recruitment operations | `Campaign`, `CampaignTarget`, `RecruiterTarget`, `RecruiterNote`, `Report`, `StaffKpiTarget`, `StaffScorecard`, `StaffScorecardArea` | **FastAPI: `Campaign`, `CampaignTarget`** (step 5.1), **`RecruiterTarget`, `StaffKpiTarget`, `RecruiterNote`** (step 5.2), **`StaffScorecard`, `StaffScorecardArea`** (step 5.3), **`Report`** (step 5.4: submit, verify, return, resubmit; the list, detail and consolidation preview still read it in Next.js) | FastAPI | Writes only its own tables; reads candidates and cases for KPIs |
 | Candidate pipeline | `Candidate`, `Document`, `CandidateMessage`, `PartnerCandidate`, `Application`, `Case`, `CaseStageEvent`, `CaseReminder`, `Contract`, `Exception`, `ExceptionCorrectiveAction`, `RetentionFollowUp`, `ReferralCommission` | **FastAPI: all of them** (step 6.7, the switch; `docs/architecture/pipeline-handover.md`). Next.js keeps the reads (lists, detail pages, dashboards) and sends the pipeline's emails | FastAPI | One handover (§2.2). Documents are stored in each local stack's MinIO, main included (owner's decision 2026-10-29, E2) |
 | Payments and finance | `CasePayment`, `JobMilestonePrice`, `Payment`, `ConsultationBooking`, `ReferralCommissionRule`. `JobPaymentStage` moved with jobs (step 3.2); `ReferralCommission` with the pipeline (step 6.7) | **FastAPI: `ReferralCommissionRule`** (step 7.1, `payments-handover.md`), **`Payment`, `ConsultationBooking`** (step 7.2: the Stripe webhook, passed on by Next.js, and PayPal; now audited, G22), **`CasePayment`** (step 7.3: record, Stripe link, invoice, check-status, mark-paid, receipt, delete), **`JobMilestonePrice`** (step 7.4: kept with its data, writes revoked from Next.js). Next.js: none | FastAPI | Stripe webhook and PayPal capture move with audited writes (G22) |
-| Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | **FastAPI: `RefreshToken`** (step 8.2: FastAPI issues sessions). Next.js: `User` (FastAPI also writes it from 8.2: Google linking, from 8.3 registration, verification, password resets and the admin user pages, and from 8.4 partner and referral agent logins; E10, until the end of 8.5), `InhouseCountryAssignment` (FastAPI writes it from 8.3; the website keeps its grant until the end of 8.5, unused since 8.5's first PR removed the flags) | FastAPI | Last: FastAPI becomes the session issuer. Plan: `users-handover.md` (with `Partner`, `ReferralAgent`, `ReferralAgentTarget`) |
+| Users and sessions | `User`, `RefreshToken`, `InhouseCountryAssignment` | **FastAPI: all of them**: `RefreshToken` from step 8.2 (FastAPI issues sessions); `User` (FastAPI wrote it from 8.2, alone from 8.5) and `InhouseCountryAssignment` (from 8.3, alone from 8.5). Next.js reads them, but not `password_hash`, `google_id` or `token_hash` (#8, column grants, step 8.5) | FastAPI | Done: `users-handover.md` (with `Partner`, `ReferralAgent`, `ReferralAgentTarget`) |
 | Audit | `AuditLog` | both (insert only) | both (insert only) | §2.5 |
 
 ## 4. Cross-area dependencies
@@ -153,8 +153,8 @@ With the areas in §3, only three handlers still write across areas, and all of 
 
 | Handler | Writes | Resolution |
 |---|---|---|
-| `/api/admin/partners/[id]`, `.../provision-account` | `Partner` + `User` | Moves with Users and sessions (owner's decision, §2.3) |
-| `/api/auth/register` | `User` + `Candidate` | Next.js creates the `User`, then FastAPI claims the `Candidate` for it (`POST /api/v1/candidates/claim`, step 6.7); a failed claim removes the `User` again |
+| `/api/admin/partners/[id]`, `.../provision-account` | `Partner` + `User` | **FastAPI** writes both in one transaction (step 8.4) |
+| `/api/auth/register` | `User` + `Candidate` | **FastAPI** creates the account and claims the candidate in one transaction (step 8.3) |
 
 **Foreign keys across areas** don't block a move: a service may read and
 reference rows it doesn't own. But **`ON DELETE CASCADE` across areas is a
@@ -225,9 +225,9 @@ updated.
 
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
-| `Partner` | `/api/admin/partners/[id]/provision-account` (update)<br>`/api/admin/partners/[id]` (delete, update)<br>`/api/admin/partners` (create) | 10 files, incl. `/api/admin/backup/partners-csv`, `/api/admin/partners/[id]/provision-account`, `/api/admin/partners/[id]/reset-password`, `/api/admin/partners/[id]`, … |
+| `Partner` | **FastAPI** `/api/v1/partners` (create), `/api/v1/partners/{id}` (update, delete), `…/provision-account`, `…/reset-password`; Next.js's routes pass requests on; `vertex_web` has no write grant (step 8.5, `users-handover.md`) | 10 files, incl. `/api/admin/backup/partners-csv`, `/api/admin/partners/[id]`, … |
 | `EmployerClient` | **FastAPI** `/api/v1/employer-clients` (create), `/api/v1/employer-clients/{id}` (update); Next.js's routes pass requests on; `vertex_web` has no write grant (step 4.1) | **FastAPI** (the same routes, list and detail) |
-| `ReferralAgent` | `/api/referral-agents/register` (create), `/api/referral-agents/verify-email` (update), `/api/admin/referral-agents/[id]` and `…/approve` (update). Moves in step 4.3 | `/api/admin/referral-agents`, … |
+| `ReferralAgent` | **FastAPI** `/api/v1/referral-agents/apply`, `/verify-email`, `/{id}` (update), `/{id}/approve`; Next.js's routes pass requests on; `vertex_web` has no write grant (step 8.5, `users-handover.md`) | `/api/admin/referral-agents`, … |
 | `ReferralAgentTarget` | **FastAPI** `/api/v1/referral-agents/{id}/targets` (create, audited); Next.js's POST passes requests on; `vertex_web` has no write grant (step 8.1, `users-handover.md`) | `/api/admin/referral-agents/[id]/targets` (target vs actual) |
 
 ### Recruitment operations
@@ -274,9 +274,9 @@ Written by **FastAPI** since the switch (step 6.7, `docs/architecture/pipeline-h
 
 | Table | Writers today (Next.js) | Readers today |
 |---|---|---|
-| `User` | `/api/admin/partners/[id]/provision-account` (create)<br>`/api/admin/partners/[id]/reset-password` (update)<br>`/api/admin/partners/[id]` (delete, update)<br>`/api/admin/users/[id]/reset-password` (update)<br>`/api/admin/users/[id]` (delete, update)<br>`/api/admin/users` (create)<br>`/api/auth/google/callback` (update)<br>`/api/auth/register` (create, update)<br>`/api/auth/reset-password` (update)<br>`/api/auth/verify-email` (update)<br>`lib/test-session.ts` (upsert) | 42 files, incl. `/api/admin/partners/[id]/provision-account`, `/api/admin/partners/[id]`, `/api/admin/users/[id]/reset-password`, `/api/admin/users/[id]`, … |
+| `User` | **FastAPI**: sessions and Google linking (`sessions.py`), accounts (`accounts.py`), the admin user pages (`users.py`), partner and referral agent logins (`partner_agencies.py`, `referral_agents.py`); Next.js's routes pass requests on; `vertex_web` has no write grant and can't read `password_hash` or `google_id` (step 8.5, `users-handover.md`). `lib/test-session.ts` writes as the tests' superuser | 42 files, incl. `/api/admin/users/[id]`, `server/scope.ts`, … |
 | `RefreshToken` | **FastAPI** `app/services/sessions.py` through `/api/v1/auth/login`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/sessions`, `/users/{id}/sessions`; the website's `/api/auth` routes pass requests on; `vertex_web` has no write grant (step 8.2, `users-handover.md`). Not row-audited (E9) | `lib/session.ts` (`loadSession`, every request) |
-| `InhouseCountryAssignment` | `/api/admin/users/[id]` (createMany, deleteMany)<br>`/api/admin/users` (create (nested)) | `/api/admin/users/[id]`, `server/scope.ts` |
+| `InhouseCountryAssignment` | **FastAPI** `/api/v1/users` (create), `/api/v1/users/{id}` (update); Next.js's routes pass requests on; `vertex_web` has no write grant (step 8.5, `users-handover.md`) | `/api/admin/users/[id]`, `server/scope.ts` |
 
 ### Audit (cross-cutting)
 

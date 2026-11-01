@@ -19,14 +19,18 @@ from app.db.session import engine
 INSUFFICIENT_PRIVILEGE = "42501"
 
 
-@pytest.fixture(scope="module", autouse=True)
-def roles_provisioned() -> None:
+def roles_sql() -> str:
     # Same order as deploy.sh: the readonly column allowlist, then the roles.
     sql = (BASE_DIR / "deploy" / "readonly-columns.sql").read_text(encoding="utf-8") + "\n" + (
         BASE_DIR / "deploy" / "db-roles.sql"
     ).read_text(encoding="utf-8")
     sql = re.sub(r"^\\set .*$", "", sql, flags=re.M)  # psql-only directive
-    sql = re.sub(r":'(migrator|api|web|readonly)_pw'", "''", sql)  # keep passwords as-is
+    return re.sub(r":'(migrator|api|web|readonly)_pw'", "''", sql)  # keep passwords as-is
+
+
+@pytest.fixture(scope="module", autouse=True)
+def roles_provisioned() -> None:
+    sql = roles_sql()
     # Straight to psycopg2 with no parameters, so the script's own format()
     # placeholders (%I, %L) aren't taken for bind parameters.
     raw = engine.raw_connection()
@@ -64,28 +68,50 @@ def run_as(conn: Connection, role: str, sql: str) -> str | None:
 RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 
 
-# A table each role still writes: one of FastAPI's handed-over tables, and
-# one Next.js keeps (document types move with jobs, step 3). When it moves,
-# pick another of Next.js's.
-OWN_ROW = {
-    "vertex_api": ("Region", """INSERT INTO "Region" (id, name) VALUES ('ctest-role-row', 'Role test')"""),
-    # Users stay with the website until users and sessions move.
-    "vertex_web": (
-        "User",
-        """INSERT INTO "User" (id, full_name, email, updated_at)
-           VALUES ('ctest-role-row', 'Role test', 'role-row@test.invalid', now())""",
-    ),
-}
-
-
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
-def test_runtime_roles_can_read_and_write_rows(conn, role):
-    table, insert = OWN_ROW[role]
-    assert (table in fastapi_owned_tables()) == (role == "vertex_api"), f"{table} changed owner: update OWN_ROW"
+def test_runtime_roles_can_read_rows_and_append_to_the_audit_trail(conn, role):
     assert run_as(conn, role, 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, role, insert) is None
     assert run_as(conn, role, """INSERT INTO "AuditLog" (id, entity_type, entity_id, action)
                                  VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')""") is None
+
+
+def test_the_api_writes_rows(conn):
+    assert run_as(conn, "vertex_api", """INSERT INTO "Region" (id, name) VALUES ('ctest-role-row', 'Role test')""") is None
+    assert run_as(conn, "vertex_api", """INSERT INTO "User" (id, full_name, email, updated_at)
+                                         VALUES ('ctest-role-row', 'Role test', 'role-row@test.invalid', now())""") is None
+
+
+def test_every_table_is_handed_over(conn):
+    # Since users step 8.5 Next.js writes nothing but the audit trail. A table
+    # a migration adds is FastAPI's: add it to the list in db-roles.sql.
+    tables = set(conn.scalars(text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")))
+    assert tables - {"AuditLog", "alembic_version", "_prisma_migrations"} - set(fastapi_owned_tables()) == set()
+
+
+# Review item #8 (users step 8.5): what Next.js may never read.
+HIDDEN = {"User": {"password_hash", "google_id"}, "RefreshToken": {"token_hash"}}
+
+
+@pytest.mark.parametrize("table", sorted(HIDDEN))
+def test_the_website_reads_no_credentials(conn, table):
+    columns = set(conn.scalars(text("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = :t"), {"t": table}))
+    assert HIDDEN[table] <= columns
+    for column in sorted(columns):
+        sql = f'SELECT "{column}" FROM "{table}" LIMIT 1'
+        expected = INSUFFICIENT_PRIVILEGE if column in HIDDEN[table] else None
+        assert run_as(conn, "vertex_web", sql) == expected, sql
+        assert run_as(conn, "vertex_api", sql) is None, sql
+    assert run_as(conn, "vertex_web", f'SELECT * FROM "{table}" LIMIT 1') == INSUFFICIENT_PRIVILEGE
+    assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') is None
+
+
+def test_a_column_a_migration_adds_is_readable_after_the_next_run(conn):
+    # deploy.sh runs db-roles.sql again after the migrations.
+    conn.execute(text('ALTER TABLE "User" ADD COLUMN role_probe_col int'))
+    assert run_as(conn, "vertex_web", 'SELECT role_probe_col FROM "User" LIMIT 1') == INSUFFICIENT_PRIVILEGE
+    conn.execute(text(roles_sql().split("-- Review item #8")[1].split("\n", 1)[1]))
+    assert run_as(conn, "vertex_web", 'SELECT role_probe_col FROM "User" LIMIT 1') is None
+    assert run_as(conn, "vertex_web", 'SELECT password_hash FROM "User" LIMIT 1') == INSUFFICIENT_PRIVILEGE
 
 
 def test_only_the_web_service_reads_the_audit_trail(conn):
@@ -297,7 +323,7 @@ def test_the_handover_list_is_read():
     # Payments and finance, table by table (step 7).
     assert {"ReferralCommissionRule", "Payment", "ConsultationBooking", "CasePayment", "JobMilestonePrice"} <= set(fastapi_owned_tables())
     # Users and sessions, step by step (step 8).
-    assert {"ReferralAgentTarget", "RefreshToken"} <= set(fastapi_owned_tables())
+    assert {"ReferralAgentTarget", "RefreshToken", "User", "Partner", "ReferralAgent", "InhouseCountryAssignment"} <= set(fastapi_owned_tables())
 
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
