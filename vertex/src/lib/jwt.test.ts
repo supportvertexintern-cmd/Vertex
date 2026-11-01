@@ -1,7 +1,7 @@
 // Gap G17: one key per token purpose. Every token must be accepted by the
 // verifier of its own purpose and rejected by every other one.
-import { describe, it, expect, vi } from "vitest";
-import { hkdfSync } from "node:crypto";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { createHmac, createPublicKey, generateKeyPairSync, hkdfSync, type KeyObject } from "node:crypto";
 import jwt from "jsonwebtoken";
 
 const SECRET = vi.hoisted(() => {
@@ -14,6 +14,7 @@ import {
   signDocumentToken,
   signCandidateInviteToken,
   signCifUploadToken,
+  sessionKeyId,
   verifyToken,
   verifyDocumentToken,
   verifyCifUploadToken,
@@ -95,5 +96,79 @@ describe("token purposes (gap G17)", () => {
 
   it("an expired token is rejected", () => {
     expect(() => verifyDocumentToken(signDocumentToken({ storagePath: "cv/x.pdf" }, -1))).toThrow();
+  });
+});
+
+// Session keys K1 (docs/architecture/session-keys-handover.md): FastAPI will
+// sign sessions with an ES256 key only it holds; the shared key still passes
+// until K3. GOLDEN_* is vertex_be/tests/node_session_vectors.py's vector, made
+// by FastAPI's code with a test-only key whose private half was thrown away.
+const GOLDEN_PUBLIC = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFSUN4VFdUQy9yWDVvcnZ3TjkvZXBHd055TG05KwpwVE1ZUndRcUlUQllvZUJVbUl1SjhGYkNxTTZwNXQwNzlxUG85eXRtNkxjbllXTTVIZmhIYzZ0b2VnPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="; // gitleaks:allow
+const GOLDEN_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IkplR1AzRXFhanFncjNHTUsiLCJ0eXAiOiJKV1QifQ.eyJ1c2VySWQiOiJnb2xkZW4tdXNlciIsImVtYWlsIjoiZ29sZGVuQHRlc3QuaW52YWxpZCIsInJvbGUiOiJhZG1pbiIsInNpZCI6ImdvbGRlbi1mYW1pbHkiLCJ2ZXIiOjMsImlhdCI6MTc5MjgwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJpc3MiOiJ2ZXJ0ZXgtd2ViIiwiYXVkIjoidmVydGV4OnNlc3Npb24ifQ.EPmmlByMPIdLFjDUHam1Ry-q2c0Jyl1s5ypNJucABVVepkeuRI414sXqGu6hstDJqLZlptpR_x3obzh3lmwloQ"; // gitleaks:allow
+
+describe("ES256 sessions (session keys K1)", () => {
+  const newKey = (namedCurve = "prime256v1") => generateKeyPairSync("ec", { namedCurve });
+  const b64 = (key: KeyObject) => Buffer.from(key.export({ type: "spki", format: "pem" }) as string).toString("base64");
+  const claims = { userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 };
+  const opts = { issuer: "vertex-web", audience: "vertex:session", expiresIn: 900 } as const;
+  const es256 = (key: KeyObject, kid: string, payload: object = claims) => jwt.sign(payload, key, { ...opts, algorithm: "ES256", keyid: kid });
+  const current = newKey();
+  const previous = newKey();
+  const listed = (...keys: KeyObject[]) => {
+    process.env.SESSION_PUBLIC_KEYS = keys.map(b64).join(", ");
+  };
+  afterEach(() => {
+    delete process.env.SESSION_PUBLIC_KEYS;
+  });
+
+  it("accepts FastAPI's golden vector, with the same key id", () => {
+    process.env.SESSION_PUBLIC_KEYS = GOLDEN_PUBLIC;
+    expect(sessionKeyId(createPublicKey(Buffer.from(GOLDEN_PUBLIC, "base64").toString()))).toBe("JeGP3Eqajqgr3GMK");
+    expect(verifyToken(GOLDEN_TOKEN)).toMatchObject({ userId: "golden-user", sid: "golden-family", ver: 3 });
+  });
+
+  it("accepts a token from any listed key (current and previous)", () => {
+    listed(current.publicKey, previous.publicKey);
+    expect(verifyToken(es256(current.privateKey, sessionKeyId(current.publicKey))).userId).toBe("u1");
+    expect(verifyToken(es256(previous.privateKey, sessionKeyId(previous.publicKey))).userId).toBe("u1");
+  });
+
+  it("still accepts a shared-key session until K3", () => {
+    listed(current.publicKey);
+    expect(verifyToken(signers.session()).userId).toBe("u1");
+  });
+
+  it("refuses an unlisted key, an unknown key id, and another key under a listed id", () => {
+    listed(current.publicKey);
+    const stranger = newKey();
+    expect(() => verifyToken(es256(stranger.privateKey, sessionKeyId(stranger.publicKey)))).toThrow(/unknown key/);
+    expect(() => verifyToken(es256(current.privateKey, "nope"))).toThrow(/unknown key/);
+    expect(() => verifyToken(jwt.sign(claims, current.privateKey, { ...opts, algorithm: "ES256" }))).toThrow(/unknown key/);
+    expect(() => verifyToken(es256(stranger.privateKey, sessionKeyId(current.publicKey)))).toThrow(/invalid signature/);
+  });
+
+  it("refuses the public key used as an HMAC secret, under either header", () => {
+    listed(current.publicKey);
+    const pem = current.publicKey.export({ type: "spki", format: "pem" }) as string;
+    const kid = sessionKeyId(current.publicKey);
+    for (const alg of ["HS256", "ES256"]) {
+      const head = Buffer.from(JSON.stringify({ alg, kid })).toString("base64url");
+      const body = Buffer.from(JSON.stringify({ ...claims, iss: "vertex-web", aud: "vertex:session", exp: 4102444800 })).toString("base64url");
+      const sig = createHmac("sha256", pem).update(`${head}.${body}`).digest("base64url");
+      expect(() => verifyToken(`${head}.${body}.${sig}`), alg).toThrow();
+    }
+  });
+
+  it("keeps every other session rule", () => {
+    listed(current.publicKey);
+    const kid = sessionKeyId(current.publicKey);
+    expect(() => verifyToken(jwt.sign(claims, current.privateKey, { ...opts, algorithm: "ES256", keyid: kid, audience: "vertex:document" }))).toThrow();
+    expect(() => verifyToken(es256(current.privateKey, kid, { ...claims, sid: "" }))).toThrow(/missing sid/);
+    expect(() => verifyToken(es256(current.privateKey, kid, { ...claims, ver: "0" }))).toThrow(/missing ver/);
+  });
+
+  it("refuses a listed key that isn't P-256", () => {
+    process.env.SESSION_PUBLIC_KEYS = b64(newKey("secp384r1").publicKey);
+    expect(() => verifyToken(GOLDEN_TOKEN)).toThrow(/P-256/);
   });
 });

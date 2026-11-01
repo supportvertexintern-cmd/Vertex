@@ -1,4 +1,4 @@
-import { hkdfSync } from "node:crypto";
+import { createHash, createPublicKey, hkdfSync, type KeyObject } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { Role } from "@prisma/client";
 
@@ -65,10 +65,16 @@ function sign(purpose: TokenPurpose, payload: object, expiresIn: jwt.SignOptions
 }
 
 // Throws on a bad signature, expiry, wrong purpose or a payload missing the
-// fields its purpose needs.
-function verify<T>(purpose: TokenPurpose, token: string, required: (keyof T & string)[]): T {
-  const payload = jwt.verify(token, keyFor(purpose), {
-    algorithms: [ALGORITHM],
+// fields its purpose needs. Each key is checked with its one algorithm only.
+function verify<T>(
+  purpose: TokenPurpose,
+  token: string,
+  required: (keyof T & string)[],
+  key: Buffer | KeyObject = keyFor(purpose),
+  algorithm: jwt.Algorithm = ALGORITHM,
+): T {
+  const payload = jwt.verify(token, key, {
+    algorithms: [algorithm],
     issuer: ISSUER,
     audience: audience(purpose),
   }) as Record<string, unknown>;
@@ -111,9 +117,49 @@ export function signDocumentToken(payload: DocumentTokenPayload, expiresInSecond
   return sign("document", payload, expiresInSeconds);
 }
 
+// Session keys (docs/architecture/session-keys-handover.md, E8): FastAPI signs
+// sessions with an ES256 private key only it holds, and names the key in the
+// token's `kid`; SESSION_PUBLIC_KEYS lists the public keys (base64 of each
+// PEM, comma-separated), as vertex_be/app/core/session_keys.py reads them.
+// Until step K3 a session signed with the shared key still passes.
+const SESSION_ALGORITHM = "ES256" as const;
+let sessionKeys: { raw: string; byId: Map<string, KeyObject> } | undefined;
+
+// The first 16 characters of the base64url SHA-256 of the key's DER
+// SubjectPublicKeyInfo, as session_keys.key_id() computes it.
+export function sessionKeyId(key: KeyObject): string {
+  return createHash("sha256").update(key.export({ type: "spki", format: "der" })).digest("base64url").slice(0, 16);
+}
+
+function sessionPublicKeys(): Map<string, KeyObject> {
+  const raw = process.env.SESSION_PUBLIC_KEYS ?? "";
+  if (sessionKeys?.raw !== raw) {
+    const byId = new Map<string, KeyObject>();
+    for (const part of raw.split(",").map((p) => p.trim()).filter(Boolean)) {
+      const key = createPublicKey(Buffer.from(part, "base64").toString("utf-8"));
+      if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+        throw new Error("SESSION_PUBLIC_KEYS must list P-256 (ES256) public keys");
+      }
+      byId.set(sessionKeyId(key), key);
+    }
+    sessionKeys = { raw, byId };
+  }
+  return sessionKeys.byId;
+}
+
 // Tokens from before G19 (no sid/ver) are rejected: those users sign in again.
 export function verifyToken(token: string): JwtPayload {
-  const payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"]);
+  // The token's own alg only picks which key to try; each is then checked with
+  // its one algorithm, so neither key passes for the other.
+  const header = jwt.decode(token, { complete: true })?.header;
+  let payload: JwtPayload;
+  if (header?.alg === SESSION_ALGORITHM) {
+    const key = sessionPublicKeys().get(String(header.kid));
+    if (!key) throw new jwt.JsonWebTokenError("session token names an unknown key");
+    payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"], key, SESSION_ALGORITHM);
+  } else {
+    payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"]);
+  }
   if (!Number.isInteger(payload.ver)) throw new jwt.JsonWebTokenError("session token is missing ver");
   return payload;
 }
