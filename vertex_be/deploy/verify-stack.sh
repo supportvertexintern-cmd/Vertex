@@ -54,6 +54,9 @@ ok "vertex_readonly: SELECT email (personal data)" "$(net vertex_readonly "$(v D
 ok "vertex_readonly: read AuditLog" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
 ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
 ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
+# Users step 8.5: the website reads users without their credentials, and writes none.
+ok "vertex_web: SELECT password_hash" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
+ok "vertex_web: UPDATE User" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "User" set email = email where false')" "permission denied"
 ok "vertex_api: read AuditLog (Phase 10)" "$(net vertex_api "$(v DB_API_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
 ok "vertex_web: disable AuditLog triggers" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
