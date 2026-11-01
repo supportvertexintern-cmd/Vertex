@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
-import { signEmailToken, signCandidateInviteToken, signAccountSetupToken } from "./jwt";
+import { signCandidateInviteToken } from "./jwt";
 import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import { prisma } from "./prisma";
 
@@ -131,15 +131,9 @@ export async function sendSecurityAlertEmail(to: string[], subject: string, text
   await transporter.sendMail({ from: FROM, to, subject, text });
 }
 
-// The three emails carrying a signed link come in two forms since users step
-// 8.3 (D4 A): FastAPI signs the link and lists the email in `notify`
-// (lib/pipeline.ts), which sends it with the *LinkEmail form; the website's
-// own code, kept behind the flags in lib/flags.ts until step 8.5, signs it
-// here. Both build the same email. A link is a credential: never log one.
-export async function sendVerificationEmail(userId: string, email: string, fullName: string) {
-  await sendVerificationLinkEmail(signEmailToken({ userId, email, type: "email_verification" }), email, fullName);
-}
-
+// The emails carrying an account link: FastAPI signs the link since users
+// step 8.3 (D4 A) and lists the email in `notify`, which lib/pipeline.ts
+// sends with these. A link is a credential: never log one.
 export async function sendVerificationLinkEmail(token: string, email: string, fullName: string) {
   const verifyUrl = `${APP_URL}/auth/verify-email?token=${token}`;
 
@@ -159,10 +153,6 @@ export async function sendVerificationLinkEmail(token: string, email: string, fu
     .replace(/\{\{verifyUrl\}\}/g, verifyUrl);
 
   await transporter.sendMail({ from: FROM, to: email, subject: config.subject, html: finalHtml });
-}
-
-export async function sendPasswordResetEmail(userId: string, email: string, fullName: string) {
-  await sendPasswordResetLinkEmail(signEmailToken({ userId, email, type: "password_reset" }), email, fullName);
 }
 
 export async function sendPasswordResetLinkEmail(token: string, email: string, fullName: string) {
@@ -217,10 +207,6 @@ export async function sendCandidateInviteEmail(candidateId: string, to: string, 
 // set) with password_hash null, so this only ever needs to authorize
 // setting a password on it, same shape as sendCandidateInviteEmail but for
 // an account instead of a not-yet-existing one.
-export async function sendAccountSetupInviteEmail(userId: string, to: string, name: string) {
-  await sendAccountSetupLinkEmail(signAccountSetupToken(userId), to, name);
-}
-
 export async function sendAccountSetupLinkEmail(token: string, to: string, name: string) {
   const setupUrl = `${APP_URL}/auth/register?setup=${token}`;
 

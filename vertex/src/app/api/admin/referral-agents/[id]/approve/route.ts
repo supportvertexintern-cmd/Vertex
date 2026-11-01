@@ -1,15 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
-import { approveReferralAgentSchema } from "@/lib/validations";
-import { sendAccountSetupInviteEmail, sendReferralAgentApprovedEmail } from "@/lib/email";
-import { log } from "@/lib/log";
-import { accountsOnFastApi } from "@/lib/flags";
 import { passOn, seg } from "@/lib/pipeline";
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // POST /api/admin/referral-agents/:id/approve — Director/Admin only
 // (deliberately excludes inhouse_supervisor, unlike PARTNER_MANAGER_ROLES —
@@ -26,62 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // FastAPI approves since users step 8.4 (vertex_be/app/api/v1/referral_agents.py),
   // with the agent's row locked so two approvals can't both create a login.
-  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS
-  // (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("REFERRAL_AGENTS")) {
-    let sent: unknown;
-    try { sent = await req.json(); } catch { sent = {}; }
-    return passOn(`/api/v1/referral-agents/${seg(id)}/approve`, { method: "POST", body: sent });
-  }
-
-  const agent = await prisma.referralAgent.findUnique({ where: { id } });
-  if (!agent) {
-    return NextResponse.json({ error: { code: "not_found", message: "Referral agent not found." } }, { status: 404 });
-  }
-  if (agent.status !== "pending_approval") {
-    return NextResponse.json({ error: { code: "invalid_transition", message: "Only a pending application can be approved." } }, { status: 409 });
-  }
-  if (!agent.email_verified) {
-    return NextResponse.json({ error: { code: "email_not_verified", message: "This applicant hasn't verified their email yet." } }, { status: 422 });
-  }
-  if (agent.user_id) {
-    return NextResponse.json({ error: { code: "already_provisioned", message: "This agent already has a login." } }, { status: 409 });
-  }
-
-  let body: unknown;
-  try { body = await req.json(); } catch { body = {}; }
-
-  const parsed = approveReferralAgentSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const email = parsed.data.email ?? agent.email;
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    return NextResponse.json({ error: { code: "duplicate", message: "A user with this email already exists." } }, { status: 409 });
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const newUser = await db.user.create({
-    data: {
-      full_name: agent.full_name,
-      email,
-      role: "referral_agent",
-      email_verified: true,
-    },
-  });
-  const updated = await db.referralAgent.update({
-    where: { id },
-    data: { status: "active", user_id: newUser.id, approved_by_id: user!.userId, approved_at: new Date() },
-  });
-
-  const referralLink = `${APP_URL}/apply?ref=${agent.referral_code}`;
-  await sendReferralAgentApprovedEmail(agent.email, agent.full_name, agent.referral_code, referralLink).catch((err) => log.error("email.send_failed", { err }));
-  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch((err) => log.error("email.send_failed", { err }));
-
-  return NextResponse.json({ data: updated }, { status: 201 });
+  let sent: unknown;
+  try { sent = await req.json(); } catch { sent = {}; }
+  return passOn(`/api/v1/referral-agents/${seg(id)}/approve`, { method: "POST", body: sent });
 }

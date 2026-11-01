@@ -57,14 +57,15 @@ from app.core.config import settings
 ALGORITHM = "HS256"
 ISSUER = "vertex-web"
 SALT = b"vertex-token-keys"
-# Mirrors KEY_VERSION in jwt.ts: bumping it there invalidates every
-# outstanding token of that purpose, so it must be bumped here too.
+# Mirrors KEY_VERSION in jwt.ts for the purposes both sign or check (the
+# account links are FastAPI's alone since users step 8.5): bumping one there
+# invalidates every outstanding token of that purpose, so bump it here too.
 KEY_VERSION = {
     "session": 1, "service": 1, "candidate_invite": 1, "cif_upload": 1,
     "email_verification": 1, "password_reset": 1, "account_setup": 1,
     "referral_agent_email_verification": 1,
 }
-# EMAIL_TOKEN_EXPIRES_IN's default in jwt.ts, and signAccountSetupToken()'s.
+# 24 hours, as the website's jwt.ts signed them before users steps 8.3 and 8.4.
 EMAIL_TOKEN_TTL_SECONDS = 24 * 60 * 60
 ACCOUNT_SETUP_TTL_SECONDS = 7 * 24 * 60 * 60
 

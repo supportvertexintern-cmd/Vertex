@@ -10,7 +10,8 @@
  *
  * `protection`:
  *  - "rate-limit"       must call limitByIp/rateLimit
- *  - "signed-token"     needs a signed, expiring single-purpose token
+ *  - "signed-token"     needs a signed, expiring single-purpose token (checked
+ *                       here, or passed on for FastAPI to check)
  *  - "signature"        needs the sender's cryptographic signature (checked
  *                       here, or passed on for FastAPI to check)
  *  - "refresh-token"    needs a live server-side refresh token (lib/session.ts)

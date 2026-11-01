@@ -1,13 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { sendAccountSetupInviteEmail } from "@/lib/email";
-import { provisionPartnerAccountSchema } from "@/lib/validations";
-import { accountsOnFastApi } from "@/lib/flags";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 
-import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
 // POST /api/admin/partners/:id/provision-account — same manager tier as
@@ -24,58 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py),
   // with the partner's row locked so two requests can't both give it a
-  // login. Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_PARTNERS
-  // (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("PARTNERS")) {
-    const read = await readJson(req);
-    if (read.invalid) return read.invalid;
-    return passOn(`/api/v1/partners/${seg(id)}/provision-account`, { method: "POST", body: read.body });
-  }
-
-  const partner = await prisma.partner.findUnique({ where: { id } });
-  if (!partner) {
-    return NextResponse.json({ error: { code: "not_found", message: "Partner not found." } }, { status: 404 });
-  }
-  if (partner.user_id) {
-    return NextResponse.json({ error: { code: "already_provisioned", message: "This partner already has a login." } }, { status: 409 });
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: { code: "invalid_json", message: "Invalid JSON" } }, { status: 400 });
-  }
-
-  const parsed = provisionPartnerAccountSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const email = parsed.data.email ?? partner.contact_email;
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    return NextResponse.json({ error: { code: "duplicate", message: "A user with this email already exists." } }, { status: 409 });
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const newUser = await db.user.create({
-    data: {
-      full_name: partner.contact_name,
-      email,
-      role: "partner",
-      email_verified: false,
-    },
-  });
-  const updatedPartner = await db.partner.update({ where: { id }, data: { user_id: newUser.id } });
-
-  // Awaited, not fire-and-forget — on serverless (Vercel) the function
-  // instance can freeze right after the response is sent, silently
-  // killing an un-awaited async send before it completes.
-  await sendAccountSetupInviteEmail(newUser.id, newUser.email, newUser.full_name).catch((err) => log.error("email.send_failed", { err }));
-
-  return NextResponse.json({ data: updatedPartner }, { status: 201 });
+  // login.
+  const read = await readJson(req);
+  if (read.invalid) return read.invalid;
+  return passOn(`/api/v1/partners/${seg(id)}/provision-account`, { method: "POST", body: read.body });
 }

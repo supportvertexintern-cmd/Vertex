@@ -32,7 +32,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Invite Prefill
+         * @description What the candidate record already says, so a screened candidate only
+         *     sets a password. The invite is the credential.
+         */
+        get: operations["invite_prefill_api_v1_accounts_register_get"];
         put?: never;
         /**
          * Register
@@ -75,7 +80,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Setup Prefill
+         * @description The account a setup link is for, while it has no password.
+         */
+        get: operations["setup_prefill_api_v1_accounts_setup_get"];
         put?: never;
         /**
          * Complete Setup
@@ -4415,6 +4424,15 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
+        /** Notifying[Prefill] */
+        Notifying_Prefill_: {
+            data: components["schemas"]["Prefill"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
         /** Notifying[Received] */
         Notifying_Received_: {
             data: components["schemas"]["Received"];
@@ -4862,6 +4880,17 @@ export interface components {
             city?: string | null;
             /** Title */
             title?: string;
+        };
+        /** Prefill */
+        Prefill: {
+            /** Country */
+            country: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Phone */
+            phone: string;
         };
         /** PriorityRow */
         PriorityRow: {
@@ -6460,6 +6489,37 @@ export interface operations {
             };
         };
     };
+    invite_prefill_api_v1_accounts_register_get: {
+        parameters: {
+            query?: {
+                token?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_Prefill_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     register_api_v1_accounts_register_post: {
         parameters: {
             query?: never;
@@ -6513,6 +6573,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_Done_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setup_prefill_api_v1_accounts_setup_get: {
+        parameters: {
+            query?: {
+                token?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_Prefill_"];
                 };
             };
             /** @description Validation Error */

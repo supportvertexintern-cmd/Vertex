@@ -43,7 +43,7 @@ vi.mock("@/lib/email", () => ({
 
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 import { sessionToken } from "@/lib/test-session";
 import { auditAccess, auditedPrisma, emailFingerprint, recordSecurityEvent } from "@/lib/audit";
 import { forbidden, getAuthUser, requireRole } from "@/lib/api-auth";
@@ -82,7 +82,7 @@ async function settle() {
 beforeAll(async () => {
   userId = (
     await prisma.user.create({
-      data: { full_name: "Phase 10", email, role: "candidate", email_verified: true, password_hash: await hashPassword(PASSWORD) },
+      data: { full_name: "Phase 10", email, role: "candidate", email_verified: true, password_hash: await bcrypt.hash(PASSWORD, 4) },
     })
   ).id;
 });

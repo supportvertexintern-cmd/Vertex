@@ -1,9 +1,7 @@
-// The partner and referral agent routes since users step 8.4: with their
-// flags on (the default) FastAPI writes (vertex_be/tests/test_partner_agencies.py,
-// test_referral_agent_accounts.py) and these routes keep the roles, the rate
-// limits, the response shapes and the emails FastAPI lists. With one flag
-// off, that area's routes run the website's own code again and the other
-// still passes on (lib/flags.ts).
+// The partner and referral agent routes since users step 8.4: FastAPI writes
+// (vertex_be/tests/test_partner_agencies.py, test_referral_agent_accounts.py)
+// and these routes keep the roles, the rate limits, the response shapes and
+// the emails FastAPI lists.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
@@ -25,7 +23,7 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 vi.mock("@/lib/email", () => {
   const senders = [
-    "sendAccountSetupLinkEmail", "sendAccountSetupInviteEmail", "sendReferralAgentApplicationLinkEmail", "sendReferralAgentAdminNotificationEmail",
+    "sendAccountSetupLinkEmail", "sendReferralAgentApplicationLinkEmail", "sendReferralAgentAdminNotificationEmail",
     "sendReferralAgentApprovedEmail", "sendReferralAgentRejectedEmail", "sendReferralAgentSuspendedEmail",
   ];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
@@ -47,7 +45,6 @@ import * as apply from "@/app/api/referral-agents/register/route";
 import * as verify from "@/app/api/referral-agents/verify-email/route";
 import * as approve from "@/app/api/admin/referral-agents/[id]/approve/route";
 import * as oneAgent from "@/app/api/admin/referral-agents/[id]/route";
-import { accountsOnFastApi } from "@/lib/flags";
 // As behind the stack's edge proxy (lib/client-ip.ts).
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -70,18 +67,9 @@ beforeEach(() => {
   callBackend.mockReset();
   state.sent = [];
   state.user = null;
-  vi.unstubAllEnvs();
 });
 
-describe("the flags", () => {
-  it("are on unless set to false", () => {
-    expect([accountsOnFastApi("PARTNERS"), accountsOnFastApi("REFERRAL_AGENTS")]).toEqual([true, true]);
-    vi.stubEnv("FLAG_ACCOUNTS_FASTAPI_PARTNERS", "False");
-    expect([accountsOnFastApi("PARTNERS"), accountsOnFastApi("REFERRAL_AGENTS")]).toEqual([false, true]);
-  });
-});
-
-describe("partners (flag on)", () => {
+describe("partners", () => {
   beforeEach(() => {
     state.user = as("inhouse_supervisor");
   });
@@ -140,7 +128,7 @@ describe("partners (flag on)", () => {
   });
 });
 
-describe("referral agents (flag on)", () => {
+describe("referral agents", () => {
   it("passes an application on, answers as before and sends both emails", async () => {
     const notify = [
       { kind: "referral_agent_application", email: "a@test.invalid", full_name: "Abebe", token: "verify-link" },
@@ -218,38 +206,4 @@ describe("referral agents (flag on)", () => {
     expect((await oneAgent.PATCH(request("PATCH", "/api/admin/referral-agents/r1", { status: "active" }), ctx("r1"))).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
   });
-});
-
-describe("each flag off on its own", () => {
-  // One route per area that can run its old code without a database here.
-  const probes = {
-    PARTNERS: async () => {
-      state.user = as("admin");
-      return provision.POST(request("POST", "/api/admin/partners/p1/provision-account", {}), ctx("p1"));
-    },
-    REFERRAL_AGENTS: async () => verify.GET(request("GET", "/api/referral-agents/verify-email?token=not-a-token")),
-  };
-  // What the website's own code answers to each probe.
-  const own = {
-    PARTNERS: [404, { error: { code: "not_found", message: "Partner not found." } }],
-    REFERRAL_AGENTS: [400, { error: "Invalid or expired verification token." }],
-  };
-  const AREAS = ["PARTNERS", "REFERRAL_AGENTS"] as const;
-
-  for (const off of AREAS) {
-    it(`${off} off: its routes run the website's code, the other still passes on`, async () => {
-      vi.stubEnv(`FLAG_ACCOUNTS_FASTAPI_${off}`, "false");
-      callBackend.mockResolvedValue(ok({ message: "from FastAPI" }));
-      for (const area of AREAS) {
-        callBackend.mockClear();
-        const res = await probes[area]();
-        if (area === off) {
-          expect([res.status, await res.json()]).toEqual(own[area]);
-          expect(callBackend).not.toHaveBeenCalled();
-        } else {
-          expect(callBackend).toHaveBeenCalledTimes(1);
-        }
-      }
-    });
-  }
 });

@@ -14,7 +14,10 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 // rejects a missing user itself with a 401.
 const GUARD = /requireRole\(|requireAdmin\(|requireAuth\(|if\s*\(\s*!user\b[^)]*\)[\s\S]{0,200}?status:\s*40[13]/;
 const RATE_LIMIT = /limitByIp\(|rateLimit\(/;
-const SIGNED_TOKEN = /verify\w*Token\(|resolveDocumentContent\(/;
+// Checked here, or passed on to the FastAPI endpoint that checks it: the
+// account links since users steps 8.3 and 8.4 (vertex_be/tests/
+// test_accounts.py and test_referral_agent_accounts.py cover that side).
+const SIGNED_TOKEN = /verify\w*Token\(|resolveDocumentContent\(|"\/api\/v1\/(accounts|referral-agents)\/(verify-email|reset-password)"/;
 // Checked here, or passed on for FastAPI to check (the Stripe webhook since
 // payments step 7.2; vertex_be/tests/test_payments.py covers that side).
 const SIGNATURE = /constructEvent\(|forward:\s*\{\s*"Stripe-Signature":/;

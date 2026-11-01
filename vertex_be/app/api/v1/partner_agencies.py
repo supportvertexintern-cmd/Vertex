@@ -3,9 +3,8 @@
 admin adds a partner, edits it, removes it, and creates or resets its own
 login. They replace POST /api/admin/partners, PATCH and DELETE
 /api/admin/partners/[id], and POST /api/admin/partners/[id]/provision-account
-and /reset-password, which pass requests on while
-FLAG_ACCOUNTS_FASTAPI_PARTNERS is on. The lists and details (GET) stay in
-Next.js. (Employer clients, a different kind of partner, are in partners.py.)
+and /reset-password, which pass requests on. The lists and details (GET)
+stay in Next.js. (Employer clients, a different kind of partner, are in partners.py.)
 
 They answer as those routes did: the same roles (a test fails if the lists
 drift), messages, status codes and Prisma-shaped JSON. Every change is on

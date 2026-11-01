@@ -1,12 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { sendAccountSetupInviteEmail } from "@/lib/email";
-import { accountsOnFastApi } from "@/lib/flags";
 import { passOn, seg } from "@/lib/pipeline";
 
-import { log } from "@/lib/log";
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
 // POST /api/admin/partners/:id/reset-password (2026-08-01) — same manager
@@ -24,30 +19,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
 
   // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py).
-  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_PARTNERS
-  // (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("PARTNERS")) {
-    return passOn(`/api/v1/partners/${seg(id)}/reset-password`, { method: "POST" });
-  }
-
-  const partner = await prisma.partner.findUnique({ where: { id } });
-  if (!partner) {
-    return NextResponse.json({ error: { code: "not_found", message: "Partner not found." } }, { status: 404 });
-  }
-  if (!partner.user_id) {
-    return NextResponse.json(
-      { error: { code: "no_account", message: "This partner has no login yet — use Create Partner Login instead." } },
-      { status: 422 }
-    );
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const linkedUser = await db.user.update({
-    where: { id: partner.user_id },
-    data: { password_hash: null },
-  });
-
-  await sendAccountSetupInviteEmail(linkedUser.id, linkedUser.email, linkedUser.full_name).catch((err) => log.error("email.send_failed", { err }));
-
-  return NextResponse.json({ data: { email: linkedUser.email } });
+  return passOn(`/api/v1/partners/${seg(id)}/reset-password`, { method: "POST" });
 }

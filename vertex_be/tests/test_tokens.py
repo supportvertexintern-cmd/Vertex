@@ -118,7 +118,11 @@ def test_nothing_verifies_without_a_proper_secret(monkeypatch, secret):
 def test_the_key_versions_match_jwt_ts():
     src = (BASE_DIR.parent / "vertex" / "src" / "lib" / "jwt.ts").read_text(encoding="utf-8")
     versions = dict(re.findall(r"^  (\w+): (\d+),$", re.search(r"const KEY_VERSION[^{]*\{(.*?)\};", src, re.S).group(1), re.M))
-    assert {purpose: int(versions[purpose]) for purpose in tokens.KEY_VERSION} == tokens.KEY_VERSION
+    # The account links are FastAPI's alone since users step 8.5; every
+    # purpose the website still has must keep the same version.
+    shared = {"session", "service", "candidate_invite", "cif_upload"}
+    assert set(versions) == shared | {"document"}  # documents are the website's alone
+    assert {purpose: int(versions[purpose]) for purpose in shared} == {purpose: tokens.KEY_VERSION[purpose] for purpose in shared}
 
 
 def test_an_invite_signed_by_nextjs_verifies():

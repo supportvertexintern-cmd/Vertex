@@ -8103,6 +8103,140 @@
     "title": "Notifying[PaymentRow]",
     "type": "object"
    },
+   "Notifying_Prefill_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Prefill"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[Prefill]",
+    "type": "object"
+   },
    "Notifying_Received_": {
     "properties": {
      "data": {
@@ -10039,6 +10173,34 @@
      }
     },
     "title": "PositionUpdate",
+    "type": "object"
+   },
+   "Prefill": {
+    "properties": {
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name",
+     "email",
+     "phone",
+     "country"
+    ],
+    "title": "Prefill",
     "type": "object"
    },
    "PriorityRow": {
@@ -15801,6 +15963,59 @@
    }
   },
   "/api/v1/accounts/register": {
+   "get": {
+    "description": "What the candidate record already says, so a screened candidate only\nsets a password. The invite is the credential.",
+    "operationId": "invite_prefill_api_v1_accounts_register_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_Prefill_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Invite Prefill",
+    "tags": [
+     "users and sessions"
+    ]
+   },
    "post": {
     "description": "A screened candidate creates their account from the invite. Name,\nemail, phone and country come from the candidate record, never the\nrequest.",
     "operationId": "register_api_v1_accounts_register_post",
@@ -15895,6 +16110,59 @@
    }
   },
   "/api/v1/accounts/setup": {
+   "get": {
+    "description": "The account a setup link is for, while it has no password.",
+    "operationId": "setup_prefill_api_v1_accounts_setup_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "token",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Token"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_Prefill_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Setup Prefill",
+    "tags": [
+     "users and sessions"
+    ]
+   },
    "post": {
     "description": "A staff or partner account, created by an admin or director, sets its\nfirst password from the setup link. The link works until a password is\nset.",
     "operationId": "complete_setup_api_v1_accounts_setup_post",

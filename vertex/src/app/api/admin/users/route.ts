@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
-import { sendAccountSetupInviteEmail } from "@/lib/email";
-import { createStaffUserSchema } from "@/lib/validations";
-import { isStaffRole } from "@/lib/rbac";
 import type { Role } from "@prisma/client";
-
-import { log } from "@/lib/log";
 import { callBackend } from "@/lib/backend";
-import { accountsOnFastApi } from "@/lib/flags";
 import { pipelineResponse } from "@/lib/pipeline";
 import { alertOnPrivilegeGranted } from "@/lib/auth-backend";
+
 const STAFF_ROLES: Role[] = [
   "regional_recruiter",
   "country_supervisor",
@@ -100,91 +94,8 @@ export async function POST(req: NextRequest) {
 
   // FastAPI creates the account since users step 8.3
   // (vertex_be/app/api/v1/users.py) and lists the setup email, sent from
-  // here. Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS
-  // (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("ADMIN_USERS")) {
-    const result = await callBackend("/api/v1/users", { method: "POST", body });
-    alertOnPrivilegeGranted(result, user!.userId);
-    return pipelineResponse(result);
-  }
-
-  const parsed = createStaffUserSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const { full_name, email, role, supervisor_id, assigned_country_id, assigned_country_ids } = parsed.data;
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return NextResponse.json(
-      { error: { code: "duplicate", message: "A user with this email already exists." } },
-      { status: 409 }
-    );
-  }
-
-  if (supervisor_id) {
-    const supervisor = await prisma.user.findUnique({ where: { id: supervisor_id } });
-    if (!supervisor || !isStaffRole(supervisor.role)) {
-      return NextResponse.json(
-        { error: { code: "invalid_supervisor", message: "Supervisor must be an existing staff member." } },
-        { status: 422 }
-      );
-    }
-  }
-
-  if (assigned_country_id) {
-    const country = await prisma.country.findUnique({ where: { id: assigned_country_id } });
-    if (!country) {
-      return NextResponse.json({ error: { code: "not_found", message: "Country not found." } }, { status: 404 });
-    }
-  }
-
-  if (assigned_country_ids?.length) {
-    const count = await prisma.country.count({ where: { id: { in: assigned_country_ids } } });
-    if (count !== assigned_country_ids.length) {
-      return NextResponse.json({ error: { code: "not_found", message: "One or more countries not found." } }, { status: 404 });
-    }
-  }
-
-  const created = await auditedPrisma(user!.userId).user.create({
-    data: {
-      full_name,
-      email,
-      role,
-      email_verified: false, // flips true once they claim the setup invite below
-      supervisor_id: supervisor_id ?? undefined,
-      assigned_country_id: assigned_country_id ?? undefined,
-      ...(role === "inhouse_supervisor" && assigned_country_ids?.length
-        ? { inhouse_country_assignments: { create: assigned_country_ids.map((country_id) => ({ country_id })) } }
-        : {}),
-    },
-    select: {
-      id: true,
-      full_name: true,
-      email: true,
-      role: true,
-      supervisor_id: true,
-      supervisor: { select: { id: true, full_name: true } },
-      assigned_country_id: true,
-      assigned_country: { select: { id: true, name: true } },
-      inhouse_country_assignments: { select: { country: { select: { id: true, name: true } } } },
-    },
-  });
-
-  // Awaited, not fire-and-forget — on serverless (Vercel) the function
-  // instance can freeze right after the response is sent, silently
-  // killing an un-awaited async send before it completes.
-  await sendAccountSetupInviteEmail(created.id, created.email, created.full_name).catch((err) => log.error("email.send_failed", { err }));
-
-  const { inhouse_country_assignments, ...createdRest } = created;
-  return NextResponse.json(
-    {
-      data: { ...createdRest, assigned_countries: inhouse_country_assignments.map((a: (typeof inhouse_country_assignments)[number]) => a.country) },
-    },
-    { status: 201 }
-  );
+  // here.
+  const result = await callBackend("/api/v1/users", { method: "POST", body });
+  alertOnPrivilegeGranted(result, user!.userId);
+  return pipelineResponse(result);
 }

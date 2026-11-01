@@ -3,9 +3,8 @@
 setup email), change a user's role, supervisor and countries, delete one,
 and reset one's password to a temporary one. They replace POST
 /api/admin/users, PATCH and DELETE /api/admin/users/[id] and POST
-/api/admin/users/[id]/reset-password, which pass requests on while
-FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS is on. The directory (GET) stays in
-Next.js.
+/api/admin/users/[id]/reset-password, which pass requests on. The
+directory (GET) stays in Next.js.
 
 They answer as those routes did: admins only (a test fails if the lists
 drift), the same messages, status codes and JSON. Every change is on the

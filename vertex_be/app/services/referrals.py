@@ -1,5 +1,5 @@
 """Referral commissions earned at pipeline milestones: a port of
-generateReferralCommissionIfDue (vertex/src/lib/referralMilestones.ts) for
+generateReferralCommissionIfDue (vertex/src/lib/referralMilestones.ts, since removed) for
 the pipeline handover (docs/architecture/pipeline-handover.md, step 6.1).
 
 Only pipeline events earn a commission, so ReferralCommission moves with

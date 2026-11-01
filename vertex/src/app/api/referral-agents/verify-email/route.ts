@@ -1,8 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { verifyReferralAgentEmailVerificationToken } from "@/lib/jwt";
+import { NextRequest } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
-import { accountsOnFastApi } from "@/lib/flags";
 import { passOn } from "@/lib/pipeline";
 
 // GET /api/referral-agents/verify-email — mirrors /api/auth/verify-email,
@@ -16,40 +13,6 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
 
   // FastAPI checks the link and verifies since users step 8.4
-  // (vertex_be/app/api/v1/referral_agents.py); below is the way back, behind
-  // FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("REFERRAL_AGENTS")) {
-    return passOn("/api/v1/referral-agents/verify-email", { method: "POST", body: { token }, asUser: false }, { legacyErrors: true, unwrap: true });
-  }
-
-  if (!token) {
-    return NextResponse.json({ error: "Verification token is required." }, { status: 400 });
-  }
-
-  let payload: ReturnType<typeof verifyReferralAgentEmailVerificationToken>;
-  try {
-    payload = verifyReferralAgentEmailVerificationToken(token);
-  } catch {
-    return NextResponse.json({ error: "Invalid or expired verification token." }, { status: 400 });
-  }
-
-  if (payload.type !== "referral_agent_email_verification") {
-    return NextResponse.json({ error: "Invalid token type." }, { status: 400 });
-  }
-
-  const agent = await prisma.referralAgent.findUnique({ where: { id: payload.referralAgentId } });
-  if (!agent) {
-    return NextResponse.json({ error: "Referral agent application not found." }, { status: 404 });
-  }
-
-  if (agent.email_verified) {
-    return NextResponse.json({ message: "Email is already verified." });
-  }
-
-  await prisma.referralAgent.update({
-    where: { id: payload.referralAgentId },
-    data: { email_verified: true },
-  });
-
-  return NextResponse.json({ message: "Email verified! Our team will review your application and let you know the outcome." });
+  // (vertex_be/app/api/v1/referral_agents.py).
+  return passOn("/api/v1/referral-agents/verify-email", { method: "POST", body: { token }, asUser: false }, { legacyErrors: true, unwrap: true });
 }
