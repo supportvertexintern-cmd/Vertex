@@ -98,6 +98,18 @@ ok "Pre-G17 single-key session token (G17)" "$(code -H "Cookie: auth_token=$LEGA
 NOSESSION=$(docker exec ${P}-backend-1 python -c 'from app.core.tokens import sign_session_token as s; print(s(user_id="probe", email="p@test.invalid", role="admin", sid="probe", ver=0, ttl_seconds=300))' 2>/dev/null | tail -1)
 ok "Signed session token, no live session (G19)" "$(code -H "Cookie: auth_token=$NOSESSION" http://127.0.0.1:$NP/api/auth/me)" 401
 ok "Refresh without a refresh token (G19)" "$(code -X POST http://127.0.0.1:$NP/api/auth/refresh)" 401
+# E8 (closed by session keys K3): on a live session, a token the website
+# could mint (keyed from JWT_SECRET, which it holds) is refused, and the same
+# session signed by FastAPI is accepted, so the refusal is the signature's.
+psql_e8() { docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "$1" >/dev/null; }
+psql_e8 "insert into \"User\" (id,full_name,email,role,updated_at) values ('ctest-verify-e8','verify e8','verify-e8@test.invalid','admin',now())"
+psql_e8 "insert into \"RefreshToken\" (id,user_id,family_id,token_hash,token_version,expires_at) values ('ctest-verify-e8','ctest-verify-e8','verify-e8',md5(random()::text),0,now() + interval '5 minutes')"
+SHARED=$(tok 'const c=require("crypto"),j=require("jsonwebtoken");const k=Buffer.from(c.hkdfSync("sha256",process.env.JWT_SECRET,"vertex-token-keys","vertex/jwt/session/v1",32));console.log(j.sign({userId:"ctest-verify-e8",email:"verify-e8@test.invalid",role:"admin",sid:"verify-e8",ver:0},k,{expiresIn:300,algorithm:"HS256",issuer:"vertex-web",audience:"vertex:session"}))')
+ISSUED=$(docker exec ${P}-backend-1 python -c 'from app.core.tokens import sign_session_token as s; print(s(user_id="ctest-verify-e8", email="verify-e8@test.invalid", role="admin", sid="verify-e8", ver=0, ttl_seconds=300))' 2>/dev/null | tail -1)
+ok "Live session, token the website could mint (E8)" "$(code -H "Cookie: auth_token=$SHARED" http://127.0.0.1:$NP/api/auth/me)" 401
+ok "Same session, token FastAPI signed (E8 control)" "$(code -H "Cookie: auth_token=$ISSUED" http://127.0.0.1:$NP/api/auth/me)" 200
+psql_e8 "delete from \"RefreshToken\" where id='ctest-verify-e8'"
+psql_e8 "delete from \"User\" where id='ctest-verify-e8'"
 docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "insert into \"Job\" (id,title,country,city,job_description,requirements,status,updated_at) values ('ctest-verify-draft','verify draft','X','X','d','r','draft',now())" >/dev/null
 ok "Draft job via API (G11)" "$(code http://127.0.0.1:$NP/api/jobs/ctest-verify-draft)" 404
 docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "delete from \"Job\" where id='ctest-verify-draft'" >/dev/null

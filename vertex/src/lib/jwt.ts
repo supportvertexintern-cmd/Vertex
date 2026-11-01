@@ -21,12 +21,12 @@ const ISSUER = "vertex-web";
 // it was signed for. Bump a purpose's version to invalidate all of its
 // outstanding tokens without touching the others.
 //
-// FastAPI signs sessions since users step 8.2 and the account links
-// (verification, reset, setup, a referral agent's verification) since 8.3
-// and 8.4 (vertex_be/app/core/tokens.py, the same keys); this app only
-// verifies sessions (exception E8) and signs the tokens below.
+// Sessions and the account links (verification, reset, setup, a referral
+// agent's verification) are FastAPI's: it signs sessions with a private key
+// only it holds, and the links with a secret only it holds (session keys K3,
+// docs/architecture/session-keys-handover.md, which closed exception E8).
+// This app verifies sessions (below) and signs only these:
 export type TokenPurpose =
-  | "session"
   | "candidate_invite"
   | "cif_upload"
   | "document"
@@ -36,7 +36,6 @@ export type TokenPurpose =
   | "service";
 
 const KEY_VERSION: Record<TokenPurpose, number> = {
-  session: 1,
   candidate_invite: 1,
   cif_upload: 1,
   document: 1,
@@ -58,7 +57,7 @@ function keyFor(purpose: TokenPurpose): Buffer {
   return key;
 }
 
-const audience = (purpose: TokenPurpose) => `vertex:${purpose}`;
+const audience = (purpose: TokenPurpose | "session") => `vertex:${purpose}`;
 
 function sign(purpose: TokenPurpose, payload: object, expiresIn: jwt.SignOptions["expiresIn"]): string {
   return jwt.sign(payload, keyFor(purpose), { expiresIn, algorithm: ALGORITHM, issuer: ISSUER, audience: audience(purpose) });
@@ -67,11 +66,11 @@ function sign(purpose: TokenPurpose, payload: object, expiresIn: jwt.SignOptions
 // Throws on a bad signature, expiry, wrong purpose or a payload missing the
 // fields its purpose needs. Each key is checked with its one algorithm only.
 function verify<T>(
-  purpose: TokenPurpose,
+  purpose: TokenPurpose | "session",
   token: string,
   required: (keyof T & string)[],
-  key: Buffer | KeyObject = keyFor(purpose),
-  algorithm: jwt.Algorithm = ALGORITHM,
+  key: Buffer | KeyObject,
+  algorithm: jwt.Algorithm,
 ): T {
   const payload = jwt.verify(token, key, {
     algorithms: [algorithm],
@@ -121,7 +120,8 @@ export function signDocumentToken(payload: DocumentTokenPayload, expiresInSecond
 // sessions with an ES256 private key only it holds, and names the key in the
 // token's `kid`; SESSION_PUBLIC_KEYS lists the public keys (base64 of each
 // PEM, comma-separated), as vertex_be/app/core/session_keys.py reads them.
-// Until step K3 a session signed with the shared key still passes.
+// Nothing else passes: since step K3 not a session keyed from JWT_SECRET,
+// which this app holds and so could have minted.
 const SESSION_ALGORITHM = "ES256" as const;
 let sessionKeys: { raw: string; byId: Map<string, KeyObject> } | undefined;
 
@@ -149,23 +149,18 @@ function sessionPublicKeys(): Map<string, KeyObject> {
 
 // Tokens from before G19 (no sid/ver) are rejected: those users sign in again.
 export function verifyToken(token: string): JwtPayload {
-  // The token's own alg only picks which key to try; each is then checked with
-  // its one algorithm, so neither key passes for the other.
+  // The key comes from the listed keys by `kid`, never from the token's alg.
   const header = jwt.decode(token, { complete: true })?.header;
-  let payload: JwtPayload;
-  if (header?.alg === SESSION_ALGORITHM) {
-    const key = sessionPublicKeys().get(String(header.kid));
-    if (!key) throw new jwt.JsonWebTokenError("session token names an unknown key");
-    payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"], key, SESSION_ALGORITHM);
-  } else {
-    payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"]);
-  }
+  if (header?.alg !== SESSION_ALGORITHM) throw new jwt.JsonWebTokenError("session token is not ES256");
+  const key = sessionPublicKeys().get(String(header.kid));
+  if (!key) throw new jwt.JsonWebTokenError("session token names an unknown key");
+  const payload = verify<JwtPayload>("session", token, ["userId", "email", "role", "sid"], key, SESSION_ALGORITHM);
   if (!Number.isInteger(payload.ver)) throw new jwt.JsonWebTokenError("session token is missing ver");
   return payload;
 }
 
 export function verifyDocumentToken(token: string): DocumentTokenPayload {
-  return verify<DocumentTokenPayload>("document", token, ["storagePath"]);
+  return verify<DocumentTokenPayload>("document", token, ["storagePath"], keyFor("document"), ALGORITHM);
 }
 
 // Invites a recruiter-sourced lead to create their own account and link it
@@ -193,5 +188,5 @@ export function signCifUploadToken(candidateId: string): string {
 }
 
 export function verifyCifUploadToken(token: string): CifUploadTokenPayload {
-  return verify<CifUploadTokenPayload>("cif_upload", token, ["candidateId"]);
+  return verify<CifUploadTokenPayload>("cif_upload", token, ["candidateId"], keyFor("cif_upload"), ALGORITHM);
 }

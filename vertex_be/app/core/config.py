@@ -46,8 +46,9 @@ class Settings(BaseSettings):
     MIGRATION_DATABASE_URL: str | None = None
 
     SECRET_KEY: str = "change-me-in-production"
-    # The Next.js app's JWT_SECRET: FastAPI verifies the sessions it issues
-    # (app/core/tokens.py). Unset in development = no token verifies.
+    # The Next.js app's JWT_SECRET: keys the tokens the website signs and
+    # FastAPI checks (candidate invites, CIF uploads; app/core/tokens.py).
+    # Never sessions or account links since session keys K3.
     JWT_SECRET: str | None = None
     # Next.js's credential when it calls FastAPI (G18). Separate from
     # JWT_SECRET; _PREVIOUS is still accepted during a rotation. Unset in
@@ -57,7 +58,8 @@ class Settings(BaseSettings):
     # Session keys (docs/architecture/session-keys-handover.md, E8): base64
     # of each PEM, written by deploy/session-keys.sh. The private key is this
     # service's alone; the public keys (comma-separated) are shared with the
-    # website. Checked at startup (app/core/session_keys.py).
+    # website. Checked at startup (app/core/session_keys.py); required
+    # outside development. Unset in development = nobody can sign in.
     SESSION_PRIVATE_KEY: str | None = None
     SESSION_PUBLIC_KEYS: str | None = None
     # Keys FastAPI's account links (verification, reset, setup, a referral
@@ -164,6 +166,11 @@ class Settings(BaseSettings):
                 raise ValueError(f"SERVICE_AUTH_SECRET must be a 32+ char secret in {self.APP_ENV}")
             if self.SERVICE_AUTH_SECRET == self.JWT_SECRET:
                 raise ValueError("SERVICE_AUTH_SECRET must differ from JWT_SECRET")
+            # Session keys K3: no session or account link without them
+            # (deploy/session-keys.sh writes all three).
+            for name in ("SESSION_PRIVATE_KEY", "SESSION_PUBLIC_KEYS", "ACCOUNT_LINK_SECRET"):
+                if not getattr(self, name):
+                    raise ValueError(f"{name} must be set in {self.APP_ENV} (deploy/session-keys.sh)")
         return self
 
 

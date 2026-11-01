@@ -50,9 +50,9 @@ def test_a_valid_token_is_accepted():
     [
         pytest.param(lambda: service_token(secret="x" * 40), id="another secret"),
         pytest.param(lambda: jwt.encode({"sub": "vertex-web", "scope": "backend", "iat": int(time.time()), "exp": int(time.time()) + 60,
-                                         "iss": "vertex-web", "aud": "vertex:service"}, key_for("session", JWT_TEST_SECRET), algorithm="HS256"),
+                                         "iss": "vertex-web", "aud": "vertex:service"}, key_for("cif_upload", JWT_TEST_SECRET), algorithm="HS256"),
                      id="keyed from JWT_SECRET"),
-        pytest.param(lambda: service_token(purpose="session"), id="another purpose's audience"),
+        pytest.param(lambda: service_token(purpose="cif_upload"), id="another purpose's audience"),
         pytest.param(lambda: service_token(sub="someone-else"), id="another service"),
         pytest.param(lambda: service_token(sub=None), id="no subject"),
         pytest.param(lambda: service_token(scope="admin"), id="another scope"),

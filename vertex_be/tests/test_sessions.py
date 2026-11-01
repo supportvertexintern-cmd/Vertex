@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import select
 
 from app.api.v1 import sessions as api_sessions
+from app.core import session_keys
 from app.core.config import settings
 from app.core.tokens import sign_session_token, verify_session_token
 from app.db.session import get_db
@@ -372,9 +373,11 @@ def _part(token: str, i: int) -> dict:
     return json.loads(base64.urlsafe_b64decode(seg + "=" * (-len(seg) % 4)))
 
 
-def test_tokens_are_signed_as_the_website_signed_them():
+def test_tokens_carry_the_claims_the_website_signed_and_fastapis_key():
     mine = sign_session_token(user_id="u", email="e@test.invalid", role="admin", sid="f", ver=3)
-    assert _part(mine, 0) == _part(SESSION_TOKEN, 0)  # {"alg": "HS256", "typ": "JWT"}
+    # ES256 with this service's key since session keys K3; the claims are
+    # those the website's tokens carried.
+    assert _part(mine, 0) == {"alg": "ES256", "kid": session_keys.private_key(settings.SESSION_PRIVATE_KEY)[0], "typ": "JWT"}
     assert set(_part(mine, 1)) == set(_part(SESSION_TOKEN, 1))
     claims = _part(mine, 1)
     assert (claims["iss"], claims["aud"], claims["exp"] - claims["iat"]) == ("vertex-web", "vertex:session", 15 * 60)

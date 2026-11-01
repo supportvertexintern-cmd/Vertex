@@ -318,6 +318,13 @@ jobs:
 
       # A fresh signing key per run, so no secret-looking value lives here.
       - run: echo "JWT_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      # Session keys (docs/architecture/session-keys-handover.md): FastAPI
+      # signs sessions and account links with nothing else. A fresh set per
+      # run, written as a stack's are, never printed.
+      - run: |
+          touch "$RUNNER_TEMP/keys.env"
+          bash ../vertex_be/deploy/session-keys.sh "$RUNNER_TEMP/keys.env" >/dev/null
+          cat "$RUNNER_TEMP/keys.env" >> "$GITHUB_ENV"
 
       # The schema comes from the Alembic migrations, exactly as every
       # deployed stack gets it, never from `prisma db push`: tests must run

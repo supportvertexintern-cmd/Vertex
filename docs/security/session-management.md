@@ -8,7 +8,7 @@ Closes gap G19 from [phase2-baseline.md](phase2-baseline.md): a session used to 
 
 | Piece | What it is |
 |---|---|
-| Access token | JWT in the `auth_token` cookie, **15 minutes**. Holds the user, the session ID (`sid`) and the user's `token_version` (`ver`). |
+| Access token | JWT in the `auth_token` cookie, **15 minutes**, ES256, signed by FastAPI with a key only it holds and named by `kid`. Holds the user, the session ID (`sid`) and the user's `token_version` (`ver`). |
 | Refresh token | Random 256-bit value in the `refresh_token` cookie. `HttpOnly; SameSite=Strict; Path=/api/auth` (`Secure` in production). The database keeps only its **SHA-256**. |
 | Session | One refresh-token *family*: the `RefreshToken` rows that share a `family_id`. This is what users see and end. |
 | Lifetime | Absolute; rotating the token doesn't extend it. **12 hours** for staff and admins, **14 days** for candidates and partners. |
@@ -41,10 +41,10 @@ There is one exception: a spent token presented within **30 seconds** is answere
   - `ApiService` renews the token a minute before it expires, or once after a 401, sharing one refresh between concurrent calls; if that fails, the user is signed out;
   - roles the app has no screens for (candidate, referral agent) are refused, and the session just opened is ended.
 
-Code: FastAPI issues, rotates and revokes sessions since users and sessions step 8.2 (`vertex_be/app/services/sessions.py`, `vertex_be/app/api/v1/sessions.py`; `docs/architecture/users-handover.md`). The website's `/api/auth` routes pass requests on and set the cookies (`vertex/src/lib/auth-backend.ts`); `vertex/src/lib/session.ts` keeps the per-request check and the cookies. Since step 8.5 the website can't sign a session at all: `vertex/src/lib/jwt.ts` only verifies them, and tests make tokens with `vertex/src/lib/test-tokens.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
+Code: FastAPI issues, rotates and revokes sessions since users and sessions step 8.2 (`vertex_be/app/services/sessions.py`, `vertex_be/app/api/v1/sessions.py`; `docs/architecture/users-handover.md`). The website's `/api/auth` routes pass requests on and set the cookies (`vertex/src/lib/auth-backend.ts`); `vertex/src/lib/session.ts` keeps the per-request check and the cookies. The website can't sign a session: since session keys K3 a session is ES256, signed with a private key only FastAPI holds (`vertex_be/app/core/session_keys.py`), and `vertex/src/lib/jwt.ts` only verifies it with the listed public keys. Tests make tokens with `vertex/src/lib/test-tokens.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
 
 **FastAPI verifies the same sessions (G9).** Since step 8.2 FastAPI is also the issuer, with the same key and format (exception E8). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:
-- the signature, with the same per-purpose key (`app/core/tokens.py`; pinned to tokens the Node code signs by `tests/node_session_vectors.py`);
+- the signature, with the listed public key the token's `kid` names (`app/core/tokens.py`, `app/core/session_keys.py`; the website checks the same, pinned by the golden vector in `tests/node_session_vectors.py`);
 - the user still exists, and `token_version` matches;
 - the family has a live token.
 
@@ -101,20 +101,26 @@ What it does:
 - Takes effect on each user's next request, with no restart.
 - Exits non-zero if any live token is left.
 
-**Rotate the signing secret** (suspected `JWT_SECRET` leak):
+**Rotate the session key** (routine, or a suspected `SESSION_PRIVATE_KEY` leak). FastAPI signs sessions with an ES256 private key only it holds; FastAPI and the website verify them with the listed public keys (session keys K3, [session-keys-handover.md](../architecture/session-keys-handover.md)). Nobody is signed out:
 
-1. Run the kill switch above.
-2. Put a new secret in the stack's env file, without printing it:
+1. `bash deploy/session-keys.sh --stage .env.<stack>`, then redeploy: the new public key is listed, nothing signs with it yet.
+2. `bash deploy/session-keys.sh --promote .env.<stack>`, then redeploy: new sessions are signed with the new key.
+3. 15 minutes later at the earliest (the last access token signed with the old key has expired): `bash deploy/session-keys.sh --retire .env.<stack>`, then redeploy.
+
+For a suspected leak, run the kill switch above after step 2 and go straight to step 3: tokens signed with the leaked key stop working at once, and every browser gets a new one on its next request.
+
+**Rotate the account-link secret** (suspected `ACCOUNT_LINK_SECRET` leak): `bash deploy/session-keys.sh --new-link-secret .env.<stack>`, then redeploy. Every verification, reset and setup link already sent stops working: re-send pending invites.
+
+**Rotate `JWT_SECRET`** (suspected leak): it no longer touches sessions or account links, only the tokens the website signs itself (candidate invites, CIF uploads, document links).
+
+1. Put a new secret in the stack's env file, without printing it:
    ```sh
-   new=$(openssl rand -base64 48 | tr -d '\n'); sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$new|" .env.<stack>; unset new
+   new=$(openssl rand -base64 48 | tr -d '
+'); sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$new|" .env.<stack>; unset new
    ```
-3. Redeploy the running tag: `ENV_FILE=.env.<stack> bash deploy/deploy.sh vertex-<stack> <tag>`.
+2. Redeploy the running tag: `ENV_FILE=.env.<stack> bash deploy/deploy.sh vertex-<stack> <tag>`.
 
-Effects:
-- Every access token fails its signature check.
-- Email-verification, password-reset, invite and document links also stop working, because all purposes derive their keys from `JWT_SECRET`. Re-send pending invites.
-
-**Rollover without logging anyone out.** Rotate the secret without step 1. Access tokens fail, but refresh tokens are opaque database values, so every browser gets a new access token, signed with the new key, on its next request.
+Effects: invite, CIF upload and document links already issued stop working. Re-send pending invites.
 
 **Tested:** see §7.
 

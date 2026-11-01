@@ -35,7 +35,7 @@ from app.models.identity import Country, Region, User
 from app.models.jobs import Job
 from app.models.reference import DocumentRequirementType
 from app.services.sessions import check_password
-from tests.node_session_vectors import ACCOUNT_SETUP_TOKEN, PASSWORD_RESET_TOKEN, SECRET, VERIFICATION_TOKEN
+from tests.node_session_vectors import ACCOUNT_LINK_SECRET, ACCOUNT_SETUP_TOKEN, PASSWORD_RESET_TOKEN, SECRET, VERIFICATION_TOKEN
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 from tests.test_service_auth import SERVICE_SECRET, service_token
 
@@ -237,10 +237,14 @@ def test_a_bad_setup_link_is_400_and_a_missing_one_has_its_message(api):
     assert error(missing)["details"]["setup"] == ["A setup link is required."]
 
 
-def test_a_setup_link_the_website_signed_still_works(api, db):
+def test_a_setup_link_keyed_from_jwt_secret_is_refused(api, db):
+    # Session keys K3: the website holds JWT_SECRET, so a setup link keyed
+    # from it is one the website could forge to take over this account.
     db.add(User(id="golden-user", full_name="Golden", email="golden@test.invalid", role=Role.partner))
     db.flush()
-    assert post(api, "setup", {"setup": ACCOUNT_SETUP_TOKEN, "password": PASSWORD}).status_code == 200
+    res = post(api, "setup", {"setup": ACCOUNT_SETUP_TOKEN, "password": PASSWORD})
+    assert (res.status_code, error(res)["message"]) == (400, "This invite link is invalid or has expired.")
+    assert db.get(User, "golden-user").password_hash is None
 
 
 # --- the register page's prefill (step 8.5) ---------------------------------------
@@ -321,10 +325,11 @@ def test_a_link_for_an_old_address_does_not_verify_the_new_one(api, db):
     assert not user.email_verified
 
 
-def test_a_verification_link_the_website_signed_still_works(api, db):
+def test_a_verification_link_keyed_from_jwt_secret_is_refused(api, db):
     db.add(User(id="golden-user", full_name="Golden", email="golden@test.invalid", email_verified=False))
     db.flush()
-    assert post(api, "verify-email", {"token": VERIFICATION_TOKEN}).json()["data"]["message"].startswith("Email verified")
+    assert post(api, "verify-email", {"token": VERIFICATION_TOKEN}).status_code == 400
+    assert db.get(User, "golden-user").email_verified is False
 
 
 # --- forgot and reset password --------------------------------------------------
@@ -398,24 +403,23 @@ def test_reset_failures(api, db, caplog):
     assert error(missing)["details"]["token"] == ["A reset link is required."]
 
 
-def test_a_reset_link_the_website_signed_still_works_until_it_expires(api, db):
-    """Signed before 8.3, it names no password: valid for its 24 hours."""
+def test_a_reset_link_keyed_from_jwt_secret_is_refused(api, db):
     db.add(User(id="golden-user", full_name="Golden", email="golden@test.invalid", password_hash="$2b$04$x"))
     db.flush()
-    assert post(api, "reset-password", {"token": PASSWORD_RESET_TOKEN, "password": PASSWORD}).status_code == 200
+    assert post(api, "reset-password", {"token": PASSWORD_RESET_TOKEN, "password": PASSWORD}).status_code == 400
+    assert db.get(User, "golden-user").password_hash == "$2b$04$x"
 
 
 # --- the links themselves -------------------------------------------------------
 
 
-def test_links_carry_the_claims_the_website_checks():
-    """So the website accepts them if it takes the writes back."""
+def test_links_carry_the_claims_the_website_used_keyed_from_fastapis_secret():
     for token, purpose, fields in (
         (sign_verification_token("u1", "u@test.invalid"), "email_verification", {"userId", "email", "type"}),
         (sign_reset_token("u1", "u@test.invalid", "$2b$hash"), "password_reset", {"userId", "email", "type", "pwd"}),
         (sign_account_setup_token("u1"), "account_setup", {"userId", "type"}),
     ):
-        claims = jwt.decode(token, key_for(purpose, SECRET), algorithms=["HS256"], audience=f"vertex:{purpose}", issuer="vertex-web")
+        claims = jwt.decode(token, key_for(purpose, ACCOUNT_LINK_SECRET), algorithms=["HS256"], audience=f"vertex:{purpose}", issuer="vertex-web")
         assert set(claims) == fields | {"iat", "exp", "iss", "aud"}
     reset = jwt.decode(sign_reset_token("u1", "u@test.invalid", None), options={"verify_signature": False})
     setup = jwt.decode(sign_account_setup_token("u1"), options={"verify_signature": False})

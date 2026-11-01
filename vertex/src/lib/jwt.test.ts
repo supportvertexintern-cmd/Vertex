@@ -19,12 +19,14 @@ import {
   verifyDocumentToken,
   verifyCifUploadToken,
 } from "./jwt";
-import { signAs } from "./test-tokens";
+import { signAccessToken, signAs } from "./test-tokens";
 
-// Sessions and the account links are FastAPI's (users steps 8.2 to 8.4), made
-// here as it makes them; the website still verifies sessions (E8).
+// Sessions and the account links are FastAPI's, made here as it makes them
+// (lib/test-tokens.ts). "shared_key_session" is one keyed from JWT_SECRET, as
+// the website's own code signed them until session keys K3: refused now.
 const signers: Record<string, () => string> = {
-  session: () => signAs("session", { userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }),
+  session: () => signAccessToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }),
+  shared_key_session: () => signAs("session", { userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }, "15m", SECRET),
   email_verification: () => signAs("email_verification", { userId: "u1", email: "a@test.invalid", type: "email_verification" }),
   password_reset: () => signAs("password_reset", { userId: "u1", email: "a@test.invalid", type: "password_reset" }),
   account_setup: () => signAs("account_setup", { userId: "u1", type: "account_setup" }),
@@ -68,25 +70,20 @@ describe("token purposes (gap G17)", () => {
   });
 
   it("a session token without a userId is rejected", () => {
-    const key = keyUnder(SECRET, "session");
-    const noUser = jwt.sign({ email: "a@test.invalid", role: "admin" }, key, { algorithm: "HS256", issuer: "vertex-web", audience: "vertex:session" });
-    expect(() => verifyToken(noUser)).toThrow(/missing userId/);
+    expect(() => verifyToken(signAccessToken({ email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 } as never))).toThrow(/missing userId/);
   });
 
   it("a session token from before G19 (no session id or version) is rejected", () => {
-    const key = keyUnder(SECRET, "session");
-    const opts = { algorithm: "HS256" as const, issuer: "vertex-web", audience: "vertex:session" };
-    const legacy = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin" }, key, opts);
-    expect(() => verifyToken(legacy)).toThrow(/missing sid/);
-    const noVersion = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1" }, key, opts);
-    expect(() => verifyToken(noVersion)).toThrow(/missing ver/);
+    expect(() => verifyToken(signAccessToken({ userId: "u1", email: "a@test.invalid", role: "admin" } as never))).toThrow(/missing sid/);
+    expect(() => verifyToken(signAccessToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1" } as never))).toThrow(/missing ver/);
   });
 
-  it("a token from another environment (different JWT_SECRET) is rejected", () => {
-    const other = "another-environments-secret-value-for-tests-only";
-    const key = keyUnder(other, "session");
-    const foreign = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin" }, key, { algorithm: "HS256", issuer: "vertex-web", audience: "vertex:session" });
-    expect(() => verifyToken(foreign)).toThrow();
+  it("a session keyed from JWT_SECRET is rejected, this environment's or another's (E8, closed by K3)", () => {
+    for (const secret of [SECRET, "another-environments-secret-value-for-tests-only"]) {
+      const key = keyUnder(secret, "session");
+      const shared = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }, key, { algorithm: "HS256", issuer: "vertex-web", audience: "vertex:session" });
+      expect(() => verifyToken(shared)).toThrow(/not ES256/);
+    }
   });
 
   it("an unsigned (alg:none) token is rejected", () => {
@@ -99,14 +96,13 @@ describe("token purposes (gap G17)", () => {
   });
 });
 
-// Session keys K1 (docs/architecture/session-keys-handover.md): FastAPI will
-// sign sessions with an ES256 key only it holds; the shared key still passes
-// until K3. GOLDEN_* is vertex_be/tests/node_session_vectors.py's vector, made
+// Session keys (docs/architecture/session-keys-handover.md): FastAPI signs
+// sessions with an ES256 key only it holds. GOLDEN_* is vertex_be/tests/node_session_vectors.py's vector, made
 // by FastAPI's code with a test-only key whose private half was thrown away.
 const GOLDEN_PUBLIC = "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFSUN4VFdUQy9yWDVvcnZ3TjkvZXBHd055TG05KwpwVE1ZUndRcUlUQllvZUJVbUl1SjhGYkNxTTZwNXQwNzlxUG85eXRtNkxjbllXTTVIZmhIYzZ0b2VnPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="; // gitleaks:allow
 const GOLDEN_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IkplR1AzRXFhanFncjNHTUsiLCJ0eXAiOiJKV1QifQ.eyJ1c2VySWQiOiJnb2xkZW4tdXNlciIsImVtYWlsIjoiZ29sZGVuQHRlc3QuaW52YWxpZCIsInJvbGUiOiJhZG1pbiIsInNpZCI6ImdvbGRlbi1mYW1pbHkiLCJ2ZXIiOjMsImlhdCI6MTc5MjgwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwLCJpc3MiOiJ2ZXJ0ZXgtd2ViIiwiYXVkIjoidmVydGV4OnNlc3Npb24ifQ.EPmmlByMPIdLFjDUHam1Ry-q2c0Jyl1s5ypNJucABVVepkeuRI414sXqGu6hstDJqLZlptpR_x3obzh3lmwloQ"; // gitleaks:allow
 
-describe("ES256 sessions (session keys K1)", () => {
+describe("ES256 sessions (session keys)", () => {
   const newKey = (namedCurve = "prime256v1") => generateKeyPairSync("ec", { namedCurve });
   const b64 = (key: KeyObject) => Buffer.from(key.export({ type: "spki", format: "pem" }) as string).toString("base64");
   const claims = { userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 };
@@ -117,8 +113,10 @@ describe("ES256 sessions (session keys K1)", () => {
   const listed = (...keys: KeyObject[]) => {
     process.env.SESSION_PUBLIC_KEYS = keys.map(b64).join(", ");
   };
+  // The run's test key (vitest.setup.ts), put back after each case.
+  const runKeys = process.env.SESSION_PUBLIC_KEYS;
   afterEach(() => {
-    delete process.env.SESSION_PUBLIC_KEYS;
+    process.env.SESSION_PUBLIC_KEYS = runKeys;
   });
 
   it("accepts FastAPI's golden vector, with the same key id", () => {
@@ -133,9 +131,9 @@ describe("ES256 sessions (session keys K1)", () => {
     expect(verifyToken(es256(previous.privateKey, sessionKeyId(previous.publicKey))).userId).toBe("u1");
   });
 
-  it("still accepts a shared-key session until K3", () => {
+  it("refuses a shared-key session since K3", () => {
     listed(current.publicKey);
-    expect(verifyToken(signers.session()).userId).toBe("u1");
+    expect(() => verifyToken(signers.shared_key_session())).toThrow(/not ES256/);
   });
 
   it("refuses an unlisted key, an unknown key id, and another key under a listed id", () => {

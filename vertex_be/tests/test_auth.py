@@ -10,7 +10,8 @@ import jwt
 import pytest
 from sqlalchemy import delete, text, update
 
-from app.core.tokens import key_for
+from app.core import session_keys
+from app.core.config import settings
 from app.db.session import get_db
 from app.main import app
 from app.models.enums import Role
@@ -29,7 +30,8 @@ def session_token(user_id: str, sid: str, ver: int, *, role: str = "candidate", 
         "userId": user_id, "email": email, "role": role, "sid": sid, "ver": ver,
         "iat": now, "exp": now + 900, "iss": "vertex-web", "aud": "vertex:session",
     }
-    return jwt.encode(payload, key_for("session", SECRET), algorithm="HS256")
+    kid, private = session_keys.private_key(settings.SESSION_PRIVATE_KEY)
+    return jwt.encode(payload, private, algorithm="ES256", headers={"kid": kid})
 
 
 @pytest.fixture
