@@ -1,6 +1,6 @@
 # Session keys: ending the shared secret (E8)
 
-Status: **plan, waiting for the owner's decisions** (2026-11-01). Follows
+Status: **approved by the owner, 2026-11-01: D1 to D5 all option A.** K1 next. Follows
 [users-handover.md](users-handover.md), whose D1 A kept one shared key while
 the area moved and registered exception E8 until "rotation to asymmetric
 keys after 8.5". Steps 8.1 to 8.5 are done on `dev`.
