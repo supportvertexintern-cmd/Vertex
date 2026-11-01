@@ -92,7 +92,10 @@ ok "Upload token used as a session (G17)" "$(code -H "Cookie: auth_token=$CIF" h
 ok "Pre-G17 single-key session token (G17)" "$(code -H "Cookie: auth_token=$LEGACY" http://127.0.0.1:$NP/api/auth/me)" 401
 # G19: a correctly signed session token is not enough; the session must be
 # live in the database.
-NOSESSION=$(tok 'const c=require("crypto"),j=require("jsonwebtoken");const k=Buffer.from(c.hkdfSync("sha256",process.env.JWT_SECRET,"vertex-token-keys","vertex/jwt/session/v1",32));console.log(j.sign({userId:"probe",email:"p@test.invalid",role:"admin",sid:"probe",ver:0},k,{expiresIn:300,algorithm:"HS256",issuer:"vertex-web",audience:"vertex:session"}))')
+# Signed by FastAPI, the session issuer (with its private key once the stack
+# has one, session-keys-handover.md K2), so the row tests the live-session
+# check, not the signature.
+NOSESSION=$(docker exec ${P}-backend-1 python -c 'from app.core.tokens import sign_session_token as s; print(s(user_id="probe", email="p@test.invalid", role="admin", sid="probe", ver=0, ttl_seconds=300))' 2>/dev/null | tail -1)
 ok "Signed session token, no live session (G19)" "$(code -H "Cookie: auth_token=$NOSESSION" http://127.0.0.1:$NP/api/auth/me)" 401
 ok "Refresh without a refresh token (G19)" "$(code -X POST http://127.0.0.1:$NP/api/auth/refresh)" 401
 docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -qc "insert into \"Job\" (id,title,country,city,job_description,requirements,status,updated_at) values ('ctest-verify-draft','verify draft','X','X','d','r','draft',now())" >/dev/null
