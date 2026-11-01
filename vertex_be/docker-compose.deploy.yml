@@ -40,6 +40,8 @@ services:
     environment:
       APP_ENV: ${APP_ENV}
       DEBUG: ${DEBUG:-false}
+      # Shared rate-limit counters (workstream B).
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
       DATABASE_URL: postgresql://vertex_api:${DB_API_PASSWORD:?DB_API_PASSWORD is required}@db:5432/${POSTGRES_DB}
       MIGRATION_DATABASE_URL: postgresql://vertex_migrator:${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
@@ -161,6 +163,11 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://vertex_web:${DB_WEB_PASSWORD:?DB_WEB_PASSWORD is required}@db:5432/${POSTGRES_DB}
+      # Workstream B (security review #5): the client's address comes from the
+      # edge proxy's X-Real-IP (lib/client-ip.ts), and rate-limit counters
+      # live in Redis, shared by every process (lib/rate-limit.ts).
+      TRUST_PROXY_HEADERS: "true"
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
       # callBackend() (lib/backend.ts): FastAPI on the stack's own network,
       # and the credential it signs each call with (G18).
@@ -216,8 +223,8 @@ services:
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-}
       INTAKE_MODE: ${INTAKE_MODE:-}
 
-    ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${NEXTJS_PORT}:3000"
+    # No published port: the edge proxy below is the only way in, so nobody
+    # can reach Next.js with an X-Real-IP of their own.
     # Docker Desktop provides this name; on a Linux host it must be mapped.
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -248,6 +255,44 @@ services:
       VERTEX_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
     volumes:
       - ${MINIO_DATA_DIR:?MINIO_DATA_DIR is required}:/data
+    networks: [ data ]
+    restart: unless-stopped
+    logging: *default-logging
+
+  edge:
+    # The edge proxy (deploy/edge/Caddyfile), published on NEXTJS_PORT: sets
+    # the client's real address for the website. Workstream B.
+    image: caddy:2.10-alpine
+    volumes:
+      - ./deploy/edge/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${NEXTJS_PORT}:80"
+    depends_on:
+      nextjs:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/jobs"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [ edge ]
+    restart: unless-stopped
+    logging: *default-logging
+
+  redis:
+    # Rate-limit counters shared by every website and API process
+    # (workstream B). Internal network only, a password, nothing kept on
+    # disk: a restart only resets the counters.
+    image: redis:7.4-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory 64mb --maxmemory-policy volatile-ttl"]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks: [ data ]
     restart: unless-stopped
     logging: *default-logging

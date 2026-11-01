@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 // back to) went away along with recruiter assignment for self-registered
 // candidates entirely; see /api/jobs for the opportunity list itself.
 export async function GET(req: Request) {
-  const limited = limitByIp(req, "apply-options", { max: 60 });
+  const limited = await limitByIp(req, "apply-options", { max: 60 });
   if (limited) return limited;
   const [countries, locationCountries, documentTypes, documentRequirements, intakeModeSetting] = await Promise.all([
     prisma.country.findMany({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, CARD_ONLY_CHECKOUT } from "@/lib/stripe";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, retryAfter } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/client-ip";
 import { log } from "@/lib/log";
 
 const CONSULTATION_FEE_USD = 50;
@@ -13,10 +14,10 @@ const CONSULTATION_FEE_USD = 50;
 // resulting ConsultationBooking row is created by the webhook once Stripe
 // confirms the charge (src/app/api/webhooks/stripe/route.ts), not here.
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`consultation-checkout:${ip}`, { max: 5, windowMs: 60_000 });
+  const ip = clientKey(req.headers);
+  const rl = await rateLimit(`consultation-checkout:${ip}`, { max: 5, windowMs: 60_000 });
   if (!rl.success) {
-    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": retryAfter(rl) } });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;

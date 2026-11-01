@@ -16,7 +16,7 @@ const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team"
 // GET /api/jobs/[id] — public. Also called directly (in-process, not over
 // HTTP) by /jobs/[id]'s Server Component — see server/services/publicJobs.ts.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const limited = limitByIp(req, "job-detail", { max: 120 });
+  const limited = await limitByIp(req, "job-detail", { max: 120 });
   if (limited) return limited;
   const { id } = await params;
   const { searchParams } = req.nextUrl;

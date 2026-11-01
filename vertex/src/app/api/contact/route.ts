@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { contactMessageSchema } from "@/lib/validations";
-import { rateLimit } from "@/lib/rate-limit";
+import { rateLimit, retryAfter } from "@/lib/rate-limit";
+import { clientKey } from "@/lib/client-ip";
 import { sendContactMessageEmail } from "@/lib/email";
 
 import { log } from "@/lib/log";
@@ -9,10 +10,10 @@ import { log } from "@/lib/log";
 // — unlike the CIF, there's no CRM record this could otherwise create, so
 // nothing here is gated by the intake_mode admin setting.
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = rateLimit(`contact:${ip}`, { max: 5, windowMs: 60_000 });
+  const ip = clientKey(req.headers);
+  const rl = await rateLimit(`contact:${ip}`, { max: 5, windowMs: 60_000 });
   if (!rl.success) {
-    return NextResponse.json({ error: "Too many messages. Please try again later." }, { status: 429 });
+    return NextResponse.json({ error: "Too many messages. Please try again later." }, { status: 429, headers: { "Retry-After": retryAfter(rl) } });
   }
 
   let body: unknown;

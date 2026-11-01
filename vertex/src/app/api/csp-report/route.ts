@@ -43,7 +43,7 @@ function fields(r: Record<string, unknown>) {
 }
 
 export async function POST(req: NextRequest) {
-  const limited = limitByIp(req, "csp-report", { windowMs: 60_000, max: 30 });
+  const limited = await limitByIp(req, "csp-report", { windowMs: 60_000, max: 30 });
   if (limited) return limited;
 
   const text = await req.text().catch(() => "");

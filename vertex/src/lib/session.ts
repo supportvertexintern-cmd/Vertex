@@ -70,6 +70,8 @@ function secure(): boolean {
 }
 
 export function setSessionCookies(res: NextResponse, session: IssuedSession): void {
+  // One clock read, so the marker can never outlive or undercut the refresh cookie.
+  const refreshMaxAge = Math.max(0, Math.floor((session.refreshExpiresAt.getTime() - Date.now()) / 1000));
   res.cookies.set(ACCESS_COOKIE, session.accessToken, {
     httpOnly: true,
     secure: secure(),
@@ -81,7 +83,7 @@ export function setSessionCookies(res: NextResponse, session: IssuedSession): vo
     httpOnly: true,
     secure: secure(),
     sameSite: "strict",
-    maxAge: Math.max(0, Math.floor((session.refreshExpiresAt.getTime() - Date.now()) / 1000)),
+    maxAge: refreshMaxAge,
     path: REFRESH_COOKIE_PATH,
   });
   // Lives as long as the refresh cookie; not HttpOnly (see session-constants.ts).
@@ -89,7 +91,7 @@ export function setSessionCookies(res: NextResponse, session: IssuedSession): vo
     httpOnly: false,
     secure: secure(),
     sameSite: "strict",
-    maxAge: Math.max(0, Math.floor((session.refreshExpiresAt.getTime() - Date.now()) / 1000)),
+    maxAge: refreshMaxAge,
     path: "/",
   });
 }

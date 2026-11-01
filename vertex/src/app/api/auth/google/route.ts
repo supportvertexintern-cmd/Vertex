@@ -4,7 +4,7 @@ import { safeRedirectPath } from "@/lib/safe-redirect";
 import { newGoogleState, setGoogleStateCookie } from "@/lib/google-oauth";
 
 export async function GET(req: NextRequest) {
-  const limited = limitByIp(req, "google-signin", { windowMs: 15 * 60_000, max: 20 });
+  const limited = await limitByIp(req, "google-signin", { windowMs: 15 * 60_000, max: 20 });
   if (limited) return limited;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

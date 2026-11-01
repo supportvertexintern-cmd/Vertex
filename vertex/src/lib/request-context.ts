@@ -1,3 +1,4 @@
+import { clientIp } from "./client-ip";
 import { headers } from "next/headers";
 
 // Request correlation (Phase 10). src/proxy.ts gives every request an ID:
@@ -35,9 +36,8 @@ export async function currentRequest(): Promise<RequestContext> {
   }
 }
 
-// The left-most X-Forwarded-For entry, as the rate limiter uses. Only as
-// trustworthy as the proxy in front (G14); recorded as evidence, not identity.
+// The address the edge proxy reports (lib/client-ip.ts), as the rate limiter
+// uses; recorded as evidence, not identity.
 export function clientIpFrom(h: Headers): string | null {
-  const ip = h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip");
-  return ip ? ip.slice(0, 64) : null;
+  return clientIp(h);
 }
