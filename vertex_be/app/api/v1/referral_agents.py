@@ -15,8 +15,7 @@ accounts.py), and a director or admin approving, rejecting, suspending or
 reactivating one. They replace POST /api/referral-agents/register, GET
 /api/referral-agents/verify-email, POST
 /api/admin/referral-agents/[id]/approve and PATCH
-/api/admin/referral-agents/[id], which pass requests on while
-FLAG_ACCOUNTS_FASTAPI_REFERRAL_AGENTS is on. The website keeps the
+/api/admin/referral-agents/[id], which pass requests on. The website keeps the
 per-address rate limits and sends the emails each answer lists in
 `notify`; FastAPI signs the verification link.
 

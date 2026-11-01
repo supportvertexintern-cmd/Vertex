@@ -11,49 +11,45 @@ const SECRET = vi.hoisted(() => {
 });
 
 import {
-  signToken,
-  signEmailToken,
   signDocumentToken,
   signCandidateInviteToken,
-  signAccountSetupToken,
   signCifUploadToken,
   verifyToken,
-  verifyEmailToken,
   verifyDocumentToken,
-  verifyCandidateInviteToken,
-  verifyAccountSetupToken,
   verifyCifUploadToken,
 } from "./jwt";
+import { signAs } from "./test-tokens";
 
+// Sessions and the account links are FastAPI's (users steps 8.2 to 8.4), made
+// here as it makes them; the website still verifies sessions (E8).
 const signers: Record<string, () => string> = {
-  session: () => signToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }),
-  email_verification: () => signEmailToken({ userId: "u1", email: "a@test.invalid", type: "email_verification" }),
-  password_reset: () => signEmailToken({ userId: "u1", email: "a@test.invalid", type: "password_reset" }),
+  session: () => signAs("session", { userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 }),
+  email_verification: () => signAs("email_verification", { userId: "u1", email: "a@test.invalid", type: "email_verification" }),
+  password_reset: () => signAs("password_reset", { userId: "u1", email: "a@test.invalid", type: "password_reset" }),
+  account_setup: () => signAs("account_setup", { userId: "u1", type: "account_setup" }),
+  referral_agent_email_verification: () => signAs("referral_agent_email_verification", { referralAgentId: "a1", type: "referral_agent_email_verification" }),
   candidate_invite: () => signCandidateInviteToken("c1"),
-  account_setup: () => signAccountSetupToken("u1"),
   cif_upload: () => signCifUploadToken("c1"),
   document: () => signDocumentToken({ storagePath: "cv/x.pdf" }, 60),
 };
 
+// The tokens this app still checks.
 const verifiers: Record<string, (t: string) => unknown> = {
   session: verifyToken,
-  email_verification: (t) => verifyEmailToken(t, "email_verification"),
-  password_reset: (t) => verifyEmailToken(t, "password_reset"),
-  candidate_invite: verifyCandidateInviteToken,
-  account_setup: verifyAccountSetupToken,
   cif_upload: verifyCifUploadToken,
   document: verifyDocumentToken,
 };
 
 const purposes = Object.keys(signers);
-const pairs = purposes.flatMap((s) => purposes.filter((v) => v !== s).map((v) => [s, v]));
+const checked = Object.keys(verifiers);
+const pairs = purposes.flatMap((s) => checked.filter((v) => v !== s).map((v) => [s, v]));
 
 // The key a token of `purpose` would get under another environment's secret.
 const keyUnder = (secret: string, purpose: string) =>
   Buffer.from(hkdfSync("sha256", secret, "vertex-token-keys", `vertex/jwt/${purpose}/v1`, 32));
 
 describe("token purposes (gap G17)", () => {
-  it.each(purposes)("a %s token is accepted by its own verifier", (purpose) => {
+  it.each(checked)("a %s token is accepted by its own verifier", (purpose) => {
     expect(() => verifiers[purpose](signers[purpose]())).not.toThrow();
   });
 
@@ -61,7 +57,7 @@ describe("token purposes (gap G17)", () => {
     expect(() => verifiers[checkedAs](signers[signed]())).toThrow();
   });
 
-  it.each(purposes)("a %s token signed the pre-G17 way (raw JWT_SECRET) is rejected", (purpose) => {
+  it.each(checked)("a %s token signed the pre-G17 way (raw JWT_SECRET) is rejected", (purpose) => {
     const legacy = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", candidateId: "c1", storagePath: "x", type: purpose }, SECRET, { algorithm: "HS256" });
     expect(() => verifiers[purpose](legacy)).toThrow();
   });
@@ -83,11 +79,6 @@ describe("token purposes (gap G17)", () => {
     expect(() => verifyToken(legacy)).toThrow(/missing sid/);
     const noVersion = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1" }, key, opts);
     expect(() => verifyToken(noVersion)).toThrow(/missing ver/);
-  });
-
-  it("session access tokens last 15 minutes", () => {
-    const claims = jwt.decode(signToken({ userId: "u1", email: "a@test.invalid", role: "admin", sid: "s1", ver: 0 })) as { iat: number; exp: number };
-    expect(claims.exp - claims.iat).toBe(900);
   });
 
   it("a token from another environment (different JWT_SECRET) is rejected", () => {

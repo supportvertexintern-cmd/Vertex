@@ -10,13 +10,13 @@ vi.hoisted(() => {
 
 import { NextRequest, NextResponse } from "next/server";
 import { proxy } from "@/proxy";
-import { signToken } from "@/lib/jwt";
+import { signAccessToken } from "@/lib/test-tokens";
 import { clearSessionCookies, setSessionCookies, SIGNED_IN_COOKIE } from "@/lib/session";
 
 const visit = (path: string, cookies: Record<string, string> = {}) =>
   proxy(new NextRequest(`http://localhost${path}`, { headers: { cookie: Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join("; ") } }));
 const where = (res: Response) => res.headers.get("location")?.replace("http://localhost", "");
-const token = (role = "admin") => signToken({ userId: "u1", email: "u@test.invalid", role: role as never, sid: "f1", ver: 0 });
+const token = (role = "admin") => signAccessToken({ userId: "u1", email: "u@test.invalid", role: role as never, sid: "f1", ver: 0 });
 
 describe("portal visits", () => {
   it("signed out (no marker): straight to sign-in, no refresh call", () => {

@@ -1,8 +1,7 @@
-// The account routes since users step 8.3: with their flags on (the default)
-// FastAPI writes (vertex_be/tests/test_accounts.py, test_users.py) and these
-// routes keep the rate limits, the response shapes, the emails FastAPI lists
-// and the admin-granted alert. With one flag off, that area's routes run the
-// website's own code again and the others still pass on (lib/flags.ts).
+// The account routes since users step 8.3: FastAPI writes
+// (vertex_be/tests/test_accounts.py, test_users.py) and these routes keep the
+// rate limits, the response shapes, the emails FastAPI lists and the
+// admin-granted alert.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
@@ -25,7 +24,7 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 vi.mock("@/lib/email", () => {
-  const senders = ["sendVerificationLinkEmail", "sendPasswordResetLinkEmail", "sendAccountSetupLinkEmail", "sendPasswordResetEmail", "sendVerificationEmail", "sendAccountSetupInviteEmail"];
+  const senders = ["sendVerificationLinkEmail", "sendPasswordResetLinkEmail", "sendAccountSetupLinkEmail"];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
 });
 const alerts = vi.hoisted(() => ({ granted: vi.fn() }));
@@ -46,10 +45,8 @@ import * as reset from "@/app/api/auth/reset-password/route";
 import * as users from "@/app/api/admin/users/route";
 import * as oneUser from "@/app/api/admin/users/[id]/route";
 import * as adminReset from "@/app/api/admin/users/[id]/reset-password/route";
-import { accountsOnFastApi } from "@/lib/flags";
 // As behind the stack's edge proxy (lib/client-ip.ts).
 process.env.TRUST_PROXY_HEADERS = "true";
-
 
 let seq = 0;
 // A fresh client address per request, so the per-address limits never trip across tests.
@@ -64,7 +61,6 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const ok = (data: unknown, extra: Record<string, unknown> = {}, status = 200) => ({ ok: true, status, body: { data, ...extra } });
 const refused = (status: number, code: string, message: string, details?: unknown) => ({ ok: false, status, error: { code, message, details } });
 const admin = { userId: "admin1", email: "a@test.invalid", role: "admin", sid: "s", ver: 0 };
-const FLAGS = ["REGISTRATION", "RESET", "ADMIN_USERS"] as const;
 
 beforeEach(() => {
   callBackend.mockReset();
@@ -72,19 +68,9 @@ beforeEach(() => {
   state.sent = [];
   state.user = null;
   state.dbUser = null;
-  vi.unstubAllEnvs();
 });
 
-describe("the flags", () => {
-  it("are on unless set to false", () => {
-    expect(FLAGS.map(accountsOnFastApi)).toEqual([true, true, true]);
-    vi.stubEnv("FLAG_ACCOUNTS_FASTAPI_RESET", " FALSE ");
-    vi.stubEnv("FLAG_ACCOUNTS_FASTAPI_ADMIN_USERS", "true");
-    expect(FLAGS.map(accountsOnFastApi)).toEqual([true, false, true]);
-  });
-});
-
-describe("registration and verification (flag on)", () => {
+describe("registration and verification", () => {
   it("passes an invite registration on, answers as before and sends the verification email", async () => {
     const user = { id: "u1", full_name: "Abebe", email: "a@test.invalid", role: "candidate" };
     const notice = { kind: "email_verification", email: "a@test.invalid", full_name: "Abebe", token: "signed-by-fastapi" };
@@ -115,6 +101,18 @@ describe("registration and verification (flag on)", () => {
     expect([res.status, await res.json(), callBackend.mock.calls.length]).toEqual([400, { error: "Invalid JSON" }, 0]);
   });
 
+  it("passes the register page's prefill on, invite or setup link, with the older string errors", async () => {
+    const prefill = { full_name: "Abebe", email: "a@test.invalid", phone: "", country: "Kenya" };
+    callBackend.mockResolvedValueOnce(ok(prefill));
+    const invite = await register.GET(request("GET", "/api/auth/register?invite=inv"));
+    expect(callBackend).toHaveBeenLastCalledWith("/api/v1/accounts/register", { query: { token: "inv" }, asUser: false });
+    expect([invite.status, await invite.json()]).toEqual([200, { data: prefill }]);
+    callBackend.mockResolvedValueOnce(refused(410, "invite_used", "This invite has already been used or is no longer valid."));
+    const used = await register.GET(request("GET", "/api/auth/register?setup=s1"));
+    expect(callBackend).toHaveBeenLastCalledWith("/api/v1/accounts/setup", { query: { token: "s1" }, asUser: false });
+    expect([used.status, await used.json()]).toEqual([410, { error: "This invite has already been used or is no longer valid." }]);
+  });
+
   it("passes the verification link on and answers { message }", async () => {
     callBackend.mockResolvedValueOnce(ok({ message: "Email verified successfully! You can now log in." }));
     const res = await verify.GET(request("GET", "/api/auth/verify-email?token=t1"));
@@ -123,7 +121,7 @@ describe("registration and verification (flag on)", () => {
   });
 });
 
-describe("forgot and reset password (flag on)", () => {
+describe("forgot and reset password", () => {
   it("passes the address on with the client's, answers the same and sends what FastAPI lists", async () => {
     const notice = { kind: "password_reset", email: "a@test.invalid", full_name: "Abebe", token: "reset-link" };
     callBackend.mockResolvedValueOnce(ok({ message: "If an account exists for that email, we've sent a password reset link." }, { notify: [notice] }));
@@ -155,7 +153,7 @@ describe("forgot and reset password (flag on)", () => {
   });
 });
 
-describe("the admin user pages (flag on)", () => {
+describe("the admin user pages", () => {
   beforeEach(() => {
     state.user = admin;
   });
@@ -202,44 +200,3 @@ describe("the admin user pages (flag on)", () => {
   });
 });
 
-describe("each flag off on its own", () => {
-  // One route per area that can run its old code without a database here.
-  const probes = {
-    REGISTRATION: async () => verify.GET(request("GET", "/api/auth/verify-email?token=not-a-token")),
-    RESET: async () => reset.POST(request("POST", "/api/auth/reset-password", { token: "not-a-token", password: "Pass-word-1" })),
-    ADMIN_USERS: async () => {
-      state.user = admin;
-      return oneUser.DELETE(request("DELETE", "/api/admin/users/admin1"), ctx("admin1"));
-    },
-  };
-  // What the website's own code answers to each probe.
-  const own = {
-    REGISTRATION: [400, { error: "Invalid or expired verification token." }],
-    RESET: [400, { error: "This reset link is invalid or has expired. Request a new one." }],
-    ADMIN_USERS: [400, { error: { code: "self_delete", message: "You can't remove your own account." } }],
-  };
-
-  for (const off of FLAGS) {
-    it(`${off} off: its routes run the website's code, the others still pass on`, async () => {
-      vi.stubEnv(`FLAG_ACCOUNTS_FASTAPI_${off}`, "false");
-      callBackend.mockResolvedValue(ok({ message: "from FastAPI" }));
-      for (const area of FLAGS) {
-        callBackend.mockClear();
-        const res = await probes[area]();
-        if (area === off) {
-          expect([res.status, await res.json()], area).toEqual(own[area]);
-          expect(callBackend, area).not.toHaveBeenCalled();
-        } else {
-          expect(callBackend, area).toHaveBeenCalledTimes(1);
-        }
-      }
-    });
-  }
-
-  it("RESET off: forgot password answers the same and sends nothing for an unknown address", async () => {
-    vi.stubEnv("FLAG_ACCOUNTS_FASTAPI_RESET", "false");
-    const res = await forgot.POST(request("POST", "/api/auth/forgot-password", { email: "nobody@test.invalid" }));
-    expect(await res.json()).toEqual({ message: "If an account exists for that email, we've sent a password reset link." });
-    expect([callBackend.mock.calls.length, state.sent]).toEqual([0, []]);
-  });
-});

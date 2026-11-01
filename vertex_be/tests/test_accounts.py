@@ -243,6 +243,49 @@ def test_a_setup_link_the_website_signed_still_works(api, db):
     assert post(api, "setup", {"setup": ACCOUNT_SETUP_TOKEN, "password": PASSWORD}).status_code == 200
 
 
+# --- the register page's prefill (step 8.5) ---------------------------------------
+
+
+def prefill(api, path: str, token: str | None):
+    return api.get(f"/api/v1/accounts/{path}", headers=svc(), params={} if token is None else {"token": token})
+
+
+def test_an_invite_prefills_what_the_candidate_record_says(api, db, lead):
+    res = prefill(api, "register", invite_for(lead.id))
+    assert (res.status_code, res.json()["data"]) == (200, {"full_name": "Abebe Kebede", "email": lead.email, "phone": "+251911000000", "country": lead.home.name})
+    db.refresh(lead)
+    assert lead.user_id is None  # a look, not a claim
+
+
+def test_a_claimed_bad_or_missing_invite_prefills_nothing(api, db, lead):
+    lead.user_id = account(db).id
+    db.flush()
+    used = prefill(api, "register", invite_for(lead.id))
+    assert (used.status_code, error(used)["message"]) == (410, "This invite has already been used or is no longer valid.")
+    expired = prefill(api, "register", invite_for(lead.id, expires_in=-60))
+    assert (expired.status_code, error(expired)["message"]) == (400, "This invite link is invalid or has expired.")
+    missing = prefill(api, "register", None)
+    assert (missing.status_code, error(missing)["message"]) == (400, "Missing invite token.")
+
+
+def test_a_setup_link_prefills_its_account_until_a_password_is_set(api, db):
+    staff = account(db, password=None, verified=False, role=Role.hr)
+    res = prefill(api, "setup", sign_account_setup_token(staff.id))
+    assert (res.status_code, res.json()["data"]) == (200, {"full_name": staff.full_name, "email": staff.email, "phone": "", "country": ""})
+    staff.password_hash = bcrypt.hashpw(b"Set-Password-1", bcrypt.gensalt(4)).decode()
+    db.flush()
+    used = prefill(api, "setup", sign_account_setup_token(staff.id))
+    assert (used.status_code, error(used)["message"]) == (410, "This invite has already been used or is no longer valid.")
+    for bad in ("nope", None, sign_verification_token(staff.id, staff.email)):
+        res = prefill(api, "setup", bad)
+        assert (res.status_code, error(res)["message"]) == (400, "This invite link is invalid or has expired.")
+
+
+def test_the_prefill_answers_only_the_website(api, lead):
+    assert api.get("/api/v1/accounts/register", params={"token": invite_for(lead.id)}).status_code == 401
+    assert api.get("/api/v1/accounts/setup", params={"token": "x"}).status_code == 401
+
+
 # --- email verification ---------------------------------------------------------
 
 

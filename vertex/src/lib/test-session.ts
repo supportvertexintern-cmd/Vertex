@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Role } from "@prisma/client";
 import { prisma } from "./prisma";
-import { signToken } from "./jwt";
+import { signAccessToken } from "./test-tokens";
 import type { IssuedSession } from "./session";
 
 // Tests only. Since G19 an access token is accepted only for an existing
@@ -22,7 +22,7 @@ export async function startTestSession(user: { id: string; email: string; role: 
   await prisma.refreshToken.create({
     data: { user_id: user.id, family_id: familyId, token_hash: hashRefreshToken(refreshToken), token_version: user.token_version, expires_at: refreshExpiresAt },
   });
-  const accessToken = signToken({ userId: user.id, email: user.email, role: user.role, sid: familyId, ver: user.token_version });
+  const accessToken = signAccessToken({ userId: user.id, email: user.email, role: user.role, sid: familyId, ver: user.token_version });
   return { familyId, accessToken, refreshToken, refreshExpiresAt };
 }
 

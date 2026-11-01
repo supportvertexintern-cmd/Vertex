@@ -2,9 +2,9 @@
 (docs/architecture/users-handover.md): registration from a screening
 invite, a staff or partner account's first password, email verification,
 and forgot and reset password. They replace the work of Next.js's
-/api/auth/register (POST), /api/auth/verify-email, /api/auth/forgot-password
-and /api/auth/reset-password, which pass requests on while their flags are
-on (FLAG_ACCOUNTS_FASTAPI_REGISTRATION and _RESET, lib/flags.ts).
+/api/auth/register, /api/auth/verify-email, /api/auth/forgot-password and
+/api/auth/reset-password, which pass requests on (the register page's
+prefill too, since step 8.5).
 
 They answer as those routes did: the same messages and status codes. The
 website keeps the per-address rate limits and sends the emails each answer
@@ -50,7 +50,7 @@ from app.core.tokens import (
     verify_candidate_invite_token,
     verify_email_token,
 )
-from app.models.candidate import Application
+from app.models.candidate import Application, Candidate
 from app.models.enums import Role
 from app.models.identity import Country, User
 from app.services.sessions import email_fingerprint, hash_password
@@ -208,6 +208,46 @@ def complete_setup(body: SetupIn, db: DbSession):
     db.commit()
     db.refresh(user)
     return {"data": {"message": "Your password is set — you can now log in.", "user": user}}
+
+
+# --- the register page's prefill (step 8.5) -------------------------------------
+
+
+class Prefill(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    country: str
+
+
+@router.get("/accounts/register", response_model=Notifying[Prefill])
+def invite_prefill(db: DbSession, token: str | None = None):
+    """What the candidate record already says, so a screened candidate only
+    sets a password. The invite is the credential."""
+    if not token:
+        raise ApiError(400, "token_required", "Missing invite token.")
+    try:
+        candidate_id = verify_candidate_invite_token(token)
+    except InvalidToken:
+        raise ApiError(400, "invalid_invite", INVITE_INVALID) from None
+    candidate = db.get(Candidate, candidate_id)
+    if candidate is None or candidate.user_id:
+        raise ApiError(410, "invite_used", INVITE_USED)
+    country = _latest_country(db, candidate.id) or ""
+    return {"data": {"full_name": candidate.full_name or "", "email": candidate.email or "", "phone": candidate.phone or "", "country": country}}
+
+
+@router.get("/accounts/setup", response_model=Notifying[Prefill])
+def setup_prefill(db: DbSession, token: str | None = None):
+    """The account a setup link is for, while it has no password."""
+    try:
+        user_id = verify_account_setup_token(token or "")
+    except InvalidToken:
+        raise ApiError(400, "invalid_invite", INVITE_INVALID) from None
+    user = db.get(User, user_id)
+    if user is None or user.password_hash:
+        raise ApiError(410, "invite_used", INVITE_USED)
+    return {"data": {"full_name": user.full_name, "email": user.email, "phone": "", "country": ""}}
 
 
 # --- email verification -------------------------------------------------------

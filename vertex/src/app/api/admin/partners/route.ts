@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auditedPrisma } from "@/lib/audit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { createPartnerSchema } from "@/lib/validations";
-import { accountsOnFastApi } from "@/lib/flags";
 import { passOn } from "@/lib/pipeline";
 
 // Who "sets policy & criteria" for partner agreements (Regional Supervisory
@@ -45,21 +42,5 @@ export async function POST(req: NextRequest) {
   }
 
   // FastAPI writes since users step 8.4 (vertex_be/app/api/v1/partner_agencies.py).
-  // Below is the way back, behind FLAG_ACCOUNTS_FASTAPI_PARTNERS
-  // (lib/flags.ts), until step 8.5.
-  if (accountsOnFastApi("PARTNERS")) {
-    return passOn("/api/v1/partners", { method: "POST", body });
-  }
-
-  const parsed = createPartnerSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "Validation failed", details: parsed.error.flatten().fieldErrors } },
-      { status: 422 }
-    );
-  }
-
-  const db = auditedPrisma(user!.userId);
-  const partner = await db.partner.create({ data: parsed.data });
-  return NextResponse.json({ data: partner }, { status: 201 });
+  return passOn("/api/v1/partners", { method: "POST", body });
 }
