@@ -1,0 +1,16 @@
+# On demand, dev only: MinIO's web console on 127.0.0.1:MINIO_CONSOLE_PORT
+# (default 9001), for browsing the stack's files. deploy/minio-console.sh
+# adds this file to start it and recreates MinIO without it to stop it.
+#
+# While it runs, two of exception E2's conditions are suspended for dev
+# (docs/security/exceptions.md): MinIO has a published port, and it joins
+# `edge` (an internal-only network can't publish ports). verify-stack.sh's
+# MinIO rows fail until it is stopped again.
+services:
+  minio:
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      MINIO_BROWSER: "on"
+    ports:
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks: [ data, edge ]

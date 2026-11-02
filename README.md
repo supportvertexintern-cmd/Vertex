@@ -12,43 +12,58 @@ A modern, full-stack recruitment platform built for international job placements
 
 ## Local Setup Instructions
 
-The whole platform runs locally with Docker: backend (`vertex_be/`), web
-(`vertex/`) and app (`vertex_app/`), each built from its own Dockerfile, plus
-Postgres, pgAdmin, MinIO and Mailpit, all from `docker-compose.yml`.
+One stack runs on this PC: **`vertex-dev`**, the `dev` branch as CI built
+it (images `dev-<commit>` from GitHub's registry). Backend (`vertex_be/`),
+web (`vertex/`) and app (`vertex_app/`), plus Postgres, Redis, MinIO, the
+edge proxy and Mailpit, from `vertex_be/docker-compose.deploy.yml`. Commands
+run from `vertex_be/` in Git Bash (from PowerShell: `& "C:\Program
+Files\Git\bin\bash.exe" -c "cd '/d/Django Projects/vertex_main/vertex_be' && ..."`).
 
-1. **Environment** (once): writes a gitignored `.env` with random secrets.
-   ```bash
-   sh scripts/local-env.sh        # Git Bash; from PowerShell:
-                                  # & "C:\Program Files\Git\bin\bash.exe" scripts/local-env.sh
-   ```
+1. **Environment** (once): `vertex_be/.env.dev`, gitignored and never
+   committed in any form. Its settings are listed in
+   `vertex_be/deploy/README.md` ("Env files"); the session keys come from
+   `bash deploy/session-keys.sh .env.dev`.
 
-2. **Build and start**
+2. **Deploy** a `dev` commit that CI has built (or update to a newer one):
    ```bash
-   docker compose up -d --build --wait
+   ENV_FILE=.env.dev bash deploy/deploy.sh vertex-dev dev-<full commit sha>
    ```
+   It pulls the images, applies the migrations, sets the database roles and
+   waits until every service is healthy.
 
    | Service | URL |
    |---|---|
-   | Web (Next.js) | http://localhost:3010 |
-   | App (Flutter web) | http://localhost:8090 |
-   | API docs (FastAPI) | http://localhost:8010/docs |
-   | pgAdmin | http://localhost:5070: "vertex-local (admin)" sees and edits everything (password `POSTGRES_PASSWORD`); "(read-only)" mirrors the deployed stacks (`DB_READONLY_PASSWORD`) |
-   | MinIO console | http://localhost:9011 |
-   | Mail (Mailpit) | http://localhost:8035 |
-   | Postgres | `localhost:15433`, database `vertexdb` |
-
-   Logins are in `.env`. The schema comes from the backend's Alembic
-   migrations, never `prisma db push`.
+   | Web (Next.js) | http://localhost:3001 |
+   | App (Flutter web) | http://localhost:8081 |
+   | API docs (FastAPI) | http://localhost:8001/docs |
+   | Mail (Mailpit) | http://localhost:8026 |
+   | MinIO console (on demand, below) | http://localhost:9001 |
+   | pgAdmin (on demand, below) | http://localhost:5050 |
 
 3. **Seed** (on a new database): reference data (regions, countries,
    sectors, job programmes) and one test account per role, e.g.
    `admin@test.local`, all with password `TestPassword123!`.
    ```bash
-   sh scripts/local-seed.sh
+   ENV_FILE=.env.dev sh deploy/seed-dev.sh vertex-dev
    ```
 
-4. **Stop**: `docker compose down` (data is kept). Start over with
-   `docker compose down -v`, then steps 2 and 3.
+4. **On demand**, off otherwise (exception E2: MinIO and Postgres have no
+   published port):
+   - MinIO console: `ENV_FILE=.env.dev sh deploy/minio-console.sh vertex-dev up`
+     (and `down`). Log in with `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`
+     from `.env.dev`. Port 9001 is the console; 9000 is the S3 API, which
+     has no web page.
+   - pgAdmin: `ENV_FILE=.env.dev sh deploy/pgadmin.sh vertex-dev up` (and
+     `down`); read-only, password `DB_READONLY_PASSWORD`.
+
+5. **Stop and start**: `docker compose -p vertex-dev stop` keeps everything;
+   `docker compose -p vertex-dev start` brings it back. Each service has a
+   memory and CPU cap (`mem_limit`, `cpus` in the deploy file).
+
+To try backend changes before CI builds them, `docker-compose.local.yml`
+swaps the stack's backend for your working tree with live reload (see that
+file). `bash deploy/verify-stack.sh dev` (from `vertex_be/deploy`) checks the
+stack's security conditions.
 
 Tests run against throwaway databases, never this stack:
 `vertex_be/scripts/test.sh`, `vertex/scripts/test.sh` (Vitest) and

@@ -1,7 +1,6 @@
 #!/bin/sh
-# Runs inside the MinIO container (deploy.sh pipes it in), or in a one-shot
-# container next to it (docker-compose.yml at the repo root, with MINIO_URL
-# set). Idempotent: creates the environment's bucket and the app's own access
+# Runs inside the MinIO container (deploy.sh pipes it in; MINIO_URL points
+# it elsewhere, e.g. a test MinIO). Idempotent: creates the environment's bucket and the app's own access
 # key, limited by policy to objects in that one bucket. The root login is
 # never given to an application. Credentials come from the container's
 # environment, never argv.
