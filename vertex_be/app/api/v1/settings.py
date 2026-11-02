@@ -6,8 +6,8 @@ on through callBackend(): admin only, the same three keys, the same 400 for
 a bad intake mode. Next.js unwraps {data} so its page still gets the plain
 key-value map. Every change is on the audit trail.
 
-Reads stay in Next.js: /api/apply/options reads intake_mode and /api/chat
-reads ai_enabled (vertex_web keeps SELECT).
+The public reads of two keys are in app/api/v1/public.py (reads handover
+R1): intake_mode in the apply options, ai_enabled as GET /assistant.
 """
 
 from __future__ import annotations

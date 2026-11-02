@@ -34,11 +34,11 @@ interface Job {
   _count: { applications: number };
 }
 
-// Calls the same query the API route uses directly (in-process), rather
-// than self-fetching /api/jobs/[id] over HTTP — see server/services/publicJobs.ts.
+// Read from FastAPI (server/services/publicJobs.ts). A partner also sees the
+// partner-only programmes.
 async function getJob(id: string, includePartnerOnly: boolean): Promise<Job | null> {
   try {
-    return await getPublicJobById(id, includePartnerOnly);
+    return await getPublicJobById(id, includePartnerOnly ? "partner" : undefined);
   } catch {
     return null;
   }

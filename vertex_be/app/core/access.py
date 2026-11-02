@@ -11,8 +11,9 @@ test_default_deny.py also fails CI on any route that is neither, and on
 stale register entries.
 
 GUARDS holds current_user (app/core/auth.py, G9): a route that depends on
-it serves only a live Next.js session; and calling_service (G18): a route
-that depends on it serves only Next.js itself. A service token, wherever it
+it serves only a live Next.js session; calling_service (G18): a route that
+depends on it serves only Next.js itself; and website_or_user (reads
+handover R1): one of the two. A service token, wherever it
 is sent, is verified here first: a bad one is a 401 on any route.
 """
 
@@ -25,7 +26,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 
-from app.core.auth import calling_service, check_service_header, current_user
+from app.core.auth import calling_service, check_service_header, current_user, website_or_user
 
 # "<METHOD> <path>": why it is public and what limits it.
 PUBLIC_ENDPOINTS: dict[str, str] = {
@@ -38,8 +39,8 @@ FRAMEWORK_ROUTES: set[str] = {"/docs", "/docs/oauth2-redirect", "/redoc", "/api/
 
 # Authentication dependencies. A route whose dependency tree contains one of
 # these is guarded: current_user (G9) verifies a Next.js session,
-# calling_service (G18) the Next.js service itself.
-GUARDS: set[Callable[..., Any]] = {current_user, calling_service}
+# calling_service (G18) the Next.js service itself, website_or_user either.
+GUARDS: set[Callable[..., Any]] = {current_user, calling_service, website_or_user}
 
 
 def route_key(method: str, path: str) -> str:

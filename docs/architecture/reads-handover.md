@@ -1,6 +1,6 @@
 # Reads handover: one API for everything
 
-Status: **approved by the owner, 2026-11-02: D1 to D6 all option A.** R1 next. Follows
+Status: **approved by the owner, 2026-11-02: D1 to D6 all option A.** R1 done; R2 next. Follows
 [data-ownership.md](data-ownership.md): FastAPI has written every table since
 users step 8.5, but the website still **reads** the database itself through
 Prisma. The owner's request (2026-11-02): the website stops reading through
@@ -141,4 +141,5 @@ staging and main only when the owner asks.
 
 | Step | State |
 |---|---|
-| R1 to R8 | Not started. Decisions made (D1 to D6 A); R1 next |
+| R1 | Done (this PR). FastAPI answers the public job listing and detail (`GET /api/v1/jobs`, `/jobs/{id}`), a job's application fee for a signed-in user (`/jobs/{id}/application-fee`, for the checkout; the public job never shows it), the apply options, the help articles, whether the assistant is on (`app/api/v1/public.py`) and the staff list of document types. The anonymous reads take a new guard, `website_or_user` (`app/core/auth.py`): the website's service credential, with the visitor's session when there is one, or a signed-in user calling directly (the Flutter app). It is in default deny's `GUARDS` and the OpenAPI security. FastAPI applies the website's visibility rules (drafts, statuses and sorting only for a job manager; partner-only jobs for a job manager, or with `audience=partner` for the partner roles) and answers the same JSON keys (`tests/test_public_reads.py`). The website's routes and the three job pages pass on; `server/services/publicJobs.ts` is a client. Changes: `GET /api/jobs` is now a registered public endpoint with a per-IP limit (it had none); public intake finds only a public job, so a draft or partner-only one is "Opportunity not found."; ties in the listing's order are broken by id. `src/lib/prisma-readers.test.ts` lists the 64 files left. Rollback: revert; no migration |
+| R2 to R8 | Not started |

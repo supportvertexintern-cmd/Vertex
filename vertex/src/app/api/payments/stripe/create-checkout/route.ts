@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import Stripe from "stripe";
 import { STRIPE_API_VERSION, CARD_ONLY_CHECKOUT } from "@/lib/stripe";
 
@@ -19,8 +19,13 @@ export async function POST(req: NextRequest) {
   const parsed = body as { jobId: string };
   if (!parsed.jobId) return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
 
-  const job = await prisma.job.findUnique({ where: { id: parsed.jobId } });
-  if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  // The fee is never on the public job: FastAPI gives it to a signed-in
+  // user (reads handover R1).
+  const found = await callBackend<{ id: string; title: string; application_fee: number | null }>(
+    `/api/v1/jobs/${encodeURIComponent(parsed.jobId)}/application-fee`
+  );
+  if (!found.ok) return legacyErrorResponse(found);
+  const job = found.body.data;
   if (!job.application_fee || job.application_fee <= 0) {
     return NextResponse.json({ error: "This job does not require an application fee." }, { status: 400 });
   }

@@ -1,9 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { callBackend } from "@/lib/backend";
+
+interface Article {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+}
 
 export default async function HelpCenterPage() {
-  const articles = await prisma.knowledgeArticle.findMany({
-    orderBy: { category: "asc" }
-  });
+  // Read from FastAPI since reads handover R1 (GET /api/v1/help/articles).
+  const result = await callBackend<Article[]>("/api/v1/help/articles", { asUser: "if-signed-in" });
+  if (!result.ok) throw new Error(`help articles unavailable: ${result.error.code}`);
+  const articles = result.body.data;
 
   // Group by category
   const categories = articles.reduce<Record<string, typeof articles>>((acc, article) => {

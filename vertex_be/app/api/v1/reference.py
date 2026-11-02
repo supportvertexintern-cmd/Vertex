@@ -9,8 +9,8 @@ change is on the audit trail.
 
 Document requirement types are FastAPI's too since the jobs handover (step
 3.2): the admin adds and removes them here, and a job's payment stages get
-their receipt types in app/api/v1/jobs.py. Their list (GET) stays in
-Next.js's /api/admin/document-types.
+their receipt types in app/api/v1/jobs.py. Their list followed in reads
+handover R1 (GET /api/admin/document-types).
 """
 
 from __future__ import annotations
@@ -47,6 +47,8 @@ SECTOR_READERS: tuple[Role, ...] = (
 # A destination's extra documents: the same roles, plus the candidate, whose
 # own checklist depends on them.
 REQUIREMENT_READERS: tuple[Role, ...] = (Role.candidate, *SECTOR_READERS)
+# Every staff role that renders or configures a document checklist.
+DOCUMENT_TYPE_READERS: tuple[Role, ...] = (*SECTOR_READERS, Role.hr, Role.operations_team, Role.operations_director)
 
 AdminUser = Annotated[AuthUser, Depends(require_role(Role.admin))]
 
@@ -200,6 +202,13 @@ class DocumentTypeIn(BaseModel):
 def _slug(label: str) -> str:
     # The website's slugify(): the key stored on Document.type and friends.
     return re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+
+
+@router.get("/document-types")
+def list_document_types(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(*DOCUMENT_TYPE_READERS))]) -> Data[list[DocumentTypeOut]]:
+    """Every document requirement type, in the admin's order."""
+    rows = db.scalars(select(DocumentRequirementType).order_by(DocumentRequirementType.sort_order, DocumentRequirementType.created_at))
+    return Data(data=[DocumentTypeOut.model_validate(t) for t in rows])
 
 
 @router.post("/document-types", status_code=status.HTTP_201_CREATED)

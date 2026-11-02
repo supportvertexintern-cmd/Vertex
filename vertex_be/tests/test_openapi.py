@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 from app.core.access import PUBLIC_ENDPOINTS, _calls, iter_api_routes, route_key
-from app.core.auth import calling_service, current_user
+from app.core.auth import calling_service, current_user, website_or_user
 from app.core.config import BASE_DIR, settings
 from app.core.tokens import verify_service_token
 from app.main import app
@@ -30,6 +30,8 @@ def test_every_operation_lists_what_its_guard_checks():
             security = paths[path][method.lower()].get("security")
             if route_key(method, path) in PUBLIC_ENDPOINTS:
                 assert security is None, path
+            elif website_or_user in calls:
+                assert security == [{"service": []}, {"service": [], "session": []}, {"session": []}], path
             elif calling_service in calls:
                 assert {"service": []} in security, path
                 assert all("service" in requirement for requirement in security), path  # never a session alone

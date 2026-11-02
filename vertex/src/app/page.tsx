@@ -12,8 +12,7 @@ export const metadata: Metadata = {
 
 // SRS FR-1.5: real database jobs only — no placeholder fallback. An empty
 // result renders HomeClient's built-in "No jobs available yet" state.
-// Calls the same query the API route uses directly (in-process), rather
-// than self-fetching /api/jobs over HTTP — see server/services/publicJobs.ts.
+// Read from FastAPI (server/services/publicJobs.ts).
 async function getFeaturedJobs() {
   try {
     const { jobs } = await getPublicJobsList({ limit: 6 });

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // GET /api/admin/document-types — every admin-managed document requirement
 // type (replaces the old fixed DocumentType enum), read-only reference
 // data for every staff role that needs to render or configure a document
-// checklist; only admin can write.
+// checklist; only admin can write. Read from FastAPI since reads handover R1;
+// the roles must match DOCUMENT_TYPE_READERS in
+// vertex_be/app/api/v1/reference.py (tests check it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "marketing", "hr", "operations_team", "operations_director", "admin"]);
   if (guardRes) return guardRes;
 
-  const types = await prisma.documentRequirementType.findMany({ orderBy: [{ sort_order: "asc" }, { created_at: "asc" }] });
-  return NextResponse.json({ data: types });
+  return backendResponse(await callBackend("/api/v1/document-types"));
 }
 
 // POST /api/admin/document-types — admin adds a brand-new requirement

@@ -163,6 +163,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/apply/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Apply Options
+         * @description The application forms' reference data: destination countries (the
+         *     destination region), every other country, the document types and each
+         *     destination's extra documents, and where a public application goes
+         *     ("email" unless the admin set "crm", so an unset stack never writes to
+         *     the CRM).
+         */
+        get: operations["apply_options_api_v1_apply_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Assistant
+         * @description Whether the assistant answers: on unless the admin turned it off.
+         */
+        get: operations["assistant_api_v1_assistant_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/google": {
         parameters: {
             query?: never;
@@ -962,7 +1006,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Document Types
+         * @description Every document requirement type, in the admin's order.
+         */
+        get: operations["list_document_types_api_v1_document_types_get"];
         put?: never;
         /**
          * Create Document Type
@@ -1235,6 +1283,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/help/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Help Articles
+         * @description Every knowledge article, by category: the help centre shows them all,
+         *     and the assistant answers from them.
+         */
+        get: operations["help_articles_api_v1_help_articles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -1242,7 +1311,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Public Jobs
+         * @description The public listing, as GET /api/jobs answered. Active jobs by
+         *     default; "public" (the /jobs page) adds closed ones. A job manager's
+         *     own list may also ask for draft, closed or all, and sort by title or
+         *     application count.
+         */
+        get: operations["list_public_jobs_api_v1_jobs_get"];
         put?: never;
         /** Create Job */
         post: operations["create_job_api_v1_jobs_post"];
@@ -1259,7 +1335,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Public Job
+         * @description A public job: active or closed (closed ones stay reachable from old
+         *     links), never a draft. Partner-only as for the listing.
+         */
+        get: operations["get_public_job_api_v1_jobs__job_id__get"];
         /** Update Job */
         put: operations["update_job_api_v1_jobs__job_id__put"];
         post?: never;
@@ -1270,6 +1351,27 @@ export interface paths {
          *     still points to is a 409.
          */
         delete: operations["delete_job_api_v1_jobs__job_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/jobs/{job_id}/application-fee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Application Fee
+         * @description What the application-fee checkout charges: any job by id, for a
+         *     signed-in user (the public job never shows its fee).
+         */
+        get: operations["get_application_fee_api_v1_jobs__job_id__application_fee_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2456,6 +2558,20 @@ export interface components {
              */
             kind: "application_confirmation";
         };
+        /** ApplicationCount */
+        ApplicationCount: {
+            /** Applications */
+            applications: number;
+        };
+        /** ApplicationFeeOut */
+        ApplicationFeeOut: {
+            /** Application Fee */
+            application_fee: number | null;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+        };
         /**
          * ApplicationIn
          * @description registerReferralAgentSchema.
@@ -2582,6 +2698,22 @@ export interface components {
             /** Referral Code */
             referral_code: string;
         };
+        /** ApplyOptions */
+        ApplyOptions: {
+            /** Countries */
+            countries: components["schemas"]["CountryOption"][];
+            /** Documentrequirements */
+            documentRequirements: components["schemas"]["RequirementOption"][];
+            /** Documenttypes */
+            documentTypes: components["schemas"]["DocumentTypeOut"][];
+            /**
+             * Intakemode
+             * @enum {string}
+             */
+            intakeMode: "email" | "crm";
+            /** Locationcountries */
+            locationCountries: components["schemas"]["CountryOption"][];
+        };
         /**
          * ApproveIn
          * @description approveReferralAgentSchema: the login's address, the application's
@@ -2647,6 +2779,11 @@ export interface components {
             title: string;
             /** Updated At */
             updated_at: string;
+        };
+        /** AssistantOut */
+        AssistantOut: {
+            /** Enabled */
+            enabled: boolean;
         };
         /** Author */
         Author: {
@@ -3288,6 +3425,13 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CountryOption */
+        CountryOption: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
         /** CountryOut */
         CountryOut: {
             /** Id */
@@ -3328,13 +3472,25 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** Data[ApplicationFeeOut] */
+        Data_ApplicationFeeOut_: {
+            data: components["schemas"]["ApplicationFeeOut"];
+        };
         /** Data[ApplicationRow] */
         Data_ApplicationRow_: {
             data: components["schemas"]["ApplicationRow"];
         };
+        /** Data[ApplyOptions] */
+        Data_ApplyOptions_: {
+            data: components["schemas"]["ApplyOptions"];
+        };
         /** Data[ArticleOut] */
         Data_ArticleOut_: {
             data: components["schemas"]["ArticleOut"];
+        };
+        /** Data[AssistantOut] */
+        Data_AssistantOut_: {
+            data: components["schemas"]["AssistantOut"];
         };
         /** Data[CampaignDetail] */
         Data_CampaignDetail_: {
@@ -3460,6 +3616,14 @@ export interface components {
         Data_PositionOut_: {
             data: components["schemas"]["PositionOut"];
         };
+        /** Data[PublicJobDetailOut] */
+        Data_PublicJobDetailOut_: {
+            data: components["schemas"]["PublicJobDetailOut"];
+        };
+        /** Data[PublicJobList] */
+        Data_PublicJobList_: {
+            data: components["schemas"]["PublicJobList"];
+        };
         /** Data[Raised] */
         Data_Raised_: {
             data: components["schemas"]["Raised"];
@@ -3545,6 +3709,11 @@ export interface components {
         Data_list_CountryWithRegion__: {
             /** Data */
             data: components["schemas"]["CountryWithRegion"][];
+        };
+        /** Data[list[DocumentTypeOut]] */
+        Data_list_DocumentTypeOut__: {
+            /** Data */
+            data: components["schemas"]["DocumentTypeOut"][];
         };
         /** Data[list[EmployerClientListItem]] */
         Data_list_EmployerClientListItem__: {
@@ -4936,6 +5105,149 @@ export interface components {
             whatsapp_number?: string | null;
         };
         /**
+         * PublicJobDetailOut
+         * @description The listing's fields and the long-form ones (PUBLIC_JOB_DETAIL_SELECT).
+         */
+        PublicJobDetailOut: {
+            _count?: components["schemas"]["ApplicationCount"];
+            /** Category */
+            category: string | null;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Created At */
+            created_at: string;
+            /** Duration Permit */
+            duration_permit: string | null;
+            /** Id */
+            id: string;
+            /** Is Credit Service */
+            is_credit_service: boolean;
+            /** Job Description */
+            job_description: string;
+            /** Partner Only */
+            partner_only: boolean;
+            /** Payment Stages */
+            payment_stages: components["schemas"]["PublicStageOut"][];
+            /** Processing Time */
+            processing_time: string | null;
+            /** Requirements */
+            requirements: string;
+            /** Salary Range */
+            salary_range: string | null;
+            /** Sectors */
+            sectors: components["schemas"]["PublicSectorOut"][];
+            /** Service Fee Gbp */
+            service_fee_gbp: number | null;
+            status: components["schemas"]["JobStatus"];
+            /** Tier */
+            tier: string | null;
+            /** Title */
+            title: string;
+            /** Visa Success Rates */
+            visa_success_rates: string | null;
+            /** Visa Type */
+            visa_type: string | null;
+        };
+        /** PublicJobList */
+        PublicJobList: {
+            /** Jobs */
+            jobs: components["schemas"]["PublicJobOut"][];
+            /** Page */
+            page: number;
+            /** Pages */
+            pages: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * PublicJobOut
+         * @description publicJobs.ts's PUBLIC_JOB_LIST_SELECT. Never the internal fields
+         *     (employer_client_id, application_fee, updated_at).
+         */
+        PublicJobOut: {
+            _count?: components["schemas"]["ApplicationCount"];
+            /** Category */
+            category: string | null;
+            /** City */
+            city: string;
+            /** Country */
+            country: string;
+            /** Created At */
+            created_at: string;
+            /** Duration Permit */
+            duration_permit: string | null;
+            /** Id */
+            id: string;
+            /** Is Credit Service */
+            is_credit_service: boolean;
+            /** Job Description */
+            job_description: string;
+            /** Partner Only */
+            partner_only: boolean;
+            /** Payment Stages */
+            payment_stages: components["schemas"]["PublicStageOut"][];
+            /** Salary Range */
+            salary_range: string | null;
+            /** Sectors */
+            sectors: components["schemas"]["PublicSectorOut"][];
+            /** Service Fee Gbp */
+            service_fee_gbp: number | null;
+            status: components["schemas"]["JobStatus"];
+            /** Tier */
+            tier: string | null;
+            /** Title */
+            title: string;
+            /** Visa Type */
+            visa_type: string | null;
+        };
+        /** PublicPositionOut */
+        PublicPositionOut: {
+            /** City */
+            city: string | null;
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+        };
+        /** PublicSectorOut */
+        PublicSectorOut: {
+            /** Id */
+            id: string;
+            /** Positions */
+            positions: components["schemas"]["PublicPositionOut"][];
+            /** Sector */
+            sector: string;
+        };
+        /**
+         * PublicStageOut
+         * @description A JobPaymentStage row, as Prisma returns it.
+         */
+        PublicStageOut: {
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Job Id */
+            job_id: string;
+            /** Label */
+            label: string;
+            /** Order */
+            order: number;
+            /** Percent */
+            percent: number;
+            /** Stripe Price Id */
+            stripe_price_id: string | null;
+            /** Stripe Product Id */
+            stripe_product_id: string | null;
+            /** Synced Amount Gbp */
+            synced_amount_gbp: number | null;
+            trigger_stage: components["schemas"]["CaseStage"];
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
          * RaiseIn
          * @description raiseExceptionSchema.
          */
@@ -5260,6 +5572,13 @@ export interface components {
          * @enum {string}
          */
         ReportStatus: "draft" | "submitted" | "verified" | "consolidated" | "returned" | "approved" | "escalated" | "closed";
+        /** RequirementOption */
+        RequirementOption: {
+            /** Country Id */
+            country_id: string;
+            /** Document Type */
+            document_type: string;
+        };
         /** RequirementOut */
         RequirementOut: {
             /** Country Id */
@@ -6751,6 +7070,46 @@ export interface operations {
             };
         };
     };
+    apply_options_api_v1_apply_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_ApplyOptions_"];
+                };
+            };
+        };
+    };
+    assistant_api_v1_assistant_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AssistantOut_"];
+                };
+            };
+        };
+    };
     google_sign_in_api_v1_auth_google_post: {
         parameters: {
             query?: never;
@@ -8229,6 +8588,26 @@ export interface operations {
             };
         };
     };
+    list_document_types_api_v1_document_types_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_DocumentTypeOut__"];
+                };
+            };
+        };
+    };
     create_document_type_api_v1_document_types_post: {
         parameters: {
             query?: never;
@@ -8739,6 +9118,65 @@ export interface operations {
             };
         };
     };
+    help_articles_api_v1_help_articles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_ArticleOut__"];
+                };
+            };
+        };
+    };
+    list_public_jobs_api_v1_jobs_get: {
+        parameters: {
+            query?: {
+                page?: string | null;
+                limit?: string | null;
+                country?: string | null;
+                category?: string | null;
+                q?: string | null;
+                status?: string | null;
+                sortBy?: string | null;
+                sortDir?: string | null;
+                audience?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PublicJobList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_job_api_v1_jobs_post: {
         parameters: {
             query?: never;
@@ -8759,6 +9197,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_JobOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_job_api_v1_jobs__job_id__get: {
+        parameters: {
+            query?: {
+                audience?: string | null;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PublicJobDetailOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8825,6 +9296,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_dict_str__str__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_application_fee_api_v1_jobs__job_id__application_fee_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_ApplicationFeeOut_"];
                 };
             };
             /** @description Validation Error */

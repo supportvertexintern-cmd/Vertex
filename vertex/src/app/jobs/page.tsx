@@ -3,7 +3,7 @@ import Link from "next/link";
 import { MapPin, Tag, CurrencyCircleDollar, Users, ArrowRight, MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import JobsCategoryFilter from "@/components/JobsCategoryFilter";
 import ServiceFeeNotice from "@/components/ServiceFeeNotice";
-import { getPublicJobsList } from "@/server/services/publicJobs";
+import { getPublicJobsList, type PublicJob } from "@/server/services/publicJobs";
 import { getAuthUser } from "@/lib/api-auth";
 import { resolvePaymentStages } from "@/components/PaymentStagesPreview";
 export const dynamic = "force-dynamic";
@@ -13,22 +13,20 @@ export const metadata: Metadata = {
   description: "Explore international career opportunities at Vertex International Recruitment.",
 };
 
-type PublicJob = Awaited<ReturnType<typeof getPublicJobsList>>["jobs"][number];
-
-// Calls the same query the API route uses directly (in-process), rather
-// than self-fetching /api/jobs over HTTP — see server/services/publicJobs.ts.
+// Read from FastAPI (server/services/publicJobs.ts). A partner also sees the
+// partner-only programmes.
 async function getJobs(searchParams: { page?: string; country?: string; category?: string; q?: string }, includePartnerOnly: boolean) {
   try {
     return await getPublicJobsList({
-      page: Number(searchParams.page || 1),
+      page: searchParams.page || 1,
       limit: 15,
       country: searchParams.country || undefined,
       category: searchParams.category || undefined,
       q: searchParams.q || undefined,
-      includePartnerOnly,
+      audience: includePartnerOnly ? "partner" : undefined,
       // A closed programme stays visible here (marked closed, no Apply —
       // see job.status === "active" gating below) rather than vanishing;
-      // "public" still excludes drafts. See publicJobs.ts.
+      // "public" still excludes drafts.
       status: "public",
     });
   } catch {

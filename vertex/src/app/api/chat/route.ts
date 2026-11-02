@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
-import { prisma } from "@/lib/prisma";
+import { callBackend } from "@/lib/backend";
 import { limitByIp } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -89,31 +89,21 @@ export async function POST(req: Request) {
   try {
     const { messages } = parsed.data;
 
-    // 1. Check if AI is enabled (fail open if DB unavailable)
-    let aiEnabled: { value: string } | null = null;
-    try {
-      aiEnabled = await prisma.systemSetting.findUnique({ where: { key: "ai_enabled" } });
-    } catch {
-      // DB unavailable — default to enabled
-    }
-
-    if (aiEnabled && aiEnabled.value === "false") {
+    // Both read from FastAPI since reads handover R1
+    // (vertex_be/app/api/v1/public.py).
+    // 1. Check if AI is enabled (fail open if FastAPI can't answer)
+    const assistant = await callBackend<{ enabled: boolean }>("/api/v1/assistant", { asUser: false });
+    if (assistant.ok && !assistant.body.data.enabled) {
       return Response.json({ error: "AI Assistant is currently offline." }, { status: 403 });
     }
 
-    // 2. Fetch Knowledge Base (fallback to hardcoded if DB unavailable)
+    // 2. Fetch Knowledge Base (fallback to hardcoded if FastAPI can't answer)
     let kbText = "";
-    try {
-      const knowledgeItems = await prisma.knowledgeArticle.findMany({
-        select: { title: true, content: true },
-      });
-      if (knowledgeItems.length > 0) {
-        kbText = knowledgeItems
-          .map((k) => `--- ${k.title} ---\n${k.content}`)
-          .join("\n\n");
-      }
-    } catch {
-      // DB unavailable — use hardcoded knowledge base
+    const articles = await callBackend<{ title: string; content: string }[]>("/api/v1/help/articles", { asUser: false });
+    if (articles.ok && articles.body.data.length > 0) {
+      kbText = articles.body.data
+        .map((k) => `--- ${k.title} ---\n${k.content}`)
+        .join("\n\n");
     }
 
     const systemPrompt = `You are the official AI Assistant for Vertex International Recruitment Ltd.
