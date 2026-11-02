@@ -1725,7 +1725,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Partners
+         * @description Every partner, by name: full rows with candidate counts for a
+         *     partner manager, the name and status for everyone else.
+         */
+        get: operations["list_partners_api_v1_partners_get"];
         put?: never;
         /** Create Partner */
         post: operations["create_partner_api_v1_partners_post"];
@@ -1742,7 +1747,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Partner
+         * @description A partner and its candidates, newest first: all of them for a
+         *     partner manager, the ones in their own scope for a recruiter or a
+         *     country supervisor.
+         */
+        get: operations["get_partner_api_v1_partners__partner_id__get"];
         put?: never;
         post?: never;
         /**
@@ -1917,6 +1928,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/referral-agent/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Candidates
+         * @description The agent's referred candidates, newest first, each with the stage of
+         *     the case behind their latest application.
+         */
+        get: operations["own_candidates_api_v1_referral_agent_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agent/commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Commissions
+         * @description The agent's commissions, newest first.
+         */
+        get: operations["own_commissions_api_v1_referral_agent_commissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agent/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Profile
+         * @description The agent's profile, referral count, milestones and commission totals:
+         *     earned (all), pending (pending or approved) and paid.
+         */
+        get: operations["own_profile_api_v1_referral_agent_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Referral Agents
+         * @description Every agent (in the country, if given), newest first, with counts.
+         */
+        get: operations["list_referral_agents_api_v1_referral_agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/referral-agents/apply": {
         parameters: {
             query?: never;
@@ -1932,6 +2025,65 @@ export interface paths {
          *     emailed the verification link, and the team told.
          */
         post: operations["apply_api_v1_referral_agents_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/countries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Referral Countries
+         * @description Every country, by name, with its active agents, referred candidates
+         *     and pending commissions.
+         */
+        get: operations["referral_countries_api_v1_referral_agents_countries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/countries/{country_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Referral Country Summary
+         * @description One country: its agents, commissions by milestone, the jobs there,
+         *     each active agent's performance and the pending commissions.
+         */
+        get: operations["referral_country_summary_api_v1_referral_agents_countries__country_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-agents/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Referral Performance */
+        get: operations["referral_performance_api_v1_referral_agents_performance_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1966,7 +2118,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Referral Agent
+         * @description An agent with their referred candidates and commissions, newest first.
+         */
+        get: operations["get_referral_agent_api_v1_referral_agents__agent_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2027,7 +2183,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Commission Rules
+         * @description Every rule (in the country, if given), by country name and milestone.
+         */
+        get: operations["list_commission_rules_api_v1_referral_commission_rules_get"];
         put?: never;
         /**
          * Upsert Rule
@@ -2035,6 +2195,26 @@ export interface paths {
          *     rule saved by a concurrent request is updated on a second try.
          */
         post: operations["upsert_rule_api_v1_referral_commission_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral-commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Commissions
+         * @description Commissions, newest first, by agent, status and candidate country.
+         */
+        get: operations["list_commissions_api_v1_referral_commissions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2483,6 +2663,146 @@ export interface components {
             /** Role */
             role?: string;
         };
+        /** AgentCommission */
+        AgentCommission: {
+            /** Amount */
+            amount: number;
+            candidate: components["schemas"]["app__api__v1__referral_reads__PersonRef"];
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            status: components["schemas"]["ReferralCommissionStatus"];
+        };
+        /** AgentCounts */
+        AgentCounts: {
+            /** Candidates */
+            candidates: number;
+            /** Commissions */
+            commissions: number;
+        };
+        /** AgentDetail */
+        AgentDetail: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["ReferredCandidate"][];
+            /** City */
+            city: string | null;
+            /** Commissions */
+            commissions: components["schemas"]["AgentCommission"][];
+            /** Country */
+            country: string;
+            countryRef: components["schemas"]["Ref"] | null;
+            /** Country Id */
+            country_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Current Occupation */
+            current_occupation: string | null;
+            /** Date Of Birth */
+            date_of_birth: string | null;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Nationality */
+            nationality: string | null;
+            /** Network Size */
+            network_size: number | null;
+            /** Payment Details */
+            payment_details: string | null;
+            /** Phone */
+            phone: string;
+            /** Preferred Contact Channel */
+            preferred_contact_channel: string | null;
+            /** Previous Experience */
+            previous_experience: string | null;
+            /** Promotion Plan */
+            promotion_plan: string | null;
+            /** Referral Code */
+            referral_code: string;
+            /** Rejection Reason */
+            rejection_reason: string | null;
+            /** Social Media Profiles */
+            social_media_profiles: string | null;
+            status: components["schemas"]["ReferralAgentStatus"];
+            /** Suspended Reason */
+            suspended_reason: string | null;
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+            /** Whatsapp Number */
+            whatsapp_number: string | null;
+        };
+        /** AgentListRow */
+        AgentListRow: {
+            _count: components["schemas"]["AgentCounts"];
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /** City */
+            city: string | null;
+            /** Country */
+            country: string;
+            countryRef: components["schemas"]["Ref"] | null;
+            /** Country Id */
+            country_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Current Occupation */
+            current_occupation: string | null;
+            /** Date Of Birth */
+            date_of_birth: string | null;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Nationality */
+            nationality: string | null;
+            /** Network Size */
+            network_size: number | null;
+            /** Payment Details */
+            payment_details: string | null;
+            /** Phone */
+            phone: string;
+            /** Preferred Contact Channel */
+            preferred_contact_channel: string | null;
+            /** Previous Experience */
+            previous_experience: string | null;
+            /** Promotion Plan */
+            promotion_plan: string | null;
+            /** Referral Code */
+            referral_code: string;
+            /** Rejection Reason */
+            rejection_reason: string | null;
+            /** Social Media Profiles */
+            social_media_profiles: string | null;
+            status: components["schemas"]["ReferralAgentStatus"];
+            /** Suspended Reason */
+            suspended_reason: string | null;
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+            /** Whatsapp Number */
+            whatsapp_number: string | null;
+        };
         /** AgentRow */
         AgentRow: {
             /** Approved At */
@@ -2924,6 +3244,11 @@ export interface components {
              */
             kind: "candidate_approved";
         };
+        /** CandidateCount */
+        CandidateCount: {
+            /** Candidates */
+            candidates: number;
+        };
         /** CandidateDetails */
         CandidateDetails: {
             /** Consent At */
@@ -3234,6 +3559,15 @@ export interface components {
             id: string;
             lifecycle_status: components["schemas"]["CandidateLifecycleStatus"];
         };
+        /** CommissionAgent */
+        CommissionAgent: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+        };
         /**
          * CommissionApprovedEmail
          * @description sendReferralCommissionApprovedEmail(email, agent_name, candidate_name, amount, currency).
@@ -3254,6 +3588,14 @@ export interface components {
              * @enum {string}
              */
             kind: "referral_commission_approved";
+        };
+        /** CommissionCandidate */
+        CommissionCandidate: {
+            country: components["schemas"]["Ref"] | null;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
         };
         /**
          * CommissionEmail
@@ -3276,6 +3618,43 @@ export interface components {
              */
             kind: "referral_commission_earned";
             milestone: components["schemas"]["ReferralMilestone"];
+        };
+        /** CommissionListRow */
+        CommissionListRow: {
+            /** Amount */
+            amount: number;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            candidate: components["schemas"]["CommissionCandidate"];
+            /** Candidate Id */
+            candidate_id: string;
+            /** Case Id */
+            case_id: string | null;
+            /** Commission Rule Id */
+            commission_rule_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            /** Paid At */
+            paid_at: string | null;
+            /** Paid By Id */
+            paid_by_id: string | null;
+            /** Payment Method */
+            payment_method: string | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            referral_agent: components["schemas"]["CommissionAgent"];
+            /** Referral Agent Id */
+            referral_agent_id: string;
+            status: components["schemas"]["ReferralCommissionStatus"];
+            /** Updated At */
+            updated_at: string;
         };
         /**
          * CommissionPaidEmail
@@ -3332,6 +3711,17 @@ export interface components {
             status: components["schemas"]["ReferralCommissionStatus"];
             /** Updated At */
             updated_at: string;
+        };
+        /** CommissionSummary */
+        CommissionSummary: {
+            /** Currency */
+            currency: string;
+            /** Earned */
+            earned: number;
+            /** Paid */
+            paid: number;
+            /** Pending */
+            pending: number;
         };
         /** CompetencyRow */
         CompetencyRow: {
@@ -3448,6 +3838,35 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** CountryRow */
+        CountryRow: {
+            /** Activeagents */
+            activeAgents: number;
+            /** Candidatesreferred */
+            candidatesReferred: number;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Pendingcommissiontotal */
+            pendingCommissionTotal: number;
+        };
+        /** CountrySummary */
+        CountrySummary: {
+            /** Agents */
+            agents: components["schemas"]["SummaryAgent"][];
+            country: components["schemas"]["Ref"];
+            /** Jobs */
+            jobs: components["schemas"]["SummaryJob"][];
+            /** Milestonecounts */
+            milestoneCounts: {
+                [key: string]: number;
+            };
+            /** Pendingcommissiontotal */
+            pendingCommissionTotal: number;
+            /** Performance */
+            performance: components["schemas"]["Performance"][];
+        };
         /** CountryUpdate */
         CountryUpdate: {
             /** Name */
@@ -3471,6 +3890,10 @@ export interface components {
             full_name: string;
             /** Id */
             id: string;
+        };
+        /** Data[AgentDetail] */
+        Data_AgentDetail_: {
+            data: components["schemas"]["AgentDetail"];
         };
         /** Data[ApplicationFeeOut] */
         Data_ApplicationFeeOut_: {
@@ -3523,6 +3946,10 @@ export interface components {
         /** Data[CountryOut] */
         Data_CountryOut_: {
             data: components["schemas"]["CountryOut"];
+        };
+        /** Data[CountrySummary] */
+        Data_CountrySummary_: {
+            data: components["schemas"]["CountrySummary"];
         };
         /** Data[DecisionOut] */
         Data_DecisionOut_: {
@@ -3604,9 +4031,17 @@ export interface components {
         Data_Overturned_: {
             data: components["schemas"]["Overturned"];
         };
+        /** Data[OwnProfile] */
+        Data_OwnProfile_: {
+            data: components["schemas"]["OwnProfile"];
+        };
         /** Data[PartnerCandidateRow] */
         Data_PartnerCandidateRow_: {
             data: components["schemas"]["PartnerCandidateRow"];
+        };
+        /** Data[PartnerDetail] */
+        Data_PartnerDetail_: {
+            data: components["schemas"]["PartnerDetail"];
         };
         /** Data[PartnerRow] */
         Data_PartnerRow_: {
@@ -3684,6 +4119,11 @@ export interface components {
         Data_TemplateOut_: {
             data: components["schemas"]["TemplateOut"];
         };
+        /** Data[Union[list[PartnerListRow], list[PartnerName]]] */
+        Data_Union_list_PartnerListRow___list_PartnerName___: {
+            /** Data */
+            data: components["schemas"]["PartnerListRow"][] | components["schemas"]["PartnerName"][];
+        };
         /** Data[Updated] */
         Data_Updated_: {
             data: components["schemas"]["Updated"];
@@ -3695,6 +4135,11 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** Data[list[AgentListRow]] */
+        Data_list_AgentListRow__: {
+            /** Data */
+            data: components["schemas"]["AgentListRow"][];
+        };
         /** Data[list[ArticleOut]] */
         Data_list_ArticleOut__: {
             /** Data */
@@ -3704,6 +4149,16 @@ export interface components {
         Data_list_CampaignListItem__: {
             /** Data */
             data: components["schemas"]["CampaignListItem"][];
+        };
+        /** Data[list[CommissionListRow]] */
+        Data_list_CommissionListRow__: {
+            /** Data */
+            data: components["schemas"]["CommissionListRow"][];
+        };
+        /** Data[list[CountryRow]] */
+        Data_list_CountryRow__: {
+            /** Data */
+            data: components["schemas"]["CountryRow"][];
         };
         /** Data[list[CountryWithRegion]] */
         Data_list_CountryWithRegion__: {
@@ -3730,6 +4185,21 @@ export interface components {
             /** Data */
             data: components["schemas"]["NoteOut"][];
         };
+        /** Data[list[OwnCandidate]] */
+        Data_list_OwnCandidate__: {
+            /** Data */
+            data: components["schemas"]["OwnCandidate"][];
+        };
+        /** Data[list[OwnCommission]] */
+        Data_list_OwnCommission__: {
+            /** Data */
+            data: components["schemas"]["OwnCommission"][];
+        };
+        /** Data[list[Performance]] */
+        Data_list_Performance__: {
+            /** Data */
+            data: components["schemas"]["Performance"][];
+        };
         /** Data[list[RecruiterTargetListItem]] */
         Data_list_RecruiterTargetListItem__: {
             /** Data */
@@ -3744,6 +4214,11 @@ export interface components {
         Data_list_RequirementOut__: {
             /** Data */
             data: components["schemas"]["RequirementOut"][];
+        };
+        /** Data[list[RuleListRow]] */
+        Data_list_RuleListRow__: {
+            /** Data */
+            data: components["schemas"]["RuleListRow"][];
         };
         /** Data[list[ScorecardListItem]] */
         Data_list_ScorecardListItem__: {
@@ -4686,12 +5161,97 @@ export interface components {
             rejection_reason: string | null;
             status: components["schemas"]["PartnerCandidateStatus"];
         };
+        /** OwnCandidate */
+        OwnCandidate: {
+            /** Created At */
+            created_at: string;
+            current_stage: components["schemas"]["CaseStage"] | null;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            lifecycle_status: components["schemas"]["CandidateLifecycleStatus"];
+            /** Referral Duplicate Flag */
+            referral_duplicate_flag: boolean;
+        };
+        /** OwnCommission */
+        OwnCommission: {
+            /** Amount */
+            amount: number;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            candidate: components["schemas"]["app__api__v1__referral_reads__PersonRef"];
+            /** Candidate Id */
+            candidate_id: string;
+            /** Case Id */
+            case_id: string | null;
+            /** Commission Rule Id */
+            commission_rule_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            /** Paid At */
+            paid_at: string | null;
+            /** Paid By Id */
+            paid_by_id: string | null;
+            /** Payment Method */
+            payment_method: string | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Referral Agent Id */
+            referral_agent_id: string;
+            status: components["schemas"]["ReferralCommissionStatus"];
+            /** Updated At */
+            updated_at: string;
+        };
+        /**
+         * OwnProfile
+         * @description /api/referral-agent/me, less the link and QR code the website adds.
+         */
+        OwnProfile: {
+            commission_summary: components["schemas"]["CommissionSummary"];
+            /** Country */
+            country: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Milestone Counts */
+            milestone_counts: {
+                [key: string]: number;
+            };
+            /** Referral Code */
+            referral_code: string;
+            status: components["schemas"]["ReferralAgentStatus"];
+            /** Total Referrals */
+            total_referrals: number;
+        };
         /** PaidIn */
         PaidIn: {
             /** Payment Method */
             payment_method?: string | null;
             /** Payment Reference */
             payment_reference?: string | null;
+        };
+        /** PartnerCandidateRef */
+        PartnerCandidateRef: {
+            /** Created At */
+            created_at: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            lifecycle_status: components["schemas"]["CandidateLifecycleStatus"];
+            recruiter: components["schemas"]["RecruiterRef"] | null;
+            user: components["schemas"]["app__api__v1__partner_agencies__PersonRef"] | null;
         };
         /** PartnerCandidateRow */
         PartnerCandidateRow: {
@@ -4837,6 +5397,83 @@ export interface components {
             /** Partner Name */
             partner_name: string;
             stage: components["schemas"]["CaseStage"];
+        };
+        /** PartnerDetail */
+        PartnerDetail: {
+            /** Business Registration Number */
+            business_registration_number: string | null;
+            /** Candidates */
+            candidates: components["schemas"]["PartnerCandidateRef"][];
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Country Of Operation */
+            country_of_operation: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Mou Signed At */
+            mou_signed_at: string | null;
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            partner_type: components["schemas"]["PartnerType"];
+            status: components["schemas"]["PartnerStatus"];
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+        };
+        /**
+         * PartnerListRow
+         * @description A manager's row: the partner and its candidate count (Prisma's _count).
+         */
+        PartnerListRow: {
+            _count: components["schemas"]["CandidateCount"];
+            /** Business Registration Number */
+            business_registration_number: string | null;
+            /** Contact Email */
+            contact_email: string;
+            /** Contact Name */
+            contact_name: string;
+            /** Contact Phone */
+            contact_phone: string;
+            /** Country Of Operation */
+            country_of_operation: string;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Mou Signed At */
+            mou_signed_at: string | null;
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            /** Notes */
+            notes: string | null;
+            partner_type: components["schemas"]["PartnerType"];
+            status: components["schemas"]["PartnerStatus"];
+            /** Updated At */
+            updated_at: string;
+            /** User Id */
+            user_id: string | null;
+        };
+        /**
+         * PartnerName
+         * @description Everyone else's row: enough to pick or filter by a partner.
+         */
+        PartnerName: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            status: components["schemas"]["PartnerStatus"];
         };
         /** PartnerRow */
         PartnerRow: {
@@ -4997,6 +5634,28 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "completed" | "failed" | "refunded";
+        /**
+         * Performance
+         * @description kpi.ts's ReferralAgentPerformance.
+         */
+        Performance: {
+            /** Countryname */
+            countryName: string | null;
+            /** Currency */
+            currency: string;
+            /** Deployed */
+            deployed: number;
+            /** Qualified */
+            qualified: number;
+            /** Referralagentid */
+            referralAgentId: string;
+            /** Referralagentname */
+            referralAgentName: string;
+            /** Totalcommissionearned */
+            totalCommissionEarned: number;
+            /** Totalreferrals */
+            totalReferrals: number;
+        };
         /** Person */
         Person: {
             /** Full Name */
@@ -5328,6 +5987,13 @@ export interface components {
             /** Receipt Reference */
             receipt_reference?: string | null;
         };
+        /** RecruiterRef */
+        RecruiterRef: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+        };
         /** RecruiterTargetIn */
         RecruiterTargetIn: {
             /** Campaign Target Id */
@@ -5361,6 +6027,13 @@ export interface components {
             target_value: number;
             /** Updated At */
             updated_at: string;
+        };
+        /** Ref */
+        Ref: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * ReferralAgentAdminEmail
@@ -5462,6 +6135,18 @@ export interface components {
          * @enum {string}
          */
         ReferralMilestone: "registered" | "qualified" | "application_submitted" | "work_permit_approved" | "visa_approved" | "deployed";
+        /** ReferredCandidate */
+        ReferredCandidate: {
+            /** Created At */
+            created_at: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            lifecycle_status: components["schemas"]["CandidateLifecycleStatus"];
+            /** Referral Duplicate Flag */
+            referral_duplicate_flag: boolean;
+        };
         /** RefreshIn */
         RefreshIn: {
             /** Refresh Token */
@@ -5670,6 +6355,25 @@ export interface components {
              */
             currency: string;
             milestone: components["schemas"]["ReferralMilestone"];
+        };
+        /** RuleListRow */
+        RuleListRow: {
+            /** Amount */
+            amount: number;
+            country: components["schemas"]["Ref"];
+            /** Country Id */
+            country_id: string;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            /** Updated At */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string;
         };
         /** RuleRow */
         RuleRow: {
@@ -6088,6 +6792,27 @@ export interface components {
             status: components["schemas"]["ReportStatus"];
             type: components["schemas"]["ReportCycle"];
         };
+        /** SummaryAgent */
+        SummaryAgent: {
+            _count: components["schemas"]["CandidateCount"];
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Referral Code */
+            referral_code: string;
+            status: components["schemas"]["ReferralAgentStatus"];
+        };
+        /** SummaryJob */
+        SummaryJob: {
+            /** City */
+            city: string;
+            /** Id */
+            id: string;
+            status: components["schemas"]["JobStatus"];
+            /** Title */
+            title: string;
+        };
         /** TargetCreate */
         TargetCreate: {
             /** Country Id */
@@ -6393,6 +7118,13 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /** PersonRef */
+        app__api__v1__partner_agencies__PersonRef: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+        };
         /** Removed */
         app__api__v1__partner_agencies__Removed: {
             /** Id */
@@ -6658,6 +7390,13 @@ export interface components {
         app__api__v1__referral_agents__VerifyIn: {
             /** Token */
             token?: string | null;
+        };
+        /** PersonRef */
+        app__api__v1__referral_reads__PersonRef: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
         };
         /** StatusOut */
         app__api__v1__reports__StatusOut: {
@@ -9947,6 +10686,26 @@ export interface operations {
             };
         };
     };
+    list_partners_api_v1_partners_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Union_list_PartnerListRow___list_PartnerName___"];
+                };
+            };
+        };
+    };
     create_partner_api_v1_partners_post: {
         parameters: {
             query?: never;
@@ -9967,6 +10726,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_PartnerRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_partner_api_v1_partners__partner_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PartnerDetail_"];
                 };
             };
             /** @description Validation Error */
@@ -10328,6 +11118,97 @@ export interface operations {
             };
         };
     };
+    own_candidates_api_v1_referral_agent_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_OwnCandidate__"];
+                };
+            };
+        };
+    };
+    own_commissions_api_v1_referral_agent_commissions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_OwnCommission__"];
+                };
+            };
+        };
+    };
+    own_profile_api_v1_referral_agent_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_OwnProfile_"];
+                };
+            };
+        };
+    };
+    list_referral_agents_api_v1_referral_agents_get: {
+        parameters: {
+            query?: {
+                countryId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_AgentListRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     apply_api_v1_referral_agents_apply_post: {
         parameters: {
             query?: never;
@@ -10361,6 +11242,88 @@ export interface operations {
             };
         };
     };
+    referral_countries_api_v1_referral_agents_countries_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_CountryRow__"];
+                };
+            };
+        };
+    };
+    referral_country_summary_api_v1_referral_agents_countries__country_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                country_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_CountrySummary_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    referral_performance_api_v1_referral_agents_performance_get: {
+        parameters: {
+            query?: {
+                countryId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_Performance__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     verify_email_api_v1_referral_agents_verify_email_post: {
         parameters: {
             query?: never;
@@ -10381,6 +11344,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_Message_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_referral_agent_api_v1_referral_agents__agent_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AgentDetail_"];
                 };
             };
             /** @description Validation Error */
@@ -10499,6 +11493,37 @@ export interface operations {
             };
         };
     };
+    list_commission_rules_api_v1_referral_commission_rules_get: {
+        parameters: {
+            query?: {
+                countryId?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_RuleListRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upsert_rule_api_v1_referral_commission_rules_post: {
         parameters: {
             query?: never;
@@ -10519,6 +11544,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_RuleRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_commissions_api_v1_referral_commissions_get: {
+        parameters: {
+            query?: {
+                countryId?: string | null;
+                agentId?: string | null;
+                status?: components["schemas"]["ReferralCommissionStatus"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_CommissionListRow__"];
                 };
             };
             /** @description Validation Error */

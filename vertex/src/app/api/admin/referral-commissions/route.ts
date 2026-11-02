@@ -1,32 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 
-// GET /api/admin/referral-commissions — the payout queue, filterable by
-// ?countryId=, ?agentId=, ?status=. Defaults to no status filter (shows
-// everything) — the UI itself defaults its own view to pending/approved.
+// Read from FastAPI since reads handover R2 (vertex_be/app/api/v1/referral_reads.py).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, REFERRAL_AGENT_MANAGER_ROLES);
   if (guardRes) return guardRes;
 
-  const countryId = req.nextUrl.searchParams.get("countryId") || undefined;
-  const agentId = req.nextUrl.searchParams.get("agentId") || undefined;
-  const status = req.nextUrl.searchParams.get("status") || undefined;
-
-  const commissions = await prisma.referralCommission.findMany({
-    where: {
-      ...(agentId ? { referral_agent_id: agentId } : {}),
-      ...(status ? { status: status as never } : {}),
-      ...(countryId ? { candidate: { country_id: countryId } } : {}),
-    },
-    include: {
-      referral_agent: { select: { id: true, full_name: true, email: true } },
-      candidate: { select: { id: true, full_name: true, country: { select: { id: true, name: true } } } },
-    },
-    orderBy: { created_at: "desc" },
-  });
-
-  return NextResponse.json({ data: commissions });
+  const query = Object.fromEntries(["countryId", "agentId", "status"].map((key) => [key, req.nextUrl.searchParams.get(key) || undefined]));
+  return backendResponse(await callBackend("/api/v1/referral-commissions", { query }));
 }

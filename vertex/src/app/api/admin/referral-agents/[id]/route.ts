@@ -1,44 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 
-// GET /api/admin/referral-agents/:id — detail, including referred
-// candidates and the commission ledger, Director/Admin only.
+// Read from FastAPI since reads handover R2 (vertex_be/app/api/v1/referral_reads.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, REFERRAL_AGENT_MANAGER_ROLES);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const agent = await prisma.referralAgent.findUnique({
-    where: { id },
-    include: {
-      countryRef: { select: { id: true, name: true } },
-      candidates: {
-        select: { id: true, full_name: true, lifecycle_status: true, referral_duplicate_flag: true, created_at: true },
-        orderBy: { created_at: "desc" },
-      },
-      commissions: {
-        orderBy: { created_at: "desc" },
-        select: {
-          id: true,
-          milestone: true,
-          amount: true,
-          currency: true,
-          status: true,
-          created_at: true,
-          candidate: { select: { id: true, full_name: true } },
-        },
-      },
-    },
-  });
-  if (!agent) {
-    return NextResponse.json({ error: { code: "not_found", message: "Referral agent not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: agent });
+  return backendResponse(await callBackend(`/api/v1/referral-agents/${seg(id)}`));
 }
 
 // PATCH /api/admin/referral-agents/:id — reject (pending_approval ->

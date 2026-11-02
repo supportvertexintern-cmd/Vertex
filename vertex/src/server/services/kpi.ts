@@ -220,52 +220,6 @@ export async function computePartnerPerformance(
   }));
 }
 
-export interface ReferralAgentPerformance {
-  referralAgentId: string;
-  referralAgentName: string;
-  countryName: string | null;
-  totalReferrals: number;
-  qualified: number;
-  deployed: number;
-  totalCommissionEarned: number;
-  currency: string;
-}
-
-/**
- * Per-referral-agent performance (2026-08-29), directly modeled on
- * computePartnerPerformance above — same live-aggregate, no-stored-cache
- * shape. qualified/deployed counts read off the ReferralCommission ledger
- * (a milestone row only exists once that milestone is actually reached —
- * see FastAPI's commission_if_due), not a live lifecycle_status
- * re-derivation, so this stays consistent with every other Referral
- * Agent System view of the same data (the agent's own /me dashboard, the
- * commissions queue).
- */
-export async function computeReferralAgentPerformance(filters: { countryId?: string }): Promise<ReferralAgentPerformance[]> {
-  const agents = await prisma.referralAgent.findMany({
-    where: { status: "active", ...(filters.countryId ? { country_id: filters.countryId } : {}) },
-    select: {
-      id: true,
-      full_name: true,
-      countryRef: { select: { name: true } },
-      candidates: { select: { id: true } },
-      commissions: { select: { amount: true, currency: true, milestone: true } },
-    },
-    orderBy: { full_name: "asc" },
-  });
-
-  return agents.map((a: (typeof agents)[number]) => ({
-    referralAgentId: a.id,
-    referralAgentName: a.full_name,
-    countryName: a.countryRef?.name ?? null,
-    totalReferrals: a.candidates.length,
-    qualified: a.commissions.filter((c: (typeof a.commissions)[number]) => c.milestone === "qualified").length,
-    deployed: a.commissions.filter((c: (typeof a.commissions)[number]) => c.milestone === "deployed").length,
-    totalCommissionEarned: a.commissions.reduce((sum: number, c: (typeof a.commissions)[number]) => sum + c.amount, 0),
-    currency: a.commissions[0]?.currency ?? "USD",
-  }));
-}
-
 export interface ReferralAgentTargetVsActual {
   targetId: string;
   periodStart: Date;
