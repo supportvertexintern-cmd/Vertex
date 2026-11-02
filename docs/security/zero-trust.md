@@ -274,8 +274,8 @@ audit log is append-only (database triggers plus Phase 1 grants).
 |---|---|---|
 | Browser / Flutter | none (convenience only) | — |
 | Next.js pages | `src/proxy.ts` | logged in; correct portal for the role |
-| Next.js API | `lib/api-auth.ts` (`requireRole`), `server/scope.ts`, per-handler checks | sections 2–5, 7 |
-| FastAPI | a dependency on every protected route (Phase 4–5) | sections 2–5, 7 |
+| Next.js API | `lib/api-auth.ts` (`requireRole`), an early check per handler | sections 2–5, 7 |
+| FastAPI | a dependency on every protected route (Phase 4–5); record scope in `app/core/scope.py` (the website's `server/scope.ts` until reads handover R6) | sections 2–5, 7 |
 | Service calls | receiving service's credential check | section 6 |
 | PostgreSQL | per-service roles (`db-roles.sql`) | section 4; limits damage when an app layer fails |
 | CI | role tests, guard-coverage test (Phase 2), secret scanning | sections 3, 4, 8 |

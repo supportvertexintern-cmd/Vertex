@@ -41,7 +41,7 @@ interface CaseRow {
 // A partner's own view of cases opened for its approved candidates (SRS
 // FR-5.1, 2026-07-31 per the Operational Workflow SOP) — scoped
 // automatically to the partner's own candidates by GET /api/cases'
-// existing partner branch (server/scope.ts). A submission still under
+// existing partner branch (vertex_be/app/core/scope.py). A submission still under
 // HR review has no case yet, so it won't show here until approved.
 export default function PartnerCasesPage() {
   const [cases, setCases] = useState<CaseRow[]>([]);

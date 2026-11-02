@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { canAccessCase } from "@/server/scope";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { FINANCE_ROLES } from "@/lib/rbac";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 
@@ -24,27 +23,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   return passOn(`/api/v1/cases/${seg(id)}/payments`, { method: "POST", body: read.body }, { legacyErrors: true });
 }
 
-// GET /api/cases/:id/payments
+// GET /api/cases/:id/payments — the case's payments, newest first, for
+// anyone who may see the case; { data }, or { error }. Read from FastAPI since reads handover R6
+// (vertex_be/app/api/v1/payment_reads.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...PAYMENT_READ_ROLES]);
   if (guardRes) return guardRes;
 
-  const caseRecord = await prisma.case.findUnique({
-    where: { id },
-    include: { application: { include: { candidate: true } } },
-  });
-  if (!caseRecord) return NextResponse.json({ error: "Case not found." }, { status: 404 });
-
-  const allowed = await canAccessCase(user!, {
-    user_id: caseRecord.application.candidate.user_id,
-    recruiter_id: caseRecord.application.candidate.recruiter_id,
-    country_id: caseRecord.application.candidate.country_id,
-    partner_id: caseRecord.application.candidate.partner_id,
-  });
-  if (!allowed) return forbidden({ error: "Forbidden." });
-
-  const payments = await prisma.casePayment.findMany({ where: { case_id: id }, orderBy: { recorded_at: "desc" } });
-  return NextResponse.json({ data: payments });
+  const result = await callBackend(`/api/v1/cases/${seg(id)}/payments`);
+  return result.ok ? NextResponse.json(result.body) : legacyErrorResponse(result);
 }

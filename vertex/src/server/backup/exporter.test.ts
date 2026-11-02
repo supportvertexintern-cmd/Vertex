@@ -155,7 +155,7 @@ describe("zip writer", () => {
 describe("buildExport", () => {
   const hr = { userId: "test-hr", role: "hr" as const, name: "Test HR", email: "hr@test.local" };
 
-  // Other test files (scope.test.ts) create/delete their own fixtures in
+  // Other test files (the integration tests) create/delete their own fixtures in
   // the same database concurrently, so this compares the records that
   // existed both before and after the export rather than exact counts.
   it("full backup includes every HR table with complete rows and no partner drafts", async () => {
