@@ -15,8 +15,8 @@ one writer at any time, enforced by database grants**.
 | Tables | **47** business tables, plus `alembic_version`, at Alembic head `0005` (staging, 2026-10-13). The release checklist's "46 tables" is main at `0001`; `0005` adds `RefreshToken` |
 | Enums | 35. Owned by Alembic like the tables; each area's enums move with it |
 | Triggers | 3: `AuditLog` `audit_log_no_update` and `audit_log_no_delete` (append-only), `User` `user_token_version_bump` (ends sessions on a password or role change) |
-| Writer today | **Next.js** for 40 tables. **No writer** for 7 tables (§2.4). FastAPI writes nothing: its only query is the health check's `SELECT 1` |
-| Writers outside the app | Alembic migrations (schema and backfills), `deploy/sessions-kill-switch.sh` (`RefreshToken`, `AuditLog`, as the superuser), `prisma/seed.ts` (reference data, dev and CI only) |
+| Writer today | **FastAPI** for all 47 tables, since users step 8.5 (§3). Next.js only inserts into `AuditLog` (§2.5): its role has no other write grant, which `deploy/verify-stack.sh` checks on each stack. When this map was made (2026-10-13), Next.js wrote 40 tables, 7 had no writer and FastAPI wrote nothing |
+| Writers outside the app | Alembic migrations (schema and backfills), `deploy/sessions-kill-switch.sh` (`RefreshToken`, `AuditLog`, as the superuser), `vertex_be/scripts/sync_stripe_pricing.py` (job payment stages' Stripe ids, run in the backend as `vertex_api`, audited). Test data only, never on main: `prisma/seed.ts` (reference data, dev and CI), `vertex/scripts/seed-test-accounts.ts` (`scripts/local-seed.sh`, as `vertex_migrator`), `seed-partners.ts` (`npm run seed:partners`), `seed-staging-test-data.ts` (staging) |
 
 **How this was built.**
 - **Tables, enums and triggers:** read from the database catalogue at head.
@@ -111,7 +111,7 @@ no writer**. Live foreign keys point at them:
 
 Three of them **hold data on main** (backup `20261013T044556Z`): `JobPaymentStage` 96 rows, `JobPosition` 78, `JobSector` 30. The four referral tables are empty.
 
-**Owner's decision (2026-10-13): keep all seven.** They belong to the areas in §3, with FastAPI as the owner when their area moves. Until then, nothing writes them.
+**Owner's decision (2026-10-13): keep all seven.** They belong to the areas in §3, with FastAPI as the owner when their area moves. Until then, nothing writes them. (Since done: FastAPI writes all seven.)
 
 ### 2.5 Shared, append-only: `AuditLog`
 

@@ -9,7 +9,6 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "sync:stripe-pricing": "tsx scripts/sync-stripe-pricing.ts",
     "seed:partners": "tsx scripts/seed-partners.ts",
     "test": "vitest run",
     "test:watch": "vitest",

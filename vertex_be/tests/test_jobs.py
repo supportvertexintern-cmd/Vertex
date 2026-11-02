@@ -20,7 +20,7 @@ from app.models.enums import Role
 from app.models.identity import User
 from app.models.jobs import Job, JobPaymentStage, JobPosition, JobSector
 from app.models.reference import DocumentRequirementType
-from app.services.stripe_pricing import payment_stage_amounts, product_name
+from app.services.stripe_pricing import payment_stage_amounts, product_name, sync_active_jobs
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
@@ -339,6 +339,28 @@ def test_without_stripe_configured(api, db, marketing):
 def test_only_job_managers_sync(api, db, job):
     _, finance = as_role(db, Role.finance)
     assert api.post(f"/api/v1/jobs/{job['id']}/stripe-pricing/sync", headers=finance).status_code == 403
+
+
+def test_the_bulk_sync_prices_every_active_job(api, db, marketing, job):
+    # scripts/sync_stripe_pricing.py, which replaced the website's own script.
+    closed = api.post("/api/v1/jobs", headers=marketing, json=new_job(service_fee_gbp=500, payment_stages=STAGES, status="closed")).json()["data"]
+    for s in stages_of(db, job["id"]) + stages_of(db, closed["id"]):
+        s.stripe_product_id = s.stripe_price_id = None
+    db.flush()
+    results = {j.id: err for j, err in sync_active_jobs(db, FakeStripe())}
+    assert results[job["id"]] is None
+    assert closed["id"] not in results
+    assert all(s.stripe_price_id for s in stages_of(db, job["id"]))
+    assert not any(s.stripe_price_id for s in stages_of(db, closed["id"]))
+
+
+def test_the_bulk_sync_reports_a_failure_and_carries_on(api, db, marketing, job):
+    other = api.post("/api/v1/jobs", headers=marketing, json=new_job(service_fee_gbp=500, payment_stages=STAGES)).json()["data"]
+    for s in stages_of(db, job["id"]) + stages_of(db, other["id"]):
+        s.stripe_product_id = s.stripe_price_id = None
+    db.commit()  # a failed job's rollback must not undo this too
+    results = {j.id: err for j, err in sync_active_jobs(db, FakeStripe(fail=True))}
+    assert isinstance(results[job["id"]], RuntimeError) and isinstance(results[other["id"]], RuntimeError)
 
 
 # --- audit -------------------------------------------------------------------
