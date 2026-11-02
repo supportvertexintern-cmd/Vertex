@@ -172,11 +172,10 @@ endpoints are built):
 | Other administration | `/api/admin/**` | role per action; reference data (countries, regions, sectors) is role-checked only, which is correct for shared data |
 | Export or delete data | `/api/admin/backup/*`, `/api/candidates/export`, every `DELETE` | role + scope where per-record; **every bulk export is written to the audit log first** (CI-enforced) |
 
-Open scope questions (owner to decide): Q2 partner candidates and the
-HR/operations bulk exports, Q3 applications for reviewers: currently visible
-across all regions to the listed roles. See the baseline. Q1 (partner
-details) was decided on 2026-11-02: recruiters and country supervisors see
-only a partner's candidates in their own scope.
+The scope questions were decided on 2026-11-02 (see the baseline): Q1,
+recruiters and country supervisors see only a partner's candidates in their
+own scope; Q2, HR and operations see every partner submission; Q3, an
+in-house supervisor opens an application only in their own countries.
 
 ## 6. Service-to-service trust
 

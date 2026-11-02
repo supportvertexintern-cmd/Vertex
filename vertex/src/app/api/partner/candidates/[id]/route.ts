@@ -1,50 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 
-// GET /api/partner/candidates/:id — a partner's own detail view of one
-// submission (SRS FR-5.1, 2026-07-31) — scoped to the caller's own
-// Partner.id, same as the list endpoint; no visibility into any other
-// agency's candidates.
+// GET /api/partner/candidates/:id — one of the partner's own submissions.
+// Read from FastAPI since reads handover R4
+// (vertex_be/app/api/v1/pipeline_reads.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["partner"]);
   if (guardRes) return guardRes;
 
-  const partner = await prisma.partner.findUnique({ where: { user_id: user!.userId } });
-  if (!partner) return NextResponse.json({ error: { code: "not_found", message: "Partner record not found." } }, { status: 404 });
-
   const { id } = await params;
-
-  const candidate = await prisma.partnerCandidate.findUnique({
-    where: { id },
-    include: {
-      job: {
-        select: {
-          id: true, title: true, country: true, city: true, service_fee_gbp: true, is_credit_service: true,
-          payment_stages: { orderBy: { order: "asc" } },
-        },
-      },
-      job_position: { select: { title: true, city: true, job_sector: { select: { sector: true } } } },
-      current_location_country: { select: { name: true } },
-      // Documents uploaded while this row was still a draft (2026-09-09) —
-      // reparented onto bridged_candidate's own documents once submitted,
-      // so this array is only ever populated pre-submission.
-      documents: { select: { id: true, type: true, label: true, uploaded_at: true } },
-      bridged_candidate: {
-        select: {
-          id: true,
-          documents: { select: { id: true, type: true, verification_status: true, uploaded_at: true, label: true } },
-        },
-      },
-    },
-  });
-  if (!candidate || candidate.partner_id !== partner.id) {
-    return NextResponse.json({ error: { code: "not_found", message: "Submission not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: candidate });
+  return backendResponse(await callBackend(`/api/v1/partner/candidates/${seg(id)}`));
 }
 
 // PATCH /api/partner/candidates/:id — a partner correcting its own

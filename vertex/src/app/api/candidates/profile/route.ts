@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { passOn, readJson } from "@/lib/pipeline";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 
-// GET /api/candidates/profile
+// GET /api/candidates/profile — the signed-in candidate's own record, their
+// documents and application count; the plain profile, or { error } 404.
+// Read from FastAPI since reads handover R4
+// (vertex_be/app/api/v1/pipeline_reads.py).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireAuth(user);
   if (guardRes) return guardRes;
 
-  const profile = await prisma.candidate.findUnique({
-    where: { user_id: user!.userId },
-    include: {
-      user: { select: { full_name: true, email: true, phone: true, country: true } },
-      documents: { select: { id: true, type: true, verification_status: true, uploaded_at: true, label: true } },
-      _count: { select: { applications: true } },
-    },
-  });
-
-  if (!profile) return NextResponse.json({ error: "Profile not found." }, { status: 404 });
-  return NextResponse.json(profile);
+  const result = await callBackend("/api/v1/candidates/profile");
+  return result.ok ? NextResponse.json(result.body.data) : legacyErrorResponse(result);
 }
 
 // PUT /api/candidates/profile — the candidate's own Section 2. Written by

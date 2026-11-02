@@ -19187,6 +19187,79 @@
     ]
    }
   },
+  "/api/v1/applications": {
+   "get": {
+    "description": "Staff: the applications of the candidates they may see, newest\nfirst, paged. Anyone else: their own applications, each with the\ndocuments it needs; data is null when they have no candidate record.",
+    "operationId": "list_applications_api_v1_applications_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Applications Api V1 Applications Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Applications",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
   "/api/v1/applications/submit": {
    "post": {
     "description": "POST /api/applications: the Candidate Information Form, the first\nthing anyone fills in. A new candidate starts at \"identified\"; only a\nRegional Recruiter entering a walk-in lead becomes its recruiter, and a\nself-applicant goes to HR. A self-applicant is screened at once, and\ninvited to create an account if they pass.",
@@ -19239,6 +19312,54 @@
    }
   },
   "/api/v1/applications/{application_id}": {
+   "get": {
+    "description": "An application with its candidate and job: for the candidate it\nbelongs to, a director or admin, or an in-house supervisor whose\ncountries include the candidate's (Q3).",
+    "operationId": "get_application_api_v1_applications__application_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "application_id",
+      "required": true,
+      "schema": {
+       "title": "Application Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Application Api V1 Applications  Application Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Application",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "put": {
     "description": "PUT /api/applications/[id]: the legacy hiring status and the internal\nnotes (edited from a case). A case opens from the candidate's own\nlifecycle status, not from this. The candidate hears about a status\nchange, not a notes edit.",
     "operationId": "review_api_v1_applications__application_id__put",
@@ -20032,6 +20153,287 @@
     ]
    }
   },
+  "/api/v1/candidates": {
+   "get": {
+    "description": "The caller's candidates (candidate_scope). With period_start and\nperiod_end, every one created in that window (the recruiter's report);\notherwise searched, filtered, sorted and paged, optionally with the\nopportunity filter options and HR's attention signals.",
+    "operationId": "list_candidates_api_v1_candidates_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "source",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Source"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programme",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programme"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programmeCountry",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programmecountry"
+      }
+     },
+     {
+      "in": "query",
+      "name": "filterOptions",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Filteroptions"
+      }
+     },
+     {
+      "in": "query",
+      "name": "signals",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Signals"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortBy",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortby"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortDir",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortdir"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Candidates Api V1 Candidates Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Candidates",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
   "/api/v1/candidates/claim": {
    "post": {
     "description": "Registration (POST /api/auth/register) links the account it has just\ncreated to the candidate the screening invite was for. Users stay with\nthe website until they move (data-ownership.md §2.3), so the website\ncreates the User and only Next.js itself may call this. FastAPI checks\nthe invite for itself, and that the account is that candidate's.\n\nClaiming the invite is what \"guided to apply\" means now. A candidate\nwho attached every required document on the form is submitted at once,\nsince no upload will come along to do it.",
@@ -20080,6 +20482,33 @@
    }
   },
   "/api/v1/candidates/profile": {
+   "get": {
+    "description": "The signed-in candidate's own record, documents and application count.",
+    "operationId": "own_profile_api_v1_candidates_profile_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Own Profile Api V1 Candidates Profile Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Own Profile",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "put": {
     "description": "PUT /api/candidates/profile: a signed-in candidate edits Section 2.",
     "operationId": "update_own_profile_api_v1_candidates_profile_put",
@@ -20169,6 +20598,54 @@
      }
     ],
     "summary": "Delete Candidate",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
+   "get": {
+    "description": "One candidate the caller may see, with each application's required\ndocuments, the union of them, and (for a candidate the screening gate\nfailed) why it failed.",
+    "operationId": "get_candidate_api_v1_candidates__candidate_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "candidate_id",
+      "required": true,
+      "schema": {
+       "title": "Candidate Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Candidate Api V1 Candidates  Candidate Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Candidate",
     "tags": [
      "candidate pipeline"
     ]
@@ -20289,6 +20766,54 @@
    }
   },
   "/api/v1/candidates/{candidate_id}/messages": {
+   "get": {
+    "description": "A candidate's thread, oldest first, for those on it (_thread_access).",
+    "operationId": "list_messages_api_v1_candidates__candidate_id__messages_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "candidate_id",
+      "required": true,
+      "schema": {
+       "title": "Candidate Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Messages Api V1 Candidates  Candidate Id  Messages Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Messages",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "post": {
     "description": "POST /api/candidates/[id]/messages.",
     "operationId": "post_message_api_v1_candidates__candidate_id__messages_post",
@@ -24007,6 +24532,191 @@
     ]
    }
   },
+  "/api/v1/partner-candidates": {
+   "get": {
+    "description": "Every submitted (never draft) partner submission, searched, filtered,\nsorted and paged, each with its document completeness and attention\nsignals, the queue's totals and the opportunity filter options.",
+    "operationId": "submission_queue_api_v1_partner_candidates_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortBy",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortby"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortDir",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortdir"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programme",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programme"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programmeCountry",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programmecountry"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Submission Queue Api V1 Partner Candidates Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Submission Queue",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
   "/api/v1/partner-candidates/{submission_id}": {
    "delete": {
     "description": "DELETE /api/partner-candidates/[id]: an erroneous or duplicate\nsubmission, with its candidate (and their applications, documents and\nmessages). Refused once a case exists.",
@@ -24050,6 +24760,54 @@
      }
     ],
     "summary": "Delete Submission",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
+   "get": {
+    "description": "One submitted partner submission, with its document completeness and\nevery document type its destination needs.",
+    "operationId": "submission_api_v1_partner_candidates__submission_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "submission_id",
+      "required": true,
+      "schema": {
+       "title": "Submission Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Submission Api V1 Partner Candidates  Submission Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Submission",
     "tags": [
      "candidate pipeline"
     ]
@@ -24220,6 +24978,33 @@
    }
   },
   "/api/v1/partner/candidates": {
+   "get": {
+    "description": "The partner's submissions, newest first, each flagged when a document\nwas rejected or the last message came from Vertex's side.",
+    "operationId": "partner_submissions_api_v1_partner_candidates_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Partner Submissions Api V1 Partner Candidates Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Submissions",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "post": {
     "description": "POST /api/partner/candidates: a fresh submission.",
     "operationId": "submit_api_v1_partner_candidates_post",
@@ -24356,6 +25141,54 @@
      }
     ],
     "summary": "Abandon Draft",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
+   "get": {
+    "description": "One of the partner's own submissions.",
+    "operationId": "partner_submission_api_v1_partner_candidates__submission_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "submission_id",
+      "required": true,
+      "schema": {
+       "title": "Submission Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Partner Submission Api V1 Partner Candidates  Submission Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Submission",
     "tags": [
      "candidate pipeline"
     ]

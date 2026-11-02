@@ -116,6 +116,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Applications
+         * @description Staff: the applications of the candidates they may see, newest
+         *     first, paged. Anyone else: their own applications, each with the
+         *     documents it needs; data is null when they have no candidate record.
+         */
+        get: operations["list_applications_api_v1_applications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/applications/submit": {
         parameters: {
             query?: never;
@@ -147,7 +169,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Application
+         * @description An application with its candidate and job: for the candidate it
+         *     belongs to, a director or admin, or an in-house supervisor whose
+         *     countries include the candidate's (Q3).
+         */
+        get: operations["get_application_api_v1_applications__application_id__get"];
         /**
          * Review
          * @description PUT /api/applications/[id]: the legacy hiring status and the internal
@@ -420,6 +448,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Candidates
+         * @description The caller's candidates (candidate_scope). With period_start and
+         *     period_end, every one created in that window (the recruiter's report);
+         *     otherwise searched, filtered, sorted and paged, optionally with the
+         *     opportunity filter options and HR's attention signals.
+         */
+        get: operations["list_candidates_api_v1_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/candidates/claim": {
         parameters: {
             query?: never;
@@ -455,7 +506,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Own Profile
+         * @description The signed-in candidate's own record, documents and application count.
+         */
+        get: operations["own_profile_api_v1_candidates_profile_get"];
         /**
          * Update Own Profile
          * @description PUT /api/candidates/profile: a signed-in candidate edits Section 2.
@@ -475,7 +530,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Candidate
+         * @description One candidate the caller may see, with each application's required
+         *     documents, the union of them, and (for a candidate the screening gate
+         *     failed) why it failed.
+         */
+        get: operations["get_candidate_api_v1_candidates__candidate_id__get"];
         put?: never;
         post?: never;
         /**
@@ -523,7 +584,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Messages
+         * @description A candidate's thread, oldest first, for those on it (_thread_access).
+         */
+        get: operations["list_messages_api_v1_candidates__candidate_id__messages_get"];
         put?: never;
         /**
          * Post Message
@@ -1669,6 +1734,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/partner-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Submission Queue
+         * @description Every submitted (never draft) partner submission, searched, filtered,
+         *     sorted and paged, each with its document completeness and attention
+         *     signals, the queue's totals and the opportunity filter options.
+         */
+        get: operations["submission_queue_api_v1_partner_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-candidates/{submission_id}": {
         parameters: {
             query?: never;
@@ -1676,7 +1763,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Submission
+         * @description One submitted partner submission, with its document completeness and
+         *     every document type its destination needs.
+         */
+        get: operations["submission_api_v1_partner_candidates__submission_id__get"];
         put?: never;
         post?: never;
         /**
@@ -1767,7 +1859,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Partner Submissions
+         * @description The partner's submissions, newest first, each flagged when a document
+         *     was rejected or the last message came from Vertex's side.
+         */
+        get: operations["partner_submissions_api_v1_partner_candidates_get"];
         put?: never;
         /**
          * Submit
@@ -1808,7 +1905,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Partner Submission
+         * @description One of the partner's own submissions.
+         */
+        get: operations["partner_submission_api_v1_partner_candidates__submission_id__get"];
         put?: never;
         post?: never;
         /**
@@ -8131,6 +8232,40 @@ export interface operations {
             };
         };
     };
+    list_applications_api_v1_applications_get: {
+        parameters: {
+            query?: {
+                page?: string | null;
+                pageSize?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_api_v1_applications_submit_post: {
         parameters: {
             query?: never;
@@ -8151,6 +8286,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Submitted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_application_api_v1_applications__application_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -8671,6 +8839,53 @@ export interface operations {
             };
         };
     };
+    list_candidates_api_v1_candidates_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+                q?: string | null;
+                status?: string | null;
+                source?: string | null;
+                country_id?: string | null;
+                country?: string | null;
+                programme?: string | null;
+                programmeCountry?: string | null;
+                filterOptions?: string | null;
+                signals?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+                sortBy?: string | null;
+                sortDir?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claim_api_v1_candidates_claim_post: {
         parameters: {
             query?: never;
@@ -8704,6 +8919,28 @@ export interface operations {
             };
         };
     };
+    own_profile_api_v1_candidates_profile_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     update_own_profile_api_v1_candidates_profile_put: {
         parameters: {
             query?: never;
@@ -8724,6 +8961,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_CandidateRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_candidate_api_v1_candidates__candidate_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -8825,6 +9095,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_ApplicationRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_messages_api_v1_candidates__candidate_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                candidate_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -10951,6 +11254,80 @@ export interface operations {
             };
         };
     };
+    submission_queue_api_v1_partner_candidates_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                status?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+                sortBy?: string | null;
+                sortDir?: string | null;
+                country?: string | null;
+                programme?: string | null;
+                programmeCountry?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submission_api_v1_partner_candidates__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_submission_api_v1_partner_candidates__submission_id__delete: {
         parameters: {
             query?: never;
@@ -11083,6 +11460,28 @@ export interface operations {
             };
         };
     };
+    partner_submissions_api_v1_partner_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     submit_api_v1_partner_candidates_post: {
         parameters: {
             query?: never;
@@ -11136,6 +11535,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_PartnerCandidateRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    partner_submission_api_v1_partner_candidates__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

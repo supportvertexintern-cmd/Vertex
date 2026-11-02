@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import select, text
 
 from app.api.v1 import candidates as module
-from app.api.v1.candidates import CASE_STAFF, DELETERS, DETAIL_EDITORS, MARITAL_STATUS_VALUES, STATUS_SETTERS
+from app.api.v1.candidates import DELETERS, DETAIL_EDITORS, MARITAL_STATUS_VALUES, STATUS_SETTERS
 from app.core.config import BASE_DIR, settings
 from app.core.tokens import key_for
 from app.db.session import get_db
@@ -129,7 +129,7 @@ def test_the_roles_match_next_js():
     assert _ts_roles("[id]/route.ts", r"export async function PATCH.*?requireRole\(user, \[(.*?)\]\)") == {r.value for r in DETAIL_EDITORS}
     assert _ts_roles("[id]/route.ts", r"export async function DELETE.*?requireRole\(user, \[(.*?)\]\)") == {r.value for r in DELETERS}
     assert _ts_roles("[id]/status/route.ts", r"requireRole\(user, \[(.*?)\]\)") == {r.value for r in STATUS_SETTERS}
-    assert _ts_roles("[id]/messages/route.ts", r"const isCaseStaff =\s*\[(.*?)\]\.includes") == {r.value for r in CASE_STAFF}
+    # The thread's readers are FastAPI's alone since reads handover R4 (_thread_access).
 
 
 def test_the_choices_match_next_js():
