@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import set_audit_actor
 from app.core.config import settings
 from app.core.logging import log_event
+from app.models.enums import JobStatus
 from app.models.jobs import Job, JobPaymentStage
 
 # The Stripe API version every request sends, as Next.js's lib/stripe.ts.
@@ -130,6 +131,24 @@ def sync_job_pricing(db: Session, job_id: str, client: PricingClient) -> list[Jo
             stage.stripe_price_id, stage.synced_amount_gbp = price, amount
             db.commit()
     return stages
+
+
+def sync_active_jobs(db: Session, client: PricingClient) -> list[tuple[Job, Exception | None]]:
+    """sync_job_pricing for every active job with a fee
+    (scripts/sync_stripe_pricing.py). A job that fails is reported and the
+    next one still runs. The caller sets the audit actor."""
+    active = db.scalars(
+        select(Job).where(Job.status == JobStatus.active, Job.service_fee_gbp > 0).order_by(Job.country, Job.title)
+    ).all()
+    results: list[tuple[Job, Exception | None]] = []
+    for job in active:
+        try:
+            sync_job_pricing(db, job.id, client)
+            results.append((job, None))
+        except Exception as err:  # noqa: BLE001  (reported; the next job still runs)
+            db.rollback()
+            results.append((job, err))
+    return results
 
 
 SessionFactory = Callable[[], AbstractContextManager[Session]]
