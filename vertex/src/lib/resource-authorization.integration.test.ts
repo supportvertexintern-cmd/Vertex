@@ -4,6 +4,9 @@
 // record ID is called twice through the real handler with a real session:
 // by the owner (must succeed, proving the fixture is valid) and by another
 // user of the same role with the owner's ID swapped in (must be denied).
+// The application, message-thread and partner-submission reads are
+// FastAPI's since reads handover R4, and tested the same way there
+// (vertex_be/tests/test_pipeline_reads.py).
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
 const state = vi.hoisted(() => {
@@ -18,11 +21,8 @@ import { NextRequest } from "next/server";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sessionToken } from "@/lib/test-session";
-import { GET as getApplication } from "@/app/api/applications/[id]/route";
 import { GET as getCase } from "@/app/api/cases/[id]/route";
 import { GET as getDocumentUrl } from "@/app/api/documents/[id]/signed-url/route";
-import { GET as getMessages } from "@/app/api/candidates/[id]/messages/route";
-import { GET as getPartnerSubmission } from "@/app/api/partner/candidates/[id]/route";
 
 type Handler = (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => Promise<Response>;
 type Who = { userId: string; email: string; role: Role };
@@ -98,11 +98,8 @@ afterAll(async () => {
 
 // [route, owner, intruder, record key, handler]
 const cases: [string, string, string, string, Handler][] = [
-  ["GET /api/applications/[id]", "candB", "candA", "candB.application", getApplication],
   ["GET /api/cases/[id]", "candB", "candA", "candB.case", getCase],
   ["GET /api/documents/[id]/signed-url", "candB", "candA", "candB.document", getDocumentUrl],
-  ["GET /api/candidates/[id]/messages", "candB", "candA", "candB.candidate", getMessages],
-  ["GET /api/partner/candidates/[id]", "partnerB", "partnerA", "partnerB.submission", getPartnerSubmission],
   ["GET /api/cases/[id]", "partnerB", "partnerA", "partnerB.case", getCase],
   ["GET /api/documents/[id]/signed-url", "partnerB", "partnerA", "partnerB.document", getDocumentUrl],
 ];

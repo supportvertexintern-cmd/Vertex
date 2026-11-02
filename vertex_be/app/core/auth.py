@@ -98,7 +98,10 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> A
         log_event(logging.INFO, "auth.session_rejected", reason=reason, user_id=claims.user_id, sid=claims.sid)
         raise _unauthenticated()
 
-    return AuthUser(user_id=user.id, email=user.email, role=user.role, sid=claims.sid, ver=user.token_version)
+    auth = AuthUser(user_id=user.id, email=user.email, role=user.role, sid=claims.sid, ver=user.token_version)
+    # For the audit of a refusal the route decides later (app/core/api.py).
+    request.state.auth_user = auth
+    return auth
 
 
 CurrentUser = Annotated[AuthUser, Depends(current_user)]

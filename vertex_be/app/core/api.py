@@ -149,8 +149,31 @@ def _field(loc: tuple[Any, ...]) -> str:
     return ".".join(parts) or "body"
 
 
-async def _api_error(_request: Request, exc: ApiError) -> JSONResponse:
+async def _api_error(request: Request, exc: ApiError) -> JSONResponse:
+    if exc.status_code == status.HTTP_403_FORBIDDEN:
+        _audit_refusal(request)
     return error_response(exc.status_code, exc.code, exc.message, exc.details)
+
+
+def _audit_refusal(request: Request) -> None:
+    """A route's own refusal of one record (a 403 ApiError) is on the audit
+    trail as access_denied, as the website's forbidden() records it (gap
+    G7); a refusal by role is recorded by require_role()."""
+    from app.core.audit import record_security_event  # app.core.audit imports this module
+
+    user = getattr(request.state, "auth_user", None)
+    record_security_event(
+        "access_denied",
+        actor_id=user.user_id if user else None,
+        entity_type="Route",
+        entity_id=request.url.path,
+        detail={
+            "reason": "record",
+            "role": user.role.value if user else None,
+            "ip": request.client.host if request.client else None,
+            "path": request.url.path,
+        },
+    )
 
 
 async def _http_error(_request: Request, exc: StarletteHTTPException) -> JSONResponse:

@@ -1,15 +1,15 @@
-"""The screening gate (step 6.2) refuses what screening.ts refuses, in its
-words, and screening a candidate records the result, moves them on and
-works out the invite and commission emails the website sends."""
+"""The screening gate (step 6.2) refuses what the website's screening.ts
+refused, in its words (HR reads them on the candidate page; the website's
+copy is gone since reads handover R4), and screening a candidate records
+the result, moves them on and works out the invite and commission emails
+the website sends."""
 
-import re
 import secrets
 from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 
-from app.core.config import BASE_DIR
 from app.models.audit import AuditLog
 from app.models.candidate import Application, Candidate
 from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, ReferralMilestone, Role
@@ -19,24 +19,23 @@ from app.models.referral import ReferralAgent, ReferralCommissionRule
 from app.services import screening
 from app.services.screening import evaluate_screening_gate, screen_and_invite
 
-SCREENING_TS = (BASE_DIR.parent / "vertex" / "src" / "server" / "services" / "screening.ts").read_text(encoding="utf-8")
 NOW = datetime(2026, 10, 29, 12, 0)
 
 
-def website_messages() -> set[str]:
-    constants = {
-        "MINIMUM_AGE_YEARS": str(screening.MINIMUM_AGE_YEARS),
-        "MINIMUM_PASSPORT_VALIDITY_MONTHS": str(screening.MINIMUM_PASSPORT_VALIDITY_MONTHS),
-    }
-    found = re.findall(r'failures\.push\(["`](.*?)["`]\)', SCREENING_TS)
-    return {re.sub(r"\$\{(\w+)\}", lambda m: constants[m.group(1)], f) for f in found}
+# Every reason the gate gives, word for word.
+MESSAGES = {
+    "Full name is missing.", "Nationality is missing.", "Date of birth is missing.", "Passport number is missing.",
+    "Phone number is missing.", "Email address is missing.",
+    f"Candidate is under the minimum eligible age of {screening.MINIMUM_AGE_YEARS}.",
+    "Passport expiry date is missing.",
+    f"Passport must have at least {screening.MINIMUM_PASSPORT_VALIDITY_MONTHS} months' validity remaining.",
+    "No Candidate Information Form submission on file.", "Preferred programme country is missing.",
+    "Preferred type of work is missing.", "Earliest possible travel date is missing.", "Candidate consent has not been recorded.",
+}
 
 
-def test_the_thresholds_match_the_website():
-    assert re.search(r"const MINIMUM_AGE_YEARS = (\d+);", SCREENING_TS).group(1) == str(screening.MINIMUM_AGE_YEARS)
-    assert re.search(r"const MINIMUM_PASSPORT_VALIDITY_MONTHS = (\d+);", SCREENING_TS).group(1) == str(
-        screening.MINIMUM_PASSPORT_VALIDITY_MONTHS
-    )
+def test_the_thresholds():
+    assert (screening.MINIMUM_AGE_YEARS, screening.MINIMUM_PASSPORT_VALIDITY_MONTHS) == (18, 6)
 
 
 def eligible(**fields) -> Candidate:
@@ -60,11 +59,11 @@ def test_an_eligible_candidate_passes():
     assert evaluate_screening_gate(eligible(), NOW).passed
 
 
-def test_every_failure_is_the_websites():
+def test_every_failure_is_one_of_the_messages():
     seen = set(evaluate_screening_gate(Candidate(consent_given=False, applications=[]), NOW).failures)
     seen |= set(evaluate_screening_gate(eligible(applications=[Application()]), NOW).failures)
     seen |= set(evaluate_screening_gate(eligible(date_of_birth=datetime(2010, 1, 1), passport_expiry=datetime(2027, 1, 1)), NOW).failures)
-    assert seen == website_messages()
+    assert seen == MESSAGES
 
 
 def test_the_age_and_passport_edges():

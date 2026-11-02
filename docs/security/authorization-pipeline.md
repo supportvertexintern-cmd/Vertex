@@ -17,7 +17,7 @@ data.
 | 3 | **Credential and session checks** | Expiry, revocation, account status | 15-minute access token; every request checks the user, `token_version` and the session in the database ([session-management.md](session-management.md)) | ✅ G19 fixed 2026-10-12 |
 | 4 | **Permission evaluation** | May this identity do this action at all | `requireRole(user, [...])` / `requireAdmin`, role lists in `lib/rbac.ts` | ✅ every non-public handler (CI-enforced) |
 | 5 | **Resource authorization** | Is this identity allowed this specific record | `canAccessCandidate`, `canAccessCase`, `resolveAccess` (threads), ownership comparisons (`candidate.user_id === user.userId`, `partner_id`) | ✅ for candidate/partner paths (tested, §3); staff paths per Q1–Q3 |
-| 6 | **Scope enforcement** | Data boundaries: region, country, assignment, partner | Lists: `scopeCandidatesToRequester`, `scopeCasesToRequester` in the query's `where`. Single records: stage 5 helpers apply the same rules | ✅ candidates/cases; ✅ partners (Q1, decided 2026-11-02); ❓ partner candidates, applications for reviewers (Q2, Q3) |
+| 6 | **Scope enforcement** | Data boundaries: region, country, assignment, partner | Lists: `scopeCandidatesToRequester`, `scopeCasesToRequester` in the query's `where`. Single records: stage 5 helpers apply the same rules | ✅ candidates/cases; ✅ partners, partner candidates, applications for reviewers (Q1 to Q3, decided 2026-11-02) |
 | 7 | **Contextual controls** | MFA, step-up, rate limits, risk | Per-IP rate limits (`limitByIp`) on public and auth routes. **No MFA or step-up** for any role | ⚠️ rate limits in memory (G5, G14); ❌ MFA (G24) |
 | 8 | **Execution** | The operation itself | Handler body; writes through `auditedPrisma(actor)` | ✅ |
 | 9 | **Security audit** | Record the decision and outcome | `auditedPrisma` (data changes), `auditAccess` (exports), `recordSecurityEvent` (sign-ins, denials via `requireRole`/`forbidden()`, document views; Phase 10). Never credentials (`lib/redact.ts`); filter values allowlisted (`auditFilters`) | ✅ G7, G20, G21 (Phase 10); ⚠️ some writes (G22) not recorded |
@@ -96,7 +96,7 @@ test.
 | G23 | 1 | No request body size limit; `/api/upload` buffered the whole form before checking the caller or the file size | **Fixed** (proxy-level limits, `request-size.test.ts`) |
 | — | 1 | 11 body-reading handlers don't use a schema: admin email templates, knowledge, settings, PayPal/Stripe checkout, chat (others validate by hand: messages, upload, webhook) | Phase 5: zod schemas for the remaining handlers |
 | G19 | 3 | No revocation or account status | **Fixed 2026-10-12** ([session-management.md](session-management.md)) |
-| Q2, Q3 | 6 | Partner-candidate and application scope for staff roles undecided (Q1, partners, decided 2026-11-02) | Owner decision |
+| Q1 to Q3 | 6 | Decided 2026-11-02 (reads handover R2 and R4) | Done |
 | G5, G14 | 7 | Rate limits in memory, keyed on a client-settable header | Phase 4 |
 | G24 | 7 | No MFA or step-up authentication for any role, including admin, finance and directors | Phase 4 (authentication) |
 | G7, G20, G21, G22 | 9 | Denials, sign-ins, document views and some writes aren't audited | G21, G22 Phase 2 candidates; G7, G20 Phase 5 |

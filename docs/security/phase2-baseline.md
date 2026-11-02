@@ -132,8 +132,8 @@ See [audit-logging-monitoring.md](audit-logging-monitoring.md).
 | # | Question |
 |---|---|
 | Q1 | `GET /api/admin/partners/[id]`: any `regional_recruiter`/`country_supervisor` can read **any** partner, including the partner user's email. Should partners be scoped to the recruiter's region or assignment? **Decided (owner, 2026-11-02; reads handover R2):** they still see the partner's record, but only the partner's candidates in their own candidate scope; the partner managers see all. The partner list gives non-managers the name and status only |
-| Q2 | `GET /api/partner-candidates/[id]`: any HR/operations user can read any partner-submitted candidate. Intended to be global? |
-| Q3 | `GET /api/applications/[id]`: reviewer roles see every application regardless of region. Intended? |
+| Q2 | `GET /api/partner-candidates/[id]`: any HR/operations user can read any partner-submitted candidate. Intended to be global? **Decided (owner, 2026-11-02; reads handover R4): yes, global**, as the 2026-07-31 separation-of-duties decision has HR/Operations/Finance |
+| Q3 | `GET /api/applications/[id]`: reviewer roles see every application regardless of region. Intended? **Decided (owner, 2026-11-02; reads handover R4):** an in-house supervisor opens an application only in their own countries, as on every other candidate view; director and admin stay global |
 
 ## 5. Protected routes and privileged operations
 
