@@ -1,38 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 
 const PARTNER_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;
 
-// GET /api/admin/partners/:id — detail, including candidates it has sourced.
+// Read from FastAPI since reads handover R2. A recruiter or country
+// supervisor sees only the partner's candidates in their own scope (policy
+// Q1, owner's decision 2026-11-02). Roles must match PARTNER_DETAIL_READERS
+// in vertex_be/app/api/v1/partner_agencies.py (tests check it).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"]);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const partner = await prisma.partner.findUnique({
-    where: { id },
-    include: {
-      candidates: {
-        select: {
-          id: true,
-          full_name: true,
-          lifecycle_status: true,
-          created_at: true,
-          user: { select: { full_name: true, email: true } },
-          recruiter: { select: { id: true, full_name: true } },
-        },
-        orderBy: { created_at: "desc" },
-      },
-    },
-  });
-  if (!partner) {
-    return NextResponse.json({ error: { code: "not_found", message: "Partner not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: partner });
+  return backendResponse(await callBackend(`/api/v1/partners/${seg(id)}`));
 }
 
 // PATCH /api/admin/partners/:id — every editable field goes through here

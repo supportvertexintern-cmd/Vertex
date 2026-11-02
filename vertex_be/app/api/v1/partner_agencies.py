@@ -25,11 +25,12 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic_core import PydanticCustomError
 from sqlalchemy import exists, func, select
 from sqlalchemy.exc import IntegrityError
 
+from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notice, Notifying
 from app.api.v1.users import keep_an_admin
 from app.core.api import ApiError, Data, Email, UtcDateTime
@@ -37,9 +38,10 @@ from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
+from app.core.scope import candidate_scope
 from app.core.tokens import sign_account_setup_token
 from app.models.candidate import Candidate
-from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role
+from app.models.enums import CandidateLifecycleStatus, MouStatus, PartnerStatus, PartnerType, Role
 from app.models.identity import User
 from app.models.partners import Partner, PartnerCandidate
 
@@ -48,6 +50,20 @@ router = APIRouter()
 # PARTNER_MANAGER_ROLES in each of the website's partner routes.
 PARTNER_MANAGER_ROLES = (Role.inhouse_supervisor, Role.director, Role.admin)
 Manager = Annotated[AuthUser, Depends(require_role(*PARTNER_MANAGER_ROLES))]
+
+# Reads (reads handover R2). The list: every role that filters by partner or
+# submits for one; only the managers get the full rows, the rest the name
+# (owner's decision, 2026-11-02). Must match GET /api/admin/partners.
+PARTNER_LIST_READERS = (
+    Role.regional_recruiter, Role.country_supervisor, Role.inhouse_supervisor, Role.director, Role.admin,
+    Role.hr, Role.operations_team, Role.operations_director, Role.finance,
+)
+# A partner's page. Recruiters and country supervisors see only the
+# partner's candidates they may see anyway (policy question Q1, owner's
+# decision 2026-11-02). Must match GET /api/admin/partners/[id].
+PARTNER_DETAIL_READERS = (Role.regional_recruiter, Role.country_supervisor, *PARTNER_MANAGER_ROLES)
+ListReader = Annotated[AuthUser, Depends(require_role(*PARTNER_LIST_READERS))]
+DetailReader = Annotated[AuthUser, Depends(require_role(*PARTNER_DETAIL_READERS))]
 
 
 def _min(length: int, message: str):
@@ -139,6 +155,62 @@ class PartnerRow(BaseModel):
     user_id: str | None
 
 
+class CandidateCount(BaseModel):
+    candidates: int
+
+
+class PartnerListRow(PartnerRow):
+    """A manager's row: the partner and its candidate count (Prisma's _count)."""
+
+    count: CandidateCount = Field(serialization_alias="_count")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class PartnerName(BaseModel):
+    """Everyone else's row: enough to pick or filter by a partner."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    status: PartnerStatus
+
+
+class PersonRef(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    full_name: str
+    email: str
+
+
+class RecruiterRef(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    full_name: str
+
+
+class PartnerCandidateRef(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    full_name: str
+    lifecycle_status: CandidateLifecycleStatus
+    created_at: UtcDateTime
+    user: PersonRef | None
+    recruiter: RecruiterRef | None
+
+
+class PartnerDetail(PartnerRow):
+    candidates: list[PartnerCandidateRef]
+
+
+def _columns(partner: Partner) -> dict[str, object]:
+    """The partner's own fields, to add a relation the row doesn't carry."""
+    return {name: getattr(partner, name) for name in PartnerRow.model_fields}
+
+
 class Removed(BaseModel):
     id: str
 
@@ -174,6 +246,35 @@ def _saved(db) -> None:
 
 
 # --- routes -------------------------------------------------------------------
+
+
+# --- reading (reads handover R2) ----------------------------------------------
+
+
+@router.get("/partners", response_model=Data[list[PartnerListRow] | list[PartnerName]])
+def list_partners(db: DbSession, user: ListReader):
+    """Every partner, by name: full rows with candidate counts for a
+    partner manager, the name and status for everyone else."""
+    partners = list(db.scalars(select(Partner).order_by(Partner.name)))
+    if user.role not in PARTNER_MANAGER_ROLES:
+        return Data(data=[PartnerName.model_validate(p) for p in partners])
+    counts = dict(db.execute(select(Candidate.partner_id, func.count()).where(Candidate.partner_id.is_not(None)).group_by(Candidate.partner_id)).all())
+    return Data(data=[PartnerListRow.model_validate(_columns(p) | {"count": {"candidates": counts.get(p.id, 0)}}) for p in partners])
+
+
+@router.get("/partners/{partner_id}", response_model=Data[PartnerDetail])
+def get_partner(partner_id: str, db: DbSession, user: DetailReader):
+    """A partner and its candidates, newest first: all of them for a
+    partner manager, the ones in their own scope for a recruiter or a
+    country supervisor."""
+    partner = db.get(Partner, partner_id)
+    if partner is None:
+        raise ApiError(404, "not_found", "Partner not found.")
+    query = select(Candidate).where(Candidate.partner_id == partner.id).order_by(Candidate.created_at.desc())
+    if user.role not in PARTNER_MANAGER_ROLES:
+        query = query.where(candidate_scope(db, user))
+    candidates = [PartnerCandidateRef.model_validate(c) for c in db.scalars(query)]
+    return Data(data=PartnerDetail.model_validate(_columns(partner) | {"candidates": candidates}))
 
 
 @router.post("/partners", status_code=status.HTTP_201_CREATED, response_model=Data[PartnerRow])

@@ -12,19 +12,6 @@ import { describe, expect, it } from "vitest";
 const SRC = path.resolve(__dirname, "..");
 
 const STILL_READING: Record<string, string[]> = {
-  "R2 partners and referral agents": [
-    "app/api/admin/partners/[id]/route.ts",
-    "app/api/admin/partners/route.ts",
-    "app/api/admin/referral-agents/[id]/route.ts",
-    "app/api/admin/referral-agents/countries/[countryId]/summary/route.ts",
-    "app/api/admin/referral-agents/countries/route.ts",
-    "app/api/admin/referral-agents/route.ts",
-    "app/api/admin/referral-commission-rules/route.ts",
-    "app/api/admin/referral-commissions/route.ts",
-    "app/api/referral-agent/candidates/route.ts",
-    "app/api/referral-agent/commissions/route.ts",
-    "app/api/referral-agent/me/route.ts",
-  ],
   "R3 recruitment operations and KPIs": [
     "app/api/inhouse/campaigns/route.ts",
     "app/api/inhouse/overview/route.ts",

@@ -116,6 +116,628 @@
     "title": "ActivityRow",
     "type": "object"
    },
+   "AgentCommission": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "candidate": {
+      "$ref": "#/components/schemas/app__api__v1__referral_reads__PersonRef"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralCommissionStatus"
+     }
+    },
+    "required": [
+     "id",
+     "milestone",
+     "amount",
+     "currency",
+     "status",
+     "created_at",
+     "candidate"
+    ],
+    "title": "AgentCommission",
+    "type": "object"
+   },
+   "AgentCounts": {
+    "properties": {
+     "candidates": {
+      "title": "Candidates",
+      "type": "integer"
+     },
+     "commissions": {
+      "title": "Commissions",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "candidates",
+     "commissions"
+    ],
+    "title": "AgentCounts",
+    "type": "object"
+   },
+   "AgentDetail": {
+    "properties": {
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "candidates": {
+      "items": {
+       "$ref": "#/components/schemas/ReferredCandidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "commissions": {
+      "items": {
+       "$ref": "#/components/schemas/AgentCommission"
+      },
+      "title": "Commissions",
+      "type": "array"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "countryRef": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "country_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_occupation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Occupation"
+     },
+     "date_of_birth": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Of Birth"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "email_verified": {
+      "title": "Email Verified",
+      "type": "boolean"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "nationality": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nationality"
+     },
+     "network_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Network Size"
+     },
+     "payment_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Details"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "preferred_contact_channel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Contact Channel"
+     },
+     "previous_experience": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Experience"
+     },
+     "promotion_plan": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Plan"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     },
+     "rejection_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejection Reason"
+     },
+     "social_media_profiles": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Social Media Profiles"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralAgentStatus"
+     },
+     "suspended_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Suspended Reason"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "whatsapp_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp Number"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "phone",
+     "whatsapp_number",
+     "country",
+     "country_id",
+     "city",
+     "date_of_birth",
+     "nationality",
+     "preferred_contact_channel",
+     "previous_experience",
+     "current_occupation",
+     "network_size",
+     "social_media_profiles",
+     "promotion_plan",
+     "payment_details",
+     "status",
+     "referral_code",
+     "email_verified",
+     "approved_by_id",
+     "approved_at",
+     "rejection_reason",
+     "suspended_reason",
+     "user_id",
+     "created_at",
+     "updated_at",
+     "countryRef",
+     "candidates",
+     "commissions"
+    ],
+    "title": "AgentDetail",
+    "type": "object"
+   },
+   "AgentListRow": {
+    "properties": {
+     "_count": {
+      "$ref": "#/components/schemas/AgentCounts"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "countryRef": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "country_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_occupation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Occupation"
+     },
+     "date_of_birth": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Of Birth"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "email_verified": {
+      "title": "Email Verified",
+      "type": "boolean"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "nationality": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nationality"
+     },
+     "network_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Network Size"
+     },
+     "payment_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Details"
+     },
+     "phone": {
+      "title": "Phone",
+      "type": "string"
+     },
+     "preferred_contact_channel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Contact Channel"
+     },
+     "previous_experience": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Experience"
+     },
+     "promotion_plan": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Plan"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     },
+     "rejection_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejection Reason"
+     },
+     "social_media_profiles": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Social Media Profiles"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralAgentStatus"
+     },
+     "suspended_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Suspended Reason"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     },
+     "whatsapp_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Whatsapp Number"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "phone",
+     "whatsapp_number",
+     "country",
+     "country_id",
+     "city",
+     "date_of_birth",
+     "nationality",
+     "preferred_contact_channel",
+     "previous_experience",
+     "current_occupation",
+     "network_size",
+     "social_media_profiles",
+     "promotion_plan",
+     "payment_details",
+     "status",
+     "referral_code",
+     "email_verified",
+     "approved_by_id",
+     "approved_at",
+     "rejection_reason",
+     "suspended_reason",
+     "user_id",
+     "created_at",
+     "updated_at",
+     "countryRef",
+     "_count"
+    ],
+    "title": "AgentListRow",
+    "type": "object"
+   },
    "AgentRow": {
     "properties": {
      "approved_at": {
@@ -1599,6 +2221,19 @@
     "title": "CandidateApprovedEmail",
     "type": "object"
    },
+   "CandidateCount": {
+    "properties": {
+     "candidates": {
+      "title": "Candidates",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "candidates"
+    ],
+    "title": "CandidateCount",
+    "type": "object"
+   },
    "CandidateDetails": {
     "properties": {
      "consent_at": {
@@ -2787,6 +3422,29 @@
     "title": "Claimed",
     "type": "object"
    },
+   "CommissionAgent": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email"
+    ],
+    "title": "CommissionAgent",
+    "type": "object"
+   },
    "CommissionApprovedEmail": {
     "description": "sendReferralCommissionApprovedEmail(email, agent_name, candidate_name, amount, currency).",
     "properties": {
@@ -2825,6 +3483,35 @@
      "currency"
     ],
     "title": "CommissionApprovedEmail",
+    "type": "object"
+   },
+   "CommissionCandidate": {
+    "properties": {
+     "country": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Ref"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "country"
+    ],
+    "title": "CommissionCandidate",
     "type": "object"
    },
    "CommissionEmail": {
@@ -2869,6 +3556,161 @@
      "currency"
     ],
     "title": "CommissionEmail",
+    "type": "object"
+   },
+   "CommissionListRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "candidate": {
+      "$ref": "#/components/schemas/CommissionCandidate"
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "case_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Id"
+     },
+     "commission_rule_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Rule Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid By Id"
+     },
+     "payment_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "referral_agent": {
+      "$ref": "#/components/schemas/CommissionAgent"
+     },
+     "referral_agent_id": {
+      "title": "Referral Agent Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralCommissionStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "referral_agent_id",
+     "candidate_id",
+     "case_id",
+     "milestone",
+     "commission_rule_id",
+     "amount",
+     "currency",
+     "status",
+     "approved_by_id",
+     "approved_at",
+     "paid_by_id",
+     "paid_at",
+     "payment_reference",
+     "payment_method",
+     "created_at",
+     "updated_at",
+     "referral_agent",
+     "candidate"
+    ],
+    "title": "CommissionListRow",
     "type": "object"
    },
    "CommissionPaidEmail": {
@@ -3056,6 +3898,34 @@
      "updated_at"
     ],
     "title": "CommissionRow",
+    "type": "object"
+   },
+   "CommissionSummary": {
+    "properties": {
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "earned": {
+      "title": "Earned",
+      "type": "number"
+     },
+     "paid": {
+      "title": "Paid",
+      "type": "number"
+     },
+     "pending": {
+      "title": "Pending",
+      "type": "number"
+     }
+    },
+    "required": [
+     "earned",
+     "pending",
+     "paid",
+     "currency"
+    ],
+    "title": "CommissionSummary",
     "type": "object"
    },
    "CompetencyRow": {
@@ -3398,6 +4268,88 @@
     "title": "CountryRef",
     "type": "object"
    },
+   "CountryRow": {
+    "properties": {
+     "activeAgents": {
+      "title": "Activeagents",
+      "type": "integer"
+     },
+     "candidatesReferred": {
+      "title": "Candidatesreferred",
+      "type": "integer"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "pendingCommissionTotal": {
+      "title": "Pendingcommissiontotal",
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "activeAgents",
+     "candidatesReferred",
+     "pendingCommissionTotal"
+    ],
+    "title": "CountryRow",
+    "type": "object"
+   },
+   "CountrySummary": {
+    "properties": {
+     "agents": {
+      "items": {
+       "$ref": "#/components/schemas/SummaryAgent"
+      },
+      "title": "Agents",
+      "type": "array"
+     },
+     "country": {
+      "$ref": "#/components/schemas/Ref"
+     },
+     "jobs": {
+      "items": {
+       "$ref": "#/components/schemas/SummaryJob"
+      },
+      "title": "Jobs",
+      "type": "array"
+     },
+     "milestoneCounts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Milestonecounts",
+      "type": "object"
+     },
+     "pendingCommissionTotal": {
+      "title": "Pendingcommissiontotal",
+      "type": "number"
+     },
+     "performance": {
+      "items": {
+       "$ref": "#/components/schemas/Performance"
+      },
+      "title": "Performance",
+      "type": "array"
+     }
+    },
+    "required": [
+     "country",
+     "agents",
+     "milestoneCounts",
+     "jobs",
+     "performance",
+     "pendingCommissionTotal"
+    ],
+    "title": "CountrySummary",
+    "type": "object"
+   },
    "CountryUpdate": {
     "properties": {
      "name": {
@@ -3472,6 +4424,18 @@
      "full_name"
     ],
     "title": "Creator",
+    "type": "object"
+   },
+   "Data_AgentDetail_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AgentDetail"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AgentDetail]",
     "type": "object"
    },
    "Data_ApplicationFeeOut_": {
@@ -3628,6 +4592,18 @@
      "data"
     ],
     "title": "Data[CountryOut]",
+    "type": "object"
+   },
+   "Data_CountrySummary_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/CountrySummary"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[CountrySummary]",
     "type": "object"
    },
    "Data_DecisionOut_": {
@@ -3870,6 +4846,18 @@
     "title": "Data[Overturned]",
     "type": "object"
    },
+   "Data_OwnProfile_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/OwnProfile"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[OwnProfile]",
+    "type": "object"
+   },
    "Data_PartnerCandidateRow_": {
     "properties": {
      "data": {
@@ -3880,6 +4868,18 @@
      "data"
     ],
     "title": "Data[PartnerCandidateRow]",
+    "type": "object"
+   },
+   "Data_PartnerDetail_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PartnerDetail"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PartnerDetail]",
     "type": "object"
    },
    "Data_PartnerRow_": {
@@ -4110,6 +5110,32 @@
     "title": "Data[TemplateOut]",
     "type": "object"
    },
+   "Data_Union_list_PartnerListRow___list_PartnerName___": {
+    "properties": {
+     "data": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/PartnerListRow"
+        },
+        "type": "array"
+       },
+       {
+        "items": {
+         "$ref": "#/components/schemas/PartnerName"
+        },
+        "type": "array"
+       }
+      ],
+      "title": "Data"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Union[list[PartnerListRow], list[PartnerName]]]",
+    "type": "object"
+   },
    "Data_Updated_": {
     "properties": {
      "data": {
@@ -4136,6 +5162,22 @@
      "data"
     ],
     "title": "Data[dict[str, str]]",
+    "type": "object"
+   },
+   "Data_list_AgentListRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AgentListRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[AgentListRow]]",
     "type": "object"
    },
    "Data_list_ArticleOut__": {
@@ -4168,6 +5210,38 @@
      "data"
     ],
     "title": "Data[list[CampaignListItem]]",
+    "type": "object"
+   },
+   "Data_list_CommissionListRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/CommissionListRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[CommissionListRow]]",
+    "type": "object"
+   },
+   "Data_list_CountryRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/CountryRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[CountryRow]]",
     "type": "object"
    },
    "Data_list_CountryWithRegion__": {
@@ -4250,6 +5324,54 @@
     "title": "Data[list[NoteOut]]",
     "type": "object"
    },
+   "Data_list_OwnCandidate__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/OwnCandidate"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[OwnCandidate]]",
+    "type": "object"
+   },
+   "Data_list_OwnCommission__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/OwnCommission"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[OwnCommission]]",
+    "type": "object"
+   },
+   "Data_list_Performance__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/Performance"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[Performance]]",
+    "type": "object"
+   },
    "Data_list_RecruiterTargetListItem__": {
     "properties": {
      "data": {
@@ -4296,6 +5418,22 @@
      "data"
     ],
     "title": "Data[list[RequirementOut]]",
+    "type": "object"
+   },
+   "Data_list_RuleListRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/RuleListRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[RuleListRow]]",
     "type": "object"
    },
    "Data_list_ScorecardListItem__": {
@@ -9243,6 +10381,255 @@
     "title": "Overturned",
     "type": "object"
    },
+   "OwnCandidate": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_stage": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CaseStage"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "lifecycle_status": {
+      "$ref": "#/components/schemas/CandidateLifecycleStatus"
+     },
+     "referral_duplicate_flag": {
+      "title": "Referral Duplicate Flag",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "lifecycle_status",
+     "referral_duplicate_flag",
+     "created_at",
+     "current_stage"
+    ],
+    "title": "OwnCandidate",
+    "type": "object"
+   },
+   "OwnCommission": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "candidate": {
+      "$ref": "#/components/schemas/app__api__v1__referral_reads__PersonRef"
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "case_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Id"
+     },
+     "commission_rule_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Rule Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid By Id"
+     },
+     "payment_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "referral_agent_id": {
+      "title": "Referral Agent Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralCommissionStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "referral_agent_id",
+     "candidate_id",
+     "case_id",
+     "milestone",
+     "commission_rule_id",
+     "amount",
+     "currency",
+     "status",
+     "approved_by_id",
+     "approved_at",
+     "paid_by_id",
+     "paid_at",
+     "payment_reference",
+     "payment_method",
+     "created_at",
+     "updated_at",
+     "candidate"
+    ],
+    "title": "OwnCommission",
+    "type": "object"
+   },
+   "OwnProfile": {
+    "description": "/api/referral-agent/me, less the link and QR code the website adds.",
+    "properties": {
+     "commission_summary": {
+      "$ref": "#/components/schemas/CommissionSummary"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Milestone Counts",
+      "type": "object"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralAgentStatus"
+     },
+     "total_referrals": {
+      "title": "Total Referrals",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "status",
+     "country",
+     "referral_code",
+     "total_referrals",
+     "milestone_counts",
+     "commission_summary"
+    ],
+    "title": "OwnProfile",
+    "type": "object"
+   },
    "PaidIn": {
     "properties": {
      "payment_method": {
@@ -9271,6 +10658,55 @@
      }
     },
     "title": "PaidIn",
+    "type": "object"
+   },
+   "PartnerCandidateRef": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "lifecycle_status": {
+      "$ref": "#/components/schemas/CandidateLifecycleStatus"
+     },
+     "recruiter": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RecruiterRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "user": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/app__api__v1__partner_agencies__PersonRef"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "lifecycle_status",
+     "created_at",
+     "user",
+     "recruiter"
+    ],
+    "title": "PartnerCandidateRef",
     "type": "object"
    },
    "PartnerCandidateRow": {
@@ -9837,6 +11273,258 @@
     "title": "PartnerCaseStageEmail",
     "type": "object"
    },
+   "PartnerDetail": {
+    "properties": {
+     "business_registration_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Registration Number"
+     },
+     "candidates": {
+      "items": {
+       "$ref": "#/components/schemas/PartnerCandidateRef"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "contact_name": {
+      "title": "Contact Name",
+      "type": "string"
+     },
+     "contact_phone": {
+      "title": "Contact Phone",
+      "type": "string"
+     },
+     "country_of_operation": {
+      "title": "Country Of Operation",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mou Signed At"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "partner_type": {
+      "$ref": "#/components/schemas/PartnerType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "partner_type",
+     "country_of_operation",
+     "business_registration_number",
+     "contact_name",
+     "contact_email",
+     "contact_phone",
+     "status",
+     "mou_status",
+     "mou_signed_at",
+     "notes",
+     "created_at",
+     "updated_at",
+     "user_id",
+     "candidates"
+    ],
+    "title": "PartnerDetail",
+    "type": "object"
+   },
+   "PartnerListRow": {
+    "description": "A manager's row: the partner and its candidate count (Prisma's _count).",
+    "properties": {
+     "_count": {
+      "$ref": "#/components/schemas/CandidateCount"
+     },
+     "business_registration_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Business Registration Number"
+     },
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "contact_name": {
+      "title": "Contact Name",
+      "type": "string"
+     },
+     "contact_phone": {
+      "title": "Contact Phone",
+      "type": "string"
+     },
+     "country_of_operation": {
+      "title": "Country Of Operation",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mou Signed At"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Notes"
+     },
+     "partner_type": {
+      "$ref": "#/components/schemas/PartnerType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "partner_type",
+     "country_of_operation",
+     "business_registration_number",
+     "contact_name",
+     "contact_email",
+     "contact_phone",
+     "status",
+     "mou_status",
+     "mou_signed_at",
+     "notes",
+     "created_at",
+     "updated_at",
+     "user_id",
+     "_count"
+    ],
+    "title": "PartnerListRow",
+    "type": "object"
+   },
+   "PartnerName": {
+    "description": "Everyone else's row: enough to pick or filter by a partner.",
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status"
+    ],
+    "title": "PartnerName",
+    "type": "object"
+   },
    "PartnerRow": {
     "properties": {
      "business_registration_number": {
@@ -10221,6 +11909,62 @@
     ],
     "title": "PaymentStatus",
     "type": "string"
+   },
+   "Performance": {
+    "description": "kpi.ts's ReferralAgentPerformance.",
+    "properties": {
+     "countryName": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Countryname"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "deployed": {
+      "title": "Deployed",
+      "type": "integer"
+     },
+     "qualified": {
+      "title": "Qualified",
+      "type": "integer"
+     },
+     "referralAgentId": {
+      "title": "Referralagentid",
+      "type": "string"
+     },
+     "referralAgentName": {
+      "title": "Referralagentname",
+      "type": "string"
+     },
+     "totalCommissionEarned": {
+      "title": "Totalcommissionearned",
+      "type": "number"
+     },
+     "totalReferrals": {
+      "title": "Totalreferrals",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "referralAgentId",
+     "referralAgentName",
+     "countryName",
+     "totalReferrals",
+     "qualified",
+     "deployed",
+     "totalCommissionEarned",
+     "currency"
+    ],
+    "title": "Performance",
+    "type": "object"
    },
    "Person": {
     "properties": {
@@ -11311,6 +13055,24 @@
     "title": "RecordIn",
     "type": "object"
    },
+   "RecruiterRef": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name"
+    ],
+    "title": "RecruiterRef",
+    "type": "object"
+   },
    "RecruiterTargetIn": {
     "properties": {
      "campaign_target_id": {
@@ -11403,6 +13165,24 @@
      "recruiter"
     ],
     "title": "RecruiterTargetOut",
+    "type": "object"
+   },
+   "Ref": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "Ref",
     "type": "object"
    },
    "ReferralAgentAdminEmail": {
@@ -11581,6 +13361,38 @@
     ],
     "title": "ReferralMilestone",
     "type": "string"
+   },
+   "ReferredCandidate": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "lifecycle_status": {
+      "$ref": "#/components/schemas/CandidateLifecycleStatus"
+     },
+     "referral_duplicate_flag": {
+      "title": "Referral Duplicate Flag",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "lifecycle_status",
+     "referral_duplicate_flag",
+     "created_at"
+    ],
+    "title": "ReferredCandidate",
+    "type": "object"
    },
    "RefreshIn": {
     "properties": {
@@ -12182,6 +13994,57 @@
      "amount"
     ],
     "title": "RuleIn",
+    "type": "object"
+   },
+   "RuleListRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "country": {
+      "$ref": "#/components/schemas/Ref"
+     },
+     "country_id": {
+      "title": "Country Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "updated_by": {
+      "title": "Updated By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "country_id",
+     "milestone",
+     "amount",
+     "currency",
+     "updated_by",
+     "created_at",
+     "updated_at",
+     "country"
+    ],
+    "title": "RuleListRow",
     "type": "object"
    },
    "RuleRow": {
@@ -13893,6 +15756,64 @@
     "title": "SubmittedOut",
     "type": "object"
    },
+   "SummaryAgent": {
+    "properties": {
+     "_count": {
+      "$ref": "#/components/schemas/CandidateCount"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "referral_code": {
+      "title": "Referral Code",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralAgentStatus"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "status",
+     "referral_code",
+     "_count"
+    ],
+    "title": "SummaryAgent",
+    "type": "object"
+   },
+   "SummaryJob": {
+    "properties": {
+     "city": {
+      "title": "City",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/JobStatus"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "city",
+     "status"
+    ],
+    "title": "SummaryJob",
+    "type": "object"
+   },
    "TargetCreate": {
     "properties": {
      "country_id": {
@@ -15047,6 +16968,24 @@
      }
     },
     "title": "LoginIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_agencies__PersonRef": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name",
+     "email"
+    ],
+    "title": "PersonRef",
     "type": "object"
    },
    "app__api__v1__partner_agencies__Removed": {
@@ -16265,6 +18204,24 @@
      }
     },
     "title": "VerifyIn",
+    "type": "object"
+   },
+   "app__api__v1__referral_reads__PersonRef": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name"
+    ],
+    "title": "PersonRef",
     "type": "object"
    },
    "app__api__v1__reports__StatusOut": {
@@ -21829,6 +23786,31 @@
    }
   },
   "/api/v1/partners": {
+   "get": {
+    "description": "Every partner, by name: full rows with candidate counts for a\npartner manager, the name and status for everyone else.",
+    "operationId": "list_partners_api_v1_partners_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Union_list_PartnerListRow___list_PartnerName___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Partners",
+    "tags": [
+     "users and sessions"
+    ]
+   },
    "post": {
     "operationId": "create_partner_api_v1_partners_post",
     "requestBody": {
@@ -21917,6 +23899,52 @@
      }
     ],
     "summary": "Delete Partner",
+    "tags": [
+     "users and sessions"
+    ]
+   },
+   "get": {
+    "description": "A partner and its candidates, newest first: all of them for a\npartner manager, the ones in their own scope for a recruiter or a\ncountry supervisor.",
+    "operationId": "get_partner_api_v1_partners__partner_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PartnerDetail_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Partner",
     "tags": [
      "users and sessions"
     ]
@@ -22416,6 +24444,142 @@
     ]
    }
   },
+  "/api/v1/referral-agent/candidates": {
+   "get": {
+    "description": "The agent's referred candidates, newest first, each with the stage of\nthe case behind their latest application.",
+    "operationId": "own_candidates_api_v1_referral_agent_candidates_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_OwnCandidate__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Own Candidates",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agent/commissions": {
+   "get": {
+    "description": "The agent's commissions, newest first.",
+    "operationId": "own_commissions_api_v1_referral_agent_commissions_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_OwnCommission__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Own Commissions",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agent/me": {
+   "get": {
+    "description": "The agent's profile, referral count, milestones and commission totals:\nearned (all), pending (pending or approved) and paid.",
+    "operationId": "own_profile_api_v1_referral_agent_me_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_OwnProfile_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Own Profile",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents": {
+   "get": {
+    "description": "Every agent (in the country, if given), newest first, with counts.",
+    "operationId": "list_referral_agents_api_v1_referral_agents_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "countryId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Countryid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_AgentListRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Referral Agents",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
   "/api/v1/referral-agents/apply": {
    "post": {
     "description": "A pending application, its referral code made here. The applicant is\nemailed the verification link, and the team told.",
@@ -22458,6 +24622,135 @@
      }
     ],
     "summary": "Apply",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/countries": {
+   "get": {
+    "description": "Every country, by name, with its active agents, referred candidates\nand pending commissions.",
+    "operationId": "referral_countries_api_v1_referral_agents_countries_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_CountryRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Referral Countries",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/countries/{country_id}/summary": {
+   "get": {
+    "description": "One country: its agents, commissions by milestone, the jobs there,\neach active agent's performance and the pending commissions.",
+    "operationId": "referral_country_summary_api_v1_referral_agents_countries__country_id__summary_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "country_id",
+      "required": true,
+      "schema": {
+       "title": "Country Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_CountrySummary_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Referral Country Summary",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/referral-agents/performance": {
+   "get": {
+    "operationId": "referral_performance_api_v1_referral_agents_performance_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "countryId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Countryid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_Performance__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Referral Performance",
     "tags": [
      "users and sessions"
     ]
@@ -22511,6 +24804,52 @@
    }
   },
   "/api/v1/referral-agents/{agent_id}": {
+   "get": {
+    "description": "An agent with their referred candidates and commissions, newest first.",
+    "operationId": "get_referral_agent_api_v1_referral_agents__agent_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "agent_id",
+      "required": true,
+      "schema": {
+       "title": "Agent Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AgentDetail_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Referral Agent",
+    "tags": [
+     "users and sessions"
+    ]
+   },
    "patch": {
     "description": "Reject a pending application, suspend an active agent, or reactivate a\nsuspended one. Suspending keeps the history: earned commissions stay\npayable.",
     "operationId": "decide_api_v1_referral_agents__agent_id__patch",
@@ -22684,6 +25023,59 @@
    }
   },
   "/api/v1/referral-commission-rules": {
+   "get": {
+    "description": "Every rule (in the country, if given), by country name and milestone.",
+    "operationId": "list_commission_rules_api_v1_referral_commission_rules_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "countryId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Countryid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_RuleListRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Commission Rules",
+    "tags": [
+     "users and sessions"
+    ]
+   },
    "post": {
     "description": "One rule per (country, milestone): the existing one is updated. A\nrule saved by a concurrent request is updated on a second try.",
     "operationId": "upsert_rule_api_v1_referral_commission_rules_post",
@@ -22727,6 +25119,93 @@
     "summary": "Upsert Rule",
     "tags": [
      "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/referral-commissions": {
+   "get": {
+    "description": "Commissions, newest first, by agent, status and candidate country.",
+    "operationId": "list_commissions_api_v1_referral_commissions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "countryId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Countryid"
+      }
+     },
+     {
+      "in": "query",
+      "name": "agentId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Agentid"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReferralCommissionStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_CommissionListRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Commissions",
+    "tags": [
+     "users and sessions"
     ]
    }
   },
