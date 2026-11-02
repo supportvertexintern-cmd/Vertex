@@ -4978,6 +4978,18 @@
     "title": "Data[RegionOut]",
     "type": "object"
    },
+   "Data_ReportRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ReportRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ReportRow]",
+    "type": "object"
+   },
    "Data_RetentionRow_": {
     "properties": {
      "data": {
@@ -5146,6 +5158,20 @@
      "data"
     ],
     "title": "Data[Updated]",
+    "type": "object"
+   },
+   "Data_dict_str__Any__": {
+    "properties": {
+     "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[dict[str, Any]]",
     "type": "object"
    },
    "Data_dict_str__str__": {
@@ -5514,6 +5540,23 @@
      "data"
     ],
     "title": "Data[list[TemplateOut]]",
+    "type": "object"
+   },
+   "Data_list_dict_str__Any___": {
+    "properties": {
+     "data": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[dict[str, Any]]]",
     "type": "object"
    },
    "DecideIn": {
@@ -10630,6 +10673,69 @@
     "title": "OwnProfile",
     "type": "object"
    },
+   "Page_ReportRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/ReportRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[ReportRow]",
+    "type": "object"
+   },
+   "Page_dict_str__Any__": {
+    "properties": {
+     "data": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[dict[str, Any]]",
+    "type": "object"
+   },
    "PaidIn": {
     "properties": {
      "payment_method": {
@@ -13693,6 +13799,100 @@
     "title": "ReportCycle",
     "type": "string"
    },
+   "ReportRow": {
+    "description": "The report as the website's report pages select it.",
+    "properties": {
+     "child_reports": {
+      "items": {
+       "$ref": "#/components/schemas/_Child"
+      },
+      "title": "Child Reports",
+      "type": "array"
+     },
+     "content": {
+      "additionalProperties": true,
+      "title": "Content",
+      "type": "object"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/_Place"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "parent_report_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Report Id"
+     },
+     "period_end": {
+      "title": "Period End",
+      "type": "string"
+     },
+     "period_start": {
+      "title": "Period Start",
+      "type": "string"
+     },
+     "return_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Return Reason"
+     },
+     "scope_level": {
+      "$ref": "#/components/schemas/ScopeLevel"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReportStatus"
+     },
+     "submitter": {
+      "$ref": "#/components/schemas/_Person"
+     },
+     "type": {
+      "$ref": "#/components/schemas/ReportCycle"
+     }
+    },
+    "required": [
+     "id",
+     "type",
+     "scope_level",
+     "status",
+     "period_start",
+     "period_end",
+     "return_reason",
+     "content",
+     "submitter",
+     "country",
+     "parent_report_id",
+     "child_reports",
+     "created_at"
+    ],
+    "title": "ReportRow",
+    "type": "object"
+   },
    "ReportStatus": {
     "enum": [
      "draft",
@@ -16313,6 +16513,76 @@
      "data"
     ],
     "title": "Written",
+    "type": "object"
+   },
+   "_Child": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReportStatus"
+     },
+     "submitter": {
+      "$ref": "#/components/schemas/_Named"
+     }
+    },
+    "required": [
+     "id",
+     "status",
+     "submitter"
+    ],
+    "title": "_Child",
+    "type": "object"
+   },
+   "_Named": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name"
+    ],
+    "title": "_Named",
+    "type": "object"
+   },
+   "_Person": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name",
+     "id"
+    ],
+    "title": "_Person",
+    "type": "object"
+   },
+   "_Place": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "_Place",
     "type": "object"
    },
    "app__api__v1__accounts__VerifyIn": {
@@ -22350,6 +22620,179 @@
     ]
    }
   },
+  "/api/v1/inhouse/campaigns": {
+   "get": {
+    "description": "Every campaign, newest first and in any status, with only the\ncaller's countries' targets attached.",
+    "operationId": "inhouse_campaigns_api_v1_inhouse_campaigns_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Inhouse Campaigns",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/inhouse/overview": {
+   "get": {
+    "description": "The in-house supervisor's countries: recruiters and who has a daily\nreport covering today (UTC), the all-time candidate funnel, country\nreports awaiting review, each active target against its own country,\nand the country supervisors.",
+    "operationId": "inhouse_overview_api_v1_inhouse_overview_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Inhouse Overview",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/inhouse/supervisors": {
+   "get": {
+    "description": "The country supervisors across the caller's countries, by name, with\ntheir country's candidates and conversion over the period (all time by\ndefault) and their latest report period.",
+    "operationId": "inhouse_supervisors_api_v1_inhouse_supervisors_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Inhouse Supervisors",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/inhouse/supervisors/{supervisor_id}": {
+   "get": {
+    "description": "One country supervisor in the caller's countries, with their\ncountry's all-time candidates and conversion.",
+    "operationId": "inhouse_supervisor_api_v1_inhouse_supervisors__supervisor_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "supervisor_id",
+      "required": true,
+      "schema": {
+       "title": "Supervisor Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Inhouse Supervisor",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
   "/api/v1/jobs": {
    "get": {
     "description": "The public listing, as GET /api/jobs answered. Active jobs by\ndefault; \"public\" (the /jobs page) adds closed ones. A job manager's\nown list may also ask for draft, closed or all, and sort by title or\napplication count.",
@@ -23287,6 +23730,253 @@
     "summary": "Delete Article",
     "tags": [
      "content"
+    ]
+   }
+  },
+  "/api/v1/kpi": {
+   "get": {
+    "description": "The management dashboard: the KPI summary, a campaign's targets\nagainst actuals (if one is asked for), partner performance and cases by\nstage, over the period (the last 90 days by default). An in-house\nsupervisor is held to their own countries whatever the query says.",
+    "operationId": "kpi_dashboard_api_v1_kpi_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "region_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Region Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "recruiter_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Recruiter Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "campaign_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Campaign Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Kpi Dashboard",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/management/report-metrics": {
+   "get": {
+    "description": "Recruiters' and country supervisors' reporting as counts only (never\nthe content, which stays in-house's): submitted, verified, returned,\nand the latest period, for one cadence.",
+    "operationId": "report_metrics_api_v1_management_report_metrics_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cadence",
+      "required": false,
+      "schema": {
+       "$ref": "#/components/schemas/ReportCycle",
+       "default": "weekly"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Report Metrics",
+    "tags": [
+     "recruitment operations"
     ]
    }
   },
@@ -24444,6 +25134,77 @@
     ]
    }
   },
+  "/api/v1/recruiter-targets/progress": {
+   "get": {
+    "description": "The calling recruiter's allocations against their candidates in the\ngiven window (a report's period).",
+    "operationId": "recruiter_progress_api_v1_recruiter_targets_progress_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Recruiter Progress",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
   "/api/v1/referral-agent/candidates": {
    "get": {
     "description": "The agent's referred candidates, newest first, each with the stage of\nthe case behind their latest application.",
@@ -24966,6 +25727,51 @@
    }
   },
   "/api/v1/referral-agents/{agent_id}/targets": {
+   "get": {
+    "operationId": "referral_agent_targets_api_v1_referral_agents__agent_id__targets_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "agent_id",
+      "required": true,
+      "schema": {
+       "title": "Agent Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Referral Agent Targets",
+    "tags": [
+     "recruitment operations"
+    ]
+   },
    "post": {
     "operationId": "create_target_api_v1_referral_agents__agent_id__targets_post",
     "parameters": [
@@ -25444,6 +26250,171 @@
    }
   },
   "/api/v1/reports": {
+   "get": {
+    "description": "The reports the caller may see (report_scope), newest first, by\ncountry (a portfolio report matches by its submitter's countries),\ncycle, status, submitter, level, and submitter or country name.",
+    "operationId": "list_reports_api_v1_reports_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "country_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReportCycle"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ReportStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "recruiter_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Recruiter Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "scope_level",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/ScopeLevel"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Scope Level"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_ReportRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Reports",
+    "tags": [
+     "recruitment operations"
+    ]
+   },
    "post": {
     "description": "Submits a report at the caller's own scope, consolidating the given\nverified child reports into it.",
     "operationId": "submit_report_api_v1_reports_post",
@@ -25485,6 +26456,141 @@
      }
     ],
     "summary": "Submit Report",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/reports/consolidation-preview": {
+   "get": {
+    "description": "What the caller's weekly or monthly report for the period would\nconsolidate, without writing anything.",
+    "operationId": "consolidation_preview_api_v1_reports_consolidation_preview_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Consolidation Preview",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/reports/{report_id}": {
+   "get": {
+    "description": "One report, with the same scope as the list.",
+    "operationId": "get_report_api_v1_reports__report_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_ReportRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Report",
     "tags": [
      "recruitment operations"
     ]
@@ -25845,6 +26951,75 @@
    }
   },
   "/api/v1/staff-kpi-targets": {
+   "get": {
+    "description": "A staff member's KPI targets for a cycle against what they last\nreported (the caller's own by default): for themselves, or for whoever\nmay set their targets (targets.py's can_manage).",
+    "operationId": "staff_kpi_targets_api_v1_staff_kpi_targets_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "cycle",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cycle"
+      }
+     },
+     {
+      "in": "query",
+      "name": "staff_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Staff Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Staff Kpi Targets",
+    "tags": [
+     "recruitment operations"
+    ]
+   },
    "post": {
     "description": "Sets one KPI-row target for a direct report, keyed to a label their\nown report's KPI table uses for that cycle (creates or replaces it).",
     "operationId": "set_staff_kpi_target_api_v1_staff_kpi_targets_post",
@@ -26044,6 +27219,255 @@
      }
     ],
     "summary": "Finalize",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/supervisor/overview": {
+   "get": {
+    "description": "The supervisor's country: their recruiters, its candidates, those\nawaiting verification, recruiter reports awaiting review, and its\ntargets against actuals over the period.",
+    "operationId": "supervisor_overview_api_v1_supervisor_overview_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Supervisor Overview",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/supervisor/recruiters": {
+   "get": {
+    "description": "The caller's recruiters, by name, with candidates and conversion\nover the period (all time by default) and their latest report period.",
+    "operationId": "supervisor_recruiters_api_v1_supervisor_recruiters_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Supervisor Recruiters",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/supervisor/recruiters/{recruiter_id}": {
+   "get": {
+    "description": "One of the caller's recruiters: performance over the period (this\nmonth by default), targets against actuals, their country's active\ncampaign targets and their own allocations.",
+    "operationId": "supervisor_recruiter_api_v1_supervisor_recruiters__recruiter_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "recruiter_id",
+      "required": true,
+      "schema": {
+       "title": "Recruiter Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Supervisor Recruiter",
+    "tags": [
+     "recruitment operations"
+    ]
+   }
+  },
+  "/api/v1/supervisor/team-targets": {
+   "get": {
+    "description": "The caller's country's active campaign targets, their recruiters and\nthe allocations already set.",
+    "operationId": "supervisor_team_targets_api_v1_supervisor_team_targets_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Supervisor Team Targets",
     "tags": [
      "recruitment operations"
     ]

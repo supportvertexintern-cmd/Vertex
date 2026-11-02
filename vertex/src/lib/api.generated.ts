@@ -1304,6 +1304,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inhouse/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhouse Campaigns
+         * @description Every campaign, newest first and in any status, with only the
+         *     caller's countries' targets attached.
+         */
+        get: operations["inhouse_campaigns_api_v1_inhouse_campaigns_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inhouse/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhouse Overview
+         * @description The in-house supervisor's countries: recruiters and who has a daily
+         *     report covering today (UTC), the all-time candidate funnel, country
+         *     reports awaiting review, each active target against its own country,
+         *     and the country supervisors.
+         */
+        get: operations["inhouse_overview_api_v1_inhouse_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inhouse/supervisors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhouse Supervisors
+         * @description The country supervisors across the caller's countries, by name, with
+         *     their country's candidates and conversion over the period (all time by
+         *     default) and their latest report period.
+         */
+        get: operations["inhouse_supervisors_api_v1_inhouse_supervisors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inhouse/supervisors/{supervisor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Inhouse Supervisor
+         * @description One country supervisor in the caller's countries, with their
+         *     country's all-time candidates and conversion.
+         */
+        get: operations["inhouse_supervisor_api_v1_inhouse_supervisors__supervisor_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -1512,6 +1599,51 @@ export interface paths {
         post?: never;
         /** Delete Article */
         delete: operations["delete_article_api_v1_knowledge__article_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kpi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kpi Dashboard
+         * @description The management dashboard: the KPI summary, a campaign's targets
+         *     against actuals (if one is asked for), partner performance and cases by
+         *     stage, over the period (the last 90 days by default). An in-house
+         *     supervisor is held to their own countries whatever the query says.
+         */
+        get: operations["kpi_dashboard_api_v1_kpi_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/management/report-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report Metrics
+         * @description Recruiters' and country supervisors' reporting as counts only (never
+         *     the content, which stays in-house's): submitted, verified, returned,
+         *     and the latest period, for one cadence.
+         */
+        get: operations["report_metrics_api_v1_management_report_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1928,6 +2060,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recruiter-targets/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recruiter Progress
+         * @description The calling recruiter's allocations against their candidates in the
+         *     given window (a report's period).
+         */
+        get: operations["recruiter_progress_api_v1_recruiter_targets_progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/referral-agent/candidates": {
         parameters: {
             query?: never;
@@ -2166,7 +2319,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Referral Agent Targets */
+        get: operations["referral_agent_targets_api_v1_referral_agents__agent_id__targets_get"];
         put?: never;
         /** Create Target */
         post: operations["create_target_api_v1_referral_agents__agent_id__targets_post"];
@@ -2307,7 +2461,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Reports
+         * @description The reports the caller may see (report_scope), newest first, by
+         *     country (a portfolio report matches by its submitter's countries),
+         *     cycle, status, submitter, level, and submitter or country name.
+         */
+        get: operations["list_reports_api_v1_reports_get"];
         put?: never;
         /**
          * Submit Report
@@ -2315,6 +2475,47 @@ export interface paths {
          *     verified child reports into it.
          */
         post: operations["submit_report_api_v1_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/consolidation-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consolidation Preview
+         * @description What the caller's weekly or monthly report for the period would
+         *     consolidate, without writing anything.
+         */
+        get: operations["consolidation_preview_api_v1_reports_consolidation_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report
+         * @description One report, with the same scope as the list.
+         */
+        get: operations["get_report_api_v1_reports__report_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2458,7 +2659,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Staff Kpi Targets
+         * @description A staff member's KPI targets for a cycle against what they last
+         *     reported (the caller's own by default): for themselves, or for whoever
+         *     may set their targets (targets.py's can_manage).
+         */
+        get: operations["staff_kpi_targets_api_v1_staff_kpi_targets_get"];
         put?: never;
         /**
          * Set Staff Kpi Target
@@ -2518,6 +2725,92 @@ export interface paths {
          *     its author (or admin) finalizes it, and only once every area is rated.
          */
         patch: operations["finalize_api_v1_staff_scorecards__scorecard_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/supervisor/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supervisor Overview
+         * @description The supervisor's country: their recruiters, its candidates, those
+         *     awaiting verification, recruiter reports awaiting review, and its
+         *     targets against actuals over the period.
+         */
+        get: operations["supervisor_overview_api_v1_supervisor_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/supervisor/recruiters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supervisor Recruiters
+         * @description The caller's recruiters, by name, with candidates and conversion
+         *     over the period (all time by default) and their latest report period.
+         */
+        get: operations["supervisor_recruiters_api_v1_supervisor_recruiters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/supervisor/recruiters/{recruiter_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supervisor Recruiter
+         * @description One of the caller's recruiters: performance over the period (this
+         *     month by default), targets against actuals, their country's active
+         *     campaign targets and their own allocations.
+         */
+        get: operations["supervisor_recruiter_api_v1_supervisor_recruiters__recruiter_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/supervisor/team-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supervisor Team Targets
+         * @description The caller's country's active campaign targets, their recruiters and
+         *     the allocations already set.
+         */
+        get: operations["supervisor_team_targets_api_v1_supervisor_team_targets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/users": {
@@ -4075,6 +4368,10 @@ export interface components {
         Data_RegionOut_: {
             data: components["schemas"]["RegionOut"];
         };
+        /** Data[ReportRow] */
+        Data_ReportRow_: {
+            data: components["schemas"]["ReportRow"];
+        };
         /** Data[RetentionRow] */
         Data_RetentionRow_: {
             data: components["schemas"]["RetentionRow"];
@@ -4127,6 +4424,13 @@ export interface components {
         /** Data[Updated] */
         Data_Updated_: {
             data: components["schemas"]["Updated"];
+        };
+        /** Data[dict[str, Any]] */
+        Data_dict_str__Any__: {
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
         };
         /** Data[dict[str, str]] */
         Data_dict_str__str__: {
@@ -4244,6 +4548,13 @@ export interface components {
         Data_list_TemplateOut__: {
             /** Data */
             data: components["schemas"]["TemplateOut"][];
+        };
+        /** Data[list[dict[str, Any]]] */
+        Data_list_dict_str__Any___: {
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            }[];
         };
         /** DecideIn */
         DecideIn: {
@@ -5233,6 +5544,30 @@ export interface components {
             status: components["schemas"]["ReferralAgentStatus"];
             /** Total Referrals */
             total_referrals: number;
+        };
+        /** Page[ReportRow] */
+        Page_ReportRow_: {
+            /** Data */
+            data: components["schemas"]["ReportRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[dict[str, Any]] */
+        Page_dict_str__Any__: {
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            }[];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
         };
         /** PaidIn */
         PaidIn: {
@@ -6253,6 +6588,35 @@ export interface components {
          */
         ReportCycle: "daily" | "weekly" | "monthly";
         /**
+         * ReportRow
+         * @description The report as the website's report pages select it.
+         */
+        ReportRow: {
+            /** Child Reports */
+            child_reports: components["schemas"]["_Child"][];
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+            country: components["schemas"]["_Place"] | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Parent Report Id */
+            parent_report_id: string | null;
+            /** Period End */
+            period_end: string;
+            /** Period Start */
+            period_start: string;
+            /** Return Reason */
+            return_reason: string | null;
+            scope_level: components["schemas"]["ScopeLevel"];
+            status: components["schemas"]["ReportStatus"];
+            submitter: components["schemas"]["_Person"];
+            type: components["schemas"]["ReportCycle"];
+        };
+        /**
          * ReportStatus
          * @enum {string}
          */
@@ -6945,6 +7309,32 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
             privilege_granted?: components["schemas"]["Granted"] | null;
+        };
+        /** _Child */
+        _Child: {
+            /** Id */
+            id: string;
+            status: components["schemas"]["ReportStatus"];
+            submitter: components["schemas"]["_Named"];
+        };
+        /** _Named */
+        _Named: {
+            /** Full Name */
+            full_name: string;
+        };
+        /** _Person */
+        _Person: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+        };
+        /** _Place */
+        _Place: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** VerifyIn */
         app__api__v1__accounts__VerifyIn: {
@@ -9877,6 +10267,109 @@ export interface operations {
             };
         };
     };
+    inhouse_campaigns_api_v1_inhouse_campaigns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+        };
+    };
+    inhouse_overview_api_v1_inhouse_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+        };
+    };
+    inhouse_supervisors_api_v1_inhouse_supervisors_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_dict_str__Any___"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inhouse_supervisor_api_v1_inhouse_supervisors__supervisor_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                supervisor_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_public_jobs_api_v1_jobs_get: {
         parameters: {
             query?: {
@@ -10354,6 +10847,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_dict_str__str__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    kpi_dashboard_api_v1_kpi_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+                country_id?: string | null;
+                region_id?: string | null;
+                recruiter_id?: string | null;
+                campaign_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_metrics_api_v1_management_report_metrics_get: {
+        parameters: {
+            query?: {
+                cadence?: components["schemas"]["ReportCycle"];
+                country_id?: string | null;
+                q?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_dict_str__Any__"];
                 };
             };
             /** @description Validation Error */
@@ -11118,6 +11682,38 @@ export interface operations {
             };
         };
     };
+    recruiter_progress_api_v1_recruiter_targets_progress_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_dict_str__Any___"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     own_candidates_api_v1_referral_agent_candidates_get: {
         parameters: {
             query?: never;
@@ -11458,6 +12054,37 @@ export interface operations {
             };
         };
     };
+    referral_agent_targets_api_v1_referral_agents__agent_id__targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_dict_str__Any___"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     create_target_api_v1_referral_agents__agent_id__targets_post: {
         parameters: {
             query?: never;
@@ -11744,6 +12371,44 @@ export interface operations {
             };
         };
     };
+    list_reports_api_v1_reports_get: {
+        parameters: {
+            query?: {
+                country_id?: string | null;
+                type?: components["schemas"]["ReportCycle"] | null;
+                status?: components["schemas"]["ReportStatus"] | null;
+                recruiter_id?: string | null;
+                scope_level?: components["schemas"]["ScopeLevel"] | null;
+                q?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ReportRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     submit_report_api_v1_reports_post: {
         parameters: {
             query?: never;
@@ -11764,6 +12429,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_SubmittedOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consolidation_preview_api_v1_reports_consolidation_preview_get: {
+        parameters: {
+            query?: {
+                type?: string | null;
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_api_v1_reports__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_ReportRow_"];
                 };
             };
             /** @description Validation Error */
@@ -12015,6 +12744,38 @@ export interface operations {
             };
         };
     };
+    staff_kpi_targets_api_v1_staff_kpi_targets_get: {
+        parameters: {
+            query?: {
+                cycle?: string | null;
+                staff_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_dict_str__Any___"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_staff_kpi_target_api_v1_staff_kpi_targets_post: {
         parameters: {
             query?: never;
@@ -12143,6 +12904,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supervisor_overview_api_v1_supervisor_overview_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supervisor_recruiters_api_v1_supervisor_recruiters_get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_dict_str__Any___"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supervisor_recruiter_api_v1_supervisor_recruiters__recruiter_id__get: {
+        parameters: {
+            query?: {
+                period_start?: string | null;
+                period_end?: string | null;
+            };
+            header?: never;
+            path: {
+                recruiter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    supervisor_team_targets_api_v1_supervisor_team_targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_dict_str__Any__"];
                 };
             };
         };

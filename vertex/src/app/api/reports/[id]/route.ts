@@ -1,43 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { getReportScopeFilter } from "@/server/services/reportWorkflow";
+import { backendResponse, callBackend } from "@/lib/backend";
+import { seg } from "@/lib/pipeline";
 
-const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
-
-// GET /api/reports/:id — single-report detail view, same scoping as the
-// paginated list (see getReportScopeFilter) so the two can never drift
-// apart — powers each portal's report detail page.
+// GET /api/reports/:id — one report, with the same scoping as the list.
+// Read from FastAPI since reads handover R3 (vertex_be/app/api/v1/dashboards.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, [...STAFF_ROLES]);
+  const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"]);
   if (guardRes) return guardRes;
-
   const { id } = await params;
-  const scope = await getReportScopeFilter(user!);
 
-  const report = await prisma.report.findFirst({
-    where: { AND: [{ id }, scope] },
-    select: {
-      id: true,
-      type: true,
-      scope_level: true,
-      status: true,
-      period_start: true,
-      period_end: true,
-      return_reason: true,
-      content: true,
-      submitter: { select: { id: true, full_name: true } },
-      country: { select: { id: true, name: true } },
-      parent_report_id: true,
-      child_reports: { select: { id: true, status: true, submitter: { select: { full_name: true } } } },
-      created_at: true,
-    },
-  });
-
-  if (!report) {
-    return NextResponse.json({ error: { code: "not_found", message: "Report not found." } }, { status: 404 });
-  }
-
-  return NextResponse.json({ data: report });
+  return backendResponse(await callBackend(`/api/v1/reports/${seg(id)}`));
 }

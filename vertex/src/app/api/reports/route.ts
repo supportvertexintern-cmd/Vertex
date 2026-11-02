@@ -1,92 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
-import { getReportScopeFilter } from "@/server/services/reportWorkflow";
-import type { Prisma } from "@prisma/client";
+import { queryOf } from "@/lib/pipeline";
 
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"] as const;
-const MAX_PAGE_SIZE = 200;
 
-// GET /api/reports — role-scoped (SRS FR-3.4, FR-3.7 escalation path):
-// a recruiter sees their own; a supervisor sees their own country
-// reports plus their recruiters' submissions awaiting review; in-house/
-// director/admin see everything, filterable by country/type/status.
+// GET /api/reports — the reports the caller may see (a recruiter their own; a
+// country supervisor their own and their country's recruiter reports; an
+// In-House Supervisor their countries' and their own portfolio reports; a
+// director only In-House reports; admin all), filterable by country, type,
+// status, submitter, scope level and name; answers { data, total, page,
+// pageSize }. Read from FastAPI since reads handover R3 (vertex_be/app/api/v1/dashboards.py).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...STAFF_ROLES]);
   if (guardRes) return guardRes;
 
-  const { searchParams } = req.nextUrl;
-  const countryId = searchParams.get("country_id") ?? undefined;
-  const type = searchParams.get("type") ?? undefined;
-  const status = searchParams.get("status") ?? undefined;
-  const recruiterId = searchParams.get("recruiter_id") ?? undefined;
-  const scopeLevelParam = searchParams.get("scope_level") ?? undefined;
-  const q = searchParams.get("q") ?? undefined;
-
-  const where = await getReportScopeFilter(user!);
-
-  const combinedWhere: Prisma.ReportWhereInput = {
-    AND: [
-      where,
-      // An inhouse-scope report has no country_id of its own (portfolio
-      // across several countries) — matching one requires checking the
-      // submitter's assigned countries instead, so this needs to be an OR
-      // rather than a plain equality to keep working for country_id
-      // filters applied to a mix of country- and inhouse-scope reports
-      // (e.g. Director's portfolio-reports table, filterable by country).
-      countryId
-        ? { OR: [{ country_id: countryId }, { submitter: { inhouse_country_assignments: { some: { country_id: countryId } } } }] }
-        : {},
-      type ? { type: type as never } : {},
-      status ? { status: status as never } : {},
-      recruiterId ? { submitted_by: recruiterId } : {},
-      scopeLevelParam ? { scope_level: scopeLevelParam as never } : {},
-      q
-        ? {
-            OR: [
-              { submitter: { full_name: { contains: q, mode: "insensitive" } } },
-              { country: { name: { contains: q, mode: "insensitive" } } },
-            ],
-          }
-        : {},
-    ],
-  };
-
-  // Paginated, defaulting to page 1 / 50 rows even without params — a
-  // director/admin's unrestricted view (or a country's accumulated
-  // history over months) is otherwise a fully unbounded findMany at
-  // 40-country/800-recruiter scale.
-  const page = Math.max(1, Number(searchParams.get("page")) || 1);
-  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(searchParams.get("pageSize")) || 50));
-
-  const [reports, total] = await Promise.all([
-    prisma.report.findMany({
-      where: combinedWhere,
-      select: {
-        id: true,
-        type: true,
-        scope_level: true,
-        status: true,
-        period_start: true,
-        period_end: true,
-        return_reason: true,
-        content: true,
-        submitter: { select: { id: true, full_name: true } },
-        country: { select: { id: true, name: true } },
-        parent_report_id: true,
-        child_reports: { select: { id: true, status: true, submitter: { select: { full_name: true } } } },
-        created_at: true,
-      },
-      orderBy: { created_at: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.report.count({ where: combinedWhere }),
-  ]);
-
-  return NextResponse.json({ data: reports, total, page, pageSize });
+  const query = queryOf(req, ["country_id", "type", "status", "recruiter_id", "scope_level", "q", "page", "pageSize"]);
+  return backendResponse(await callBackend("/api/v1/reports", { query }));
 }
 
 // POST /api/reports — submit a new report (SRS FR-3.4; Supervisory

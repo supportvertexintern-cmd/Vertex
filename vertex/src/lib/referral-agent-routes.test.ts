@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Referral-agent targets are saved by FastAPI since users and sessions step
-// 8.1: the POST checks the role early and passes the request on; the
-// target-vs-actual GET still reads here. callBackend() itself is tested in
+// 8.1, and read from it since reads handover R3: both handlers check the
+// role early and pass the request on. callBackend() itself is tested in
 // lib/backend.test.ts.
 
 const state = vi.hoisted(() => ({ role: "director" as string | null }));
@@ -22,9 +22,6 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
 
-const actuals = vi.fn();
-vi.mock("@/server/services/kpi", () => ({ computeReferralAgentTargetsVsActuals: (...args: unknown[]) => actuals(...args) }));
-
 import * as targets from "@/app/api/admin/referral-agents/[id]/targets/route";
 
 const ctx = { params: Promise.resolve({ id: "agent1" }) };
@@ -35,7 +32,6 @@ const row = { id: "t1", referral_agent_id: "agent1", target_referrals: 12 };
 beforeEach(() => {
   state.role = "director";
   callBackend.mockReset();
-  actuals.mockReset();
 });
 
 describe("referral-agent targets (step 8.1)", () => {
@@ -65,11 +61,11 @@ describe("referral-agent targets (step 8.1)", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it("the target-vs-actual read stays here", async () => {
-    actuals.mockResolvedValueOnce([{ period_start: "2026-11-01", target: 12, actual: 3 }]);
+  it("the target-vs-actual read passes on to FastAPI", async () => {
+    const rows = [{ targetId: "t1", periodStart: "2026-11-01T00:00:00.000Z", targetReferrals: 12, actualReferrals: 3 }];
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: rows } });
     const res = await targets.GET(new NextRequest("http://localhost/api/admin/referral-agents/agent1/targets"), ctx);
-    expect(actuals).toHaveBeenCalledWith("agent1");
-    expect(await res.json()).toEqual({ data: [{ period_start: "2026-11-01", target: 12, actual: 3 }] });
-    expect(callBackend).not.toHaveBeenCalled();
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/agent1/targets");
+    expect(await res.json()).toEqual({ data: rows });
   });
 });
