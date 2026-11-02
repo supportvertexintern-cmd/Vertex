@@ -45,21 +45,22 @@ services:
       DATABASE_URL: postgresql://vertex_api:${DB_API_PASSWORD:?DB_API_PASSWORD is required}@db:5432/${POSTGRES_DB}
       MIGRATION_DATABASE_URL: postgresql://vertex_migrator:${DB_MIGRATOR_PASSWORD:?DB_MIGRATOR_PASSWORD is required}@db:5432/${POSTGRES_DB}
       SECRET_KEY: ${SECRET_KEY}
-      # Shared with the web app: FastAPI issues sessions (users step 8.2)
-      # and the website still verifies them (exception E8).
+      # Shared with the web app, for the tokens it still signs itself
+      # (candidate invites, uploads, documents). Never sessions or account
+      # links since session keys K3.
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      # Next.js's credential when it calls this service (G18). Required
-      # outside development (app/core/config.py); _PREVIOUS only while
-      # rotating it.
-      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
+      # Next.js's credential when it calls this service (G18). Required on
+      # every stack: without it every call the website passes on fails.
+      # _PREVIOUS only while rotating it.
+      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:?SERVICE_AUTH_SECRET is required}
       SERVICE_AUTH_SECRET_PREVIOUS: ${SERVICE_AUTH_SECRET_PREVIOUS:-}
-      # Session keys (session-keys-handover.md, E8), written by
+      # Session keys (session-keys-handover.md), written by
       # deploy/session-keys.sh. The private key and the account-link secret
       # are this service's alone; the public keys are shared with Next.js.
-      # Checked at startup. Unset = today's shared-key sessions only.
-      SESSION_PRIVATE_KEY: ${SESSION_PRIVATE_KEY:-}
-      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:-}
-      ACCOUNT_LINK_SECRET: ${ACCOUNT_LINK_SECRET:-}
+      # Required on every stack since K3: without them nobody can sign in.
+      SESSION_PRIVATE_KEY: ${SESSION_PRIVATE_KEY:?SESSION_PRIVATE_KEY is required (deploy/session-keys.sh)}
+      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:?SESSION_PUBLIC_KEYS is required (deploy/session-keys.sh)}
+      ACCOUNT_LINK_SECRET: ${ACCOUNT_LINK_SECRET:?ACCOUNT_LINK_SECRET is required (deploy/session-keys.sh)}
       # The same Stripe account as the web app's: FastAPI syncs each job
       # payment stage's Product and Price (step 3.2). Unset = no sync.
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
@@ -178,11 +179,11 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # To verify the sessions FastAPI signs with its private key (never
       # given here; session-keys-handover.md).
-      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:-}
+      SESSION_PUBLIC_KEYS: ${SESSION_PUBLIC_KEYS:?SESSION_PUBLIC_KEYS is required (deploy/session-keys.sh)}
       # callBackend() (lib/backend.ts): FastAPI on the stack's own network,
       # and the credential it signs each call with (G18).
       BACKEND_URL: http://backend:8000
-      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:-}
+      SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:?SERVICE_AUTH_SECRET is required}
       # Origins allowed to call the app sign-in routes (lib/app-auth.ts):
       # the Flutter web build. Native apps send no Origin.
       APP_ORIGINS: ${APP_ORIGINS:-}
