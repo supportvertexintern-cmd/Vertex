@@ -97,6 +97,17 @@ settings and secrets. They are not in Git in any form; keep a secure backup.
 The runner reads them from `LOCAL_ENV_DIR`
 (default `D:/Django Projects/vertex_main/vertex_be`; override with a repo variable).
 
+Besides the settings each section below names, every env file needs:
+
+- `SERVICE_AUTH_SECRET`: a random 32+ character secret (`openssl rand -hex 32`),
+  the website's credential when it calls FastAPI. Never the same as `JWT_SECRET`.
+- `SESSION_PRIVATE_KEY`, `SESSION_PUBLIC_KEYS` and `ACCOUNT_LINK_SECRET`:
+  written, never printed, by `bash deploy/session-keys.sh .env.<stack>`
+  (`docs/security/session-management.md` §5 for rotating them).
+
+A deploy without one of these stops with "... is required" before anything
+starts, on every stack, `dev` included.
+
 ### 2. Self-hosted runner
 
 GitHub → repo **Settings → Actions → Runners → New self-hosted runner → Windows**.
