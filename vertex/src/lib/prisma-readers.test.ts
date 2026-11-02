@@ -12,22 +12,6 @@ import { describe, expect, it } from "vitest";
 const SRC = path.resolve(__dirname, "..");
 
 const STILL_READING: Record<string, string[]> = {
-  "R3 recruitment operations and KPIs": [
-    "app/api/inhouse/campaigns/route.ts",
-    "app/api/inhouse/overview/route.ts",
-    "app/api/management/report-metrics/route.ts",
-    "app/api/reports/[id]/route.ts",
-    "app/api/reports/consolidation-preview/route.ts",
-    "app/api/reports/route.ts",
-    "app/api/staff-kpi-targets/route.ts",
-    "app/api/supervisor/overview/route.ts",
-    "app/api/supervisor/recruiters/[id]/route.ts",
-    "app/api/supervisor/recruiters/route.ts",
-    "app/api/supervisor/team-targets/route.ts",
-    "server/services/kpi.ts",
-    "server/services/reportConsolidation.ts",
-    "server/services/reportWorkflow.ts",
-  ],
   "R4 candidate pipeline, part 1": [
     "app/api/applications/[id]/route.ts",
     "app/api/applications/route.ts",
@@ -59,8 +43,6 @@ const STILL_READING: Record<string, string[]> = {
     "app/api/cases/[id]/payments/route.ts",
     "app/api/consultation-bookings/route.ts",
     "app/api/finance/payments-due/route.ts",
-    "app/api/inhouse/supervisors/[id]/route.ts",
-    "app/api/inhouse/supervisors/route.ts",
     "app/api/payments/me/route.ts",
   ],
   "R7 cross-cutting": [

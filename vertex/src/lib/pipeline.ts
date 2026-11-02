@@ -113,6 +113,10 @@ export async function passOn(path: string, call: CallBackendOptions, options: Pa
 /** A path segment from a route parameter, encoded. */
 export const seg = (value: string) => encodeURIComponent(value);
 
+/** The request's query parameters named, to pass on (an empty one is left out). */
+export const queryOf = (req: NextRequest, keys: readonly string[]) =>
+  Object.fromEntries(keys.map((key) => [key, req.nextUrl.searchParams.get(key) || undefined]));
+
 /** The request's JSON body, or the 400 an unreadable one gets. */
 export async function readJson(req: NextRequest, legacyErrors = false): Promise<{ body: unknown; invalid?: undefined } | { invalid: NextResponse }> {
   try {

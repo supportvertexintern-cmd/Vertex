@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { backendResponse, callBackend } from "@/lib/backend";
 import { passOn, readJson, seg } from "@/lib/pipeline";
 import { REFERRAL_AGENT_MANAGER_ROLES } from "@/lib/rbac";
-import { computeReferralAgentTargetsVsActuals } from "@/server/services/kpi";
 
 // GET /api/admin/referral-agents/:id/targets — target-vs-actual for every
-// period this agent has a target set for.
+// period this agent has a target set for. Read from FastAPI since reads
+// handover R3 (vertex_be/app/api/v1/dashboards.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, REFERRAL_AGENT_MANAGER_ROLES);
   if (guardRes) return guardRes;
 
   const { id } = await params;
-  const data = await computeReferralAgentTargetsVsActuals(id);
-  return NextResponse.json({ data });
+  return backendResponse(await callBackend(`/api/v1/referral-agents/${seg(id)}/targets`));
 }
 
 // POST /api/admin/referral-agents/:id/targets — Director/Admin sets a new

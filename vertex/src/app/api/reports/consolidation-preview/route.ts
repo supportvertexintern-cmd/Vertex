@@ -1,48 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
-import { previewCountryConsolidation, previewInhouseConsolidation } from "@/server/services/reportConsolidation";
-import { getInhouseAssignedCountryIds } from "@/server/scope";
-import type { ReportCycle } from "@prisma/client";
+import { backendResponse, callBackend } from "@/lib/backend";
+import { queryOf } from "@/lib/pipeline";
 
 // GET /api/reports/consolidation-preview?type=weekly|monthly&period_start=&period_end=
-// The first step of the supervisor/in-house-initiated "Create Report"
-// flow (Supervisory Reporting Framework §4.2/§4.3, §5.2/§5.3): given a
-// type and an exact period, computes what a consolidated report's
-// content would look like from the verified source reports for that
-// period — without writing anything. The caller reviews this, fills in
-// whatever manual-only fields the template needs, and submits explicitly
-// via POST /api/reports.
+// What the caller's consolidated report for the period would contain, from
+// the verified source reports, without writing anything (Supervisory
+// Reporting Framework §4.2/§4.3, §5.2/§5.3). The caller then submits it
+// with POST /api/reports.
+// Read from FastAPI since reads handover R3 (vertex_be/app/api/v1/dashboards.py).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, ["country_supervisor", "inhouse_supervisor", "admin"]);
   if (guardRes) return guardRes;
 
-  const type = req.nextUrl.searchParams.get("type") as ReportCycle | null;
-  const periodStart = req.nextUrl.searchParams.get("period_start");
-  const periodEnd = req.nextUrl.searchParams.get("period_end");
-
-  if (!type || type === "daily" || !periodStart || !periodEnd) {
-    return NextResponse.json(
-      { error: { code: "validation_error", message: "type (weekly or monthly), period_start, and period_end are required." } },
-      { status: 422 }
-    );
-  }
-
-  if (user!.role === "inhouse_supervisor") {
-    const countryIds = await getInhouseAssignedCountryIds(user!.userId);
-    if (!countryIds.length) {
-      return NextResponse.json({ error: { code: "no_country", message: "You must be assigned a country first." } }, { status: 422 });
-    }
-    const preview = await previewInhouseConsolidation(user!.userId, countryIds, type, new Date(periodStart), new Date(periodEnd));
-    return NextResponse.json({ data: preview });
-  }
-
-  const staff = await prisma.user.findUnique({ where: { id: user!.userId }, select: { assigned_country_id: true } });
-  if (!staff?.assigned_country_id) {
-    return NextResponse.json({ error: { code: "no_country", message: "You must be assigned a country first." } }, { status: 422 });
-  }
-
-  const preview = await previewCountryConsolidation(staff.assigned_country_id, type, new Date(periodStart), new Date(periodEnd));
-  return NextResponse.json({ data: preview });
+  return backendResponse(await callBackend("/api/v1/reports/consolidation-preview", { query: queryOf(req, ["type", "period_start", "period_end"]) }));
 }
