@@ -647,6 +647,71 @@ export interface paths {
         patch: operations["set_status_api_v1_candidates__candidate_id__status_patch"];
         trace?: never;
     };
+    "/api/v1/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cases
+         * @description The caller's cases (case_scope), active ones unless status is "all"
+         *     or "rejected", filtered, searched, sorted and paged, optionally with the
+         *     opportunity filter options.
+         */
+        get: operations["list_cases_api_v1_cases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Case
+         * @description A case the caller may see: its candidate and documents, stage
+         *     history, contract, payments and retention follow-up.
+         */
+        get: operations["get_case_api_v1_cases__case_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cases/{case_id}/audit-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Case History
+         * @description A case's history, oldest first: what the audit trail recorded on the
+         *     case and its stage events, contract, payments and retention follow-up
+         *     (vertex_case_trail, without the snapshots), and the reminders sent.
+         */
+        get: operations["case_history_api_v1_cases__case_id__audit_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cases/{case_id}/contract": {
         parameters: {
             query?: never;
@@ -654,7 +719,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Contract
+         * @description The case's contract, for anyone who may see the case.
+         */
+        get: operations["get_contract_api_v1_cases__case_id__contract_get"];
         put?: never;
         /**
          * Issue Contract
@@ -1176,6 +1245,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Document Link
+         * @description The website asks before it signs a short-lived download link for a
+         *     signed-in user: may they see this document (can_access_document)? The
+         *     answer is the file's storage key, for the website alone, which holds
+         *     the link key; the issue is on the audit trail.
+         */
+        get: operations["document_link_api_v1_documents__document_id__link_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/verify": {
         parameters: {
             query?: never;
@@ -1271,7 +1363,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Exceptions
+         * @description Exceptions, newest first: a recruiter's own; a country or in-house
+         *     supervisor's own and their countries'; everything for director and
+         *     admin. Filtered, searched and paged.
+         */
+        get: operations["list_exceptions_api_v1_exceptions_get"];
         put?: never;
         /**
          * Raise Exception
@@ -2553,6 +2651,28 @@ export interface paths {
         head?: never;
         /** Rename Region */
         patch: operations["rename_region_api_v1_regions__region_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/rejected-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rejected Submissions
+         * @description Everything rejected the caller may see, newest rejection first:
+         *     cases in their scope; partner submissions for HR and operations; self
+         *     submissions for HR, unless a rejected case already shows them.
+         */
+        get: operations["rejected_submissions_api_v1_rejected_submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/reports": {
@@ -9279,6 +9399,152 @@ export interface operations {
             };
         };
     };
+    list_cases_api_v1_cases_get: {
+        parameters: {
+            query?: {
+                stage?: string | null;
+                country_id?: string | null;
+                candidate_id?: string | null;
+                q?: string | null;
+                partner_id?: string | null;
+                source?: string | null;
+                country?: string | null;
+                programme?: string | null;
+                programmeCountry?: string | null;
+                filterOptions?: string | null;
+                status?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+                sortBy?: string | null;
+                sortDir?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_case_api_v1_cases__case_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    case_history_api_v1_cases__case_id__audit_log_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_contract_api_v1_cases__case_id__contract_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     issue_contract_api_v1_cases__case_id__contract_post: {
         parameters: {
             query?: never;
@@ -10202,6 +10468,39 @@ export interface operations {
             };
         };
     };
+    document_link_api_v1_documents__document_id__link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     verify_api_v1_documents__document_id__verify_patch: {
         parameters: {
             query?: never;
@@ -10396,6 +10695,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_EmployerClientOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exceptions_api_v1_exceptions_get: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                escalation_level?: string | null;
+                category?: string | null;
+                q?: string | null;
+                page?: string | null;
+                pageSize?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -12799,6 +13136,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rejected_submissions_api_v1_rejected_submissions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

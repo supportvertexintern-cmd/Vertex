@@ -58,6 +58,9 @@ ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'tru
 ok "vertex_web: SELECT password_hash" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
 ok "vertex_web: UPDATE User" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "User" set email = email where false')" "permission denied"
 ok "vertex_api: read AuditLog (Phase 10)" "$(net vertex_api "$(v DB_API_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
+# Reads handover R5: a case's history through a function, without the snapshots.
+ok "vertex_api: a case's trail (0008)" "$( [ -n "$(net vertex_api "$(v DB_API_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" ] && echo allowed)" allowed
+ok "vertex_web: a case's trail (0008)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" "permission denied"
 ok "vertex_web: disable AuditLog triggers" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
 # Object storage (MinIO). The app's key is handed to a throwaway `mc` through

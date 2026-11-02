@@ -21051,7 +21051,436 @@
     ]
    }
   },
+  "/api/v1/cases": {
+   "get": {
+    "description": "The caller's cases (case_scope), active ones unless status is \"all\"\nor \"rejected\", filtered, searched, sorted and paged, optionally with the\nopportunity filter options.",
+    "operationId": "list_cases_api_v1_cases_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "stage",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Stage"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "candidate_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Candidate Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "partner_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Partner Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "source",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Source"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programme",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programme"
+      }
+     },
+     {
+      "in": "query",
+      "name": "programmeCountry",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Programmecountry"
+      }
+     },
+     {
+      "in": "query",
+      "name": "filterOptions",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Filteroptions"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortBy",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortby"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortDir",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortdir"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Cases Api V1 Cases Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Cases",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/cases/{case_id}": {
+   "get": {
+    "description": "A case the caller may see: its candidate and documents, stage\nhistory, contract, payments and retention follow-up.",
+    "operationId": "get_case_api_v1_cases__case_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "case_id",
+      "required": true,
+      "schema": {
+       "title": "Case Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Case Api V1 Cases  Case Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Case",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/cases/{case_id}/audit-log": {
+   "get": {
+    "description": "A case's history, oldest first: what the audit trail recorded on the\ncase and its stage events, contract, payments and retention follow-up\n(vertex_case_trail, without the snapshots), and the reminders sent.",
+    "operationId": "case_history_api_v1_cases__case_id__audit_log_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "case_id",
+      "required": true,
+      "schema": {
+       "title": "Case Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Case History Api V1 Cases  Case Id  Audit Log Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Case History",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
   "/api/v1/cases/{case_id}/contract": {
+   "get": {
+    "description": "The case's contract, for anyone who may see the case.",
+    "operationId": "get_contract_api_v1_cases__case_id__contract_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "case_id",
+      "required": true,
+      "schema": {
+       "title": "Case Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Contract Api V1 Cases  Case Id  Contract Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Contract",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "post": {
     "description": "POST /api/cases/[id]/contract: Operations issue the contract, sent\nfor the candidate to sign in the portal.",
     "operationId": "issue_contract_api_v1_cases__case_id__contract_post",
@@ -22596,6 +23025,56 @@
     ]
    }
   },
+  "/api/v1/documents/{document_id}/link": {
+   "get": {
+    "description": "The website asks before it signs a short-lived download link for a\nsigned-in user: may they see this document (can_access_document)? The\nanswer is the file's storage key, for the website alone, which holds\nthe link key; the issue is on the audit trail.",
+    "operationId": "document_link_api_v1_documents__document_id__link_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "document_id",
+      "required": true,
+      "schema": {
+       "title": "Document Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Document Link Api V1 Documents  Document Id  Link Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Document Link",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
   "/api/v1/documents/{document_id}/verify": {
    "patch": {
     "description": "PATCH /api/documents/[id]/verify (SRS FR-2.7). Rejecting a partner\nsubmission's document doesn't touch the submission's status: the partner\nreplaces the file.",
@@ -22901,6 +23380,141 @@
    }
   },
   "/api/v1/exceptions": {
+   "get": {
+    "description": "Exceptions, newest first: a recruiter's own; a country or in-house\nsupervisor's own and their countries'; everything for director and\nadmin. Filtered, searched and paged.",
+    "operationId": "list_exceptions_api_v1_exceptions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "escalation_level",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Escalation Level"
+      }
+     },
+     {
+      "in": "query",
+      "name": "category",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Category"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Pagesize"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response List Exceptions Api V1 Exceptions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Exceptions",
+    "tags": [
+     "candidate pipeline"
+    ]
+   },
    "post": {
     "description": "POST /api/exceptions: any staff role, at any time, independent of\nthe reporting cadence. It starts at the raiser's tier.",
     "operationId": "raise_exception_api_v1_exceptions_post",
@@ -27079,6 +27693,35 @@
     "summary": "Rename Region",
     "tags": [
      "reference data"
+    ]
+   }
+  },
+  "/api/v1/rejected-submissions": {
+   "get": {
+    "description": "Everything rejected the caller may see, newest rejection first:\ncases in their scope; partner submissions for HR and operations; self\nsubmissions for HR, unless a rejected case already shows them.",
+    "operationId": "rejected_submissions_api_v1_rejected_submissions_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Rejected Submissions Api V1 Rejected Submissions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Rejected Submissions",
+    "tags": [
+     "candidate pipeline"
     ]
    }
   },

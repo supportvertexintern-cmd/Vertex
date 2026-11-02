@@ -50,7 +50,6 @@ import { forbidden, getAuthUser, requireRole } from "@/lib/api-auth";
 import { setLogSink } from "@/lib/log";
 import { resetAlertDedupe } from "@/lib/security-monitor";
 import { POST as login } from "@/app/api/auth/login/route";
-import { GET as issueLink } from "@/app/api/documents/[id]/signed-url/route";
 import { GET as openFile } from "@/app/api/documents/file/route";
 // As behind the stack's edge proxy (lib/client-ip.ts).
 process.env.TRUST_PROXY_HEADERS = "true";
@@ -143,27 +142,14 @@ describe("what gets recorded (items 3, 4)", () => {
     expect(actions).toEqual([{ action: "access_denied", entity_id: "/api/admin/users", actor_id: userId }]);
   });
 
-  it("records who opened a candidate document, and refused links (G21)", async () => {
-    const candidate = await prisma.candidate.create({ data: { full_name: `${tag} candidate` } });
-    const doc = await prisma.document.create({ data: { candidate_id: candidate.id, type: "passport", storage_path: `passport/${tag}.pdf` } });
-    try {
-      state.token = await sessionToken({ userId: "p10-admin", email: "admin@test.invalid", role: "admin" });
-      inRequest(`${tag}-doc`, `/api/documents/${doc.id}/signed-url`);
-      const res = await issueLink(new NextRequest(`http://localhost/api/documents/${doc.id}/signed-url`), { params: Promise.resolve({ id: doc.id }) });
-      expect(res.status).toBe(200);
-      const row = await prisma.auditLog.findFirst({ where: { request_id: `${tag}-doc` } });
-      expect(row).toMatchObject({ action: "document_link_issued", entity_type: "Document", entity_id: doc.id, actor_id: "p10-admin" });
-      expect(row?.after).toMatchObject({ type: "passport", candidate_id: candidate.id });
-
-      inRequest(`${tag}-badlink`, "/api/documents/file");
-      expect((await openFile(new NextRequest("http://localhost/api/documents/file?token=forged"))).status).toBe(401);
-      const rejected = await prisma.auditLog.findFirst({ where: { request_id: `${tag}-badlink` } });
-      expect(rejected?.action).toBe("document_link_rejected");
-      expect(JSON.stringify(rejected)).not.toContain("forged");
-    } finally {
-      await prisma.document.delete({ where: { id: doc.id } });
-      await prisma.candidate.delete({ where: { id: candidate.id } });
-    }
+  // Who opened a document (document_link_issued) is recorded by FastAPI
+  // since reads handover R5 (vertex_be/tests/test_case_reads.py).
+  it("records refused document links (G21)", async () => {
+    inRequest(`${tag}-badlink`, "/api/documents/file");
+    expect((await openFile(new NextRequest("http://localhost/api/documents/file?token=forged"))).status).toBe(401);
+    const rejected = await prisma.auditLog.findFirst({ where: { request_id: `${tag}-badlink` } });
+    expect(rejected?.action).toBe("document_link_rejected");
+    expect(JSON.stringify(rejected)).not.toContain("forged");
   });
 
   it("strips tokens and connection strings from audit details", async () => {

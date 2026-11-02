@@ -12,21 +12,9 @@ import { describe, expect, it } from "vitest";
 const SRC = path.resolve(__dirname, "..");
 
 const STILL_READING: Record<string, string[]> = {
-  "R5 candidate pipeline, part 2": [
-    // Moved from R4: cases use them too, and the rejection dates come from
-    // the audit trail, which FastAPI may not read yet.
-    "app/api/rejected-submissions/route.ts",
-    "server/scope.ts",
-    "server/services/opportunityFilters.ts",
-    "app/api/cases/[id]/audit-log/route.ts",
-    "app/api/cases/[id]/contract/route.ts",
-    "app/api/cases/[id]/route.ts",
-    "app/api/cases/route.ts",
-    "app/api/documents/[id]/signed-url/route.ts",
-    "app/api/exceptions/route.ts",
-    "lib/document-access.ts",
-  ],
   "R6 payments and users": [
+    // Moved from R5: the case payments route still checks case access with it.
+    "server/scope.ts",
     "app/api/admin/users/route.ts",
     "app/api/cases/[id]/payments/route.ts",
     "app/api/consultation-bookings/route.ts",

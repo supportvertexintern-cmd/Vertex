@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveDocumentContent, DocumentNotFoundError } from "@/lib/upload";
-import { assertDocumentReadable, DocumentBlockedError } from "@/lib/document-access";
+import { assertDocumentReadable, DocumentBlockedError, DocumentCheckUnavailableError } from "@/lib/document-access";
 import { recordSecurityEvent } from "@/lib/audit";
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -34,6 +34,9 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     if (err instanceof DocumentBlockedError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    if (err instanceof DocumentCheckUnavailableError) {
+      return NextResponse.json({ error: err.message }, { status: 503 });
     }
     if (err instanceof DocumentNotFoundError) {
       return NextResponse.json({ error: "Document not found." }, { status: 404 });

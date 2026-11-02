@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { callBackend } from "@/lib/backend";
 import { log } from "@/lib/log";
 import { onMalwareFound } from "@/lib/security-monitor";
@@ -6,6 +5,12 @@ import { onMalwareFound } from "@/lib/security-monitor";
 export class DocumentBlockedError extends Error {
   constructor() {
     super("This document is blocked: it failed a malware scan.");
+  }
+}
+
+export class DocumentCheckUnavailableError extends Error {
+  constructor() {
+    super("Documents can't be opened right now. Please try again shortly.");
   }
 }
 
@@ -21,8 +26,10 @@ export class DocumentBlockedError extends Error {
  * - clean, or not a candidate document: served
  * - unscanned and the scanner still unreachable: served (fail-open)
  *
- * If FastAPI itself can't be reached, the row decides: a file already
- * known to be infected is refused, anything else is served as unscanned.
+ * If FastAPI itself can't be reached, nothing is served
+ * (DocumentCheckUnavailableError): this app no longer reads the Document
+ * row to tell an infected file from a clean one (reads handover R5), and a
+ * download link is only issued through FastAPI anyway.
  */
 export async function assertDocumentReadable(storagePath: string, forUser = false): Promise<void> {
   // forUser: a signed-in staff member's request (the audit trail names
@@ -41,6 +48,5 @@ export async function assertDocumentReadable(storagePath: string, forUser = fals
   }
 
   log.warn("document.readable_check_failed", { status: result.status, code: result.error.code });
-  const document = await prisma.document.findFirst({ where: { storage_path: storagePath }, select: { scan_status: true } });
-  if (document?.scan_status === "infected") throw new DocumentBlockedError();
+  throw new DocumentCheckUnavailableError();
 }

@@ -156,6 +156,17 @@ BEGIN
     REVOKE ALL ON FUNCTION public.vertex_session_is_live(text, text) FROM PUBLIC, vertex_web, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_session_is_live(text, text) TO vertex_api;
   END IF;
+  -- Reads handover R5: the two pages that show the audit trail ask these
+  -- (migration 0008), which return a case's history without the snapshots
+  -- and the dates submissions were rejected; vertex_api still can't SELECT.
+  IF to_regprocedure('public.vertex_case_trail(text)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_case_trail(text) FROM PUBLIC, vertex_web, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_case_trail(text) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_rejection_dates(text, text[])') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_rejection_dates(text, text[]) FROM PUBLIC, vertex_web, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_rejection_dates(text, text[]) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api, vertex_web;
   END IF;
