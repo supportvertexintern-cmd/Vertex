@@ -146,6 +146,25 @@ def test_only_the_api_may_ask_whether_a_session_is_live(conn):
     assert owner != "vertex_api"
 
 
+@pytest.mark.parametrize(
+    "ask", ["SELECT count(*) FROM public.vertex_case_trail('c')", "SELECT count(*) FROM public.vertex_rejection_dates('Candidate', ARRAY['c'])"]
+)
+def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
+    # Reads handover R5 (owner's decision 2026-11-02): FastAPI reads a
+    # case's history and rejection dates through functions (migration 0008),
+    # never AuditLog itself, whose snapshots hold personal data.
+    assert run_as(conn, "vertex_api", ask) is None
+    assert run_as(conn, "vertex_api", 'SELECT before FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
+    assert run_as(conn, "vertex_web", ask) == INSUFFICIENT_PRIVILEGE
+    assert run_as(conn, "vertex_readonly", ask) == INSUFFICIENT_PRIVILEGE
+    for name in ("vertex_case_trail", "vertex_rejection_dates"):
+        owner, public_can = conn.execute(
+            text("SELECT pg_get_userbyid(proowner), has_function_privilege('public', oid, 'EXECUTE') FROM pg_proc WHERE proname = :n"), {"n": name}
+        ).one()
+        assert public_can is False
+        assert owner != "vertex_api"
+
+
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
 @pytest.mark.parametrize(
     "sql",

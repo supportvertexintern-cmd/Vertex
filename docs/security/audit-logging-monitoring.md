@@ -104,15 +104,15 @@ These were already recorded and are unchanged:
 
 | Who | Read | Append | Change or delete |
 |---|---|---|---|
-| `vertex_web` (Next.js) | ✅ case history viewer, security monitor | ✅ | ❌ revoked, plus triggers |
-| `vertex_api` (FastAPI) | ❌ **revoked in Phase 10** (it has no reader) | ✅ | ❌ |
+| `vertex_web` (Next.js) | ✅ security monitor (until reads handover R7) | ✅ | ❌ revoked, plus triggers |
+| `vertex_api` (FastAPI) | ❌ **no `SELECT`** (revoked in Phase 10). Since reads handover R5, two functions only it may run (migration 0008): a case's history without snapshots, and the dates submissions were rejected | ✅ | ❌ |
 | `vertex_readonly` (pgAdmin) | ❌ no `AuditLog` columns granted | ❌ | ❌ |
 | `vertex_migrator` (owner) | ✅ | ✅ | ❌ triggers refuse even the owner |
 | Runtime roles: disable or drop the triggers | n/a | n/a | ❌ not the owner (tested) |
 
-- **In the app:** the only reader is `GET /api/cases/:id/audit-log`. It applies the case's own access check and returns summaries only (actor name, action, time), never snapshots.
+- **In the app:** two pages show it, both answered by FastAPI since reads handover R5 (owner's decision 2026-11-02). A case's history (`GET /api/v1/cases/{id}/audit-log`) applies the case's own access check and returns summaries only (actor name, action, time); rejected submissions show each one's rejection date. The functions return no snapshots, so FastAPI never sees them.
 - **Where it's enforced:** `deploy/db-roles.sql`.
-- **How it's tested:** `tests/test_db_roles.py` and live `verify-stack.sh` rows.
+- **How it's tested:** `tests/test_db_roles.py` (including the two functions) and live `verify-stack.sh` rows.
 
 ## 6. Monitoring and alerts
 

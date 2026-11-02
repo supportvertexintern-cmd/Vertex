@@ -26,7 +26,7 @@ interface Props {
 // (2026-10-15), shared by every list dashboard that shows an opportunity.
 // Rendered inside FilterBar's filter row, after a page's own filters.
 // Options come from the list endpoint's filter_options (see
-// server/services/opportunityFilters.ts).
+// vertex_be/app/services/opportunity_filters.py).
 export default function OpportunityFilters({
   options,
   country,

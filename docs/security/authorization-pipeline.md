@@ -71,9 +71,10 @@ data.
 | 8 | Application returned |
 | 9 | Not recorded (reads aren't audited, by design, except exports and, once G21 is fixed, documents) |
 
-**Changing the ID in the URL doesn't help**: proven by
-`resource-authorization.integration.test.ts`, which calls the real
-handlers with real sessions. For each route a candidate or partner can call
+**Changing the ID in the URL doesn't help**: proven by FastAPI's tests,
+which call the real endpoints with real sessions (`tests/test_pipeline_reads.py`
+and `tests/test_case_reads.py` since reads handover R4 and R5, which moved
+these reads and `resource-authorization.integration.test.ts`'s checks there). For each route a candidate or partner can call
 with a record ID, the owner gets 200, another user of the same role with
 the owner's ID gets 403/404, and no session gets 401:
 
@@ -85,9 +86,9 @@ the owner's ID gets 403/404, and no session gets 401:
 | `GET /api/candidates/[id]/messages` | denied | — |
 | `GET /api/partner/candidates/[id]` | — | denied |
 
-Mutation-checked: removing the ownership check in the application route,
-or making the partner rule in `canAccessCandidate` always true, fails the
-test.
+Mutation-checked while the checks were the website's: removing the
+ownership check in the application route, or making the partner rule in
+`canAccessCandidate` always true, failed the test.
 
 ## 4. Gaps against the pipeline
 
@@ -110,6 +111,6 @@ test.
 | Public endpoints have their claimed protection (rate limit, signed token, signature) | `route-guards.test.ts` |
 | Body size limits | `request-size.test.ts` |
 | Tokens accepted only for their own purpose | `jwt.test.ts` |
-| ID swapping denied (stage 5) | `resource-authorization.integration.test.ts` |
+| ID swapping denied (stage 5) | `vertex_be/tests/test_pipeline_reads.py`, `test_case_reads.py` (reads handover R4, R5) |
 | Exports audited | `route-guards.test.ts`, `audit-access.integration.test.ts` |
 | Sessions are revocable (G19, fixed 2026-10-12) | `session-revocation.integration.test.ts` (plain tests since the fix) |

@@ -1,34 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { passOn, readJson, seg } from "@/lib/pipeline";
-import { getAuthUser, requireRole, forbidden } from "@/lib/api-auth";
-import { canAccessCase } from "@/server/scope";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { OPERATIONS_ROLES } from "@/lib/rbac";
 
-
-// GET /api/cases/:id/contract
+// GET /api/cases/:id/contract — the case's contract, for anyone who may
+// see the case; { data }, or { error }. Read from FastAPI since reads
+// handover R5 (vertex_be/app/api/v1/case_reads.py).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getAuthUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const caseRecord = await prisma.case.findUnique({
-    where: { id },
-    include: { application: { include: { candidate: true } }, contract: true },
-  });
-  if (!caseRecord) return NextResponse.json({ error: "Case not found." }, { status: 404 });
-
-  const allowed = await canAccessCase(user, {
-    user_id: caseRecord.application.candidate.user_id,
-    recruiter_id: caseRecord.application.candidate.recruiter_id,
-    country_id: caseRecord.application.candidate.country_id,
-    partner_id: caseRecord.application.candidate.partner_id,
-  });
-  if (!allowed) return forbidden({ error: "Forbidden." });
-
-  if (!caseRecord.contract) return NextResponse.json({ error: "No contract yet." }, { status: 404 });
-
-  return NextResponse.json({ data: caseRecord.contract });
+  const result = await callBackend(`/api/v1/cases/${seg(id)}/contract`);
+  return result.ok ? NextResponse.json(result.body) : legacyErrorResponse(result);
 }
 
 // POST /api/cases/:id/contract — Operations issue the contract (SRS FR-4.3),
