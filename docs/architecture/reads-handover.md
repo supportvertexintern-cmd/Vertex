@@ -1,6 +1,6 @@
 # Reads handover: one API for everything
 
-Status: **proposed, waiting for the owner's decisions (§3).** Follows
+Status: **approved by the owner, 2026-11-02: D1 to D6 all option A.** R1 next. Follows
 [data-ownership.md](data-ownership.md): FastAPI has written every table since
 users step 8.5, but the website still **reads** the database itself through
 Prisma. The owner's request (2026-11-02): the website stops reading through
@@ -141,4 +141,4 @@ staging and main only when the owner asks.
 
 | Step | State |
 |---|---|
-| R1 to R8 | Not started: waiting for D1 to D6 |
+| R1 to R8 | Not started. Decisions made (D1 to D6 A); R1 next |
