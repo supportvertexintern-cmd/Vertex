@@ -134,3 +134,17 @@ def calling_service(request: Request) -> ServiceClaims:
     if claims is None:
         raise _unauthenticated()
     return claims
+
+
+def website_or_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthUser | None:
+    """For a read anyone may make (reads handover): the website, calling
+    for a visitor (with their session when they are signed in, None when
+    not), or a signed-in user calling directly (the Flutter app). Nobody
+    else: the website rate-limits anonymous visitors, and FastAPI has no
+    limit of its own for them."""
+    if check_service_header(request) is not None:
+        return optional_user(request, db)
+    return current_user(request, db)
+
+
+WebsiteOrUser = Annotated[AuthUser | None, Depends(website_or_user)]

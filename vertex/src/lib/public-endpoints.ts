@@ -35,6 +35,7 @@ export const PUBLIC_ENDPOINTS: Record<string, { purpose: string; protection: Pub
   "GET /api/auth/google": { purpose: "start Google sign-in", protection: ["rate-limit"] },
   "GET /api/auth/google/callback": { purpose: "finish Google sign-in", protection: ["rate-limit"] },
   "GET /api/apply/options": { purpose: "application form choices (country/document names)", protection: ["rate-limit"] },
+  "GET /api/jobs": { purpose: "public job listing: active jobs, public fields only (FastAPI widens it for a job manager's session)", protection: ["rate-limit"] },
   "GET /api/jobs/[id]": { purpose: "public job page: active/closed jobs, public fields only", protection: ["rate-limit"] },
   "POST /api/applications": { purpose: "public apply form (anonymous applicants; staff/candidates are checked inside)", protection: ["rate-limit"] },
   "POST /api/contact": { purpose: "contact form", protection: ["rate-limit"] },

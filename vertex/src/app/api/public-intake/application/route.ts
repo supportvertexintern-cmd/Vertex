@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPublicJobById } from "@/server/services/publicJobs";
 import { submitApplicationSchema } from "@/lib/validations";
 import { rateLimit, retryAfter } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/client-ip";
@@ -42,8 +42,11 @@ export async function POST(req: NextRequest) {
   const passportNumber = parsed.data.passport_number!;
 
   // Distinct "closed" vs "doesn't exist" message (2026-09-15) — see
-  // /api/applications's identical split for the full rationale.
-  const job = await prisma.job.findUnique({ where: { id: parsed.data.job_id } });
+  // /api/applications's identical split for the full rationale. The public
+  // job, from FastAPI (reads handover R1): a draft or partner-only one isn't
+  // found, as on the public pages. Throws if FastAPI can't answer: a 500,
+  // and the applicant is told to try again.
+  const job = await getPublicJobById(parsed.data.job_id);
   if (!job) {
     return NextResponse.json({ error: "Opportunity not found." }, { status: 404 });
   }

@@ -412,6 +412,49 @@
     "title": "ApplicationConfirmationEmail",
     "type": "object"
    },
+   "ApplicationCount": {
+    "properties": {
+     "applications": {
+      "title": "Applications",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "applications"
+    ],
+    "title": "ApplicationCount",
+    "type": "object"
+   },
+   "ApplicationFeeOut": {
+    "properties": {
+     "application_fee": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Application Fee"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "application_fee"
+    ],
+    "title": "ApplicationFeeOut",
+    "type": "object"
+   },
    "ApplicationIn": {
     "description": "registerReferralAgentSchema.",
     "properties": {
@@ -926,6 +969,55 @@
     "title": "Applied",
     "type": "object"
    },
+   "ApplyOptions": {
+    "properties": {
+     "countries": {
+      "items": {
+       "$ref": "#/components/schemas/CountryOption"
+      },
+      "title": "Countries",
+      "type": "array"
+     },
+     "documentRequirements": {
+      "items": {
+       "$ref": "#/components/schemas/RequirementOption"
+      },
+      "title": "Documentrequirements",
+      "type": "array"
+     },
+     "documentTypes": {
+      "items": {
+       "$ref": "#/components/schemas/DocumentTypeOut"
+      },
+      "title": "Documenttypes",
+      "type": "array"
+     },
+     "intakeMode": {
+      "enum": [
+       "email",
+       "crm"
+      ],
+      "title": "Intakemode",
+      "type": "string"
+     },
+     "locationCountries": {
+      "items": {
+       "$ref": "#/components/schemas/CountryOption"
+      },
+      "title": "Locationcountries",
+      "type": "array"
+     }
+    },
+    "required": [
+     "countries",
+     "locationCountries",
+     "documentTypes",
+     "documentRequirements",
+     "intakeMode"
+    ],
+    "title": "ApplyOptions",
+    "type": "object"
+   },
    "ApproveIn": {
     "description": "approveReferralAgentSchema: the login's address, the application's\nunless given.",
     "properties": {
@@ -1149,6 +1241,19 @@
      "updated_at"
     ],
     "title": "ArticleOut",
+    "type": "object"
+   },
+   "AssistantOut": {
+    "properties": {
+     "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "enabled"
+    ],
+    "title": "AssistantOut",
     "type": "object"
    },
    "Author": {
@@ -3234,6 +3339,24 @@
     "title": "CountryName",
     "type": "object"
    },
+   "CountryOption": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "CountryOption",
+    "type": "object"
+   },
    "CountryOut": {
     "properties": {
      "id": {
@@ -3351,6 +3474,18 @@
     "title": "Creator",
     "type": "object"
    },
+   "Data_ApplicationFeeOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ApplicationFeeOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ApplicationFeeOut]",
+    "type": "object"
+   },
    "Data_ApplicationRow_": {
     "properties": {
      "data": {
@@ -3363,6 +3498,18 @@
     "title": "Data[ApplicationRow]",
     "type": "object"
    },
+   "Data_ApplyOptions_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ApplyOptions"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ApplyOptions]",
+    "type": "object"
+   },
    "Data_ArticleOut_": {
     "properties": {
      "data": {
@@ -3373,6 +3520,18 @@
      "data"
     ],
     "title": "Data[ArticleOut]",
+    "type": "object"
+   },
+   "Data_AssistantOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AssistantOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AssistantOut]",
     "type": "object"
    },
    "Data_CampaignDetail_": {
@@ -3747,6 +3906,30 @@
     "title": "Data[PositionOut]",
     "type": "object"
    },
+   "Data_PublicJobDetailOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PublicJobDetailOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PublicJobDetailOut]",
+    "type": "object"
+   },
+   "Data_PublicJobList_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PublicJobList"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PublicJobList]",
+    "type": "object"
+   },
    "Data_Raised_": {
     "properties": {
      "data": {
@@ -4001,6 +4184,22 @@
      "data"
     ],
     "title": "Data[list[CountryWithRegion]]",
+    "type": "object"
+   },
+   "Data_list_DocumentTypeOut__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/DocumentTypeOut"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[DocumentTypeOut]]",
     "type": "object"
    },
    "Data_list_EmployerClientListItem__": {
@@ -10382,6 +10581,494 @@
     "title": "ProfileIn",
     "type": "object"
    },
+   "PublicJobDetailOut": {
+    "description": "The listing's fields and the long-form ones (PUBLIC_JOB_DETAIL_SELECT).",
+    "properties": {
+     "_count": {
+      "$ref": "#/components/schemas/ApplicationCount"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     },
+     "city": {
+      "title": "City",
+      "type": "string"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "duration_permit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Permit"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "is_credit_service": {
+      "title": "Is Credit Service",
+      "type": "boolean"
+     },
+     "job_description": {
+      "title": "Job Description",
+      "type": "string"
+     },
+     "partner_only": {
+      "title": "Partner Only",
+      "type": "boolean"
+     },
+     "payment_stages": {
+      "items": {
+       "$ref": "#/components/schemas/PublicStageOut"
+      },
+      "title": "Payment Stages",
+      "type": "array"
+     },
+     "processing_time": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Processing Time"
+     },
+     "requirements": {
+      "title": "Requirements",
+      "type": "string"
+     },
+     "salary_range": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary Range"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/PublicSectorOut"
+      },
+      "title": "Sectors",
+      "type": "array"
+     },
+     "service_fee_gbp": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Service Fee Gbp"
+     },
+     "status": {
+      "$ref": "#/components/schemas/JobStatus"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "visa_success_rates": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visa Success Rates"
+     },
+     "visa_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visa Type"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "country",
+     "city",
+     "category",
+     "tier",
+     "salary_range",
+     "job_description",
+     "status",
+     "created_at",
+     "visa_type",
+     "duration_permit",
+     "service_fee_gbp",
+     "partner_only",
+     "is_credit_service",
+     "payment_stages",
+     "sectors",
+     "requirements",
+     "processing_time",
+     "visa_success_rates"
+    ],
+    "title": "PublicJobDetailOut",
+    "type": "object"
+   },
+   "PublicJobList": {
+    "properties": {
+     "jobs": {
+      "items": {
+       "$ref": "#/components/schemas/PublicJobOut"
+      },
+      "title": "Jobs",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pages": {
+      "title": "Pages",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "jobs",
+     "total",
+     "page",
+     "pages"
+    ],
+    "title": "PublicJobList",
+    "type": "object"
+   },
+   "PublicJobOut": {
+    "description": "publicJobs.ts's PUBLIC_JOB_LIST_SELECT. Never the internal fields\n(employer_client_id, application_fee, updated_at).",
+    "properties": {
+     "_count": {
+      "$ref": "#/components/schemas/ApplicationCount"
+     },
+     "category": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Category"
+     },
+     "city": {
+      "title": "City",
+      "type": "string"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "duration_permit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duration Permit"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "is_credit_service": {
+      "title": "Is Credit Service",
+      "type": "boolean"
+     },
+     "job_description": {
+      "title": "Job Description",
+      "type": "string"
+     },
+     "partner_only": {
+      "title": "Partner Only",
+      "type": "boolean"
+     },
+     "payment_stages": {
+      "items": {
+       "$ref": "#/components/schemas/PublicStageOut"
+      },
+      "title": "Payment Stages",
+      "type": "array"
+     },
+     "salary_range": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Salary Range"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/PublicSectorOut"
+      },
+      "title": "Sectors",
+      "type": "array"
+     },
+     "service_fee_gbp": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Service Fee Gbp"
+     },
+     "status": {
+      "$ref": "#/components/schemas/JobStatus"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "visa_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visa Type"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "country",
+     "city",
+     "category",
+     "tier",
+     "salary_range",
+     "job_description",
+     "status",
+     "created_at",
+     "visa_type",
+     "duration_permit",
+     "service_fee_gbp",
+     "partner_only",
+     "is_credit_service",
+     "payment_stages",
+     "sectors"
+    ],
+    "title": "PublicJobOut",
+    "type": "object"
+   },
+   "PublicPositionOut": {
+    "properties": {
+     "city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "City"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "city"
+    ],
+    "title": "PublicPositionOut",
+    "type": "object"
+   },
+   "PublicSectorOut": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "positions": {
+      "items": {
+       "$ref": "#/components/schemas/PublicPositionOut"
+      },
+      "title": "Positions",
+      "type": "array"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "sector",
+     "positions"
+    ],
+    "title": "PublicSectorOut",
+    "type": "object"
+   },
+   "PublicStageOut": {
+    "description": "A JobPaymentStage row, as Prisma returns it.",
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "order": {
+      "title": "Order",
+      "type": "integer"
+     },
+     "percent": {
+      "title": "Percent",
+      "type": "number"
+     },
+     "stripe_price_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stripe Price Id"
+     },
+     "stripe_product_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stripe Product Id"
+     },
+     "synced_amount_gbp": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Synced Amount Gbp"
+     },
+     "trigger_stage": {
+      "$ref": "#/components/schemas/CaseStage"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "job_id",
+     "order",
+     "label",
+     "percent",
+     "trigger_stage",
+     "stripe_product_id",
+     "stripe_price_id",
+     "synced_amount_gbp",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "PublicStageOut",
+    "type": "object"
+   },
    "RaiseIn": {
     "description": "raiseExceptionSchema.",
     "properties": {
@@ -11207,6 +11894,24 @@
     ],
     "title": "ReportStatus",
     "type": "string"
+   },
+   "RequirementOption": {
+    "properties": {
+     "country_id": {
+      "title": "Country Id",
+      "type": "string"
+     },
+     "document_type": {
+      "title": "Document Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "country_id",
+     "document_type"
+    ],
+    "title": "RequirementOption",
+    "type": "object"
    },
    "RequirementOut": {
     "properties": {
@@ -16364,6 +17069,74 @@
     ]
    }
   },
+  "/api/v1/apply/options": {
+   "get": {
+    "description": "The application forms' reference data: destination countries (the\ndestination region), every other country, the document types and each\ndestination's extra documents, and where a public application goes\n(\"email\" unless the admin set \"crm\", so an unset stack never writes to\nthe CRM).",
+    "operationId": "apply_options_api_v1_apply_options_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_ApplyOptions_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "Apply Options",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/assistant": {
+   "get": {
+    "description": "Whether the assistant answers: on unless the admin turned it off.",
+    "operationId": "assistant_api_v1_assistant_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AssistantOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "Assistant",
+    "tags": [
+     "content"
+    ]
+   }
+  },
   "/api/v1/auth/google": {
    "post": {
     "description": "Sign-in only: an account must already exist. A linked account is found\nby Google's own id; linking by email needs Google to have verified the\naddress, never re-links an account linked to another Google account, and\ndrops a password nobody proved they own (#131's rules).",
@@ -18750,6 +19523,31 @@
    }
   },
   "/api/v1/document-types": {
+   "get": {
+    "description": "Every document requirement type, in the admin's order.",
+    "operationId": "list_document_types_api_v1_document_types_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_DocumentTypeOut__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Document Types",
+    "tags": [
+     "reference data"
+    ]
+   },
    "post": {
     "description": "A new type from just a label; its key is the label, slugified.",
     "operationId": "create_document_type_api_v1_document_types_post",
@@ -19561,7 +20359,229 @@
     ]
    }
   },
+  "/api/v1/help/articles": {
+   "get": {
+    "description": "Every knowledge article, by category: the help centre shows them all,\nand the assistant answers from them.",
+    "operationId": "help_articles_api_v1_help_articles_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_ArticleOut__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "Help Articles",
+    "tags": [
+     "content"
+    ]
+   }
+  },
   "/api/v1/jobs": {
+   "get": {
+    "description": "The public listing, as GET /api/jobs answered. Active jobs by\ndefault; \"public\" (the /jobs page) adds closed ones. A job manager's\nown list may also ask for draft, closed or all, and sort by title or\napplication count.",
+    "operationId": "list_public_jobs_api_v1_jobs_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Page"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Limit"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "category",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Category"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortBy",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortby"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sortDir",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sortdir"
+      }
+     },
+     {
+      "in": "query",
+      "name": "audience",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Audience"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PublicJobList_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Public Jobs",
+    "tags": [
+     "jobs"
+    ]
+   },
    "post": {
     "operationId": "create_job_api_v1_jobs_post",
     "requestBody": {
@@ -19654,6 +20674,75 @@
      "jobs"
     ]
    },
+   "get": {
+    "description": "A public job: active or closed (closed ones stay reachable from old\nlinks), never a draft. Partner-only as for the listing.",
+    "operationId": "get_public_job_api_v1_jobs__job_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "job_id",
+      "required": true,
+      "schema": {
+       "title": "Job Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "audience",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Audience"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PublicJobDetailOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Public Job",
+    "tags": [
+     "jobs"
+    ]
+   },
    "put": {
     "operationId": "update_job_api_v1_jobs__job_id__put",
     "parameters": [
@@ -19704,6 +20793,54 @@
      }
     ],
     "summary": "Update Job",
+    "tags": [
+     "jobs"
+    ]
+   }
+  },
+  "/api/v1/jobs/{job_id}/application-fee": {
+   "get": {
+    "description": "What the application-fee checkout charges: any job by id, for a\nsigned-in user (the public job never shows its fee).",
+    "operationId": "get_application_fee_api_v1_jobs__job_id__application_fee_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "job_id",
+      "required": true,
+      "schema": {
+       "title": "Job Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_ApplicationFeeOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Application Fee",
     "tags": [
      "jobs"
     ]

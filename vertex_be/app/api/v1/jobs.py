@@ -5,8 +5,9 @@ job; admin keeps override access.
 They answer as Next.js's POST /api/jobs and PUT/DELETE /api/jobs/[id] did,
 which now pass requests on through callBackend(): the same roles, the rules
 of createJobSchema field for field (including the payment-stage checks the
-routes added), the same status codes and Prisma-shaped JSON. Reads (the
-public listing and detail pages) stay in Next.js.
+routes added), the same status codes and Prisma-shaped JSON. The public
+listing and detail followed in reads handover R1, as
+server/services/publicJobs.ts read them.
 
 Differences, all deliberate:
 
@@ -37,14 +38,17 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from pydantic_core import PydanticCustomError
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
+from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
-from app.core.auth import AuthUser
+from app.core.auth import AuthUser, CurrentUser, WebsiteOrUser
 from app.core.rbac import require_role
 from app.db.session import SessionLocal
+from app.models.candidate import Application
 from app.models.enums import CaseStage, JobStatus, Role
 from app.models.jobs import Job, JobPaymentStage, JobPosition, JobSector
 from app.models.reference import DocumentRequirementType
@@ -62,6 +66,10 @@ router = APIRouter()
 
 # Job postings are Marketing's; admin keeps override access.
 JOB_MANAGERS: tuple[Role, ...] = (Role.marketing, Role.admin)
+# Who sees a partner-only job when asking for the partner audience: the
+# roles that submit candidates for a partner. Must match
+# PARTNER_JOB_VISIBILITY_ROLES in vertex/src/app/api/jobs/route.ts.
+PARTNER_JOB_VIEWERS: tuple[Role, ...] = (Role.partner, Role.hr, Role.operations_team, Role.operations_director, Role.admin)
 JobManager = Annotated[AuthUser, Depends(require_role(*JOB_MANAGERS))]
 
 # Editing any of these leaves Stripe pricing stale, so they trigger a sync.
@@ -254,6 +262,219 @@ def _writing(db: AuditedDb) -> Iterator[None]:
                 raise _invalid({"employer_client_id": ["Unknown employer client"]}) from None
             raise ApiError(409, "in_use", "This job is still referenced and can't be deleted.") from None
         raise
+
+
+# --- reading (reads handover R1) ----------------------------------------------
+
+
+class PublicStageOut(BaseModel):
+    """A JobPaymentStage row, as Prisma returns it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    job_id: str
+    order: int
+    label: str
+    percent: float
+    trigger_stage: CaseStage
+    stripe_product_id: str | None
+    stripe_price_id: str | None
+    synced_amount_gbp: float | None
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
+
+
+class PublicPositionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    city: str | None
+
+
+class PublicSectorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    sector: str
+    positions: list[PublicPositionOut]
+
+
+class ApplicationCount(BaseModel):
+    applications: int
+
+
+class PublicJobOut(BaseModel):
+    """publicJobs.ts's PUBLIC_JOB_LIST_SELECT. Never the internal fields
+    (employer_client_id, application_fee, updated_at)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    country: str
+    city: str
+    category: str | None
+    tier: str | None
+    salary_range: str | None
+    job_description: str
+    status: JobStatus
+    created_at: UtcDateTime
+    visa_type: str | None
+    duration_permit: str | None
+    service_fee_gbp: float | None
+    partner_only: bool
+    is_credit_service: bool
+    payment_stages: list[PublicStageOut]
+    sectors: list[PublicSectorOut]
+    # Prisma's _count; set from a count query, not the row.
+    count: ApplicationCount = Field(default_factory=lambda: ApplicationCount(applications=0), serialization_alias="_count")
+
+
+class PublicJobDetailOut(PublicJobOut):
+    """The listing's fields and the long-form ones (PUBLIC_JOB_DETAIL_SELECT)."""
+
+    requirements: str
+    processing_time: str | None
+    visa_success_rates: str | None
+
+
+class PublicJobList(BaseModel):
+    jobs: list[PublicJobOut]
+    total: int
+    page: int
+    pages: int
+
+
+class ApplicationFeeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    application_fee: float | None
+
+
+def _is_job_manager(user: AuthUser | None) -> bool:
+    return user is not None and user.role in JOB_MANAGERS
+
+
+def _partner_only_visible(user: AuthUser | None, audience: str | None) -> bool:
+    """A job manager always sees partner-only jobs (they maintain them);
+    anyone else only in a partner context (audience=partner) and in a role
+    that submits for partners."""
+    return _is_job_manager(user) or (audience == "partner" and user is not None and user.role in PARTNER_JOB_VIEWERS)
+
+
+def _public_jobs(db: DbSession, model: type[PublicJobOut], jobs: list[Job]) -> list[PublicJobOut]:
+    counts: dict[str, int] = {}
+    if jobs:
+        rows = db.execute(
+            select(Application.job_id, func.count()).where(Application.job_id.in_([j.id for j in jobs])).group_by(Application.job_id)
+        )
+        counts = {job_id: n for job_id, n in rows}
+    out = []
+    for job in jobs:
+        item = model.model_validate(job)
+        item.payment_stages.sort(key=lambda s: s.order)
+        item.count = ApplicationCount(applications=counts.get(job.id, 0))
+        out.append(item)
+    return out
+
+
+_PUBLIC_LOADS = (selectinload(Job.payment_stages), selectinload(Job.sectors).selectinload(JobSector.positions))
+
+
+def _int(value: str | None, default: int) -> int:
+    try:
+        return int(value) if value else default
+    except ValueError:
+        return default
+
+
+@router.get("/jobs")
+def list_public_jobs(
+    db: DbSession,
+    user: WebsiteOrUser,
+    page: str | None = None,
+    limit: str | None = None,
+    country: str | None = None,
+    category: str | None = None,
+    q: str | None = None,
+    status: str | None = None,
+    sortBy: str | None = None,  # noqa: N803  (the website's parameter names)
+    sortDir: str | None = None,  # noqa: N803
+    audience: str | None = None,
+) -> Data[PublicJobList]:
+    """The public listing, as GET /api/jobs answered. Active jobs by
+    default; "public" (the /jobs page) adds closed ones. A job manager's
+    own list may also ask for draft, closed or all, and sort by title or
+    application count."""
+    manager = _is_job_manager(user)
+    wanted = status if status == "public" or (manager and status in ("draft", "active", "closed", "all")) else None
+    page_n = max(1, _int(page, 1))
+    limit_n = min(200 if wanted and wanted != "public" else 50, max(1, _int(limit, 10)))
+
+    where = []
+    if wanted == "public":
+        where.append(Job.status.in_([JobStatus.active, JobStatus.closed]))
+    elif wanted in ("draft", "active", "closed"):
+        where.append(Job.status == JobStatus(wanted))
+    elif wanted is None:
+        where.append(Job.status == JobStatus.active)
+    if country:
+        where.append(Job.country.icontains(country, autoescape=True))
+    if category:
+        where.append(Job.category == category)
+    if q:
+        where.append(or_(Job.title.icontains(q, autoescape=True), Job.job_description.icontains(q, autoescape=True)))
+    if not _partner_only_visible(user, audience):
+        where.append(Job.partner_only.is_(False))
+
+    sort = sortBy if manager else None
+    if sort == "title":
+        key: Any = Job.title
+    elif sort == "applications":
+        key = select(func.count()).where(Application.job_id == Job.id).correlate(Job).scalar_subquery()
+    else:
+        key = Job.created_at
+    ascending = manager and sortDir == "asc"
+
+    total = db.scalar(select(func.count()).select_from(Job).where(*where)) or 0
+    jobs = list(
+        db.scalars(
+            select(Job)
+            .where(*where)
+            .order_by(key.asc() if ascending else key.desc(), Job.id)
+            .offset((page_n - 1) * limit_n)
+            .limit(limit_n)
+            .options(*_PUBLIC_LOADS)
+        )
+    )
+    return Data(data=PublicJobList(jobs=_public_jobs(db, PublicJobOut, jobs), total=total, page=page_n, pages=math.ceil(total / limit_n)))
+
+
+@router.get("/jobs/{job_id}")
+def get_public_job(job_id: str, db: DbSession, user: WebsiteOrUser, audience: str | None = None) -> Data[PublicJobDetailOut]:
+    """A public job: active or closed (closed ones stay reachable from old
+    links), never a draft. Partner-only as for the listing."""
+    where = [Job.id == job_id, Job.status.in_([JobStatus.active, JobStatus.closed])]
+    if not _partner_only_visible(user, audience):
+        where.append(Job.partner_only.is_(False))
+    job = db.scalars(select(Job).where(*where).options(*_PUBLIC_LOADS)).first()
+    if job is None:
+        raise ApiError(404, "not_found", "Job not found.")
+    return Data(data=_public_jobs(db, PublicJobDetailOut, [job])[0])
+
+
+@router.get("/jobs/{job_id}/application-fee")
+def get_application_fee(job_id: str, db: DbSession, _user: CurrentUser) -> Data[ApplicationFeeOut]:
+    """What the application-fee checkout charges: any job by id, for a
+    signed-in user (the public job never shows its fee)."""
+    job = db.get(Job, job_id)
+    if job is None:
+        raise ApiError(404, "not_found", "Job not found.")
+    return Data(data=ApplicationFeeOut.model_validate(job))
 
 
 # --- routes ------------------------------------------------------------------

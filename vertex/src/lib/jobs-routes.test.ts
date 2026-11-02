@@ -169,3 +169,37 @@ describe("refuses early, without calling FastAPI", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 });
+
+// Reads handover R1: the reads come from FastAPI too, which decides from
+// the session what the caller may see (vertex_be/tests/test_public_reads.py).
+describe("job reads go to FastAPI and keep their shapes", () => {
+  it("GET /api/jobs passes the query on, signed in or not, and answers the plain list", async () => {
+    const list = { jobs: [JOB], total: 1, page: 2, pages: 3 };
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: list } });
+    const res = await jobs.GET(new NextRequest("http://localhost/api/jobs?page=2&status=draft&audience=partner&ignored=1"));
+    expect(await res.json()).toEqual(list);
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/jobs", {
+      query: { page: "2", limit: undefined, country: undefined, category: undefined, q: undefined, status: "draft", sortBy: undefined, sortDir: undefined, audience: "partner" },
+      asUser: "if-signed-in",
+    });
+  });
+
+  it("GET /api/jobs/[id] answers the plain job; a missing one is { error } 404", async () => {
+    state.role = null;
+    expect(await (await job.GET(new NextRequest("http://localhost/api/jobs/j1?audience=partner"), params("j1"))).json()).toEqual(JOB);
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/jobs/j1", { query: { audience: "partner" }, asUser: "if-signed-in" });
+
+    callBackend.mockResolvedValueOnce({ ok: false, status: 404, error: { code: "not_found", message: "Job not found." } });
+    const missing = await job.GET(req(), params("j9"));
+    expect([missing.status, await missing.json()]).toEqual([404, { error: "Job not found." }]);
+  });
+
+  it("GET /api/admin/document-types checks the role and passes the { data } list on", async () => {
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: [{ key: "passport" }] } });
+    expect(await (await docTypes.GET(req())).json()).toEqual({ data: [{ key: "passport" }] });
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/document-types");
+
+    state.role = "candidate";
+    expect((await docTypes.GET(req())).status).toBe(403);
+  });
+});

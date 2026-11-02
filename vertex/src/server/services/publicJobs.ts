@@ -1,139 +1,83 @@
-import type { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { callBackend } from "@/lib/backend";
 
 /**
- * Shared query logic behind the public /jobs listing, /jobs/[id] detail,
- * and the homepage's featured jobs — called directly (in-process) by both
- * the Server Component pages and the /api/jobs* route handlers, rather
- * than a page self-fetching its own API route over HTTP. A self-fetch
- * needs an absolute base URL (NEXT_PUBLIC_APP_URL) that's easy to
- * misconfigure per-environment, and — on a project with Vercel Deployment
- * Protection enabled — gets blocked by that same protection wall even when
- * the URL is correct, since Vercel doesn't distinguish "the server calling
- * its own public URL" from any other external request.
+ * The public job listing and detail, read from FastAPI since reads handover
+ * R1 (GET /api/v1/jobs, GET /api/v1/jobs/:id in vertex_be/app/api/v1/jobs.py).
+ * Shared by the /api/jobs* routes and the pages that render jobs on the
+ * server (the homepage, /jobs, /jobs/[id]).
+ *
+ * FastAPI decides what the caller may see from their session: drafts and
+ * other statuses, and sorting, only for a job manager; partner-only jobs
+ * for a job manager, or with audience "partner" for a role that submits
+ * for partners. Callers pass the request's parameters on as they are.
  */
 
-const PUBLIC_JOB_LIST_SELECT = {
-  id: true,
-  title: true,
-  country: true,
-  city: true,
-  category: true,
-  tier: true,
-  salary_range: true,
-  job_description: true,
-  status: true,
-  created_at: true,
-  visa_type: true,
-  duration_permit: true,
-  service_fee_gbp: true,
-  partner_only: true,
-  is_credit_service: true,
-  payment_stages: { orderBy: { order: "asc" as const } },
-  // Sector -> Opportunity -> Position (2026-09-02) — both application
-  // forms already eagerly fetch this full list once and filter
-  // client-side, so the nested sectors/positions ride along here rather
-  // than needing a separate round-trip per job.
-  sectors: { select: { id: true, sector: true, positions: { select: { id: true, title: true, city: true } } } },
-  _count: { select: { applications: true } },
-} as const;
-
-export interface PublicJobsListParams {
-  page?: number;
-  limit?: number;
-  country?: string;
-  category?: string;
-  q?: string;
-  // Only ever set by the route's own staff-auth branch (Marketing/Admin
-  // managing their own postings, 2026-08-18) — every public caller other
-  // than the /jobs listing/detail pages leaves this unset and gets the
-  // original "active" cap (an application form should never let someone
-  // pick a closed programme). Marketing needs its own draft/closed
-  // postings visible too, and "all" opts out of the status filter
-  // entirely. "public" (2026-09-14) is for the /jobs listing/detail pages
-  // specifically — a closed programme should stay visible there (marked
-  // closed, no Apply) rather than vanish, while a draft one still never
-  // should.
-  status?: "draft" | "active" | "closed" | "all" | "public";
-  sortBy?: "created_at" | "title" | "applications";
-  sortDir?: "asc" | "desc";
-  // Only ever set true by the route's own role-checked branch (a partner,
-  // or staff submitting on a partner's behalf) — every public caller
-  // (homepage, /jobs listing, self-service/walk-in ApplicationForm) leaves
-  // this unset and never sees a partner-only Job.
-  includePartnerOnly?: boolean;
+export interface PublicPaymentStage {
+  id: string;
+  job_id: string;
+  order: number;
+  label: string;
+  percent: number;
+  trigger_stage: string;
+  stripe_product_id: string | null;
+  stripe_price_id: string | null;
+  synced_amount_gbp: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export async function getPublicJobsList(params: PublicJobsListParams = {}) {
-  const page = Math.max(1, params.page ?? 1);
-  // The 50-row cap only ever applied to the public listing (a sane
-  // ceiling for a public page-size param) — Marketing's own management
-  // list passes its own real limit and needs every posting reachable,
-  // not silently truncated at 50. "public" is still the public listing
-  // (just widened to include closed jobs), so it keeps the 50-row cap too.
-  const maxLimit = params.status && params.status !== "public" ? 200 : 50;
-  const limit = Math.min(maxLimit, Math.max(1, params.limit ?? 10));
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.JobWhereInput = {
-    ...(params.status === "public"
-      ? { status: { in: ["active", "closed"] as const } }
-      : params.status && params.status !== "all"
-      ? { status: params.status }
-      : params.status === "all"
-      ? {}
-      : { status: "active" as const }),
-    ...(params.country ? { country: { contains: params.country, mode: "insensitive" as const } } : {}),
-    ...(params.category ? { category: { equals: params.category } } : {}),
-    ...(params.q
-      ? {
-          OR: [
-            { title: { contains: params.q, mode: "insensitive" as const } },
-            { job_description: { contains: params.q, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
-    ...(params.includePartnerOnly ? {} : { partner_only: false }),
-  };
-
-  const sortDir = params.sortDir ?? "desc";
-  const orderBy: Prisma.JobOrderByWithRelationInput =
-    params.sortBy === "title"
-      ? { title: sortDir }
-      : params.sortBy === "applications"
-      ? { applications: { _count: sortDir } }
-      : { created_at: sortDir };
-
-  const [jobs, total] = await Promise.all([
-    prisma.job.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy,
-      select: PUBLIC_JOB_LIST_SELECT,
-    }),
-    prisma.job.count({ where }),
-  ]);
-
-  return { jobs, total, page, pages: Math.ceil(total / limit) };
+export interface PublicJob {
+  id: string;
+  title: string;
+  country: string;
+  city: string;
+  category: string | null;
+  tier: string | null;
+  salary_range: string | null;
+  job_description: string;
+  status: "draft" | "active" | "closed";
+  created_at: string;
+  visa_type: string | null;
+  duration_permit: string | null;
+  service_fee_gbp: number | null;
+  partner_only: boolean;
+  is_credit_service: boolean;
+  payment_stages: PublicPaymentStage[];
+  sectors: { id: string; sector: string; positions: { id: string; title: string; city: string | null }[] }[];
+  _count: { applications: number };
 }
 
-// The detail page adds the long-form fields to the listing's public set.
-// Never internal fields (employer_client_id, application_fee, updated_at).
-const PUBLIC_JOB_DETAIL_SELECT = {
-  ...PUBLIC_JOB_LIST_SELECT,
-  requirements: true,
-  processing_time: true,
-  visa_success_rates: true,
-  payment_stages: { orderBy: { order: "asc" } },
-} as const;
+export interface PublicJobDetail extends PublicJob {
+  requirements: string;
+  processing_time: string | null;
+  visa_success_rates: string | null;
+}
 
-// Public = active or closed (closed jobs stay reachable from old links and
-// show "No longer accepting applications"). Drafts are never public.
-// Partner-only opportunities are hidden unless the caller may see them.
-export async function getPublicJobById(id: string, includePartnerOnly = false) {
-  return prisma.job.findFirst({
-    where: { id, status: { in: ["active", "closed"] }, ...(includePartnerOnly ? {} : { partner_only: false }) },
-    select: PUBLIC_JOB_DETAIL_SELECT,
+export interface PublicJobsList {
+  jobs: PublicJob[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export type PublicJobsQuery = Partial<Record<"page" | "limit" | "country" | "category" | "q" | "status" | "sortBy" | "sortDir" | "audience", string | number>>;
+
+export class PublicJobsUnavailable extends Error {}
+
+/** The listing; throws PublicJobsUnavailable when FastAPI can't answer. */
+export async function getPublicJobsList(query: PublicJobsQuery = {}): Promise<PublicJobsList> {
+  const result = await callBackend<PublicJobsList>("/api/v1/jobs", { query, asUser: "if-signed-in" });
+  if (!result.ok) throw new PublicJobsUnavailable(result.error.message);
+  return result.body.data;
+}
+
+/** A public job, or null when there is none the caller may see. */
+export async function getPublicJobById(id: string, audience?: "partner"): Promise<PublicJobDetail | null> {
+  const result = await callBackend<PublicJobDetail>(`/api/v1/jobs/${encodeURIComponent(id)}`, {
+    query: { audience },
+    asUser: "if-signed-in",
   });
+  if (result.ok) return result.body.data;
+  if (result.status === 404) return null;
+  throw new PublicJobsUnavailable(result.error.message);
 }

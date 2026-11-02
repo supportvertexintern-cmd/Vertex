@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@prisma/client";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { callBackend, legacyErrorResponse } from "@/lib/backend";
-import { getPublicJobsList } from "@/server/services/publicJobs";
+import { limitByIp } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // Job postings are Marketing's sole responsibility — a role deliberately
@@ -11,52 +11,25 @@ export const dynamic = "force-dynamic";
 // Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
-// Same role set already authorized to submit a candidate on a partner's
-// behalf (POST /api/partner/candidates) — a partner-only Job becomes
-// visible in exactly the contexts a partner submission is already
-// legitimately made in. regional_recruiter is deliberately excluded: the
-// self-apply/recruiter-walk-in ApplicationForm never sends ?audience=
-// partner at all, so this list only matters for callers that do.
+// Who sees a partner-only job when asking for the partner audience: the
+// roles already allowed to submit a candidate for a partner. Must match
+// PARTNER_JOB_VIEWERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team", "operations_director", "admin"];
 
-// GET /api/jobs — public paginated listing. Also called directly
-// (in-process, not over HTTP) by the homepage and /jobs listing Server
-// Components — see server/services/publicJobs.ts for why. `status`/
-// `sortBy` (2026-08-18) are only ever honored for an authenticated
-// Marketing/Admin caller (their own /marketing/jobs management list,
-// which previously reused this same endpoint but could never see a
-// draft/closed posting — status was hardcoded to "active" unconditionally)
-// — a public request never gets to see anything off the active list.
+// GET /api/jobs — the public paginated listing, read from FastAPI since
+// reads handover R1 (server/services/publicJobs.ts). FastAPI decides from
+// the session what the caller may see: drafts, other statuses and sorting
+// only for Marketing/Admin's own list, partner-only jobs for them or with
+// ?audience=partner for PARTNER_JOB_VISIBILITY_ROLES. Answers in this
+// route's older shapes ({ jobs, total, page, pages }; { error }).
 export async function GET(req: NextRequest) {
-  const { searchParams } = req.nextUrl;
-  const user = await getAuthUser(req);
-  const isJobManager = user ? !requireRole(user, [...JOB_MANAGER_ROLES]) : false;
-  const status = isJobManager ? (searchParams.get("status") as "draft" | "active" | "closed" | "all" | null) ?? undefined : undefined;
-  const sortBy = isJobManager ? (searchParams.get("sortBy") as "created_at" | "title" | "applications" | null) ?? undefined : undefined;
-  const sortDir = isJobManager && searchParams.get("sortDir") === "asc" ? "asc" : "desc";
-  const wantsPartnerAudience = searchParams.get("audience") === "partner";
-  // Marketing/Admin's own management list (isJobManager) always sees
-  // partner-only jobs regardless of ?audience= — they're the ones who
-  // create and maintain every Job, Credit Service or not, so hiding a
-  // partner-only posting from their own list made it permanently
-  // unreachable to edit/manage or add sectors & positions to (2026-09-07).
-  // The audience=partner mechanism below is a separate, narrower gate for
-  // the actual application-form/partner-portal contexts.
-  const includePartnerOnly = isJobManager || (wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role));
-
-  const result = await getPublicJobsList({
-    page: Number(searchParams.get("page") || 1),
-    limit: Number(searchParams.get("limit") || 10),
-    country: searchParams.get("country") || undefined,
-    category: searchParams.get("category") || undefined,
-    q: searchParams.get("q") || undefined,
-    status,
-    sortBy,
-    sortDir,
-    includePartnerOnly,
-  });
-
-  return NextResponse.json(result);
+  const limited = await limitByIp(req, "job-list", { max: 120 });
+  if (limited) return limited;
+  const query = Object.fromEntries(
+    ["page", "limit", "country", "category", "q", "status", "sortBy", "sortDir", "audience"].map((key) => [key, req.nextUrl.searchParams.get(key) || undefined])
+  );
+  const result = await callBackend("/api/v1/jobs", { query, asUser: "if-signed-in" });
+  return result.ok ? NextResponse.json(result.body.data) : legacyErrorResponse(result);
 }
 
 // POST /api/jobs — Marketing (admin retains override). FastAPI owns job

@@ -23,7 +23,7 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
 from app.core.access import _calls, iter_api_routes
-from app.core.auth import SERVICE_HEADER, calling_service, current_user, optional_user
+from app.core.auth import SERVICE_HEADER, calling_service, current_user, optional_user, website_or_user
 
 SECURITY_SCHEMES: dict[str, dict[str, Any]] = {
     "session": {
@@ -44,6 +44,9 @@ SECURITY_SCHEMES: dict[str, dict[str, Any]] = {
 def security_for(calls: set[Any]) -> list[dict[str, list[str]]] | None:
     """The OpenAPI security requirements for a route's dependencies; None
     for a public route. Alternatives are listed separately."""
+    if website_or_user in calls:
+        # The website for a visitor (signed in or not), or a user directly.
+        return [{"service": []}, {"service": [], "session": []}, {"session": []}]
     if calling_service in calls:
         # A service route may also carry the user it acts for.
         return [{"service": []}, {"service": [], "session": []}] if optional_user in calls else [{"service": []}]

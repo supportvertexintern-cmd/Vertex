@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { limitByIp } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
@@ -23,34 +23,12 @@ export const dynamic = "force-dynamic";
 // purpose (deciding whether a self-submission has a recruiter to fall
 // back to) went away along with recruiter assignment for self-registered
 // candidates entirely; see /api/jobs for the opportunity list itself.
+// Read from FastAPI since reads handover R1 (vertex_be/app/api/v1/public.py),
+// which keeps intakeMode "email" unless the admin chose "crm": an
+// unconfigured deployment fails safe toward not touching the CRM.
 export async function GET(req: Request) {
   const limited = await limitByIp(req, "apply-options", { max: 60 });
   if (limited) return limited;
-  const [countries, locationCountries, documentTypes, documentRequirements, intakeModeSetting] = await Promise.all([
-    prisma.country.findMany({
-      where: { region: { name: "Europe" } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.country.findMany({
-      where: { region: { name: { not: "Europe" } } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.documentRequirementType.findMany({
-      orderBy: [{ sort_order: "asc" }, { created_at: "asc" }],
-    }),
-    prisma.countryDocumentRequirement.findMany({
-      select: { country_id: true, document_type: true },
-    }),
-    // Defaults "email" (not "crm") when unset — the site is meant to be
-    // deployable to the main domain before the CRM's staff workflows are
-    // signed off, so an unconfigured deployment must fail safe toward not
-    // touching the CRM, not the other way around.
-    prisma.systemSetting.findUnique({ where: { key: "intake_mode" } }),
-  ]);
-
-  const intakeMode = intakeModeSetting?.value === "crm" ? "crm" : "email";
-
-  return NextResponse.json({ countries, locationCountries, documentTypes, documentRequirements, intakeMode });
+  const result = await callBackend("/api/v1/apply/options", { asUser: "if-signed-in" });
+  return result.ok ? NextResponse.json(result.body.data) : legacyErrorResponse(result);
 }

@@ -1,39 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Role } from "@prisma/client";
 import { limitByIp } from "@/lib/rate-limit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { callBackend, legacyErrorResponse } from "@/lib/backend";
-import { getPublicJobById } from "@/server/services/publicJobs";
 export const dynamic = "force-dynamic";
 
 // Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
 
-// Same role set as src/app/api/jobs/route.ts's PARTNER_JOB_VISIBILITY_ROLES
-// — see that file for the full rationale.
-const PARTNER_JOB_VISIBILITY_ROLES: Role[] = ["partner", "hr", "operations_team", "operations_director", "admin"];
-
-// GET /api/jobs/[id] — public. Also called directly (in-process, not over
-// HTTP) by /jobs/[id]'s Server Component — see server/services/publicJobs.ts.
+// GET /api/jobs/[id] — public, read from FastAPI since reads handover R1.
+// Active or closed jobs, never drafts; partner-only ones as for the listing
+// (GET /api/jobs). Answers with the plain job, or { error } and 404.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const limited = await limitByIp(req, "job-detail", { max: 120 });
   if (limited) return limited;
   const { id } = await params;
-  const { searchParams } = req.nextUrl;
-  const wantsPartnerAudience = searchParams.get("audience") === "partner";
-  const user = await getAuthUser(req);
-  const isJobManager = user ? !requireRole(user, [...JOB_MANAGER_ROLES]) : false;
-  // Marketing/Admin's own edit page (isJobManager) always sees a
-  // partner-only job's detail regardless of ?audience= — same fix as
-  // GET /api/jobs's list endpoint (2026-09-07): without this, opening a
-  // Credit Service job's edit page 404'd ("Failed to load job details"),
-  // since the edit page never sends audience=partner and "marketing"
-  // was never in PARTNER_JOB_VISIBILITY_ROLES to begin with.
-  const includePartnerOnly = isJobManager || (wantsPartnerAudience && !!user && PARTNER_JOB_VISIBILITY_ROLES.includes(user.role));
-
-  const job = await getPublicJobById(id, includePartnerOnly);
-  if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
-  return NextResponse.json(job);
+  const result = await callBackend(`/api/v1/jobs/${encodeURIComponent(id)}`, {
+    query: { audience: req.nextUrl.searchParams.get("audience") || undefined },
+    asUser: "if-signed-in",
+  });
+  return result.ok ? NextResponse.json(result.body.data) : legacyErrorResponse(result);
 }
 
 // FastAPI owns job writes since backend plan step 3.2

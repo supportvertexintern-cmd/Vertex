@@ -249,7 +249,7 @@ function FadeIn({
 
 /* ===== Page ===== */
 
-// The fields of a getPublicJobsList() row this page shows.
+// The fields of a public job (server/services/publicJobs.ts) this page shows.
 interface FeaturedJob {
   id: string;
   title: string;
