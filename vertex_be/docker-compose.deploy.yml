@@ -19,6 +19,10 @@
 #    `static`. Postgres is unpublished unless docker-compose.db-port.yml is
 #    added (deploy.sh does that when POSTGRES_HOST_PORT is set).
 #
+# Resources: each service has a memory and CPU cap (mem_limit, cpus), with
+# room over what it uses idle, so one runaway service can't take the PC.
+# A service that hits its memory cap is restarted (restart: unless-stopped).
+#
 # Logs (Phase 10): every service writes JSON lines to stdout; Docker keeps
 # them, rotated, on the host (only host admins can read them). Security
 # alerts also go by email: on this PC to the stack's Mailpit (UI on
@@ -119,6 +123,8 @@ services:
     networks: [ data, edge ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 768m
+    cpus: 1.0
 
   db:
     image: postgres:15-alpine
@@ -144,6 +150,8 @@ services:
     networks: [ data ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 1g
+    cpus: 1.0
 
   flutter-web:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-flutter-web:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -162,6 +170,8 @@ services:
     networks: [ static ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 64m
+    cpus: 0.25
 
   nextjs:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -244,6 +254,8 @@ services:
     networks: [ data, edge ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 768m
+    cpus: 1.0
 
   minio:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -263,6 +275,8 @@ services:
     networks: [ data ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 512m
+    cpus: 0.5
 
   edge:
     # The edge proxy (deploy/edge/Caddyfile), published on NEXTJS_PORT: sets
@@ -284,6 +298,8 @@ services:
     networks: [ edge ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
 
   redis:
     # Rate-limit counters shared by every website and API process
@@ -301,6 +317,8 @@ services:
     networks: [ data ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
 
   mailpit:
     # Local mail catcher: the app's email, security alerts included, lands
@@ -314,6 +332,8 @@ services:
     networks: [ data, edge ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -351,6 +371,8 @@ services:
     networks: [ data, edge ]
     restart: unless-stopped
     logging: *default-logging
+    mem_limit: 512m
+    cpus: 0.5
 
 volumes:
   postgres_data:

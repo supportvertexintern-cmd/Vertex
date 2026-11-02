@@ -4,8 +4,8 @@ minutes, the longest FastAPI accepts (app/core/tokens.py).
 
     env/Scripts/python scripts/service_token.py   (from vertex_be/)
 
-The secret comes from the environment or vertex_be/.env, else from the
-repo-root .env that scripts/local-env.sh writes for the local stack.
+The secret comes from the environment or vertex_be/.env, else from
+vertex_be/.env.dev, the development stack's env file.
 
 Signed with SERVICE_AUTH_SECRET as lib/jwt.ts signs one. Anyone with that
 secret can already sign these: this only saves doing it by hand. Never
@@ -23,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.core.config import settings  # noqa: E402
 from app.core.tokens import ISSUER, SERVICE_TOKEN_MAX_LIFETIME, key_for  # noqa: E402
 
-def _local_stack_secret() -> str | None:
-    env = Path(__file__).resolve().parents[2] / ".env"
+def _dev_stack_secret() -> str | None:
+    env = Path(__file__).resolve().parents[1] / ".env.dev"
     if not env.is_file():
         return None
     for line in env.read_text(encoding="utf-8").splitlines():
@@ -34,9 +34,9 @@ def _local_stack_secret() -> str | None:
     return None
 
 
-secret = settings.SERVICE_AUTH_SECRET or _local_stack_secret()
+secret = settings.SERVICE_AUTH_SECRET or _dev_stack_secret()
 if not secret or len(secret) < 32:
-    sys.exit("SERVICE_AUTH_SECRET isn't set (32+ characters) in vertex_be/.env or the environment.")
+    sys.exit("SERVICE_AUTH_SECRET isn't set (32+ characters) in the environment, vertex_be/.env or vertex_be/.env.dev.")
 now = int(time.time())
 claims = {"sub": ISSUER, "scope": "backend", "iat": now, "exp": now + SERVICE_TOKEN_MAX_LIFETIME, "iss": ISSUER, "aud": "vertex:service"}
 print(jwt.encode(claims, key_for("service", secret), algorithm="HS256"))

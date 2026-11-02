@@ -39,6 +39,8 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 
 **Owner's decision (2026-10-29): accept MinIO on every local stack, main included.** Vertex runs locally for now, so documents stay in each stack's MinIO; there is no S3 cutover until the platform is hosted. The first real document on main no longer breaks the exception. The other three conditions stay mandatory and are still checked (`verify-stack.sh`): no published port, the internal `data` network only, unique non-default credentials. The first-document alert was removed on 2026-10-30; `backup-health.sh` now only logs main's document count. Review on 2027-01-10, or as soon as Vertex is to be hosted outside this machine, whichever comes first.
 
+**Owner's decision (2026-11-02): the MinIO web console on dev, on demand only.** With one stack left on this PC, the owner wanted the console back for `vertex-dev`. It stays off by default. `deploy/minio-console.sh vertex-dev up` starts it on 127.0.0.1:9001, which publishes a port and puts MinIO on `edge` for as long as it runs; `down` restores both conditions. The script refuses any stack that isn't `APP_ENV=development`, so staging and main keep all three conditions at all times. `deploy/seed-dev.sh` likewise publishes dev's Postgres on 127.0.0.1 for the length of a seed only. `verify-stack.sh`'s MinIO rows fail while the console runs, which is how a console left on gets noticed.
+
 ### E4: Debian base-image findings, no fix released
 
 Fresh scan on 2026-10-12: backend image `dev-56de2b9`, Debian 13.7, Trivy 0.67.2.

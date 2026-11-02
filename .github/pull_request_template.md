@@ -7,7 +7,7 @@
 ## How it was tested
 
 - [ ] Tests added or updated
-- [ ] Ran locally (`docker compose up`, relevant test commands)
+- [ ] Tried on `vertex-dev` where it matters, and ran the relevant test commands
 
 ## Checklist
 

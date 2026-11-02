@@ -181,6 +181,14 @@ cd vertex_be
 LAN_IP=<this PC's LAN address> bash deploy/verify-stack.sh dev   # or staging
 ```
 
+## Test data on dev
+
+`ENV_FILE=.env.dev sh deploy/seed-dev.sh vertex-dev` loads the reference data
+and one test account per role (`admin@test.local` and so on, password
+`TestPassword123!`). Postgres is published on 127.0.0.1 for the seed only and
+unpublished again afterwards. It refuses any stack that isn't
+`APP_ENV=development`.
+
 ## Object storage (MinIO)
 
 Each stack has its own MinIO (S3 API) for uploaded documents. Files are on
@@ -188,6 +196,10 @@ this PC in `D:\VertexData\minio\<env>` (MinIO's own format: a folder per
 file, so open documents through the app or `mc`, not by double-clicking).
 
 - Only on the internal `data` network: no published port, web console off.
+  On a development stack the console can be started on demand
+  (`ENV_FILE=.env.dev sh deploy/minio-console.sh vertex-dev up`, then
+  `down`): http://localhost:9001, login `MINIO_ROOT_USER` /
+  `MINIO_ROOT_PASSWORD`. It refuses staging and main (E2).
 - `deploy/minio-bootstrap.sh` (run by every deploy, idempotent) creates the
   bucket `vertex-<env>` and the app's key `vertex-app-<env>`, whose policy
   allows reading, writing and deleting objects in that bucket only.
