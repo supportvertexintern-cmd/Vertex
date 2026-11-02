@@ -12,15 +12,6 @@ import { describe, expect, it } from "vitest";
 const SRC = path.resolve(__dirname, "..");
 
 const STILL_READING: Record<string, string[]> = {
-  "R6 payments and users": [
-    // Moved from R5: the case payments route still checks case access with it.
-    "server/scope.ts",
-    "app/api/admin/users/route.ts",
-    "app/api/cases/[id]/payments/route.ts",
-    "app/api/consultation-bookings/route.ts",
-    "app/api/finance/payments-due/route.ts",
-    "app/api/payments/me/route.ts",
-  ],
   "R7 cross-cutting": [
     "app/api/admin/backup/candidates-csv/route.ts",
     "app/api/backup/export/route.ts",

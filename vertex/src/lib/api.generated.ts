@@ -810,7 +810,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Case Payments
+         * @description A case's payments, newest first, for anyone who may see the case.
+         */
+        get: operations["case_payments_api_v1_cases__case_id__payments_get"];
         put?: never;
         /**
          * Record Payment
@@ -1058,6 +1062,27 @@ export interface paths {
          *     starts the 90-day retention follow-up at the last stage (FR-4.7).
          */
         patch: operations["set_stage_api_v1_cases__case_id__stage_patch"];
+        trace?: never;
+    };
+    "/api/v1/consultation-bookings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultation Bookings
+         * @description Every paid consultation booking, newest first, for Operations and
+         *     Finance to reconcile the Stripe charges.
+         */
+        get: operations["consultation_bookings_api_v1_consultation_bookings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/countries": {
@@ -1423,6 +1448,28 @@ export interface paths {
          * @description Creates or replaces the policy for body.country_id (null = global).
          */
         post: operations["save_fee_policy_api_v1_fee_policy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/finance/payments-due": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Payments Due
+         * @description Finance's worklist: each payment stage that is due (the case reached
+         *     its trigger stage, the fee policy is on) and not yet collected, for
+         *     every case on a job with a fee and payment stages.
+         */
+        get: operations["payments_due_api_v1_finance_payments_due_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2141,6 +2188,26 @@ export interface paths {
          *     sessions end: the token_version trigger), and sends the setup email.
          */
         post: operations["reset_password_api_v1_partners__partner_id__reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Own Payments
+         * @description The signed-in user's own payments, newest first.
+         */
+        get: operations["own_payments_api_v1_payments_me_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3041,7 +3108,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Directory
+         * @description The staff directory, by name: staff roles by default; a search (q)
+         *     covers every user, candidates included, so an admin can find one to
+         *     promote; a role always narrows to that role.
+         */
+        get: operations["directory_api_v1_users_get"];
         put?: never;
         /**
          * Create User
@@ -9685,6 +9758,39 @@ export interface operations {
             };
         };
     };
+    case_payments_api_v1_cases__case_id__payments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     record_payment_api_v1_cases__case_id__payments_post: {
         parameters: {
             query?: never;
@@ -10097,6 +10203,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consultation_bookings_api_v1_consultation_bookings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -10863,6 +10991,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payments_due_api_v1_finance_payments_due_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -12231,6 +12381,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    own_payments_api_v1_payments_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -13813,6 +13985,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_dict_str__Any__"];
+                };
+            };
+        };
+    };
+    directory_api_v1_users_get: {
+        parameters: {
+            query?: {
+                role?: string | null;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

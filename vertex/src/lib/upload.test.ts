@@ -10,7 +10,7 @@ import { getSignedDocumentUrl, resolveDocumentContent, DocumentNotFoundError } f
 import { verifyDocumentToken, signDocumentToken } from "./jwt";
 
 // Real integration tests against the configured object store (MinIO in CI
-// and locally, the same S3 API as AWS S3 and R2), like scope.test.ts runs
+// and locally, the same S3 API as AWS S3 and R2), as the integration tests run
 // against a real database: mocking the S3 client would only test the mock.
 const env = process.env;
 const BUCKET = (env.S3_BUCKET || env.R2_BUCKET_NAME)!;

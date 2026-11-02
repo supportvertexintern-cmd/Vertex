@@ -68,7 +68,7 @@ const SOURCE_OPTIONS = [
 // HR's own case list (2026-08-16) — a direct view of every case it's
 // handed off, so finding one doesn't mean digging back through the
 // Candidates/Partner Submissions queues that created it. Same unscoped
-// access as Operations (server/scope.ts's "hr" branch), read-only here
+// access as Operations (the "hr" rule in vertex_be/app/core/scope.py), read-only here
 // except Reject Case on the detail page (/hr/cases/[id]).
 export default function HrCasesPage() {
   const { get, getNumber, set: setUrlState } = useUrlListState();

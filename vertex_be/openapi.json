@@ -21713,6 +21713,54 @@
    }
   },
   "/api/v1/cases/{case_id}/payments": {
+   "get": {
+    "description": "A case's payments, newest first, for anyone who may see the case.",
+    "operationId": "case_payments_api_v1_cases__case_id__payments_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "case_id",
+      "required": true,
+      "schema": {
+       "title": "Case Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Case Payments Api V1 Cases  Case Id  Payments Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Case Payments",
+    "tags": [
+     "payments and finance"
+    ]
+   },
    "post": {
     "description": "POST /api/cases/[id]/payments: Finance records a collected milestone\npayment, with a receipt reference or file (SRS FR-4.5).",
     "operationId": "record_payment_api_v1_cases__case_id__payments_post",
@@ -22421,6 +22469,35 @@
     "summary": "Set Stage",
     "tags": [
      "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/consultation-bookings": {
+   "get": {
+    "description": "Every paid consultation booking, newest first, for Operations and\nFinance to reconcile the Stripe charges.",
+    "operationId": "consultation_bookings_api_v1_consultation_bookings_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Consultation Bookings Api V1 Consultation Bookings Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Consultation Bookings",
+    "tags": [
+     "payments and finance"
     ]
    }
   },
@@ -23703,6 +23780,35 @@
     "summary": "Save Fee Policy",
     "tags": [
      "reference data"
+    ]
+   }
+  },
+  "/api/v1/finance/payments-due": {
+   "get": {
+    "description": "Finance's worklist: each payment stage that is due (the case reached\nits trigger stage, the fee policy is on) and not yet collected, for\nevery case on a job with a fee and payment stages.",
+    "operationId": "payments_due_api_v1_finance_payments_due_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Payments Due Api V1 Finance Payments Due Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Payments Due",
+    "tags": [
+     "payments and finance"
     ]
    }
   },
@@ -26246,6 +26352,35 @@
     "summary": "Reset Password",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/payments/me": {
+   "get": {
+    "description": "The signed-in user's own payments, newest first.",
+    "operationId": "own_payments_api_v1_payments_me_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Own Payments Api V1 Payments Me Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Own Payments",
+    "tags": [
+     "payments and finance"
     ]
    }
   },
@@ -28950,6 +29085,77 @@
    }
   },
   "/api/v1/users": {
+   "get": {
+    "description": "The staff directory, by name: staff roles by default; a search (q)\ncovers every user, candidates included, so an admin can find one to\npromote; a role always narrows to that role.",
+    "operationId": "directory_api_v1_users_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "role",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Role"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Directory Api V1 Users Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Directory",
+    "tags": [
+     "payments and finance"
+    ]
+   },
    "post": {
     "description": "A new staff account with no password: the setup email lets them set\ntheir own.",
     "operationId": "create_user_api_v1_users_post",

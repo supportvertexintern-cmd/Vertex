@@ -1,11 +1,10 @@
 """Who may see and change which candidate-pipeline records (SRS FR-1.2,
-least privilege): the row-level scoping and single-record checks of
-vertex/src/server/scope.ts, for the pipeline handover
-(docs/architecture/pipeline-handover.md, step 6.1).
-
-They mirror the website's rules role for role; tests/test_scope.py fails if
-the two drift. Both fail closed: an unknown role, or a supervisor or
-partner without an assignment, sees nothing.
+least privilege): the row-level scoping and single-record checks, ported
+from the website's server/scope.ts for the pipeline handover
+(docs/architecture/pipeline-handover.md, step 6.1). The website stopped
+using its copy in reads handover R6; these are the only rules now,
+tested in tests/test_scope.py. They fail closed: an unknown role, or a
+supervisor or partner without an assignment, sees nothing.
 
 - A candidate sees their own record; a recruiter the candidates they
   recruited; a Country Supervisor their country's; an In-House Supervisor

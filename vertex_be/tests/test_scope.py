@@ -1,14 +1,12 @@
-"""The pipeline's access rules (step 6.1) match vertex/src/server/scope.ts,
-role for role, and fail closed."""
+"""The pipeline's access rules (step 6.1; the website's scope.ts until
+reads handover R6), role for role, and fail closed."""
 
-import re
 import secrets
 
 import pytest
 from sqlalchemy import select
 
 from app.core.auth import AuthUser
-from app.core.config import BASE_DIR
 from app.core.scope import (
     DRAFT_DOCUMENT_STAFF,
     UNRESTRICTED,
@@ -25,38 +23,15 @@ from app.models.enums import PartnerType, Role
 from app.models.identity import Country, InhouseCountryAssignment, Region, User
 from app.models.partners import Partner, PartnerCandidate
 
-SCOPE_TS = (BASE_DIR.parent / "vertex" / "src" / "server" / "scope.ts").read_text(encoding="utf-8")
+# The rules were compared with vertex/src/server/scope.ts until reads
+# handover R6 removed it; they are FastAPI's alone now, pinned here.
 
 
-def _function(name: str) -> str:
-    start = SCOPE_TS.index(f"export async function {name}(")
-    end = SCOPE_TS.find("\nexport ", start + 1)
-    return SCOPE_TS[start : end if end != -1 else None]
-
-
-def _roles_returning(name: str, returned: str) -> set[str]:
-    """The roles whose case group in the website's function returns `returned`."""
-    body = _function(name)
-    groups = re.findall(r'((?:\s*case "\w+":)+)\s*return ' + re.escape(returned) + ";", body)
-    return {role for group in groups for role in re.findall(r'case "(\w+)"', group)}
-
-
-def test_the_unrestricted_roles_match_the_website():
-    names = {r.value for r in UNRESTRICTED}
-    assert _roles_returning("scopeCandidatesToRequester", "{}") == names
-    assert _roles_returning("canAccessCandidate", "true") == names
-    assert _roles_returning("canAccessDocument", "true") == {r.value for r in DRAFT_DOCUMENT_STAFF}
-
-
-def test_every_role_the_website_handles_is_handled_here():
-    handled = set(re.findall(r'case "(\w+)"', _function("scopeCandidatesToRequester")))
-    # Marketing and referral agents fall to the default on both sides: nothing.
-    assert handled == {r.value for r in Role} - {"marketing", "referral_agent"}
-
-
-def test_cases_use_the_candidate_rules_on_both_sides():
-    assert "scopeCandidatesToRequester(user)" in _function("scopeCasesToRequester")
-    assert "return canAccessCandidate(user, candidate)" in _function("canAccessCase")
+def test_the_unrestricted_roles():
+    # Separation of duties (2026-07-31): HR, operations and finance are global.
+    assert {r.value for r in UNRESTRICTED} == {"director", "admin", "hr", "operations_team", "operations_director", "finance"}
+    # Who may open a document on a partner's draft, besides the partner.
+    assert {r.value for r in DRAFT_DOCUMENT_STAFF} == {"director", "admin", "hr", "operations_team", "operations_director"}
 
 
 # --- behaviour ---------------------------------------------------------------
