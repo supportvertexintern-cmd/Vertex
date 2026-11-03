@@ -149,6 +149,10 @@ BEGIN
     -- Phase 10: reading the trail is limited to the service that shows it
     -- (Next.js: case history, security monitor). FastAPI may append, not read.
     REVOKE SELECT ON "AuditLog" FROM vertex_api;
+    -- Reads handover R7a (D3 A): the website records its few events through
+    -- FastAPI (POST /api/v1/audit-events) and no longer shows the trail, so
+    -- it can neither read nor append to it. FastAPI is the only writer.
+    REVOKE SELECT, INSERT ON "AuditLog" FROM vertex_web;
   END IF;
   -- G9: FastAPI verifies those sessions, so it may ask whether one is live
   -- (yes/no, migration 0007) without reading any session row.
@@ -166,6 +170,11 @@ BEGIN
   IF to_regprocedure('public.vertex_rejection_dates(text, text[])') IS NOT NULL THEN
     REVOKE ALL ON FUNCTION public.vertex_rejection_dates(text, text[]) FROM PUBLIC, vertex_web, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_rejection_dates(text, text[]) TO vertex_api;
+  END IF;
+  -- R7a: the alert monitor's counts (migration 0009), numbers only.
+  IF to_regprocedure('public.vertex_security_count(text, text, text, timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_security_count(text, text, text, timestamp) FROM PUBLIC, vertex_web, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_security_count(text, text, text, timestamp) TO vertex_api;
   END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api, vertex_web;

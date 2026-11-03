@@ -54,6 +54,9 @@ ok "vertex_readonly: SELECT email (personal data)" "$(net vertex_readonly "$(v D
 ok "vertex_readonly: read AuditLog" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
 ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
 ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
+# Reads handover R7a: the website records through FastAPI and reads no trail.
+ok "vertex_web: read AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
+ok "vertex_web: append to AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "insert into \"AuditLog\" (id, entity_type, entity_id, action) values ('probe', 'x', 'x', 'x')")" "permission denied"
 # Users step 8.5: the website reads users without their credentials, and writes none.
 ok "vertex_web: SELECT password_hash" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
 ok "vertex_web: UPDATE User" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "User" set email = email where false')" "permission denied"
@@ -61,6 +64,7 @@ ok "vertex_api: read AuditLog (Phase 10)" "$(net vertex_api "$(v DB_API_PASSWORD
 # Reads handover R5: a case's history through a function, without the snapshots.
 ok "vertex_api: a case's trail (0008)" "$( [ -n "$(net vertex_api "$(v DB_API_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" ] && echo allowed)" allowed
 ok "vertex_web: a case's trail (0008)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" "permission denied"
+ok "vertex_api: the alert monitor's counts (0009)" "$(net vertex_api "$(v DB_API_PASSWORD)" "select public.vertex_security_count('access_denied', 'actor_id', 'none', now()::timestamp)")" 0
 ok "vertex_web: disable AuditLog triggers" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
 # Object storage (MinIO). The app's key is handed to a throwaway `mc` through

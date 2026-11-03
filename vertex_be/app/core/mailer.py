@@ -1,0 +1,39 @@
+"""Outgoing mail (reads handover R7, D3 and D4 A): plain-text messages over
+SMTP, with the settings the website's lib/email.ts uses (SMTP_*,
+EMAIL_FROM). R7a sends the security alerts from here; the pipeline's
+emails follow in R7b.
+
+send_mail raises on failure; callers decide whether that matters. With
+SMTP_HOST unset it sends nothing and returns False.
+"""
+
+from __future__ import annotations
+
+import smtplib
+import ssl
+from email.message import EmailMessage
+
+from app.core.config import settings
+
+TIMEOUT_SECONDS = 10
+
+
+def send_mail(to: list[str], subject: str, text: str) -> bool:
+    if not settings.SMTP_HOST:
+        return False
+    message = EmailMessage()
+    message["From"] = settings.EMAIL_FROM
+    message["To"] = ", ".join(to)
+    message["Subject"] = subject
+    message.set_content(text)
+    if settings.SMTP_SECURE:
+        server: smtplib.SMTP = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=TIMEOUT_SECONDS, context=ssl.create_default_context())
+    else:
+        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=TIMEOUT_SECONDS)
+    with server:
+        if not settings.SMTP_SECURE and server.has_extn("starttls"):
+            server.starttls(context=ssl.create_default_context())
+        if settings.SMTP_USER:
+            server.login(settings.SMTP_USER, settings.SMTP_PASS or "")
+        server.send_message(message)
+    return True

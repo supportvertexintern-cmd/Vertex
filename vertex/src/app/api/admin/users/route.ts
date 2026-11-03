@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 import { pipelineResponse, queryOf } from "@/lib/pipeline";
-import { alertOnPrivilegeGranted } from "@/lib/auth-backend";
 
 // GET /api/admin/users?role=&q= — staff directory for role/supervisor/country
 // assignment (SRS FR-1.1, FR-1.3, FR-1.4). With no query, staff roles only;
@@ -41,6 +40,5 @@ export async function POST(req: NextRequest) {
   // (vertex_be/app/api/v1/users.py) and lists the setup email, sent from
   // here.
   const result = await callBackend("/api/v1/users", { method: "POST", body });
-  alertOnPrivilegeGranted(result, user!.userId);
   return pipelineResponse(result);
 }

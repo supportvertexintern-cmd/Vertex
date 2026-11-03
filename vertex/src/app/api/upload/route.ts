@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import { callBackend } from "@/lib/backend";
-import { onMalwareFound, onScannerUnavailable } from "@/lib/security-monitor";
 
 // POST /api/upload?type=<key>[&candidate_id=...|&partner_candidate_id=...]
 // Documents are FastAPI's since the pipeline switch (step 6.7; owner's
@@ -23,12 +22,9 @@ export async function POST(req: NextRequest) {
   const candidateId = params.get("candidate_id");
   const fromForm = Boolean(uploadToken && candidateId);
 
-  let actorId: string | null = null;
   if (!fromForm) {
-    const user = await getAuthUser(req);
-    const guardRes = requireAuth(user);
+    const guardRes = requireAuth(await getAuthUser(req));
     if (guardRes) return guardRes;
-    actorId = user!.userId;
   }
 
   const contentType = req.headers.get("content-type");
@@ -48,17 +44,9 @@ export async function POST(req: NextRequest) {
       })
     : await callBackend("/api/v1/documents", { method: "POST", raw, query, timeoutMs: UPLOAD_TIMEOUT_MS });
 
-  // FastAPI recorded these; the alerts are this app's (security-monitor.ts).
-  const target = query.partner_candidate_id ?? query.candidate_id ?? "own-profile";
-  if (!result.ok) {
-    if (result.error.code === "malware_detected") {
-      onMalwareFound("malware_rejected", target, actorId, (result.error.details as { signature?: string } | undefined)?.signature);
-    }
-    return NextResponse.json({ error: result.error.message }, { status: result.status });
-  }
+  // FastAPI records a rejected or unscanned upload and raises the alert
+  // (since reads handover R7a, vertex_be/app/services/security_monitor.py).
+  if (!result.ok) return NextResponse.json({ error: result.error.message }, { status: result.status });
   const document = result.body.data as { id: string; scan_status: string };
-  if (document.scan_status === "unscanned" && process.env.CLAMD_HOST) {
-    onScannerUnavailable("an upload was stored unscanned");
-  }
   return NextResponse.json({ documentId: document.id, message: "File uploaded successfully." });
 }

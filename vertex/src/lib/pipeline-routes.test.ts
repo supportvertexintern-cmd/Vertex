@@ -39,8 +39,6 @@ vi.mock("@/lib/email", () => {
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
 });
 
-const alerts = vi.hoisted(() => ({ malware: vi.fn(), scanner: vi.fn() }));
-vi.mock("@/lib/security-monitor", () => ({ onMalwareFound: alerts.malware, onScannerUnavailable: alerts.scanner }));
 
 import { NOTICE_SENDERS, sendNotices } from "@/lib/pipeline";
 import * as stage from "@/app/api/cases/[id]/stage/route";
@@ -69,8 +67,6 @@ beforeEach(() => {
   state.sent = [];
   callBackend.mockReset();
   callBackend.mockResolvedValue(ok({ id: "x1" }));
-  alerts.malware.mockReset();
-  alerts.scanner.mockReset();
   vi.unstubAllEnvs();
 });
 
@@ -222,16 +218,12 @@ describe("uploads", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it("malware and an unscanned upload raise this app's alerts", async () => {
+  // FastAPI raises the malware and scanner alerts since reads handover R7a.
+  it("a rejected upload answers with FastAPI's message", async () => {
     state.role = "candidate";
     callBackend.mockResolvedValueOnce({ ok: false, status: 422, error: { code: "malware_detected", message: "Rejected.", details: { signature: "Eicar" } } });
     const res = await upload.POST(form());
     expect([res.status, await res.json()]).toEqual([422, { error: "Rejected." }]);
-    expect(alerts.malware).toHaveBeenCalledWith("malware_rejected", "own-profile", "u1", "Eicar");
-    vi.stubEnv("CLAMD_HOST", "clamd");
-    callBackend.mockResolvedValueOnce(ok({ id: "d3", scan_status: "unscanned" }));
-    await upload.POST(form());
-    expect(alerts.scanner).toHaveBeenCalledTimes(1);
   });
 });
 

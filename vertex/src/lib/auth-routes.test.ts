@@ -2,7 +2,7 @@
 // issues, rotates and revokes sessions (vertex_be/tests/test_sessions.py);
 // these routes keep the rate limits, the cookies (browser) or the token body
 // (mobile app, never cookies), CORS for the Flutter web build, the response
-// shapes, and the alerts raised from FastAPI's refusals.
+// shapes. FastAPI raises the alerts on its refusals since reads handover R7a.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => {
@@ -15,8 +15,6 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/backend")>()),
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
-const alerts = vi.fn();
-vi.mock("@/lib/security-monitor", () => ({ onSecurityEvent: (...args: unknown[]) => alerts(...args) }));
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 vi.mock("@/lib/api-auth", () => ({
@@ -57,7 +55,6 @@ const as = (res: Response) => res as NextResponse;
 
 beforeEach(() => {
   callBackend.mockReset();
-  alerts.mockReset();
   state.user = null;
   vi.stubEnv("APP_ORIGINS", "http://localhost:3500");
 });
@@ -83,12 +80,6 @@ describe("browser sign-in", () => {
     expect(await invalid.json()).toEqual({ error: "Validation failed", details: { email: ["Invalid email address"] } });
     const bad = await webLogin(post("/api/auth/login", "{not json"));
     expect([bad.status, await bad.json()]).toEqual([400, { error: "Invalid JSON" }]);
-  });
-
-  it("a refused sign-in feeds the brute-force alerts", async () => {
-    callBackend.mockResolvedValueOnce(refused(401, "invalid_credentials", "Invalid email or password.", { email_fp: "fp1" }));
-    await webLogin(post("/api/auth/login", { email: "a@test.invalid", password: "x" }));
-    expect(alerts).toHaveBeenCalledWith("login_failed", null, "login", { email_fp: "fp1", ip: "203.0.113.7" });
   });
 
   it("the per-address limit answers before FastAPI is asked", async () => {
@@ -159,12 +150,6 @@ describe("refresh", () => {
     callBackend.mockResolvedValueOnce(refused(503, "backend_unavailable", "The service is unavailable. Please try again."));
     const res = as(await webRefresh(post("/api/auth/refresh", undefined, cookie)));
     expect([res.status, res.cookies.getAll()]).toEqual([503, []]);
-  });
-
-  it("a reused token raises the alert", async () => {
-    callBackend.mockResolvedValueOnce(refused(401, "session_ended", "Please sign in again.", { reason: "reused", session: "f9", user_id: "u9", used_at: "2026-10-30T10:00:00.000Z" }));
-    await webRefresh(post("/api/auth/refresh", undefined, cookie));
-    expect(alerts).toHaveBeenCalledWith("refresh_token_reused", "u9", "f9", { used_at: "2026-10-30T10:00:00.000Z" });
   });
 
   it("a page navigation renews and goes back, or goes to sign-in", async () => {

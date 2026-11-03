@@ -235,6 +235,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record */
+        post: operations["record_api_v1_audit_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/google": {
         parameters: {
             query?: never;
@@ -3692,6 +3709,22 @@ export interface components {
             /** Enabled */
             enabled: boolean;
         };
+        /** AuditEventIn */
+        AuditEventIn: {
+            /** Action */
+            action: ("login_rate_limited" | "access_denied" | "document_link_rejected" | "document_downloaded") | "export";
+            /** Detail */
+            detail?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Entity Id
+             * @default
+             */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+        };
         /** Author */
         Author: {
             /** Full Name */
@@ -4653,6 +4686,10 @@ export interface components {
         /** Data[Readable] */
         Data_Readable_: {
             data: components["schemas"]["Readable"];
+        };
+        /** Data[Recorded] */
+        Data_Recorded_: {
+            data: components["schemas"]["Recorded"];
         };
         /** Data[RecruiterTargetOut] */
         Data_RecruiterTargetOut_: {
@@ -6615,6 +6652,11 @@ export interface components {
             receipt_document_id?: string | null;
             /** Receipt Reference */
             receipt_reference?: string | null;
+        };
+        /** Recorded */
+        Recorded: {
+            /** Action */
+            action: string;
         };
         /** RecruiterRef */
         RecruiterRef: {
@@ -8596,6 +8638,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_AssistantOut_"];
+                };
+            };
+        };
+    };
+    record_api_v1_audit_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuditEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Recorded_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

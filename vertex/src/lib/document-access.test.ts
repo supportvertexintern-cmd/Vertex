@@ -6,8 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const callBackend = vi.fn();
 vi.mock("@/lib/backend", () => ({ callBackend: (...args: unknown[]) => callBackend(...args) }));
-const malware = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/security-monitor", () => ({ onMalwareFound: malware }));
 
 import { assertDocumentReadable, DocumentBlockedError, DocumentCheckUnavailableError } from "./document-access";
 
@@ -19,7 +17,6 @@ const blocked = (newlyFound: boolean) => ({
 
 beforeEach(() => {
   callBackend.mockReset();
-  malware.mockReset();
 });
 
 describe("assertDocumentReadable", () => {
@@ -31,17 +28,16 @@ describe("assertDocumentReadable", () => {
     expect(callBackend.mock.calls[0]).toEqual(["/api/v1/documents/readable", { method: "POST", body: { storage_path: "passport/a.pdf" }, asUser: false }]);
   });
 
-  it("refuses an infected file, alerting only when it was just found", async () => {
+  // FastAPI alerts on the discovery since reads handover R7a.
+  it("refuses an infected file, newly found or not", async () => {
     callBackend.mockResolvedValueOnce(blocked(true)).mockResolvedValueOnce(blocked(false));
     await expect(assertDocumentReadable("passport/a.pdf")).rejects.toBeInstanceOf(DocumentBlockedError);
     await expect(assertDocumentReadable("passport/a.pdf")).rejects.toBeInstanceOf(DocumentBlockedError);
-    expect(malware.mock.calls).toEqual([["malware_blocked_download", "d1", null, "Eicar"]]);
   });
 
   it("without FastAPI, nothing is served (reads handover R5: no database to ask instead)", async () => {
     callBackend.mockResolvedValue({ ok: false, status: 503, error: { code: "backend_unavailable", message: "Unavailable." } });
     await expect(assertDocumentReadable("passport/a.pdf")).rejects.toBeInstanceOf(DocumentCheckUnavailableError);
     await expect(assertDocumentReadable("invoices/x.pdf")).rejects.toBeInstanceOf(DocumentCheckUnavailableError);
-    expect(malware).not.toHaveBeenCalled();
   });
 });

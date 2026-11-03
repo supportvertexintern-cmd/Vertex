@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { appJson, appPreflight, appSession } from "@/lib/app-auth";
 import { recordSecurityEvent } from "@/lib/audit";
 import { callBackend } from "@/lib/backend";
-import { alertOnRefusal, clientHeaders, issued, legacyError, type SignedIn } from "@/lib/auth-backend";
+import { clientHeaders, issued, legacyError, type SignedIn } from "@/lib/auth-backend";
 import { rateLimit, retryAfter } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/client-ip";
 import { ACCESS_TOKEN_TTL_SECONDS } from "@/lib/session";
@@ -35,7 +35,6 @@ export async function POST(req: NextRequest) {
     forward: await clientHeaders(req),
   });
   if (!result.ok) {
-    await alertOnRefusal(result);
     // FastAPI's per-account limit answers as this route's own does.
     if (result.status === 429) return appJson(req, { error: result.error }, 429);
     return appJson(req, legacyError(result.error, result.status), result.status);

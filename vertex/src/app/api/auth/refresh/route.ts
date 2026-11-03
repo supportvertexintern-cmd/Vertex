@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
 import { safeRedirectPath } from "@/lib/safe-redirect";
 import { callBackend } from "@/lib/backend";
-import { alertOnRefusal, clientHeaders, issued, refreshRefusal, type SignedIn } from "@/lib/auth-backend";
+import { clientHeaders, issued, refreshRefusal, type SignedIn } from "@/lib/auth-backend";
 import { clearSessionCookies, REFRESH_COOKIE, setSessionCookies } from "@/lib/session";
 
 // Session refresh (G19). The refresh cookie is only sent to /api/auth/*, so
@@ -24,7 +24,6 @@ async function refresh(req: NextRequest) {
     asUser: false,
     forward: await clientHeaders(req),
   });
-  if (!result.ok) await alertOnRefusal(result);
   return result;
 }
 

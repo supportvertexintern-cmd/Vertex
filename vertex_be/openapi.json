@@ -1878,6 +1878,52 @@
     "title": "AssistantOut",
     "type": "object"
    },
+   "AuditEventIn": {
+    "additionalProperties": false,
+    "properties": {
+     "action": {
+      "anyOf": [
+       {
+        "enum": [
+         "login_rate_limited",
+         "access_denied",
+         "document_link_rejected",
+         "document_downloaded"
+        ],
+        "type": "string"
+       },
+       {
+        "const": "export",
+        "type": "string"
+       }
+      ],
+      "title": "Action"
+     },
+     "detail": {
+      "additionalProperties": true,
+      "title": "Detail",
+      "type": "object"
+     },
+     "entity_id": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Entity Id",
+      "type": "string"
+     },
+     "entity_type": {
+      "maxLength": 100,
+      "minLength": 1,
+      "title": "Entity Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action",
+     "entity_type"
+    ],
+    "title": "AuditEventIn",
+    "type": "object"
+   },
    "Author": {
     "properties": {
      "full_name": {
@@ -4952,6 +4998,18 @@
      "data"
     ],
     "title": "Data[Readable]",
+    "type": "object"
+   },
+   "Data_Recorded_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Recorded"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Recorded]",
     "type": "object"
    },
    "Data_RecruiterTargetOut_": {
@@ -13161,6 +13219,19 @@
     "title": "RecordIn",
     "type": "object"
    },
+   "Recorded": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     }
+    },
+    "required": [
+     "action"
+    ],
+    "title": "Recorded",
+    "type": "object"
+   },
    "RecruiterRef": {
     "properties": {
      "full_name": {
@@ -19482,6 +19553,56 @@
     "summary": "Assistant",
     "tags": [
      "content"
+    ]
+   }
+  },
+  "/api/v1/audit-events": {
+   "post": {
+    "operationId": "record_api_v1_audit_events_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AuditEventIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Recorded_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     }
+    ],
+    "summary": "Record",
+    "tags": [
+     "security"
     ]
    }
   },

@@ -27,9 +27,7 @@ vi.mock("@/lib/email", () => {
   const senders = ["sendVerificationLinkEmail", "sendPasswordResetLinkEmail", "sendAccountSetupLinkEmail"];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
 });
-const alerts = vi.hoisted(() => ({ granted: vi.fn() }));
-vi.mock("@/lib/security-monitor", () => ({ onPrivilegeGranted: alerts.granted, onSecurityEvent: async () => undefined }));
-vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined, emailFingerprint: () => "fp", auditedPrisma: () => ({}) }));
+vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
 vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: async () => state.dbUser } } }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
@@ -64,7 +62,6 @@ const admin = { userId: "admin1", email: "a@test.invalid", role: "admin", sid: "
 
 beforeEach(() => {
   callBackend.mockReset();
-  alerts.granted.mockReset();
   state.sent = [];
   state.user = null;
   state.dbUser = null;
@@ -165,21 +162,20 @@ describe("the admin user pages", () => {
     expect(callBackend).toHaveBeenCalledWith("/api/v1/users", { method: "POST", body: { full_name: "New", email: "n@test.invalid", role: "hr" } });
     expect([res.status, await res.json()]).toEqual([201, { data: row }]);
     expect(state.sent).toEqual([["sendAccountSetupLinkEmail", "setup-link", "n@test.invalid", "New"]]);
-    expect(alerts.granted).not.toHaveBeenCalled();
   });
 
-  it("raises the admin-granted alert from FastAPI's answer", async () => {
+  // The admin-granted alert is FastAPI's since reads handover R7a
+  // (vertex_be/tests/test_security_monitor.py).
+  it("passes a role change on", async () => {
     callBackend.mockResolvedValueOnce(ok({ id: "p1", role: "admin" }, { privilege_granted: { from: "director", to: "admin" } }));
     await oneUser.PATCH(request("PATCH", "/api/admin/users/p1", { role: "admin" }), ctx("p1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/users/p1", { method: "PATCH", body: { role: "admin" } });
-    expect(alerts.granted).toHaveBeenCalledWith("admin1", "p1", "director", "admin");
   });
 
   it("keeps FastAPI's errors as { error: { code, message } }", async () => {
     callBackend.mockResolvedValueOnce(refused(400, "self_role_change", "You can't change your own role."));
     const res = await oneUser.PATCH(request("PATCH", "/api/admin/users/admin1", { role: "hr" }), ctx("admin1"));
     expect([res.status, await res.json()]).toEqual([400, { error: { code: "self_role_change", message: "You can't change your own role." } }]);
-    expect(alerts.granted).not.toHaveBeenCalled();
   });
 
   it("deletes, and resets to a temporary password in the older shape", async () => {

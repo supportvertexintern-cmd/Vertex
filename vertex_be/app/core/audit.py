@@ -1,11 +1,13 @@
-"""The audit trail (SRS NFR-6) for FastAPI's writes: auditedPrisma() and
-recordSecurityEvent() in vertex/src/lib/audit.ts, in SQLAlchemy.
+"""The audit trail (SRS NFR-6): every write is FastAPI's, and so is every
+row (the website records its few events through POST /audit-events since
+reads handover R7a). Ported from auditedPrisma() and recordSecurityEvent()
+in the website's lib/audit.ts.
 
 Data changes are recorded by a flush hook on every Session, so a write
 can't silently skip the trail:
 
-- Every create, update and delete of an audited model (AUDITED_MODELS, the
-  same list as audit.ts) adds an AuditLog row with the before/after
+- Every create, update and delete of an audited model (AUDITED_MODELS, pinned
+  in tests/test_audit.py) adds an AuditLog row with the before/after
   snapshots, the actor and the request ID, in the same transaction as the
   change. The change and its record commit together or not at all.
 - The actor must be declared first: routes take AuditedDb (the caller's
@@ -224,6 +226,25 @@ def _refuse_bulk_writes(state: ORMExecuteState) -> None:
 SECURITY_INFO_ACTIONS = frozenset({"login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked"})
 
 
+def append_event(action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:
+    """Appends one event to the trail in a transaction of its own; raises
+    if it can't. For an access that must not happen unrecorded (a bulk
+    export: the website's auditAccess, fail closed)."""
+    with engine.begin() as conn:
+        conn.execute(
+            insert(AuditLog.__table__),
+            {
+                "id": new_id(),
+                "entity_type": entity_type,
+                "entity_id": (entity_id or "unknown")[:200],
+                "action": action,
+                "actor_id": actor_id,
+                "request_id": request_id_var.get(),
+                "after": redact(detail),
+            },
+        )
+
+
 def record_security_event(
     action: str,
     *,
@@ -232,31 +253,29 @@ def record_security_event(
     entity_id: str,
     detail: dict[str, Any] | None = None,
 ) -> None:
-    """recordSecurityEvent(): logs security.<action> and appends it to the
+    """recordSecurityEvent(): logs security.<action>, appends it to the
     trail in a transaction of its own, so a refused request (rolled back)
-    still leaves its record. Never raises and never changes the outcome the
-    caller decided; a failed write is logged as audit.write_failed."""
+    still leaves its record, and passes it to the alert monitor
+    (app/services/security_monitor.py, from the website since reads
+    handover R7a). Never raises and never changes the outcome the caller
+    decided; a failed write is logged as audit.write_failed and alerted."""
+    from app.services import security_monitor  # it records through this module
+
     try:
         detail = redact(detail or {})
         request_id = request_id_var.get()
         entity_id = (entity_id or "unknown")[:200]
         level = logging.INFO if action in SECURITY_INFO_ACTIONS else logging.WARNING
-        log_event(level, f"security.{action}", actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, **detail)
+        # A detail key named like the line's own fields would make this
+        # call fail and the event go unrecorded; the line keeps its own.
+        extra = {k: v for k, v in detail.items() if k not in ("actor_id", "entity_type", "entity_id", "level", "event")}
+        log_event(level, f"security.{action}", actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, **extra)
         try:
-            with engine.begin() as conn:
-                conn.execute(
-                    insert(AuditLog.__table__),
-                    {
-                        "id": new_id(),
-                        "entity_type": entity_type,
-                        "entity_id": entity_id,
-                        "action": action,
-                        "actor_id": actor_id,
-                        "request_id": request_id,
-                        "after": detail,
-                    },
-                )
+            append_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
         except Exception as err:  # noqa: BLE001
             log_event(logging.ERROR, "audit.write_failed", action=action, request_id=request_id, error=type(err).__name__)
+            security_monitor.on_audit_write_failed(action, err)
+            return
+        security_monitor.on_security_event(action, actor_id, entity_id, detail)
     except Exception:  # noqa: BLE001
         pass

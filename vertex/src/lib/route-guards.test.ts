@@ -99,7 +99,7 @@ describe("API route guards", () => {
   // access or side effect before the caller is checked. Exceptions are
   // stage-1 request validation only, each named here.
   it("guarded handlers check the caller before touching data", () => {
-    const DATA = /\bprisma\.|auditedPrisma\(|\$transaction\(|send\w*Email\(|getSignedDocumentUrl\(|saveUploadedFile\(|stripe\.|fetch\(/;
+    const DATA = /\bprisma\.|\$transaction\(|send\w*Email\(|getSignedDocumentUrl\(|saveUploadedFile\(|stripe\.|fetch\(/;
     const VALIDATION_LOOKUPS: Record<string, string> = {
       "POST /api/upload": "validates the `type` parameter against DocumentRequirementType (reference data)",
     };

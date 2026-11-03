@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
 import { setSessionCookies } from "@/lib/session";
 import { callBackend } from "@/lib/backend";
-import { alertOnRefusal, clientHeaders, issued, type SignedIn } from "@/lib/auth-backend";
+import { clientHeaders, issued, type SignedIn } from "@/lib/auth-backend";
 import { checkGoogleState, clearGoogleState } from "@/lib/google-oauth";
 import { log } from "@/lib/log";
 
@@ -59,7 +59,6 @@ export async function GET(req: NextRequest) {
     forward: await clientHeaders(req),
   });
   if (!result.ok) {
-    await alertOnRefusal(result);
     const reason = KNOWN_ERRORS.has(result.error.code) ? result.error.code : "google_failed";
     return redirect(`${appUrl}/auth/login?error=${reason}`);
   }

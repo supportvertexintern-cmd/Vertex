@@ -124,13 +124,6 @@ const FINANCE_NEXT_STEP_HTML = small(
   `The next step is the initial payment — our Finance Department will be in touch, or you can reach them directly at <a href="mailto:finance@vertexintern.com" style="color:${BRAND.gold600};">finance@vertexintern.com</a>.`
 );
 
-// Security alerts (lib/security-monitor.ts): plain text, no template or
-// branding, so an alert still goes out if the template table is the
-// problem. The body is already redacted by the monitor.
-export async function sendSecurityAlertEmail(to: string[], subject: string, text: string) {
-  await transporter.sendMail({ from: FROM, to, subject, text });
-}
-
 // The emails carrying an account link: FastAPI signs the link since users
 // step 8.3 (D4 A) and lists the email in `notify`, which lib/pipeline.ts
 // sends with these. A link is a credential: never log one.
