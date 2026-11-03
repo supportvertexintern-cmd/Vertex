@@ -20,6 +20,13 @@ updates:
       # Follows the Node version the app runs on, not the newest Node.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7 (the native compiler) isn't supported yet by the tools
+      # built on its JavaScript API: openapi-typescript (peer ^5.x, which
+      # generates src/lib/api.generated.ts) and typescript-eslint (via
+      # eslint-config-next, peer <6.1). Dependabot's #170 failed npm ci on
+      # it. Revisit when both support it.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     commit-message: { prefix: chore, include: scope }
 
   - package-ecosystem: pip
