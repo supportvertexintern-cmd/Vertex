@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import type { components } from "@/lib/api.generated";
 import type { BackendError, BackendResult } from "@/lib/backend";
 import { currentRequest } from "@/lib/request-context";
-import { onPrivilegeGranted, onSecurityEvent } from "@/lib/security-monitor";
 import type { IssuedSession } from "@/lib/session";
 
 /**
@@ -10,9 +9,9 @@ import type { IssuedSession } from "@/lib/session";
  * and sessions step 8.2 (vertex_be/app/api/v1/sessions.py;
  * docs/architecture/users-handover.md). The /api/auth routes keep what only
  * this app can do: the per-address rate limits (D2), the cookies or the
- * app's token body, Google's state cookie, and the security monitor's
- * alerts. FastAPI records the security events; the alerts are raised here
- * from what it reports, as for malware (onMalwareFound).
+ * app's token body, and Google's state cookie. FastAPI records the security
+ * events and, since reads handover R7a, raises the alerts on them
+ * (vertex_be/app/services/security_monitor.py).
  */
 
 /** A session as FastAPI issues it (generated from its schema, D.3). */
@@ -45,36 +44,6 @@ const details = (error: BackendError): Details => (error.details && typeof error
 /** The reason FastAPI refused a refresh ("superseded", "reused", ...), if it did. */
 export function refreshRefusal(result: BackendResult<unknown>): string | null {
   return !result.ok && result.status === 401 ? (details(result.error).reason ?? "unknown") : null;
-}
-
-/**
- * Raises the security monitor's alerts for a refused sign-in or refresh:
- * brute force on one account or from one address (counted from the
- * login_failed rows FastAPI wrote, which carry the fingerprint and the
- * address), and a reused refresh token.
- */
-export async function alertOnRefusal(result: BackendResult<unknown>): Promise<void> {
-  if (result.ok || result.status !== 401 && result.status !== 403) return;
-  const d = details(result.error);
-  if (d.email_fp) {
-    const { ip } = await currentRequest();
-    await onSecurityEvent("login_failed", null, "login", { email_fp: d.email_fp, ip });
-  } else if (d.reason === "reused" && d.session) {
-    await onSecurityEvent("refresh_token_reused", d.user_id ?? null, d.session, { used_at: d.used_at });
-  }
-}
-
-/**
- * The admin user pages are FastAPI's since users step 8.3
- * (vertex_be/app/api/v1/users.py). When a write makes someone an admin, its
- * answer says so in privilege_granted, and the alert auditedPrisma() used to
- * raise is raised here.
- */
-export function alertOnPrivilegeGranted(result: BackendResult<unknown>, actorId: string): void {
-  if (!result.ok) return;
-  const granted = result.body.privilege_granted as { from: string | null; to: string } | null | undefined;
-  const userId = (result.body.data as { id?: string } | undefined)?.id;
-  if (granted && userId) onPrivilegeGranted(actorId, userId, granted.from, granted.to);
 }
 
 /** A refusal as the older routes answered it: { error: message }, with details only for a validation error. */

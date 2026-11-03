@@ -4,7 +4,7 @@ import { rateLimit, retryAfter } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/client-ip";
 import { recordSecurityEvent } from "@/lib/audit";
 import { callBackend } from "@/lib/backend";
-import { alertOnRefusal, clientHeaders, issued, legacyError, type SignedIn } from "@/lib/auth-backend";
+import { clientHeaders, issued, legacyError, type SignedIn } from "@/lib/auth-backend";
 
 // Browser sign-in: the session goes into HttpOnly cookies. The mobile app
 // signs in through /api/auth/app/login instead (tokens in the body). FastAPI
@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
     forward: await clientHeaders(req),
   });
   if (!result.ok) {
-    await alertOnRefusal(result);
     return NextResponse.json(legacyError(result.error, result.status), { status: result.status });
   }
   const { user, session } = result.body.data;

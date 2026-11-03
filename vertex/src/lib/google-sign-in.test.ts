@@ -14,8 +14,6 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/backend")>()),
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
-const alerts = vi.fn();
-vi.mock("@/lib/security-monitor", () => ({ onSecurityEvent: (...args: unknown[]) => alerts(...args) }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 
 import { NextRequest, type NextResponse } from "next/server";
@@ -49,7 +47,6 @@ async function signInWithGoogle() {
 
 beforeEach(() => {
   callBackend.mockReset();
-  alerts.mockReset();
 });
 
 describe("the OAuth state (login CSRF)", () => {
@@ -87,12 +84,6 @@ describe("FastAPI's answer", () => {
     const res = await signInWithGoogle();
     expect(res.headers.get("location")).toContain(`error=${code}`);
     expect(res.cookies.get("auth_token")).toBeUndefined();
-  });
-
-  it("a refused sign-in feeds the brute-force alerts", async () => {
-    callBackend.mockResolvedValueOnce({ ok: false, status: 401, error: { code: "google_no_account", message: "Refused.", details: { email_fp: "fp1" } } });
-    await signInWithGoogle();
-    expect(alerts).toHaveBeenCalledWith("login_failed", null, "login", { email_fp: "fp1", ip: "203.0.113.7" });
   });
 
   it("an unexpected answer is a generic failure, never an open redirect", async () => {

@@ -4,12 +4,13 @@ setup email), change a user's role, supervisor and countries, delete one,
 and reset one's password to a temporary one. They replace POST
 /api/admin/users, PATCH and DELETE /api/admin/users/[id] and POST
 /api/admin/users/[id]/reset-password, which pass requests on. The
-directory (GET) stays in Next.js.
+directory (GET) is in payment_reads.py since reads handover R6.
 
 They answer as those routes did: admins only (a test fails if the lists
 drift), the same messages, status codes and JSON. Every change is on the
 audit trail. When an account becomes an admin the answer says so in
-`privilege_granted`, and the website raises the alert it always raised.
+`privilege_granted`, and the privilege_granted alert is raised here (the
+website raised it until reads handover R7a).
 
 What changes (security review #11, #12):
   - Nobody changes their own role, and the last admin can't be demoted or
@@ -38,6 +39,7 @@ from app.core.rbac import is_staff_role, require_role
 from app.core.tokens import sign_account_setup_token
 from app.models.enums import Role
 from app.models.identity import Country, InhouseCountryAssignment, User
+from app.services import security_monitor
 from app.services.sessions import hash_password
 
 router = APIRouter()
@@ -176,8 +178,12 @@ def keep_an_admin(db, actor_id: str, target_id: str) -> None:
         raise ApiError(403, "forbidden", "Forbidden")
 
 
-def _granted(was: Role | None, now: Role) -> dict[str, Any] | None:
-    return {"from": was, "to": now} if now is Role.admin and was is not Role.admin else None
+def _granted(admin: AuthUser, user_id: str, was: Role | None, now: Role) -> dict[str, Any] | None:
+    """{from, to} when the account just became an admin, alerted."""
+    if now is not Role.admin or was is Role.admin:
+        return None
+    security_monitor.on_privilege_granted(admin.user_id, user_id, was.value if was else None, now.value)
+    return {"from": was, "to": now}
 
 
 def _load(db, user_id: str) -> User:
@@ -217,7 +223,7 @@ def create_user(body: CreateIn, admin: Admin, db: AuditedDb):
 
     user = _load(db, user.id)
     notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
-    return {"data": _row(db, user), "notify": notify, "privilege_granted": _granted(None, user.role)}
+    return {"data": _row(db, user), "notify": notify, "privilege_granted": _granted(admin, user.id, None, user.role)}
 
 
 @router.patch("/users/{user_id}", response_model=Written)
@@ -262,7 +268,7 @@ def update_user(user_id: str, body: UpdateIn, admin: Admin, db: AuditedDb):
     db.commit()
 
     user = _load(db, user_id)
-    return {"data": _row(db, user), "privilege_granted": _granted(was, user.role)}
+    return {"data": _row(db, user), "privilege_granted": _granted(admin, user.id, was, user.role)}
 
 
 @router.delete("/users/{user_id}", response_model=Data[Removed])

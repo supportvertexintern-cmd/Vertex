@@ -28,7 +28,7 @@ vi.mock("@/lib/email", () => {
   ];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
 });
-vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined, auditedPrisma: () => ({}) }));
+vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
 vi.mock("@/lib/prisma", () => ({ prisma: { partner: { findUnique: async () => null }, referralAgent: { findUnique: async () => null } } }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,

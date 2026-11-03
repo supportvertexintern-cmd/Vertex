@@ -7,7 +7,6 @@ import { NextRequest } from "next/server";
 import { emit, log, setLogSink } from "./log";
 import { redact, redactString } from "./redact";
 import { resolveRequestId } from "./request-context";
-import { redactSnapshot } from "./audit";
 import { proxy } from "@/proxy";
 
 // Built at runtime so the secret scanner (rightly) doesn't flag a JWT-shaped literal.
@@ -50,12 +49,6 @@ describe("redact", () => {
     cyclic.self = cyclic;
     Object.defineProperty(cyclic, "boom", { enumerable: true, get: () => { throw new Error("x"); } });
     expect(() => redact(cyclic)).not.toThrow();
-  });
-
-  it("audit snapshots never keep the password hash or tokens", () => {
-    const snap = redactSnapshot("User", { email: "a@b.c", password_hash: "$2b$10$abc", note: `link ?token=${JWT}` });
-    expect(snap).toMatchObject({ email: "a@b.c", password_hash: "[redacted]" });
-    expect(JSON.stringify(snap)).not.toContain(JWT);
   });
 });
 

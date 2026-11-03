@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { appJson, appPreflight, appSession, refreshTokenFromBody } from "@/lib/app-auth";
 import { callBackend } from "@/lib/backend";
-import { alertOnRefusal, clientHeaders, issued, refreshRefusal, type SignedIn } from "@/lib/auth-backend";
+import { clientHeaders, issued, refreshRefusal, type SignedIn } from "@/lib/auth-backend";
 import { limitByIp } from "@/lib/rate-limit";
 import { ACCESS_TOKEN_TTL_SECONDS } from "@/lib/session";
 
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
     forward: await clientHeaders(req),
   });
   if (!result.ok) {
-    await alertOnRefusal(result);
     if (!refreshRefusal(result)) return appJson(req, { error: result.error }, result.status);
     return appJson(req, ENDED, 401);
   }

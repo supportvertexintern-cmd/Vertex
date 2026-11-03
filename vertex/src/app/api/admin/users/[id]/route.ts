@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireAdmin } from "@/lib/api-auth";
 import { callBackend } from "@/lib/backend";
 import { passOn, pipelineResponse, seg } from "@/lib/pipeline";
-import { alertOnPrivilegeGranted } from "@/lib/auth-backend";
 
 // PATCH /api/admin/users/:id — assign role, supervisor, and/or country
 // (SRS FR-1.1, FR-1.3 "support reassignment", FR-1.4).
@@ -23,7 +22,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // FastAPI writes since users step 8.3 (vertex_be/app/api/v1/users.py),
   // refusing a change to one's own role and the last admin's demotion.
   const result = await callBackend(`/api/v1/users/${seg(id)}`, { method: "PATCH", body });
-  alertOnPrivilegeGranted(result, user!.userId);
   return pipelineResponse(result);
 }
 

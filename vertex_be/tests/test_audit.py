@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.core import audit
 from app.core.auth import AuthUser
-from app.core.config import BASE_DIR
 from app.core.logging import REDACTED, request_id_var
 from app.core.rbac import require_role
 from app.db.base import Base
@@ -26,7 +25,6 @@ from app.models.identity import User
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
-AUDIT_TS = BASE_DIR.parent / "vertex" / "src" / "lib" / "audit.ts"
 
 
 def trail(db, entity_id: str) -> list[AuditLog]:
@@ -40,9 +38,21 @@ def new_user(db, **fields) -> User:
     return u
 
 
-def test_the_audited_models_match_audit_ts():
-    body = re.search(r"const AUDITED_MODELS = new Set\(\[(.*?)\]\)", AUDIT_TS.read_text(encoding="utf-8"), re.S)
-    assert set(re.findall(r'"(\w+)"', body.group(1))) == set(audit.AUDITED_MODELS)
+def test_the_audited_models_are_pinned():
+    # Compared with the website's audit.ts until reads handover R7a removed
+    # its audited client; FastAPI's list is the only one now. Dropping a
+    # model from the trail should be a deliberate change here too.
+    assert audit.AUDITED_MODELS == {
+        "Application", "Campaign", "CampaignTarget", "Candidate", "CandidateMessage", "Case", "CasePayment",
+        "CaseReminder", "CaseStageEvent", "ConsultationBooking", "Contract", "Country",
+        "CountryDocumentRequirement", "Document", "DocumentRequirementType", "EmailTemplate",
+        "EmployerClient", "Exception", "ExceptionCorrectiveAction", "FeePolicy", "InhouseCountryAssignment",
+        "Job", "JobMilestonePrice", "JobPaymentStage", "JobPosition", "JobSector", "KnowledgeArticle",
+        "Partner", "PartnerCandidate", "Payment", "RecruiterNote", "RecruiterTarget", "ReferralAgent",
+        "ReferralAgentTarget", "ReferralCommission", "ReferralCommissionRule", "Region", "Report",
+        "RetentionFollowUp", "Sector", "StaffKpiTarget", "StaffScorecard", "StaffScorecardArea",
+        "SystemSetting", "User"
+    }
 
 
 def test_every_audited_model_is_a_table():

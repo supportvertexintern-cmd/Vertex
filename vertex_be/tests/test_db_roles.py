@@ -69,10 +69,15 @@ RUNTIME_ROLES = ["vertex_api", "vertex_web"]
 
 
 @pytest.mark.parametrize("role", RUNTIME_ROLES)
-def test_runtime_roles_can_read_rows_and_append_to_the_audit_trail(conn, role):
+def test_runtime_roles_can_read_rows(conn, role):
     assert run_as(conn, role, 'SELECT count(*) FROM "User"') is None
-    assert run_as(conn, role, """INSERT INTO "AuditLog" (id, entity_type, entity_id, action)
-                                 VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')""") is None
+
+
+def test_only_the_api_appends_to_the_audit_trail(conn):
+    # Reads handover R7a: the website records through FastAPI.
+    append = """INSERT INTO "AuditLog" (id, entity_type, entity_id, action) VALUES ('ctest-role-audit', 'test', 'x', 'CREATE')"""
+    assert run_as(conn, "vertex_api", append) is None
+    assert run_as(conn, "vertex_web", append) == INSUFFICIENT_PRIVILEGE
 
 
 def test_the_api_writes_rows(conn):
@@ -114,10 +119,12 @@ def test_a_column_a_migration_adds_is_readable_after_the_next_run(conn):
     assert run_as(conn, "vertex_web", 'SELECT password_hash FROM "User" LIMIT 1') == INSUFFICIENT_PRIVILEGE
 
 
-def test_only_the_web_service_reads_the_audit_trail(conn):
-    # Phase 10: Next.js shows case history and runs the security monitor;
-    # FastAPI may append to the trail but not read it.
-    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "AuditLog"') is None
+def test_no_runtime_role_reads_the_audit_trail(conn):
+    # Phase 10: FastAPI may append to the trail but not read it; since reads
+    # handover R5 and R7a it asks the functions of migrations 0008 and 0009,
+    # and the website (which showed case history and ran the security
+    # monitor) has no access at all.
+    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
 
 
@@ -147,7 +154,12 @@ def test_only_the_api_may_ask_whether_a_session_is_live(conn):
 
 
 @pytest.mark.parametrize(
-    "ask", ["SELECT count(*) FROM public.vertex_case_trail('c')", "SELECT count(*) FROM public.vertex_rejection_dates('Candidate', ARRAY['c'])"]
+    "ask",
+    [
+        "SELECT count(*) FROM public.vertex_case_trail('c')",
+        "SELECT count(*) FROM public.vertex_rejection_dates('Candidate', ARRAY['c'])",
+        "SELECT public.vertex_security_count('access_denied', 'actor_id', 'u', now()::timestamp)",  # R7a
+    ],
 )
 def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
     # Reads handover R5 (owner's decision 2026-11-02): FastAPI reads a
@@ -157,7 +169,7 @@ def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
     assert run_as(conn, "vertex_api", 'SELECT before FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
     assert run_as(conn, "vertex_web", ask) == INSUFFICIENT_PRIVILEGE
     assert run_as(conn, "vertex_readonly", ask) == INSUFFICIENT_PRIVILEGE
-    for name in ("vertex_case_trail", "vertex_rejection_dates"):
+    for name in ("vertex_case_trail", "vertex_rejection_dates", "vertex_security_count"):
         owner, public_can = conn.execute(
             text("SELECT pg_get_userbyid(proowner), has_function_privilege('public', oid, 'EXECUTE') FROM pg_proc WHERE proname = :n"), {"n": name}
         ).one()
@@ -376,3 +388,15 @@ def test_deleting_a_country_clears_its_fee_policy(conn):
         assert conn.execute(text("""SELECT country_id FROM "FeePolicy" WHERE id = 'ctest-fp-policy'""")).scalar() is None
     finally:
         savepoint.rollback()
+
+
+def test_the_monitor_count_answers_only_its_four_questions(conn):
+    # R7a: a number for the four pairs the alert rules use; anything else
+    # is refused, so the function can't be used to read the trail.
+    ask = "SELECT public.vertex_security_count(:a, :k, 'v', now()::timestamp)"
+    for action, key in (("login_failed", "email_fp"), ("login_failed", "ip"), ("access_denied", "actor_id"), ("alert_raised", "entity_id")):
+        assert conn.execute(text(ask), {"a": action, "k": key}).scalar() == 0
+    savepoint = conn.begin_nested()
+    with pytest.raises(DBAPIError, match="not a monitored count"):
+        conn.execute(text(ask), {"a": "password_reset_requested", "k": "email_fp"})
+    savepoint.rollback()

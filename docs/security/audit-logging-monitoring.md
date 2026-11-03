@@ -76,7 +76,8 @@ These were already recorded and are unchanged:
   - bulk `UPDATE`/`DELETE` statements on audited tables are refused;
   - SQL sent straight to the connection bypasses the hook, so code review covers that.
 - **Security events:** `record_security_event()` logs and appends in its own transaction. `require_role()` uses it for `access_denied`.
-- **Not ported yet:** the security monitor's alert rules (§6). Granting `admin` through FastAPI is logged (`security.privilege_granted`) but doesn't raise an alert yet.
+- **The alert monitor** (§6) is FastAPI's since reads handover R7a: `record_security_event()` passes every event to `app/services/security_monitor.py`.
+- **The website's own events** (its rate limit, its early role check, download links, exports) are recorded through `POST /api/v1/audit-events` since R7a, with its service credential; the actor is the session's user. An export is refused (503) if it can't be recorded.
 
 **Not audited, by design:**
 
@@ -104,19 +105,19 @@ These were already recorded and are unchanged:
 
 | Who | Read | Append | Change or delete |
 |---|---|---|---|
-| `vertex_web` (Next.js) | ✅ security monitor (until reads handover R7) | ✅ | ❌ revoked, plus triggers |
-| `vertex_api` (FastAPI) | ❌ **no `SELECT`** (revoked in Phase 10). Since reads handover R5, two functions only it may run (migration 0008): a case's history without snapshots, and the dates submissions were rejected | ✅ | ❌ |
+| `vertex_web` (Next.js) | ❌ revoked in reads handover R7a | ❌ revoked in R7a: it records through FastAPI | ❌ revoked, plus triggers |
+| `vertex_api` (FastAPI) | ❌ **no `SELECT`** (revoked in Phase 10). Functions only it may run: a case's history without snapshots and the dates submissions were rejected (migration 0008, R5), and the alert monitor's counts (0009, R7a), numbers only | ✅ the only writer | ❌ |
 | `vertex_readonly` (pgAdmin) | ❌ no `AuditLog` columns granted | ❌ | ❌ |
 | `vertex_migrator` (owner) | ✅ | ✅ | ❌ triggers refuse even the owner |
 | Runtime roles: disable or drop the triggers | n/a | n/a | ❌ not the owner (tested) |
 
 - **In the app:** two pages show it, both answered by FastAPI since reads handover R5 (owner's decision 2026-11-02). A case's history (`GET /api/v1/cases/{id}/audit-log`) applies the case's own access check and returns summaries only (actor name, action, time); rejected submissions show each one's rejection date. The functions return no snapshots, so FastAPI never sees them.
 - **Where it's enforced:** `deploy/db-roles.sql`.
-- **How it's tested:** `tests/test_db_roles.py` (including the two functions) and live `verify-stack.sh` rows.
+- **How it's tested:** `tests/test_db_roles.py` (including the functions, and that the website can neither read nor append) and live `verify-stack.sh` rows.
 
 ## 6. Monitoring and alerts
 
-Rules agreed with the owner on 2026-10-11 (`lib/security-monitor.ts`):
+Rules agreed with the owner on 2026-10-11. Since reads handover R7a they run in FastAPI (`vertex_be/app/services/security_monitor.py`, moved from the website's `lib/security-monitor.ts` rule for rule), on the events it records. The counts come from `vertex_security_count` (migration 0009), which answers only the four questions below and refuses any other:
 
 | Rule | Fires when | Severity | Repeats at most |
 |---|---|---|---|
@@ -132,9 +133,9 @@ The last two were added at the owner's invitation to "raise any concern": one me
 
 **An alert produces:**
 
-1. A log line at level `alert` (`event: alert.raised`).
+1. A log line at level `CRITICAL` (`event: alert.raised`).
 2. An `alert_raised` audit row, keyed by rule and subject, which gives deduplication across processes.
-3. A plain-text email to `SECURITY_ALERT_EMAILS` (comma-separated). If that's unset, it goes to every admin user.
+3. A plain-text email to `SECURITY_ALERT_EMAILS` (comma-separated). If that's unset, it goes to every admin user. FastAPI sends it (`app/core/mailer.py`, the backend's own `SMTP_*` settings) off the request, so a slow mail server never holds one.
 
 The email has the rule, environment, time, counts and the request ID, and never credentials.
 
@@ -164,9 +165,9 @@ The email has the rule, environment, time, counts and the request ID, and never 
 | Audit write fails for an export | Export refused (fail closed, unchanged) |
 | Monitor or email fails | Logged (`monitor.evaluate_failed`, `alert.email_failed`); the request is unaffected |
 
-Tested in `security-events.integration.test.ts` ("logging failures cannot grant access") and `tests/test_logging.py`.
+Tested in `tests/test_security_monitor.py` (moved from the website's `security-events.integration.test.ts` in reads handover R7a) and `tests/test_logging.py`.
 
-**Known limit:** `auditedPrisma` writes the audit row after the change, not in the same transaction. If that write fails, the change stays but the request fails and an `audit_write_failed` alert goes out. Making it one transaction is a candidate for Phase 7 item 6 (transactions). FastAPI's writes don't have this limit (§3).
+**Known limit, closed:** `auditedPrisma` wrote the audit row after the change, not in the same transaction. Every write is FastAPI's since the write migration, in one transaction with its row (§3), and `auditedPrisma` was removed in reads handover R7a.
 
 ## 8. Verification
 
