@@ -61,7 +61,10 @@ export interface CallBackendOptions {
 
 const UNAVAILABLE: BackendError = { code: "backend_unavailable", message: "The service is unavailable. Please try again." };
 
-export async function callBackend<T = unknown>(path: string, options: CallBackendOptions = {}): Promise<BackendResult<T>> {
+type Failure = Extract<BackendResult<never>, { ok: false }>;
+
+/** The request itself, for callBackend() and passFile(): FastAPI's response, or why there is none. */
+async function send(path: string, options: CallBackendOptions, accept: string): Promise<Response | Failure> {
   const { method = "GET", body, raw, query, asUser = true, forward, timeoutMs = TIMEOUT_MS } = options;
   const base = process.env.BACKEND_URL;
   if (!base) {
@@ -80,7 +83,7 @@ export async function callBackend<T = unknown>(path: string, options: CallBacken
   let headers: Record<string, string>;
   try {
     const { requestId } = await currentRequest();
-    headers = { "X-Vertex-Service": signServiceToken(), Accept: "application/json" };
+    headers = { "X-Vertex-Service": signServiceToken(), Accept: accept };
     if (requestId) headers[REQUEST_ID_HEADER] = requestId;
     if (asUser) {
       const session = (await cookies()).get(ACCESS_COOKIE)?.value;
@@ -98,9 +101,8 @@ export async function callBackend<T = unknown>(path: string, options: CallBacken
     return { ok: false, status: 503, error: UNAVAILABLE };
   }
 
-  let res: Response;
   try {
-    res = await fetch(url, {
+    return await fetch(url, {
       method,
       headers,
       body: raw ? raw.body : body === undefined ? undefined : JSON.stringify(body),
@@ -113,6 +115,40 @@ export async function callBackend<T = unknown>(path: string, options: CallBacken
     log.warn("backend.call_failed", { path, method, reason: timedOut ? "timeout" : "network", err });
     return { ok: false, status: timedOut ? 504 : 502, error: UNAVAILABLE };
   }
+}
+
+const failed = (sent: Response | Failure): sent is Failure => "error" in sent && !("headers" in sent);
+
+/** FastAPI's error envelope from a response, or the generic one. */
+async function errorOf(res: Response, path: string): Promise<Failure> {
+  const parsed = (await res.json().catch(() => null)) as { error?: BackendError } | null;
+  if (parsed?.error && typeof parsed.error.code === "string") return { ok: false, status: res.status, error: parsed.error };
+  log.warn("backend.call_failed", { path, reason: "unexpected response", status: res.status });
+  return { ok: false, status: 502, error: UNAVAILABLE };
+}
+
+/**
+ * A file FastAPI answers with (a backup ZIP, a CSV), passed straight on:
+ * its body streams through with its type and download name. An error is
+ * the failure, for the route to answer in its own shape.
+ */
+export async function passFile(path: string, options: CallBackendOptions = {}): Promise<NextResponse | Failure> {
+  const res = await send(path, options, "*/*");
+  if (failed(res)) return res;
+  if (!res.ok) return errorOf(res, path);
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  for (const name of ["Content-Type", "Content-Disposition"]) {
+    const value = res.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  return new NextResponse(res.body, { status: res.status, headers });
+}
+
+export async function callBackend<T = unknown>(path: string, options: CallBackendOptions = {}): Promise<BackendResult<T>> {
+  const sent = await send(path, options, "application/json");
+  if (failed(sent)) return sent;
+  const res = sent;
+  const method = options.method ?? "GET";
 
   if (res.status === 204) return { ok: true, status: 204, body: { data: null as T } };
 

@@ -19897,6 +19897,202 @@
     ]
    }
   },
+  "/api/v1/backup/candidates-csv": {
+   "get": {
+    "description": "Every candidate, with their latest application, case and document\ncounts; start and end bound Candidate.created_at, inclusive.",
+    "operationId": "candidates_csv_api_v1_backup_candidates_csv_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Candidates Csv",
+    "tags": [
+     "backup"
+    ]
+   }
+  },
+  "/api/v1/backup/catalog": {
+   "get": {
+    "description": "Every table, column and relationship this role may export.",
+    "operationId": "catalog_api_v1_backup_catalog_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Catalog Api V1 Backup Catalog Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Catalog",
+    "tags": [
+     "backup"
+    ]
+   }
+  },
+  "/api/v1/backup/export": {
+   "post": {
+    "description": "A full backup or a custom export, as a ZIP.",
+    "operationId": "export_api_v1_backup_export_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": true,
+        "title": "Body",
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Export",
+    "tags": [
+     "backup"
+    ]
+   }
+  },
+  "/api/v1/backup/records": {
+   "get": {
+    "description": "Up to 25 records for the export builder's \"specific records\" filter:\nby the table's label (a name, title or reference, or the linked\ncandidate's name) or an exact id, within the role's row filter.",
+    "operationId": "records_api_v1_backup_records_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "model",
+      "required": false,
+      "schema": {
+       "default": "",
+       "title": "Model",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "default": "",
+       "title": "Q",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Records Api V1 Backup Records Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Records",
+    "tags": [
+     "backup"
+    ]
+   }
+  },
   "/api/v1/campaigns": {
    "get": {
     "description": "Newest first. ?scope=mine keeps the campaigns with a target for the\ncaller's own country, its region, or the whole campaign: the reporting\ncycle's \"Campaign\" picker (Supervisory Reporting Framework §3.1).",
