@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
-import nodemailer from "nodemailer";
+import { FROM, transporter } from "@/lib/email";
 
 export async function createReceiptPdf(
   paymentId: string,
@@ -53,16 +53,9 @@ export async function createReceiptPdf(
   
   const pdfBytes = await pdfDoc.save();
 
-  // 2. Email Receipt
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
+  // 2. Email Receipt, with lib/email.ts's settings. It had its own, which
+  // read SMTP_PASSWORD (set nowhere: the setting is SMTP_PASS), SMTP_FROM
+  // (also unset) and a port with no default.
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -82,7 +75,7 @@ export async function createReceiptPdf(
   `;
 
   await transporter.sendMail({
-    from: `"Vertex Recruitment" <${process.env.SMTP_FROM}>`,
+    from: FROM,
     to: candidateEmail,
     subject: `Payment Receipt - Vertex International`,
     html,
