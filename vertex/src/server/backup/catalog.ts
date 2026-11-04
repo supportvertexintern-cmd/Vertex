@@ -44,7 +44,7 @@ export const CATEGORIES: { key: string; label: string; models: string[] }[] = [
       "RecruiterNote",
     ],
   },
-  { key: "reporting", label: "Reporting & Governance", models: ["Report", "Exception", "ExceptionCorrectiveAction", "AuditLog"] },
+  { key: "reporting", label: "Reporting & Governance", models: ["Report", "Exception", "ExceptionCorrectiveAction"] },
   { key: "campaigns", label: "Campaigns", models: ["Campaign", "CampaignTarget"] },
   {
     key: "referrals",
@@ -70,7 +70,6 @@ const MODEL_LABELS: Record<string, string> = {
   Document: "Documents",
   Partner: "Partners",
   Job: "Jobs / Opportunities",
-  AuditLog: "Audit Log",
 };
 
 const ALL_MODELS = CATEGORIES.flatMap((c) => c.models);
@@ -79,6 +78,11 @@ const ALL_MODELS = CATEGORIES.flatMap((c) => c.models);
 // (canExportModel refuses them, including through a relation).
 export const NEVER_EXPORTED: Record<string, string> = {
   RefreshToken: "session credentials (refresh-token hashes, G19); not business data",
+  // No running service reads the trail since reads handover R7a (Phase 10;
+  // the owner's narrow-functions decision of 2026-11-02): its rows hold
+  // before/after snapshots of personal data. The database backups
+  // (vertex_be/deploy/backup/backup.sh) still carry it whole.
+  AuditLog: "the audit trail: read by no service, kept whole in the database backups",
 };
 
 const CORE_OPERATIONAL = [
