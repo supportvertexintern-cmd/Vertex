@@ -6,7 +6,8 @@ import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseSt
 import { prisma } from "./prisma";
 
 import { log } from "./log";
-const transporter = nodemailer.createTransport({
+// Shared with lib/invoice.ts's receipt, so every email uses one set of settings.
+export const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT) || 587,
   secure: process.env.SMTP_SECURE === "true",
@@ -16,7 +17,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const FROM = process.env.EMAIL_FROM || "Vertex International <noreply@vertexinternational.com>";
+export const FROM = process.env.EMAIL_FROM || "Vertex International <noreply@vertexinternational.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // Base64-embedded rather than referenced by URL — an <img src="{APP_URL}/...">
