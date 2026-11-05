@@ -9,7 +9,8 @@ import { callBackend } from "@/lib/backend";
 // FastAPI's (vertex_be/app/api/v1/me.py), which checks the session is still
 // live: a revoked, deleted or demoted user is nobody here too (G19).
 export async function GET(req: NextRequest) {
-  if (!(await getAuthUser(req))) return NextResponse.json({ data: null }, { status: 401 });
+  const user = await getAuthUser(req);
+  if (!user) return NextResponse.json({ data: null }, { status: 401 });
 
   const res = await callBackend<{ id: string; email: string; role: string }>("/api/v1/me");
   if (!res.ok) {
