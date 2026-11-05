@@ -93,8 +93,10 @@ def test_every_table_is_handed_over(conn):
     assert tables - {"AuditLog", "alembic_version", "_prisma_migrations"} - set(fastapi_owned_tables()) == set()
 
 
-# Review item #8 (users step 8.5): what Next.js may never read.
-HIDDEN = {"User": {"password_hash", "google_id"}, "RefreshToken": {"token_hash"}}
+# Review item #8 (users step 8.5): what Next.js may never read. RefreshToken
+# is unreadable to it as a whole since reads handover R7d
+# (test_sessions_are_the_apis_alone).
+HIDDEN = {"User": {"password_hash", "google_id"}}
 
 
 @pytest.mark.parametrize("table", sorted(HIDDEN))
@@ -128,12 +130,13 @@ def test_no_runtime_role_reads_the_audit_trail(conn):
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
 
 
-def test_sessions_are_written_by_the_api_and_read_by_both(conn):
+def test_sessions_are_the_apis_alone(conn):
     # G19: refresh tokens belong to the service that signs users in, FastAPI
-    # since users step 8.2; Next.js still checks every request against them.
-    # That vertex_web can't write them is test_a_handed_over_table_has_one_writer.
-    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "RefreshToken"') is None
+    # since users step 8.2, which checks every request against them; since
+    # reads handover R7d the website reads none. That vertex_web can't write
+    # them is test_a_handed_over_table_has_one_writer.
     assert run_as(conn, "vertex_api", 'SELECT count(*) FROM "RefreshToken"') is None
+    assert run_as(conn, "vertex_web", 'SELECT count(*) FROM "RefreshToken"') == INSUFFICIENT_PRIVILEGE
 
 
 def test_only_the_api_may_ask_whether_a_session_is_live(conn):
@@ -359,9 +362,11 @@ def test_the_handover_list_is_read():
 
 @pytest.mark.parametrize("table", fastapi_owned_tables())
 def test_a_handed_over_table_has_one_writer(conn, table):
-    # docs/architecture/data-ownership.md: FastAPI writes it; Next.js only reads.
+    # docs/architecture/data-ownership.md: FastAPI writes it; Next.js only
+    # reads it, if at all (sessions: not since reads handover R7d).
     pk = {"SystemSetting": "key", "EmailTemplate": "event"}.get(table, "id")
-    assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') is None
+    unread = {"RefreshToken"}
+    assert run_as(conn, "vertex_web", f'SELECT count(*) FROM "{table}"') == (INSUFFICIENT_PRIVILEGE if table in unread else None)
     for sql in (
         f'INSERT INTO "{table}" ({pk}) SELECT \'x\' WHERE false',
         f'UPDATE "{table}" SET {pk} = {pk}',

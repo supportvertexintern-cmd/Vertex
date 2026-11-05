@@ -4,15 +4,17 @@ import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
 import { recordSecurityEventLater } from "@/lib/audit";
 import { log } from "@/lib/log";
-import { ACCESS_COOKIE, loadSession } from "@/lib/session";
+import { ACCESS_COOKIE } from "@/lib/session";
 
 /**
- * The signed-in caller, or null. Zero trust (G19): the access token's
- * signature is not enough. The user must still exist, their token_version
- * must match the token's, and the token's session must still be live, so
- * revocation, deletion, and password or role changes take effect on the
- * next request. Role and email come from the database, not the token.
- * Any failure, including the database being unreachable, means null.
+ * The signed-in caller, or null: the access token's claims, once its
+ * signature (FastAPI's key) and expiry check out. Since reads handover R7d
+ * (D2 A) this app reads no data itself, so this decides only which page or
+ * early refusal to show. Every data call is FastAPI's, and FastAPI checks
+ * the live session on each one (current_user in vertex_be/app/core/auth.py:
+ * the user still exists, token_version matches, the family is live), so a
+ * revoked, deleted, demoted or re-passworded user gets no data on the next
+ * request. Any failure means null.
  *
  * _req is optional and unused: route handlers still pass their request, and
  * Server Components (which have no NextRequest) can call this too; the
@@ -32,12 +34,7 @@ export async function getAuthUser(_req?: NextRequest): Promise<JwtPayload | null
       log.info("auth.invalid_token", { reason: err instanceof Error ? err.name : "unknown" });
       return null;
     }
-    const { user, reason } = await loadSession(claims.userId, claims.sid, claims.ver);
-    if (!user) {
-      log.info("auth.session_rejected", { reason, user_id: claims.userId, sid: claims.sid });
-      return null;
-    }
-    return { userId: user.id, email: user.email, role: user.role, sid: claims.sid, ver: user.token_version };
+    return { userId: claims.userId, email: claims.email, role: claims.role, sid: claims.sid, ver: claims.ver };
   } catch (err) {
     log.warn("auth.session_check_failed", { err });
     return null;

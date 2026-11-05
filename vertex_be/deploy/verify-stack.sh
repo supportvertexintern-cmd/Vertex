@@ -56,6 +56,7 @@ ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'updat
 ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
 # Reads handover R7a: the website records through FastAPI and reads no trail.
 ok "vertex_web: read AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
+ok "vertex_web: read RefreshToken (R7d)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select count(*) from "RefreshToken"')" "permission denied"
 ok "vertex_web: append to AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "insert into \"AuditLog\" (id, entity_type, entity_id, action) values ('probe', 'x', 'x', 'x')")" "permission denied"
 # Users step 8.5: the website reads users without their credentials, and writes none.
 ok "vertex_web: SELECT password_hash" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"

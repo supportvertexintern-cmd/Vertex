@@ -236,7 +236,7 @@ BEGIN
     'CasePayment',  -- payments, step 7.3 (a case's milestone payments)
     'JobMilestonePrice',  -- payments, step 7.4 (kept with its data; Prisma has no model for it)
     'ReferralAgentTarget',  -- users and sessions, step 8.1 (users-handover.md)
-    'RefreshToken',  -- users and sessions, step 8.2: FastAPI issues sessions; Next.js still reads them on every request
+    'RefreshToken',  -- users and sessions, step 8.2: FastAPI issues sessions; no read for Next.js since reads handover R7d (below)
     'User',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.2; E10 closed)
     'Partner',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.4)
     'ReferralAgent',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.4)
@@ -248,9 +248,9 @@ BEGIN
   END LOOP;
 END $$;
 
--- Review item #8 (users step 8.5): Next.js reads users and sessions but never
--- their credentials; its Prisma client leaves these columns out of every
--- query (vertex/src/lib/prisma.ts). It may SELECT every other column. The
+-- Review item #8 (users step 8.5): Next.js reads users but never their
+-- credentials; its Prisma client leaves these columns out of every query
+-- (vertex/src/lib/prisma.ts). It may SELECT every other column. The
 -- list is recomputed on every run, and deploy.sh runs this again after the
 -- migrations, so a column a migration adds is readable before the new
 -- website starts. tests/test_db_roles.py checks both sides.
@@ -259,8 +259,7 @@ DECLARE
   r record;
   cols text;
 BEGIN
-  FOR r IN SELECT * FROM (VALUES ('User', ARRAY['password_hash', 'google_id']),
-                                 ('RefreshToken', ARRAY['token_hash'])) AS t(tbl, hidden)
+  FOR r IN SELECT * FROM (VALUES ('User', ARRAY['password_hash', 'google_id'])) AS t(tbl, hidden)
   LOOP
     IF to_regclass(format('public.%I', r.tbl)) IS NOT NULL THEN
       SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) INTO cols
@@ -271,4 +270,13 @@ BEGIN
       EXECUTE format('GRANT SELECT (%s) ON public.%I TO vertex_web', cols, r.tbl);
     END IF;
   END LOOP;
+END $$;
+
+-- Reads handover R7d (D2 A): FastAPI checks every request's session, so the
+-- website reads no session row at all.
+DO $$
+BEGIN
+  IF to_regclass('public."RefreshToken"') IS NOT NULL THEN
+    REVOKE SELECT ON "RefreshToken" FROM vertex_web;
+  END IF;
 END $$;

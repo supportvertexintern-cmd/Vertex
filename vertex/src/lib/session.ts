@@ -1,5 +1,4 @@
 import type { NextResponse } from "next/server";
-import { prisma } from "./prisma";
 
 // Sessions (gap G19, exception E6; docs/security/session-management.md).
 //
@@ -16,12 +15,15 @@ import { prisma } from "./prisma";
 // users-handover.md): the /api/auth routes pass each request on
 // (lib/auth-backend.ts) and set or clear the cookies from its answer.
 //
-// This app still checks every API request against the database
-// (getAuthUser in api-auth.ts, with loadSession below): the user must still
-// exist, token_version must match, and the family must still have a live
-// token. So revoking a family, deleting a user or changing a password or
-// role (a database trigger bumps token_version) stops access on the very
-// next request, not when the token expires.
+// FastAPI checks every request against the database (current_user in
+// vertex_be/app/core/auth.py): the user must still exist, token_version
+// must match, and the family must still have a live token. So revoking a
+// family, deleting a user or changing a password or role (a database
+// trigger bumps token_version) stops access on the very next request, not
+// when the token expires. This app reads no data of its own since reads
+// handover R7d (D2 A), so it checks the token's signature and expiry only
+// (getAuthUser in api-auth.ts): that decides which page or early refusal
+// to show, never what data comes back.
 
 import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH, SIGNED_IN_COOKIE } from "./session-constants";
 export { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_COOKIE_PATH, SIGNED_IN_COOKIE };
@@ -35,32 +37,6 @@ export interface IssuedSession {
   accessToken: string;
   refreshToken: string;
   refreshExpiresAt: Date;
-}
-
-/**
- * The live session behind an access token: the user as the database has
- * them now, or null if the user is gone, the version moved on, or the
- * family has no live token.
- */
-export async function loadSession(userId: string, familyId: string, version: number) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      token_version: true,
-      refresh_tokens: {
-        where: { family_id: familyId, revoked_at: null, used_at: null, expires_at: { gt: new Date() } },
-        select: { id: true },
-        take: 1,
-      },
-    },
-  });
-  if (!user) return { user: null, reason: "user_gone" as const };
-  if (user.token_version !== version) return { user: null, reason: "version_changed" as const };
-  if (!user.refresh_tokens.length) return { user: null, reason: "session_ended" as const };
-  return { user, reason: null };
 }
 
 // --- cookies ---------------------------------------------------------------
