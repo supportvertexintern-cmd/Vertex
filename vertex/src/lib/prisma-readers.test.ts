@@ -14,7 +14,6 @@ const SRC = path.resolve(__dirname, "..");
 const STILL_READING: Record<string, string[]> = {
   "R7 cross-cutting": [
     "lib/email.ts",
-    "lib/session.ts",
   ],
   // prisma/seed.ts's helpers: they move with the seeds.
   "R8 close": ["server/services/paymentReceiptTypes.ts", "server/services/stripeProvisioning.ts"],

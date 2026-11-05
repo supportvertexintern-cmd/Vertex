@@ -14,12 +14,14 @@ Closes gap G19 from [phase2-baseline.md](phase2-baseline.md): a session used to 
 | Lifetime | Absolute; rotating the token doesn't extend it. **12 hours** for staff and admins, **14 days** for candidates and partners. |
 | `User.token_version` | Bumped by the database trigger `user_token_version_bump` whenever `password_hash` or `role` changes, whatever code path makes the change. |
 
-**Every request re-checks the session.** `getAuthUser` (`vertex/src/lib/api-auth.ts`) verifies the signature, then loads the user and the session in one query. It refuses the request if any of these holds:
+**Every request re-checks the session, in FastAPI.** `current_user` (`vertex_be/app/core/auth.py`, below) verifies the signature, then refuses the request if any of these holds:
 - the user is gone;
 - `token_version` has moved on;
 - the family has no live token.
 
-Role and email come from the database, never from the token. Postgres is the denylist; there is no Redis in this stack, and none is needed.
+Role and email come from the database, never from the token. Postgres is the denylist.
+
+Until reads handover R7d, the website's `getAuthUser` (`vertex/src/lib/api-auth.ts`) ran the same check against the database. Since R7d (D2 A) the website reads no data of its own: every read and write is a FastAPI call, which checks the session. So `getAuthUser` checks only the token's signature and expiry. That decides which page to show and the early refusal of a wrong role, never what data comes back. A revoked, deleted, demoted or re-passworded user gets no data from the next request. For at most the access token's 15 minutes, they may still see a page's frame, without its data. `vertex_web` can't read `RefreshToken` at all since R7d.
 
 `src/proxy.ts` checks only the signature, and only to route portal pages. It sends a page with an expired or missing access token through `GET /api/auth/refresh?redirect=…`, which either renews the token or goes to sign-in.
 
@@ -41,9 +43,9 @@ There is one exception: a spent token presented within **30 seconds** is answere
   - `ApiService` renews the token a minute before it expires, or once after a 401, sharing one refresh between concurrent calls; if that fails, the user is signed out;
   - roles the app has no screens for (candidate, referral agent) are refused, and the session just opened is ended.
 
-Code: FastAPI issues, rotates and revokes sessions since users and sessions step 8.2 (`vertex_be/app/services/sessions.py`, `vertex_be/app/api/v1/sessions.py`; `docs/architecture/users-handover.md`). The website's `/api/auth` routes pass requests on and set the cookies (`vertex/src/lib/auth-backend.ts`); `vertex/src/lib/session.ts` keeps the per-request check and the cookies. The website can't sign a session: since session keys K3 a session is ES256, signed with a private key only FastAPI holds (`vertex_be/app/core/session_keys.py`), and `vertex/src/lib/jwt.ts` only verifies it with the listed public keys. Tests make tokens with `vertex/src/lib/test-tokens.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
+Code: FastAPI issues, rotates and revokes sessions since users and sessions step 8.2 (`vertex_be/app/services/sessions.py`, `vertex_be/app/api/v1/sessions.py`; `docs/architecture/users-handover.md`). The website's `/api/auth` routes pass requests on and set the cookies (`vertex/src/lib/auth-backend.ts`); `vertex/src/lib/session.ts` keeps the cookies. The website can't sign a session: since session keys K3 a session is ES256, signed with a private key only FastAPI holds (`vertex_be/app/core/session_keys.py`), and `vertex/src/lib/jwt.ts` only verifies it with the listed public keys. Tests make tokens with `vertex/src/lib/test-tokens.ts`. Schema: migration `0005` (`vertex_be/alembic/versions/20261012_0005_session_revocation.py`).
 
-**FastAPI verifies the same sessions (G9).** Since step 8.2 FastAPI is also the issuer, with the same key and format (exception E8). `current_user` (`vertex_be/app/core/auth.py`) applies the same checks as `getAuthUser`:
+**FastAPI verifies the same sessions (G9).** Since step 8.2 FastAPI is also the issuer, with the same key and format (exception E8). `current_user` (`vertex_be/app/core/auth.py`) applies these checks:
 - the signature, with the listed public key the token's `kid` names (`app/core/tokens.py`, `app/core/session_keys.py`; the website checks the same, pinned by the golden vector in `tests/node_session_vectors.py`);
 - the user still exists, and `token_version` matches;
 - the family has a live token.
@@ -128,7 +130,8 @@ Effects: invite, CIF upload and document links already issued stop working. Re-s
 
 | Test | File |
 |---|---|
-| Live session accepted; demotion, deletion and password change refused on the next request; revoked session refused; pre-G19 and forged-session tokens refused | `vertex/src/lib/session-revocation.integration.test.ts` |
+| Live session accepted; demotion, deletion and password change refused on the next request; revoked session refused | `vertex_be/tests/test_auth.py` (the website's `session-revocation.integration.test.ts` until reads handover R7d) |
+| The website: a pre-G19, foreign-key or expired token is nobody; a valid one is its claims, with no database read | `vertex/src/lib/session-check.test.ts` |
 | Rotation spends the old token; only hashes stored; reuse revokes the family and raises the alert; two-tab race keeps the family; revoked, expired and unknown tokens refused | same |
 | 15-minute access tokens, 12 h / 14 d sessions, cookie flags and path | same, and `jwt.test.ts` |
 | Logout, per-session end (and not another user's), log out everywhere, admin revoke (and non-admin refused) | same |
