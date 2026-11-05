@@ -68,14 +68,15 @@ beforeEach(() => {
 });
 
 describe("registration and verification", () => {
-  it("passes an invite registration on, answers as before and sends the verification email", async () => {
+  // FastAPI sends the account links itself since reads handover R7b
+  // (vertex_be/tests/test_accounts.py) and lists none of them.
+  it("passes an invite registration on and answers as before", async () => {
     const user = { id: "u1", full_name: "Abebe", email: "a@test.invalid", role: "candidate" };
-    const notice = { kind: "email_verification", email: "a@test.invalid", full_name: "Abebe", token: "signed-by-fastapi" };
-    callBackend.mockResolvedValueOnce(ok({ message: "Account created successfully. Please check your email to verify your account.", user }, { notify: [notice] }, 201));
+    callBackend.mockResolvedValueOnce(ok({ message: "Account created successfully. Please check your email to verify your account.", user }, { notify: [] }, 201));
     const res = await register.POST(request("POST", "/api/auth/register", { password: "Pass-word-1", invite: "inv" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/accounts/register", { method: "POST", body: { password: "Pass-word-1", invite: "inv" }, asUser: false });
     expect([res.status, await res.json()]).toEqual([201, { message: "Account created successfully. Please check your email to verify your account.", user }]);
-    expect(state.sent).toEqual([["sendVerificationLinkEmail", "signed-by-fastapi", "a@test.invalid", "Abebe"]]);
+    expect(state.sent).toEqual([]);
   });
 
   it("sends a setup link's password to the setup endpoint", async () => {
@@ -119,16 +120,14 @@ describe("registration and verification", () => {
 });
 
 describe("forgot and reset password", () => {
-  it("passes the address on with the client's, answers the same and sends what FastAPI lists", async () => {
-    const notice = { kind: "password_reset", email: "a@test.invalid", full_name: "Abebe", token: "reset-link" };
-    callBackend.mockResolvedValueOnce(ok({ message: "If an account exists for that email, we've sent a password reset link." }, { notify: [notice] }));
+  it("passes the address on with the client's and answers the same", async () => {
+    callBackend.mockResolvedValueOnce(ok({ message: "If an account exists for that email, we've sent a password reset link." }, { notify: [] }));
     const res = await forgot.POST(request("POST", "/api/auth/forgot-password", { email: "a@test.invalid" }));
     const [path, call] = callBackend.mock.calls[0];
     expect([path, call.body, call.asUser, call.forward["X-Forwarded-For"]]).toEqual(["/api/v1/accounts/forgot-password", { email: "a@test.invalid" }, false, "203.0.113.7"]);
     const body = await res.json();
     expect(body).toEqual({ message: "If an account exists for that email, we've sent a password reset link." });
-    expect(JSON.stringify(body)).not.toContain("reset-link"); // the link only ever goes by email
-    expect(state.sent).toEqual([["sendPasswordResetLinkEmail", "reset-link", "a@test.invalid", "Abebe"]]);
+    expect(state.sent).toEqual([]); // FastAPI emails the link
   });
 
   it("passes a reset on", async () => {
@@ -155,13 +154,13 @@ describe("the admin user pages", () => {
     state.user = admin;
   });
 
-  it("creates through FastAPI, sends the setup email and answers { data } with 201", async () => {
+  it("creates through FastAPI (which sends the setup email) and answers { data } with 201", async () => {
     const row = { id: "n1", full_name: "New", email: "n@test.invalid", role: "hr" };
-    callBackend.mockResolvedValueOnce(ok(row, { notify: [{ kind: "account_setup", email: "n@test.invalid", full_name: "New", token: "setup-link" }], privilege_granted: null }, 201));
+    callBackend.mockResolvedValueOnce(ok(row, { notify: [], privilege_granted: null }, 201));
     const res = await users.POST(request("POST", "/api/admin/users", { full_name: "New", email: "n@test.invalid", role: "hr" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/users", { method: "POST", body: { full_name: "New", email: "n@test.invalid", role: "hr" } });
     expect([res.status, await res.json()]).toEqual([201, { data: row }]);
-    expect(state.sent).toEqual([["sendAccountSetupLinkEmail", "setup-link", "n@test.invalid", "New"]]);
+    expect(state.sent).toEqual([]);
   });
 
   // The admin-granted alert is FastAPI's since reads handover R7a

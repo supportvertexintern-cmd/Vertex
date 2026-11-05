@@ -50,6 +50,7 @@ from app.core.audit import set_audit_actor  # noqa: E402
 from app.core.config import BASE_DIR  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app.services import emails  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -75,3 +76,13 @@ def db() -> Iterator[Session]:
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def sent_mail(monkeypatch: pytest.MonkeyPatch) -> list[emails.Mail]:
+    """The emails FastAPI sends (app/services/emails.py), captured in line,
+    never over SMTP."""
+    sent: list[emails.Mail] = []
+    monkeypatch.setattr(emails, "dispatch", lambda send: send())
+    monkeypatch.setattr(emails, "_send", sent.extend)
+    return sent

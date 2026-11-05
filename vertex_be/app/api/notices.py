@@ -1,7 +1,9 @@
-"""The emails a pipeline write leaves due, which the website sends once
-FastAPI has answered (owner's decision D1, 2026-10-29;
-docs/architecture/pipeline-handover.md §4.1). A response lists them in
-`notify`, next to `data`; each names the lib/email.ts sender it's for and
+"""The emails a pipeline write leaves due (owner's decision D1, 2026-10-29;
+docs/architecture/pipeline-handover.md §4.1). Since reads handover R7b
+(D4 A) FastAPI sends them itself, kind by kind: app/services/emails.py's
+deliver() takes the kinds it sends (SENT_HERE) out of the list. A response
+lists the rest in `notify`, next to `data`, for the website to send once
+FastAPI has answered; each names the lib/email.ts sender it's for and
 carries that sender's arguments. The website never passes `notify` on to
 the browser.
 """

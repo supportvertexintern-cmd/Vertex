@@ -35,6 +35,7 @@ from app.models.identity import Country, Region, User
 from app.models.jobs import Job
 from app.models.reference import DocumentRequirementType
 from app.services.sessions import check_password
+from tests.mail import link, of, token
 from tests.node_session_vectors import ACCOUNT_LINK_SECRET, ACCOUNT_SETUP_TOKEN, PASSWORD_RESET_TOKEN, SECRET, VERIFICATION_TOKEN
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 from tests.test_service_auth import SERVICE_SECRET, service_token
@@ -113,7 +114,7 @@ def lead(db):
 # --- registration from an invite ------------------------------------------------
 
 
-def test_registration_creates_the_account_and_claims_the_candidate_together(api, db, lead):
+def test_registration_creates_the_account_and_claims_the_candidate_together(api, db, lead, sent_mail):
     res = post(api, "register", {"invite": invite_for(lead.id), "password": PASSWORD})
     assert res.status_code == 201
     body = res.json()
@@ -124,9 +125,13 @@ def test_registration_creates_the_account_and_claims_the_candidate_together(api,
     assert check_password(PASSWORD, user.password_hash) and user.password_hash.startswith("$2b$12$")
     db.refresh(lead)
     assert (lead.user_id, lead.lifecycle_status) == (user.id, CandidateLifecycleStatus.guided_to_apply)
-    [notice] = body["notify"]
-    assert (notice["kind"], notice["email"], notice["full_name"]) == ("email_verification", lead.email, "Abebe Kebede")
-    assert verify_email_token(notice["token"], "email_verification").user_id == user.id
+    # FastAPI sends it (reads handover R7b): nothing left for the website.
+    assert body["notify"] == []
+    [mail] = sent_mail
+    assert (mail.kind, mail.to, mail.subject) == ("email_verification", lead.email, "Verify your Vertex International account")
+    assert "Welcome, Abebe Kebede." in mail.html
+    assert link(mail).startswith(f"{settings.APP_URL}/auth/verify-email?token=")
+    assert verify_email_token(token(mail), "email_verification").user_id == user.id
     audited = db.scalars(select(AuditLog).where(AuditLog.entity_id.in_([user.id, lead.id]))).all()
     assert {(a.entity_type, a.action, a.actor_id) for a in audited} >= {("User", "create", None), ("Candidate", "update", None)}
     assert all(user.password_hash not in json.dumps(a.after or {}) for a in audited)
@@ -337,16 +342,16 @@ def test_a_verification_link_keyed_from_jwt_secret_is_refused(api, db):
 FORGOT = "If an account exists for that email, we've sent a password reset link."
 
 
-def test_forgot_password_answers_the_same_and_emails_only_a_real_account(api, db, caplog):
+def test_forgot_password_answers_the_same_and_emails_only_a_real_account(api, db, caplog, sent_mail):
     user = account(db)
     lead_only = account(db, password=None)
     with caplog.at_level(logging.INFO, logger="vertex"):
         answers = [post(api, "forgot-password", {"email": e}) for e in (user.email, lead_only.email, "nobody@test.invalid")]
     assert {(r.status_code, r.json()["data"]["message"]) for r in answers} == {(200, FORGOT)}
-    assert [len(r.json()["notify"]) for r in answers] == [1, 0, 0]
-    [notice] = answers[0].json()["notify"]
-    assert (notice["kind"], notice["email"]) == ("password_reset", user.email)
-    link = verify_email_token(notice["token"], "password_reset")
+    assert [r.json()["notify"] for r in answers] == [[], [], []]
+    [mail] = sent_mail
+    assert (mail.kind, mail.to) == ("password_reset", user.email)
+    link = verify_email_token(token(mail), "password_reset")
     assert (link.user_id, link.pwd) == (user.id, password_fingerprint(user.password_hash))
     requested = events(caplog, "password_reset_requested")
     assert [(e["entity_id"], e["email_sent"], e["ip"]) for e in requested] == [
@@ -432,14 +437,15 @@ def test_the_fingerprint_reveals_nothing_about_the_password():
     assert "abc" not in password_fingerprint("$2b$12$abc") and len(password_fingerprint(None)) == 32
 
 
-def test_links_and_passwords_never_reach_the_logs(api, db, lead, caplog):
+def test_links_and_passwords_never_reach_the_logs(api, db, lead, caplog, sent_mail):
     user = account(db)
     with caplog.at_level(logging.DEBUG):
         reg = post(api, "register", {"invite": invite_for(lead.id), "password": "Typed-Secret-77"})
         forgot = post(api, "forgot-password", {"email": user.email})
-        reset_token = forgot.json()["notify"][0]["token"]
+        assert (reg.status_code, forgot.status_code) == (201, 200)
+        reset_token = token(of(sent_mail, "password_reset"))
         post(api, "reset-password", {"token": reset_token, "password": "Typed-Secret-88"})
-    secrets_seen = [reg.json()["notify"][0]["token"], reset_token, "Typed-Secret-77", "Typed-Secret-88"]
+    secrets_seen = [token(of(sent_mail, "email_verification")), reset_token, "Typed-Secret-77", "Typed-Secret-88"]
     logged = " ".join(r.getMessage() + json.dumps(getattr(r, "fields", {}), default=str) for r in caplog.records)
     assert not [s for s in secrets_seen if s in logged]
 

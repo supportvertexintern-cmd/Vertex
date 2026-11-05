@@ -35,6 +35,8 @@ from app.models.jobs import Job, JobPosition, JobSector
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import Payment
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
+from app.core.tokens import verify_candidate_invite_token
+from tests.mail import token
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 from tests.test_service_auth import SERVICE_SECRET, service_token
@@ -150,7 +152,7 @@ def test_every_write_waits_for_the_switch(api, monkeypatch, world):
 # --- submission --------------------------------------------------------------
 
 
-def test_a_self_applicant_is_screened_and_invited(api, db, world):
+def test_a_self_applicant_is_screened_and_invited(api, db, world, sent_mail):
     body = form(world)
     res = submit(api, body)
     assert res.status_code == 201
@@ -162,8 +164,10 @@ def test_a_self_applicant_is_screened_and_invited(api, db, world):
     )
     assert (app_row["job_position_id"], app_row["current_location_country_id"], app_row["documents_available"]) == (world["position"].id, world["home"].id, ["passport"])
     assert out["screening_passed"] is True
-    assert [n["kind"] for n in out["notify"]] == ["candidate_invite", "application_confirmation"]
-    assert out["notify"][1] == {"kind": "application_confirmation", "email": body["email"], "full_name": "Abebe Kebede", "job_title": "Care worker", "has_account": False}
+    # The invite is FastAPI's to send since reads handover R7b; the rest is the website's still.
+    assert [(m.kind, m.to) for m in sent_mail] == [("candidate_invite", body["email"])]
+    assert verify_candidate_invite_token(token(sent_mail[0])) == candidate.id
+    assert out["notify"] == [{"kind": "application_confirmation", "email": body["email"], "full_name": "Abebe Kebede", "job_title": "Care worker", "has_account": False}]
     actors = set(db.scalars(select(AuditLog.actor_id).where(AuditLog.entity_id.in_([candidate.id, app_row["id"]]))))
     assert actors == {None}
 

@@ -34,6 +34,9 @@ from app.models.identity import Country, Region, User
 from app.models.jobs import Job
 from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import DocumentRequirementType
+from app.core.config import settings
+from app.core.tokens import verify_candidate_invite_token
+from tests.mail import link, token
 from tests.node_session_vectors import SECRET
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
@@ -254,12 +257,17 @@ def status(api, world, headers, candidate=None, **body):
     return api.patch(f"{URL}/{(candidate or world['lead']).id}/status", headers=headers, json=body)
 
 
-def test_screening_a_lead_invites_them(api, db, world):
+def test_screening_a_lead_invites_them(api, db, world, sent_mail):
     res = status(api, world, world["rec"], lifecycle_status="screened")
     assert res.status_code == 200
     body = res.json()
     assert body["data"] == {"id": world["lead"].id, "lifecycle_status": "screened", "return_reason": None}
-    assert body["notify"] == [{"kind": "candidate_invite", "candidate_id": world["lead"].id, "email": world["lead"].email, "full_name": "Abebe Kebede"}]
+    assert body["notify"] == []  # FastAPI sends the invite (reads handover R7b)
+    [mail] = sent_mail
+    assert (mail.kind, mail.to) == ("candidate_invite", world["lead"].email)
+    assert "You're a step closer, Abebe Kebede." in mail.html
+    assert link(mail).startswith(f"{settings.APP_URL}/auth/register?invite=")
+    assert verify_candidate_invite_token(token(mail)) == world["lead"].id
 
 
 def test_a_failed_screening_is_recorded(api, db, world):

@@ -58,7 +58,8 @@ services:
       # _PREVIOUS only while rotating it.
       SERVICE_AUTH_SECRET: ${SERVICE_AUTH_SECRET:?SERVICE_AUTH_SECRET is required}
       SERVICE_AUTH_SECRET_PREVIOUS: ${SERVICE_AUTH_SECRET_PREVIOUS:-}
-      # Outgoing mail (reads handover R7): security alerts from R7a. Unset
+      # Outgoing mail (reads handover R7): security alerts (R7a) and, since R7b,
+      # the emails a write leaves due. Unset
       # = this stack's Mailpit (nothing leaves the PC), as for the website.
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
@@ -67,6 +68,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-Vertex International <noreply@vertexinternational.com>}
       SECURITY_ALERT_EMAILS: ${SECURITY_ALERT_EMAILS:-}
+      # The website's address, for the links in the emails this service sends (R7b).
+      APP_URL: ${NEXT_PUBLIC_APP_URL}
       # Session keys (session-keys-handover.md), written by
       # deploy/session-keys.sh. The private key and the account-link secret
       # are this service's alone; the public keys are shared with Next.js.

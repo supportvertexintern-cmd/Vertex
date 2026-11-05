@@ -26,6 +26,7 @@ from app.models.candidate import Candidate
 from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role
 from app.models.identity import User
 from app.models.partners import Partner, PartnerCandidate
+from tests.mail import token
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
@@ -173,7 +174,7 @@ def test_only_the_registration_number_and_notes_can_be_cleared(api, db, manager)
     assert (res.status_code, list(error(res)["details"])) == (422, ["name"])
 
 
-def test_a_new_contact_email_moves_the_login_and_ends_its_password(api, db, manager):
+def test_a_new_contact_email_moves_the_login_and_ends_its_password(api, db, manager, sent_mail):
     login, _ = person(db, Role.partner, password_hash="$2b$04$somethinghashed")
     p = agency(db, user_id=login.id)
     version = login.token_version
@@ -183,9 +184,10 @@ def test_a_new_contact_email_moves_the_login_and_ends_its_password(api, db, mana
     db.refresh(login)
     assert (login.email, login.password_hash) == (new, None)
     assert login.token_version > version  # its sessions ended
-    [notice] = res.json()["notify"]
-    assert (notice["kind"], notice["email"]) == ("account_setup", new)
-    assert verify_account_setup_token(notice["token"]) == login.id
+    assert res.json()["notify"] == []  # FastAPI sends it (reads handover R7b)
+    [mail] = sent_mail
+    assert (mail.kind, mail.to) == ("account_setup", new)
+    assert verify_account_setup_token(token(mail)) == login.id
 
 
 def test_a_new_contact_email_without_a_login_sends_nothing(api, db, manager):
@@ -254,16 +256,17 @@ def test_a_login_made_admin_is_removed_only_by_an_admin_and_never_the_last(api, 
 # --- the partner's login ----------------------------------------------------------
 
 
-def test_a_login_is_created_without_a_password(api, db, manager):
+def test_a_login_is_created_without_a_password(api, db, manager, sent_mail):
     p = agency(db)
     res = api.post(f"{URL}/{p.id}/provision-account", headers=manager, json={"role": "admin"})
     assert res.status_code == 201
     out = res.json()
     login = db.get(User, out["data"]["user_id"])
     assert (login.email, login.role, login.password_hash, login.email_verified, login.full_name) == (p.contact_email, Role.partner, None, False, "Contact Person")
-    [notice] = out["notify"]
-    assert (notice["kind"], notice["email"], notice["full_name"]) == ("account_setup", p.contact_email, "Contact Person")
-    assert verify_account_setup_token(notice["token"]) == login.id
+    [mail] = sent_mail
+    assert (out["notify"], mail.kind, mail.to) == ([], "account_setup", p.contact_email)
+    assert "Set up your account, Contact Person." in mail.html
+    assert verify_account_setup_token(token(mail)) == login.id
 
 
 def test_the_login_address_can_differ_from_the_contact(api, db, manager):
@@ -285,14 +288,14 @@ def test_one_login_per_partner_and_per_address(api, db, manager):
     assert (res.status_code, error(res)["message"]) == (409, "A user with this email already exists.")
 
 
-def test_a_reset_clears_the_password_and_sends_the_setup_email(api, db, manager):
+def test_a_reset_clears_the_password_and_sends_the_setup_email(api, db, manager, sent_mail):
     login, _ = person(db, Role.partner, password_hash="$2b$04$somethinghashed")
     p = agency(db, user_id=login.id)
     res = api.post(f"{URL}/{p.id}/reset-password", headers=manager)
     assert (res.status_code, res.json()["data"]) == (200, {"email": login.email})
     db.refresh(login)
     assert login.password_hash is None
-    assert res.json()["notify"][0]["kind"] == "account_setup"
+    assert (res.json()["notify"], [(m.kind, m.to) for m in sent_mail]) == ([], [("account_setup", login.email)])
 
 
 def test_a_reset_needs_a_login(api, db, manager):

@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.notices import AccountSetupEmail, Notice, Notifying
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
@@ -223,7 +224,7 @@ def create_user(body: CreateIn, admin: Admin, db: AuditedDb):
 
     user = _load(db, user.id)
     notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
-    return {"data": _row(db, user), "notify": notify, "privilege_granted": _granted(admin, user.id, None, user.role)}
+    return {"data": _row(db, user), "notify": deliver(db, notify), "privilege_granted": _granted(admin, user.id, None, user.role)}
 
 
 @router.patch("/users/{user_id}", response_model=Written)

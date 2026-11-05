@@ -51,6 +51,7 @@ from app.api.notices import (
     ReferralAgentRejectedEmail,
     ReferralAgentSuspendedEmail,
 )
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, calling_service
@@ -224,7 +225,7 @@ def apply(body: ApplicationIn, db: DbSession):
         ReferralAgentApplicationEmail(email=agent.email, full_name=agent.full_name, token=sign_referral_agent_verification_token(agent.id)),
         ReferralAgentAdminEmail(full_name=agent.full_name, country=agent.country),
     ]
-    return {"data": {"id": agent.id, "referral_code": agent.referral_code}, "notify": notify}
+    return {"data": {"id": agent.id, "referral_code": agent.referral_code}, "notify": deliver(db, notify)}
 
 
 @public.post("/referral-agents/verify-email", response_model=Data[Message])
@@ -343,7 +344,7 @@ def approve(agent_id: str, body: ApproveIn, user: Manager, db: AuditedDb):
         ReferralAgentApprovedEmail(email=agent.email, full_name=agent.full_name, referral_code=agent.referral_code),
         AccountSetupEmail(email=login.email, full_name=login.full_name, token=sign_account_setup_token(login.id)),
     ]
-    return {"data": agent, "notify": notify}
+    return {"data": agent, "notify": deliver(db, notify)}
 
 
 @router.patch("/referral-agents/{agent_id}", response_model=Notifying[AgentRow])
@@ -378,4 +379,4 @@ def decide(agent_id: str, body: DecisionIn, _user: Manager, db: AuditedDb):
         notify.append(ReferralAgentRejectedEmail(email=agent.email, full_name=agent.full_name, reason=body.reason))
     elif target == "suspended":
         notify.append(ReferralAgentSuspendedEmail(email=agent.email, full_name=agent.full_name, reason=body.reason))
-    return {"data": agent, "notify": notify}
+    return {"data": agent, "notify": deliver(db, notify)}
