@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.notices import CommissionApprovedEmail, CommissionPaidEmail, Notifying
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
@@ -98,7 +99,7 @@ def approve(commission_id: str, user: Manager, db: AuditedDb, _on: PipelineWrite
     commission.approved_at = _now()
     db.commit()
     db.refresh(commission)
-    return {"data": commission, "notify": [CommissionApprovedEmail(**_for_agent(commission))]}
+    return {"data": commission, "notify": deliver(db, [CommissionApprovedEmail(**_for_agent(commission))])}
 
 
 @router.post("/referral-commissions/{commission_id}/mark-paid", response_model=Notifying[CommissionRow])
@@ -114,7 +115,7 @@ def mark_paid(commission_id: str, body: PaidIn, user: Manager, db: AuditedDb, _o
     commission.payment_method = body.payment_method
     db.commit()
     db.refresh(commission)
-    return {"data": commission, "notify": [CommissionPaidEmail(**_for_agent(commission))]}
+    return {"data": commission, "notify": deliver(db, [CommissionPaidEmail(**_for_agent(commission))])}
 
 
 # --- commission rules (payments step 7.1) -------------------------------------

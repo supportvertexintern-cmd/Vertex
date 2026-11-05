@@ -34,6 +34,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.api.notices import MilestonePaymentLinkEmail, MilestonePlanStage, Notifying
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
@@ -305,7 +306,7 @@ def send_payment_link(case_id: str, body: LinkIn, user: Finance, db: AuditedDb, 
         current_stage_id=stage.id,
         stages=plan,
     )
-    return {"data": {"payment": payment, "url": url}, "notify": [notice]}
+    return {"data": {"payment": payment, "url": url}, "notify": deliver(db, [notice])}
 
 
 def _invoice_plan(db, case_id: str, body: InvoiceIn, user: AuthUser) -> tuple[Case, JobPaymentStage, InvoicePlan]:

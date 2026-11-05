@@ -6280,8 +6280,8 @@ export interface components {
         };
         /**
          * PartnerSubmittedEmail
-         * @description sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to the
-         *     website's PARTNER_SUBMISSION_NOTIFY_EMAIL.
+         * @description sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to
+         *     PARTNER_SUBMISSION_NOTIFY_EMAIL.
          */
         PartnerSubmittedEmail: {
             /** Candidate Name */
@@ -6791,8 +6791,8 @@ export interface components {
         };
         /**
          * ReferralAgentAdminEmail
-         * @description sendReferralAgentAdminNotificationEmail(full_name, country), to the
-         *     website's REFERRAL_AGENT_NOTIFY_EMAIL.
+         * @description sendReferralAgentAdminNotificationEmail(full_name, country), to
+         *     REFERRAL_AGENT_NOTIFY_EMAIL.
          */
         ReferralAgentAdminEmail: {
             /** Country */

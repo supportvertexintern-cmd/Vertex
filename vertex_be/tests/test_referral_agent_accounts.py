@@ -27,7 +27,7 @@ from app.models.enums import ReferralAgentStatus, Role
 from app.models.identity import Country, Region, User
 from app.models.referral import ReferralAgent
 from app.core.config import settings
-from tests.mail import link
+from tests.mail import link, of
 from tests.mail import token as link_token
 from tests.node_session_vectors import REFERRAL_AGENT_ID, REFERRAL_AGENT_VERIFICATION_TOKEN, SECRET
 from tests.test_auth import add_session, bearer, session_token
@@ -112,7 +112,7 @@ def test_only_the_website_takes_applications_and_verifications(api, db, director
 # --- applying -------------------------------------------------------------------
 
 
-def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db, sent_mail):
+def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db, sent_mail, sent_notices):
     region = Region(name=f"RA region {secrets.token_hex(3)}")
     db.add(region)
     db.flush()
@@ -136,7 +136,8 @@ def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db, sen
     assert "Hi Abebe Kebede, thanks for applying" in mail.html
     assert link(mail).startswith(f"{settings.APP_URL}/become-a-referral-agent/verify-email?token=")
     assert verify_referral_agent_verification_token(link_token(mail)) == row.id
-    [second] = out["notify"]
+    assert out["notify"] == []
+    [_, second] = sent_notices  # not sent: REFERRAL_AGENT_NOTIFY_EMAIL is unset here
     assert second == {"kind": "referral_agent_admin_notification", "full_name": "Abebe Kebede", "country": name.upper()}
     assert db.scalar(select(AuditLog).where(AuditLog.entity_type == "ReferralAgent", AuditLog.entity_id == row.id, AuditLog.action == "create"))
 
@@ -227,7 +228,7 @@ def test_a_link_for_a_removed_application(api, db):
 # --- approving ------------------------------------------------------------------
 
 
-def test_approval_activates_and_creates_a_login_without_a_password(api, db, director, sent_mail):
+def test_approval_activates_and_creates_a_login_without_a_password(api, db, director, sent_mail, sent_notices):
     boss, headers = director
     a = agent(db, email_verified=True)
     res = api.post(f"{URL}/{a.id}/approve", headers=headers, json={"role": "admin"})
@@ -239,9 +240,10 @@ def test_approval_activates_and_creates_a_login_without_a_password(api, db, dire
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", data["approved_at"])
     login = db.get(User, data["user_id"])
     assert (login.email, login.role, login.password_hash, login.email_verified) == (a.email, Role.referral_agent, None, True)
-    [approved] = out["notify"]
+    assert out["notify"] == []
+    [approved, _] = sent_notices
     assert approved == {"kind": "referral_agent_approved", "email": a.email, "full_name": a.full_name, "referral_code": a.referral_code}
-    [setup] = sent_mail
+    setup = of(sent_mail, "account_setup")
     assert (setup.kind, setup.to) == ("account_setup", a.email)
     assert verify_account_setup_token(link_token(setup)) == login.id
 
@@ -280,26 +282,26 @@ def test_an_unknown_agent_is_404(api, director):
 # --- rejecting, suspending, reactivating ------------------------------------------
 
 
-def test_reject_needs_a_pending_application_and_a_reason(api, db, director):
+def test_reject_needs_a_pending_application_and_a_reason(api, db, director, sent_notices):
     a = agent(db)
     res = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "rejected"})
     assert (res.status_code, error(res)["message"]) == (422, "A reason is required to reject an application.")
     res = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "rejected", "reason": "No network"})
     assert res.status_code == 200
     assert (res.json()["data"]["status"], res.json()["data"]["rejection_reason"]) == ("rejected", "No network")
-    assert res.json()["notify"] == [{"kind": "referral_agent_rejected", "email": a.email, "full_name": a.full_name, "reason": "No network"}]
+    assert sent_notices == [{"kind": "referral_agent_rejected", "email": a.email, "full_name": a.full_name, "reason": "No network"}]
     again = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "rejected", "reason": "x"})
     assert (again.status_code, error(again)["message"]) == (422, "Only a pending application can be rejected.")
 
 
-def test_suspend_and_reactivate(api, db, director):
+def test_suspend_and_reactivate(api, db, director, sent_notices):
     a = agent(db, status=ReferralAgentStatus.active)
     res = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "suspended"})
     assert (res.status_code, error(res)["message"]) == (422, "A reason is required to suspend an agent.")
     res = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "suspended", "reason": "Spam"})
-    assert (res.json()["data"]["suspended_reason"], res.json()["notify"][0]["kind"]) == ("Spam", "referral_agent_suspended")
+    assert (res.json()["data"]["suspended_reason"], sent_notices[0]["kind"]) == ("Spam", "referral_agent_suspended")
     back = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "active", "reason": "ignored"})
-    assert (back.json()["data"]["status"], back.json()["data"]["suspended_reason"], back.json()["notify"]) == ("active", None, [])
+    assert (back.json()["data"]["status"], back.json()["data"]["suspended_reason"], len(sent_notices)) == ("active", None, 1)
     again = api.patch(f"{URL}/{a.id}", headers=director[1], json={"status": "active"})
     assert (again.status_code, error(again)["message"]) == (422, "Only a suspended agent can be reactivated.")
 

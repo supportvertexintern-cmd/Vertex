@@ -157,7 +157,7 @@ def stage(api, world, stage_key, headers=None, **body):
     return api.patch(f"{URL}/{world['case'].id}/stage", headers=headers or world["ops"], json={"stage": stage_key} | body)
 
 
-def test_a_stage_move_closes_the_last_and_tells_both_sides(api, db, world):
+def test_a_stage_move_closes_the_last_and_tells_both_sides(api, db, world, sent_notices):
     res = stage(api, world, "document_preparation_legalization", notes="Apostille booked", stage_date="2026-10-01")
     assert res.status_code == 200
     data = res.json()["data"]
@@ -166,15 +166,15 @@ def test_a_stage_move_closes_the_last_and_tells_both_sides(api, db, world):
     assert [e["stage"] for e in events] == ["document_preparation_legalization", "registration_document_submission"]  # backdated first
     assert events[1]["completed_at"] is not None and events[0]["completed_at"] is None
     assert (events[0]["entered_at"], events[0]["notes"]) == ("2026-10-01T00:00:00.000Z", "Apostille booked")
-    assert res.json()["notify"] == [
+    assert sent_notices == [
         {"kind": "case_stage", "email": world["account"].email, "full_name": world["account"].full_name, "job_title": "Care worker", "stage": "document_preparation_legalization"},
         {"kind": "partner_case_stage", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Abebe Kebede", "job_title": "Care worker", "stage": "document_preparation_legalization"},
     ]
 
 
-def test_a_milestone_stage_earns_the_commission(api, db, world):
+def test_a_milestone_stage_earns_the_commission(api, db, world, sent_notices):
     res = stage(api, world, "permit_authorization_approved")
-    commission = res.json()["notify"][0]
+    commission = sent_notices[0]
     assert (commission["kind"], commission["milestone"], commission["amount"]) == ("referral_commission_earned", "work_permit_approved", 75.0)
     row = db.scalars(select(ReferralCommission).where(ReferralCommission.candidate_id == world["candidate"].id)).one()
     assert row.case_id == world["case"].id
@@ -223,7 +223,7 @@ def test_operations_review_the_documentation(api, db, world):
 # --- rejection ---------------------------------------------------------------
 
 
-def test_rejecting_a_case_closes_everything_and_tells_hr_and_the_partner(api, db, world):
+def test_rejecting_a_case_closes_everything_and_tells_hr_and_the_partner(api, db, world, sent_notices):
     res = api.patch(f"{URL}/{world['case'].id}/reject", headers=world["hr"], json={"reason": "Fraudulent documents"})
     assert res.status_code == 200
     data = res.json()["data"]
@@ -231,7 +231,7 @@ def test_rejecting_a_case_closes_everything_and_tells_hr_and_the_partner(api, db
     db.refresh(world["candidate"])
     db.refresh(world["application"])
     assert (world["candidate"].lifecycle_status, world["application"].application_status) == (CandidateLifecycleStatus.rejected, ApplicationStatus.rejected)
-    notify = res.json()["notify"]
+    notify = sent_notices
     hr_emails = {n["email"] for n in notify if n["kind"] == "case_rejected"}
     assert hr_emails == set(db.scalars(select(User.email).where(User.role == Role.hr)))
     assert notify[-1] == {"kind": "partner_case_rejected", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Abebe Kebede", "job_title": "Care worker", "reason": "Fraudulent documents"}

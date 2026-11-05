@@ -39,6 +39,7 @@ from app.api.notices import (
     PartnerCaseStageEmail,
     commission_email,
 )
+from app.services.emails import deliver
 from app.api.v1.candidates import _date
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
@@ -263,7 +264,7 @@ def set_stage(
     db.commit()
     db.refresh(case)
     events = sorted(case.stage_events, key=lambda e: e.entered_at)
-    return {"data": CaseWithEvents.model_validate(case).model_copy(update={"stage_events": [StageEventRow.model_validate(e) for e in events]}), "notify": notify}
+    return {"data": CaseWithEvents.model_validate(case).model_copy(update={"stage_events": [StageEventRow.model_validate(e) for e in events]}), "notify": deliver(db, notify)}
 
 
 # --- Operations' documentation review ----------------------------------------
@@ -331,7 +332,7 @@ def reject(
         )
     db.commit()
     db.refresh(case)
-    return {"data": case, "notify": notify}
+    return {"data": case, "notify": deliver(db, notify)}
 
 
 @router.patch("/cases/{case_id}/overturn", response_model=Data[DecisionOut])
@@ -394,7 +395,7 @@ def remind(
     notice = CaseReminderEmail(
         email=email, recipient_name=name, candidate_name=candidate_name, programme_title=programme, channel=body.channel, message=body.message
     )
-    return {"data": reminder, "notify": [notice]}
+    return {"data": reminder, "notify": deliver(db, [notice])}
 
 
 # --- the contract (SRS FR-4.3) ------------------------------------------------

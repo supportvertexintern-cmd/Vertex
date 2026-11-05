@@ -129,16 +129,15 @@ describe("partners", () => {
 });
 
 describe("referral agents", () => {
-  // The applicant's verification email is FastAPI's to send since reads
-  // handover R7b; the admin's notification is still the website's.
-  it("passes an application on, answers as before and sends the admin's notification", async () => {
-    const notify = [{ kind: "referral_agent_admin_notification", full_name: "Abebe", country: "Ethiopia" }];
-    callBackend.mockResolvedValueOnce(ok({ id: "r1", referral_code: "VTX-ETH-1234" }, { notify }, 201));
+  // FastAPI sends the referral agents' emails itself since reads handover
+  // R7b (vertex_be/tests/test_referral_agent_accounts.py) and lists none.
+  it("passes an application on and answers as before", async () => {
+    callBackend.mockResolvedValueOnce(ok({ id: "r1", referral_code: "VTX-ETH-1234" }, { notify: [] }, 201));
     const res = await apply.POST(request("POST", "/api/referral-agents/register", { full_name: "Abebe" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/apply", { method: "POST", body: { full_name: "Abebe" }, asUser: false });
     const body = await res.json();
     expect([res.status, body]).toEqual([201, { data: { id: "r1", referral_code: "VTX-ETH-1234" } }]);
-    expect(state.sent).toEqual([["sendReferralAgentAdminNotificationEmail", "Abebe", "Ethiopia"]]);
+    expect(state.sent).toEqual([]);
   });
 
   it("keeps the older string errors, with details for validation", async () => {
@@ -168,30 +167,24 @@ describe("referral agents", () => {
     expect([bad.status, await bad.json()]).toEqual([400, { error: "Invalid or expired verification token." }]);
   });
 
-  it("approves (an empty body is no body) and sends the approval with the agent's link (FastAPI the setup email)", async () => {
+  it("approves (an empty body is no body)", async () => {
     state.user = as("director");
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.test.invalid");
-    const notify = [{ kind: "referral_agent_approved", email: "a@test.invalid", full_name: "Abebe", referral_code: "VTX-ETH-1234" }];
-    callBackend.mockResolvedValueOnce(ok({ id: "r1", status: "active" }, { notify }, 201));
+    callBackend.mockResolvedValueOnce(ok({ id: "r1", status: "active" }, { notify: [] }, 201));
     const res = await approve.POST(request("POST", "/api/admin/referral-agents/r1/approve"), ctx("r1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/r1/approve", { method: "POST", body: {} });
     expect([res.status, await res.json()]).toEqual([201, { data: { id: "r1", status: "active" } }]);
-    expect(state.sent).toEqual([
-      ["sendReferralAgentApprovedEmail", "a@test.invalid", "Abebe", "VTX-ETH-1234", "https://app.test.invalid/apply?ref=VTX-ETH-1234"],
-    ]);
+    expect(state.sent).toEqual([]);
   });
 
-  it("rejects and suspends through FastAPI, sending what it lists", async () => {
+  it("rejects and suspends through FastAPI", async () => {
     state.user = as("admin");
-    callBackend.mockResolvedValueOnce(ok({ id: "r1", status: "rejected" }, { notify: [{ kind: "referral_agent_rejected", email: "a@test.invalid", full_name: "Abebe", reason: "No" }] }));
+    callBackend.mockResolvedValueOnce(ok({ id: "r1", status: "rejected" }, { notify: [] }));
     await oneAgent.PATCH(request("PATCH", "/api/admin/referral-agents/r1", { status: "rejected", reason: "No" }), ctx("r1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/r1", { method: "PATCH", body: { status: "rejected", reason: "No" } });
-    callBackend.mockResolvedValueOnce(ok({ id: "r2", status: "suspended" }, { notify: [{ kind: "referral_agent_suspended", email: "b@test.invalid", full_name: "Bo", reason: "Spam" }] }));
+    callBackend.mockResolvedValueOnce(ok({ id: "r2", status: "suspended" }, { notify: [] }));
     await oneAgent.PATCH(request("PATCH", "/api/admin/referral-agents/r2", { status: "suspended", reason: "Spam" }), ctx("r2"));
-    expect(state.sent).toEqual([
-      ["sendReferralAgentRejectedEmail", "a@test.invalid", "Abebe", "No"],
-      ["sendReferralAgentSuspendedEmail", "b@test.invalid", "Bo", "Spam"],
-    ]);
+    expect(callBackend).toHaveBeenCalledTimes(2);
+    expect(state.sent).toEqual([]);
   });
 
   it("refuses an in-house supervisor before calling FastAPI (directors and admins only)", async () => {

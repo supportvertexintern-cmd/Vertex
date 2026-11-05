@@ -30,12 +30,7 @@ vi.mock("next/server", async (importOriginal) => ({
   after: (fn: () => unknown) => fn(),
 }));
 vi.mock("@/lib/email", () => {
-  const senders = [
-    "sendCandidateInviteEmail", "sendReferralCommissionEarnedEmail", "sendReferralCommissionApprovedEmail", "sendReferralCommissionPaidEmail",
-    "sendCandidateMessageNotificationEmail", "sendApplicationConfirmationEmail", "sendStatusUpdateEmail", "sendCandidateApprovedEmail",
-    "sendCaseStageUpdateEmail", "sendPartnerCaseStageUpdateEmail", "sendCaseRejectedEmail", "sendPartnerCaseRejectedEmail",
-    "sendCaseReminderEmail", "sendPartnerCandidateSubmittedEmail", "sendPartnerCaseCreatedEmail", "sendPartnerCandidateRejectedEmail",
-  ];
+  const senders = ["sendCaseReminderEmail"];
   return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
 });
 
@@ -134,31 +129,28 @@ describe("answers in each route's own shape", () => {
 });
 
 describe("sends the emails FastAPI lists", () => {
-  it("after the write, with this app's own URL", async () => {
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://vertex.example");
-    callBackend.mockResolvedValueOnce(
-      ok({ id: "m1" }, { notify: [{ kind: "candidate_message", email: "r@test.invalid", full_name: "Rec", view_path: "/recruiter/candidates/c1" }] }, 201),
-    );
+  const reminder = { kind: "case_reminder", email: "p@test.invalid", recipient_name: "Pat", candidate_name: "Abebe", programme_title: "Care", channel: "payment", message: null };
+
+  it("after the write, never passing notify on", async () => {
+    callBackend.mockResolvedValueOnce(ok({ id: "m1" }, { notify: [reminder] }, 201));
     state.role = "candidate";
     const res = await messages.POST(req("POST", '{"body":"Hi"}'), params("c1"));
-    expect(await res.json()).toEqual({ data: { id: "m1" } }); // notify isn't passed on
-    expect(state.sent).toEqual([["sendCandidateMessageNotificationEmail", "r@test.invalid", "Rec", "https://vertex.example/recruiter/candidates/c1"]]);
+    expect(await res.json()).toEqual({ data: { id: "m1" } });
+    expect(state.sent).toEqual([["sendCaseReminderEmail", "p@test.invalid", "Pat", "Abebe", "Care", "payment", undefined]]);
   });
 
-  it("one per notice, and a failure or an unknown kind doesn't stop the rest", async () => {
+  it("one per notice, and an unknown kind (FastAPI's own, say) doesn't stop the rest", async () => {
     await sendNotices([
       { kind: "no_such_email" },
-      { kind: "case_reminder", email: "p@test.invalid", recipient_name: "Pat", candidate_name: "Abebe", programme_title: "Care", channel: "payment", message: null },
+      reminder,
       { kind: "partner_case_created", email: "p@test.invalid", partner_name: "Agency", candidate_name: "Abebe" },
+      { ...reminder, email: "q@test.invalid" },
     ]);
-    expect(state.sent).toEqual([
-      ["sendCaseReminderEmail", "p@test.invalid", "Pat", "Abebe", "Care", "payment", undefined],
-      ["sendPartnerCaseCreatedEmail", "p@test.invalid", "Agency", "Abebe"],
-    ]);
+    expect(state.sent.map((s) => s[1])).toEqual(["p@test.invalid", "q@test.invalid"]);
   });
 
   it("has a sender for every kind", () => {
-    expect(Object.keys(NOTICE_SENDERS)).toHaveLength(22); // vertex_be/tests/test_notices.py matches them with FastAPI's
+    expect(Object.keys(NOTICE_SENDERS)).toHaveLength(4); // vertex_be/tests/test_notices.py matches them with FastAPI's
   });
 });
 

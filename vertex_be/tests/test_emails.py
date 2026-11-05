@@ -7,20 +7,25 @@ from __future__ import annotations
 
 import logging
 import re
+import typing
+from enum import Enum
 
 import jwt
 import pytest
 
+from app.api import notices
 from app.api.notices import (
     AccountSetupEmail,
-    CandidateApprovedEmail,
+    ApplicationConfirmationEmail,
+    CaseReminderEmail,
     InviteEmail,
+    PartnerSubmittedEmail,
     PasswordResetEmail,
     ReferralAgentApplicationEmail,
     VerificationEmail,
 )
 from app.core.clock import utc_now_ms
-from app.core.config import settings
+from app.core.config import BASE_DIR, settings
 from app.core.tokens import CANDIDATE_INVITE_TTL_SECONDS, verify_candidate_invite_token
 from app.models.reference import EmailTemplate
 from app.services import emails
@@ -30,9 +35,79 @@ SEND = emails._send  # before the sent_mail fixture replaces it
 
 
 def test_every_kind_sent_here_has_its_template_and_values():
-    assert set(emails.TEMPLATES) == emails.SENT_HERE == set(emails.VALUES)
+    assert {key.split(".")[0] for key in emails.TEMPLATES} == emails.SENT_HERE == set(emails.VALUES)
     for kind, template in emails.TEMPLATES.items():
         assert "{{logo}}" in template["html"] and "{{year}}" in template["html"], kind
+
+
+def _sample(model):
+    """A notice of this kind, every field a plausible value."""
+    def value(annotation):
+        if annotation is bool:
+            return True
+        if annotation is float:
+            return 1234.5
+        if isinstance(annotation, type) and issubclass(annotation, Enum):
+            return next(iter(annotation))
+        return "Abebe"
+    fields = {name: value(field.annotation) for name, field in model.model_fields.items() if name != "kind"}
+    if "email" in fields:
+        fields["email"] = "a@test.invalid"
+    if "view_path" in fields:
+        fields["view_path"] = "/dashboard"
+    return model(**fields)
+
+
+SENT_MODELS = [m for m in typing.get_args(typing.get_args(notices.Notice)[0]) if m.model_fields["kind"].default in emails.SENT_HERE]
+
+
+@pytest.mark.parametrize("model", SENT_MODELS, ids=lambda m: m.model_fields["kind"].default)
+def test_every_kind_renders_completely(db, sent_mail, monkeypatch, model):
+    monkeypatch.setattr(settings, "PARTNER_SUBMISSION_NOTIFY_EMAIL", "staff@test.invalid")
+    monkeypatch.setattr(settings, "REFERRAL_AGENT_NOTIFY_EMAIL", "staff@test.invalid")
+    notice = _sample(model)
+    assert emails.deliver(db, [notice]) == []
+    [mail] = sent_mail
+    assert mail.to in {"a@test.invalid", "Abebe", "staff@test.invalid"}  # Abebe: a commission's agent_email
+    assert not re.findall(r"\{\{\w+\}\}", mail.subject + mail.html), notice.kind
+    assert emails.LOGO in mail.html and f"© {utc_now_ms().year} " in mail.html
+
+
+def test_the_confirmation_has_a_dashboard_link_only_with_an_account(db, sent_mail):
+    base = {"email": "a@test.invalid", "full_name": "Abebe", "job_title": "Care worker"}
+    emails.deliver(db, [ApplicationConfirmationEmail(**base, has_account=True), ApplicationConfirmationEmail(**base, has_account=False)])
+    account, no_account = sent_mail
+    assert link(account) == f"{settings.APP_URL}/dashboard"
+    assert "href=" not in no_account.html and "Care worker" in no_account.html
+    assert account.subject == no_account.subject == "Application Received: Care worker"
+
+
+def test_a_staff_notification_needs_its_address(db, sent_mail, monkeypatch, caplog):
+    notice = PartnerSubmittedEmail(partner_name="Bridge", candidate_name="Juma")
+    monkeypatch.setattr(settings, "PARTNER_SUBMISSION_NOTIFY_EMAIL", None)
+    with caplog.at_level(logging.INFO, logger="vertex"):
+        assert emails.deliver(db, [notice]) == []
+    assert sent_mail == []
+    assert [r.fields for r in caplog.records if r.getMessage() == "email.recipient_not_configured"] == [{"kind": "partner_candidate_submitted"}]
+    monkeypatch.setattr(settings, "PARTNER_SUBMISSION_NOTIFY_EMAIL", "staff@test.invalid")
+    emails.deliver(db, [notice])
+    assert [(m.to, m.subject) for m in sent_mail] == [("staff@test.invalid", "New partner candidate: Juma")]
+
+
+def test_the_computed_values_are_lib_email_ts_own():
+    assert emails.friendly_status("under_review") == "UNDER REVIEW"
+    assert emails.friendly_status("offer_made_final") == "OFFER MADE_FINAL"  # JavaScript's replace: the first only
+    assert emails.friendly_stage("visa_interview_decision") == "Embassy Interview & Visa Decision"
+    assert emails.friendly_stage("some_new_stage") == "Some New Stage"
+    assert [emails.locale_number(x) for x in (1500, 1500.5, 1234567.891, 0.1 + 0.2, 2.0005, 12)] == [
+        "1,500", "1,500.5", "1,234,567.891", "0.3", "2.001", "12",
+    ]
+
+
+def test_the_stage_labels_are_the_websites():
+    source = (BASE_DIR.parent / "vertex" / "src" / "components" / "portal" / "caseStages.ts").read_text(encoding="utf-8")
+    block = re.search(r"export const CASE_STAGE_LABELS[^=]*= \{(.*?)\n\};", source, re.S).group(1)
+    assert dict(re.findall(r'^\s*(\w+): "([^"]*)",', block, re.M)) == emails.CASE_STAGE_LABELS
 
 
 @pytest.mark.parametrize("notice", [
@@ -76,7 +151,8 @@ def test_the_invite_link_is_one_the_registration_accepts(db, sent_mail):
 
 
 def test_the_kinds_not_sent_here_stay_for_the_website_in_order(db, sent_mail):
-    first, second = CandidateApprovedEmail(email="b@test.invalid", full_name="B"), CandidateApprovedEmail(email="c@test.invalid", full_name="C")
+    remind = {"recipient_name": "B", "candidate_name": "C", "programme_title": "P", "channel": "document", "message": None}
+    first, second = CaseReminderEmail(email="b@test.invalid", **remind), CaseReminderEmail(email="c@test.invalid", **remind)
     kept = emails.deliver(db, [first, AccountSetupEmail(email="a@test.invalid", full_name="A", token="t"), second])
     assert kept == [first, second]
     assert [m.kind for m in sent_mail] == ["account_setup"]
