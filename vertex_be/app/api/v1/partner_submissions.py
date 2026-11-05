@@ -30,8 +30,10 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from app.api.notices import Notice, Notifying, PartnerCaseCreatedEmail, PartnerSubmissionRejectedEmail, PartnerSubmittedEmail
+from app.services.emails import deliver
 from app.api.v1.applications import ApplicationRow, _country_named, _position_belongs
 from app.api.v1.candidates import MaritalStatus, _blank_is_missing, _date
 from app.api.v1.cases import CaseRow
@@ -340,10 +342,10 @@ def _finalize(db, partner: Partner, body: SubmitIn, submitted_by: str, draft: Pa
     return row, candidate, application
 
 
-def _submitted(row: PartnerCandidate, candidate: Candidate, application: Application, partner: Partner) -> dict[str, Any]:
+def _submitted(db: Session, row: PartnerCandidate, candidate: Candidate, application: Application, partner: Partner) -> dict[str, Any]:
     data = Submission(**PartnerCandidateRow.model_validate(row).model_dump(), candidateId=candidate.id, applicationId=application.id)
     notice = PartnerSubmittedEmail(partner_name=partner.name, candidate_name=row.full_name or "the candidate")
-    return {"data": data, "notify": [notice]}
+    return {"data": data, "notify": deliver(db, [notice])}
 
 
 # --- the partner's side ------------------------------------------------------
@@ -359,7 +361,7 @@ def submit(body: SubmitIn, user: Submitter, db: AuditedDb, _on: PipelineWrites):
     row, candidate, application = _finalize(db, partner, body, user.user_id)
     db.commit()
     db.refresh(row)
-    return _submitted(row, candidate, application, partner)
+    return _submitted(db, row, candidate, application, partner)
 
 
 @router.post("/partner/candidates/draft", response_model=Data[PartnerCandidateRow], status_code=status.HTTP_201_CREATED)
@@ -400,7 +402,7 @@ def submit_draft(submission_id: str, body: SubmitIn, user: Submitter, db: Audite
     row, candidate, application = _finalize(db, partner, body, user.user_id, draft)
     db.commit()
     db.refresh(row)
-    return _submitted(row, candidate, application, partner)
+    return _submitted(db, row, candidate, application, partner)
 
 
 @router.patch("/partner/candidates/{submission_id}", response_model=Data[PartnerCandidateRow])
@@ -520,7 +522,7 @@ def create_case(submission_id: str, user: Reviewer, db: AuditedDb, _on: Pipeline
     notify: list[Notice] = []
     if row.partner.contact_email:
         notify.append(PartnerCaseCreatedEmail(email=row.partner.contact_email, partner_name=row.partner.name, candidate_name=candidate.full_name or "your candidate"))
-    return {"data": {"partnerCandidate": row, "case": case}, "notify": notify}
+    return {"data": {"partnerCandidate": row, "case": case}, "notify": deliver(db, notify)}
 
 
 @router.patch("/partner-candidates/{submission_id}/reject", response_model=Notifying[PartnerCandidateRow])
@@ -538,7 +540,7 @@ def reject(submission_id: str, body: RejectIn, user: Reviewer, db: AuditedDb, _o
     notice = PartnerSubmissionRejectedEmail(
         email=row.partner.contact_email, partner_name=row.partner.name, candidate_name=row.full_name or "the candidate", reason=body.rejection_reason
     )
-    return {"data": row, "notify": [notice]}
+    return {"data": row, "notify": deliver(db, [notice])}
 
 
 @router.patch("/partner-candidates/{submission_id}/overturn", response_model=Data[Overturned])

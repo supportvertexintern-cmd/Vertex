@@ -70,6 +70,8 @@ services:
       SECURITY_ALERT_EMAILS: ${SECURITY_ALERT_EMAILS:-}
       # The website's address, for the links in the emails this service sends (R7b).
       APP_URL: ${NEXT_PUBLIC_APP_URL}
+      PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
+      REFERRAL_AGENT_NOTIFY_EMAIL: ${REFERRAL_AGENT_NOTIFY_EMAIL:-}
       # Session keys (session-keys-handover.md), written by
       # deploy/session-keys.sh. The private key and the account-link secret
       # are this service's alone; the public keys are shared with Next.js.

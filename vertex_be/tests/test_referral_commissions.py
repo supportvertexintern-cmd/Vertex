@@ -57,20 +57,20 @@ def test_the_roles_match_next_js():
         assert "requireRole(user, REFERRAL_AGENT_MANAGER_ROLES)" in (NEXT / path).read_text(encoding="utf-8"), path
 
 
-def test_approve_then_mark_paid(api, db, commission):
+def test_approve_then_mark_paid(api, db, commission, sent_notices):
     _, director = person(db, Role.director)
     approved = api.post(f"{URL}/{commission.id}/approve", headers=director)
     assert approved.status_code == 200
     assert (approved.json()["data"]["status"], approved.json()["data"]["approved_at"] is not None) == ("approved", True)
     email = {"email": commission.referral_agent.email, "agent_name": "Amina Agent", "candidate_name": "Referred Person", "amount": 50.0, "currency": "EUR"}
-    assert approved.json()["notify"] == [{"kind": "referral_commission_approved", **email}]
+    assert sent_notices == [{"kind": "referral_commission_approved", **email}]
     again = api.post(f"{URL}/{commission.id}/approve", headers=director)
     assert (again.status_code, again.json()["error"]["message"]) == (422, "Already approved — nothing to approve.")
 
     paid = api.post(f"{URL}/{commission.id}/mark-paid", headers=director, json={"payment_reference": "BANK-1"})
     data = paid.json()["data"]
     assert (data["status"], data["payment_reference"], data["payment_method"]) == ("paid", "BANK-1", None)
-    assert paid.json()["notify"] == [{"kind": "referral_commission_paid", **email}]
+    assert sent_notices[1:] == [{"kind": "referral_commission_paid", **email}]
     actions = db.scalars(select(AuditLog.action).where(AuditLog.entity_id == commission.id)).all()
     assert actions.count("update") == 2
 

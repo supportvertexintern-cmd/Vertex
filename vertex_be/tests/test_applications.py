@@ -152,7 +152,7 @@ def test_every_write_waits_for_the_switch(api, monkeypatch, world):
 # --- submission --------------------------------------------------------------
 
 
-def test_a_self_applicant_is_screened_and_invited(api, db, world, sent_mail):
+def test_a_self_applicant_is_screened_and_invited(api, db, world, sent_mail, sent_notices):
     body = form(world)
     res = submit(api, body)
     assert res.status_code == 201
@@ -165,18 +165,19 @@ def test_a_self_applicant_is_screened_and_invited(api, db, world, sent_mail):
     assert (app_row["job_position_id"], app_row["current_location_country_id"], app_row["documents_available"]) == (world["position"].id, world["home"].id, ["passport"])
     assert out["screening_passed"] is True
     # The invite is FastAPI's to send since reads handover R7b; the rest is the website's still.
-    assert [(m.kind, m.to) for m in sent_mail] == [("candidate_invite", body["email"])]
+    assert out["notify"] == []
+    assert [(m.kind, m.to) for m in sent_mail] == [("candidate_invite", body["email"]), ("application_confirmation", body["email"])]
     assert verify_candidate_invite_token(token(sent_mail[0])) == candidate.id
-    assert out["notify"] == [{"kind": "application_confirmation", "email": body["email"], "full_name": "Abebe Kebede", "job_title": "Care worker", "has_account": False}]
+    assert sent_notices[1:] == [{"kind": "application_confirmation", "email": body["email"], "full_name": "Abebe Kebede", "job_title": "Care worker", "has_account": False}]
     actors = set(db.scalars(select(AuditLog.actor_id).where(AuditLog.entity_id.in_([candidate.id, app_row["id"]]))))
     assert actors == {None}
 
 
-def test_a_failed_screening_still_files_the_form(api, db, world):
+def test_a_failed_screening_still_files_the_form(api, db, world, sent_notices):
     out = submit(api, form(world, passport_expiry="2027-01-01")).json()
     candidate = db.get(Candidate, out["data"]["candidate_id"])
     assert (out["screening_passed"], candidate.lifecycle_status, candidate.screening_result) == (False, CandidateLifecycleStatus.identified, False)
-    assert [n["kind"] for n in out["notify"]] == ["application_confirmation"]
+    assert [n["kind"] for n in sent_notices] == ["application_confirmation"]
 
 
 def test_a_recruiters_walk_in_lead_is_theirs_and_not_screened(api, db, world):
@@ -220,7 +221,7 @@ def test_staff_submit_for_a_candidate_on_file(api, db, world):
     assert submit(api, body | {"candidate_id": lead.id}).status_code == 403  # anonymous
 
 
-def test_a_signed_in_candidate_completes_their_form(api, db, world):
+def test_a_signed_in_candidate_completes_their_form(api, db, world, sent_notices):
     account, session = person(db, Role.candidate)
     mine = Candidate(user_id=account.id)
     db.add(mine)
@@ -228,7 +229,7 @@ def test_a_signed_in_candidate_completes_their_form(api, db, world):
     out = submit(api, form(world, full_name="Signed In Person"), session).json()
     db.refresh(mine)
     assert (out["data"]["candidate_id"], mine.full_name) == (mine.id, "Signed In Person")
-    assert out["notify"][-1] == {"kind": "application_confirmation", "email": account.email, "full_name": account.full_name, "job_title": "Care worker", "has_account": True}
+    assert sent_notices[-1] == {"kind": "application_confirmation", "email": account.email, "full_name": account.full_name, "job_title": "Care worker", "has_account": True}
     assert submit(api, form(world), world["hr"]).status_code == 403  # not staff, not a candidate
 
 
@@ -270,12 +271,12 @@ def agent(db, world):
     return a
 
 
-def test_a_referred_applicant_earns_their_agent_a_commission(api, db, world, agent):
+def test_a_referred_applicant_earns_their_agent_a_commission(api, db, world, agent, sent_notices):
     out = submit(api, form(world, referral_code=agent.referral_code)).json()
     candidate = db.get(Candidate, out["data"]["candidate_id"])
     assert (candidate.source, candidate.referral_agent_id, candidate.referral_duplicate_flag) == (CandidateSource.referral_sourced, agent.id, False)
     assert out["screening_passed"] is False  # referred applicants aren't screened on submission
-    assert out["notify"][0] == {
+    assert sent_notices[0] == {
         "kind": "referral_commission_earned", "agent_email": agent.email, "agent_name": "Ref Agent",
         "candidate_name": "Abebe Kebede", "milestone": "registered", "amount": 10.0, "currency": "EUR",
     }
@@ -323,11 +324,11 @@ def filed(db, world):
     return {"account": account, "candidate": candidate, "application": application}
 
 
-def test_a_status_change_tells_the_candidate(api, world, filed):
+def test_a_status_change_tells_the_candidate(api, world, filed, sent_notices):
     res = api.put(f"{URL}/{filed['application'].id}", headers=world["inhouse"], json={"application_status": "interview"})
     assert res.status_code == 200
     assert res.json()["data"]["application_status"] == "interview"
-    assert res.json()["notify"] == [{
+    assert sent_notices == [{
         "kind": "application_status", "email": filed["account"].email, "full_name": filed["account"].full_name,
         "job_title": "Care worker", "status": "interview",
     }]

@@ -441,7 +441,7 @@ def set_status(
         notify = _approve(db, candidate)
     db.commit()
     db.refresh(candidate)
-    return {"data": candidate, "notify": notify}
+    return {"data": candidate, "notify": deliver(db, notify)}
 
 
 def _approve(db, candidate: Candidate) -> list[Notice]:
@@ -532,7 +532,7 @@ def post_message(candidate_id: str, body: MessageIn, user: CurrentUser, db: Audi
     notify = _message_email(db, user, candidate)
     db.commit()
     db.refresh(message)
-    return {"data": message, "notify": notify}
+    return {"data": message, "notify": deliver(db, notify)}
 
 
 def _own_message(db, candidate_id: str, message_id: str, user: AuthUser, verb: str) -> CandidateMessage:

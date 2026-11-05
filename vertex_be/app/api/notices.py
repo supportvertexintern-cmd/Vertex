@@ -133,8 +133,8 @@ class CaseReminderEmail(BaseModel):
 
 
 class PartnerSubmittedEmail(BaseModel):
-    """sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to the
-    website's PARTNER_SUBMISSION_NOTIFY_EMAIL."""
+    """sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to
+    PARTNER_SUBMISSION_NOTIFY_EMAIL."""
 
     kind: Literal["partner_candidate_submitted"] = "partner_candidate_submitted"
     partner_name: str
@@ -267,8 +267,8 @@ class ReferralAgentApplicationEmail(_LinkEmail):
 
 
 class ReferralAgentAdminEmail(BaseModel):
-    """sendReferralAgentAdminNotificationEmail(full_name, country), to the
-    website's REFERRAL_AGENT_NOTIFY_EMAIL."""
+    """sendReferralAgentAdminNotificationEmail(full_name, country), to
+    REFERRAL_AGENT_NOTIFY_EMAIL."""
 
     kind: Literal["referral_agent_admin_notification"] = "referral_agent_admin_notification"
     full_name: str

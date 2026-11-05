@@ -37,6 +37,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
 from app.api.notices import ConsultationBookedEmail, Notice, Notifying, PaymentReceiptEmail
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import CurrentUser, calling_service
@@ -204,7 +205,7 @@ async def stripe_webhook(request: Request, db: DbSession):
             _case_payment(db, session, metadata["case_id"])
         else:
             notify = _application_fee(db, session, metadata)
-    return {"data": {"received": True}, "notify": notify}
+    return {"data": {"received": True}, "notify": deliver(db, notify)}
 
 
 # --- PayPal (application fees) -----------------------------------------------
@@ -272,5 +273,5 @@ def capture_paypal_order(order_id: str, body: CaptureIn, user: CurrentUser, db: 
         db.add(payment)
         db.commit()
         db.refresh(payment)
-    return {"data": payment, "notify": _receipt(db, payment, job.title)}
+    return {"data": payment, "notify": deliver(db, _receipt(db, payment, job.title))}
 

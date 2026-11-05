@@ -156,7 +156,7 @@ def test_every_write_waits_for_the_switch(api, monkeypatch, world):
 # --- submitting --------------------------------------------------------------
 
 
-def test_a_partner_submits_a_candidate(api, db, world):
+def test_a_partner_submits_a_candidate(api, db, world, sent_notices):
     res = submit(api, world)
     assert res.status_code == 201
     out = res.json()
@@ -168,7 +168,7 @@ def test_a_partner_submits_a_candidate(api, db, world):
         CandidateSource.partner_sourced, world["partner"].id, None, CandidateLifecycleStatus.submitted, True
     )
     assert (application.job_id, application.documents_available, application.preferred_contact_channel.value) == (world["job"].id, world["required"], "whatsapp")
-    assert out["notify"] == [{"kind": "partner_candidate_submitted", "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"}]
+    assert sent_notices == [{"kind": "partner_candidate_submitted", "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"}]
     for entity in (candidate.id, application.id, data["id"]):
         assert db.scalars(select(AuditLog.action).where(AuditLog.entity_id == entity)).all() == ["create"]
 
@@ -260,7 +260,7 @@ def test_a_partners_correction_follows_through(api, db, world):
 # --- HR's review -------------------------------------------------------------
 
 
-def test_hr_opens_the_case(api, db, world):
+def test_hr_opens_the_case(api, db, world, sent_notices):
     data = submit(api, world).json()["data"]
     res = api.patch(f"{URL}/partner-candidates/{data['id']}/create-case", headers=world["hr"])
     assert res.status_code == 200
@@ -268,7 +268,7 @@ def test_hr_opens_the_case(api, db, world):
     assert body["data"]["partnerCandidate"]["status"] == "job_assigned"
     case = db.get(Case, body["data"]["case"]["id"])
     assert (case.application_id, db.get(Candidate, data["candidateId"]).lifecycle_status) == (data["applicationId"], CandidateLifecycleStatus.approved)
-    assert body["notify"] == [{"kind": "partner_case_created", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"}]
+    assert sent_notices[1:] == [{"kind": "partner_case_created", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"}]
     again = api.patch(f"{URL}/partner-candidates/{data['id']}/create-case", headers=world["hr"])
     assert (again.status_code, error(again)["code"]) == (409, "already_bridged")
     no_reject = api.patch(f"{URL}/partner-candidates/{data['id']}/reject", headers=world["hr"], json={"rejection_reason": "x"})
@@ -278,12 +278,12 @@ def test_hr_opens_the_case(api, db, world):
     assert api.patch(f"{URL}/partner-candidates/{data['id']}/create-case", headers=world["ops"]).status_code == 403
 
 
-def test_hr_rejects_and_overturns(api, db, world):
+def test_hr_rejects_and_overturns(api, db, world, sent_notices):
     data = submit(api, world).json()["data"]
     submitted_as = db.get(Candidate, data["candidateId"]).lifecycle_status
     res = api.patch(f"{URL}/partner-candidates/{data['id']}/reject", headers=world["hr"], json={"rejection_reason": "Passport scan unreadable"})
     assert res.json()["data"]["status"] == "rejected"
-    assert res.json()["notify"] == [{
+    assert sent_notices[1:] == [{  # after the submission's own
         "kind": "partner_candidate_rejected", "email": world["partner"].contact_email, "partner_name": "Bridge Agency",
         "candidate_name": "Juma Otieno", "reason": "Passport scan unreadable",
     }]

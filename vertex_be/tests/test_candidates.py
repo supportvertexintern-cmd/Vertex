@@ -305,13 +305,13 @@ def test_hr_rejects_a_self_application(api, db, world):
     assert res.json()["data"]["return_reason"] == "Not eligible for this programme."
 
 
-def test_approval_opens_the_case(api, db, world):
+def test_approval_opens_the_case(api, db, world, sent_notices):
     world["lead"].lifecycle_status = CandidateLifecycleStatus.verified
     db.flush()
     res = status(api, world, world["admin"], lifecycle_status="approved")
     assert res.status_code == 200
     assert res.json()["data"]["lifecycle_status"] == "approved"
-    assert res.json()["notify"] == [{"kind": "candidate_approved", "email": world["lead"].email, "full_name": "Abebe Kebede"}]
+    assert sent_notices == [{"kind": "candidate_approved", "email": world["lead"].email, "full_name": "Abebe Kebede"}]
     application = db.scalar(select(Application).where(Application.candidate_id == world["lead"].id))
     case = db.scalar(select(Case).where(Case.application_id == application.id))
     assert (case.current_stage.value, [e.stage.value for e in case.stage_events]) == ("registration_document_submission", ["registration_document_submission"])
@@ -321,25 +321,25 @@ def test_approval_opens_the_case(api, db, world):
 # --- messages ----------------------------------------------------------------
 
 
-def test_a_candidate_writes_to_their_recruiter(api, db, world):
+def test_a_candidate_writes_to_their_recruiter(api, db, world, sent_notices):
     res = api.post(f"{URL}/{world['mine'].id}/messages", headers=world["own"], json={"body": "  When is my interview?  "})
     assert res.status_code == 201
     body = res.json()
     assert body["data"]["body"] == "When is my interview?"
     assert body["data"]["sender"] == {"full_name": world["owner"].full_name, "role": "candidate"}
-    assert body["notify"] == [{
+    assert sent_notices == [{
         "kind": "candidate_message", "email": world["recruiter"].email, "full_name": world["recruiter"].full_name,
         "view_path": f"/recruiter/candidates/{world['mine'].id}",
     }]
     assert trail(db, body["data"]["id"]) == ["create"]
 
 
-def test_the_recruiter_answers_the_candidate(api, world):
+def test_the_recruiter_answers_the_candidate(api, world, sent_notices):
     res = api.post(f"{URL}/{world['mine'].id}/messages", headers=world["rec"], json={"body": "Tuesday."})
-    assert res.json()["notify"] == [{"kind": "candidate_message", "email": world["owner"].email, "full_name": world["owner"].full_name, "view_path": "/dashboard"}]
+    assert sent_notices == [{"kind": "candidate_message", "email": world["owner"].email, "full_name": world["owner"].full_name, "view_path": "/dashboard"}]
 
 
-def test_hr_on_a_partner_submission(api, db, world):
+def test_hr_on_a_partner_submission(api, db, world, sent_notices):
     partner_user, as_partner = person(db, Role.partner)
     partner = Partner(name="P", partner_type=PartnerType.other, country_of_operation="Kenya", contact_name="Pat", contact_email=f"p-{secrets.token_hex(3)}@test.invalid", contact_phone="1", user_id=partner_user.id)
     db.add(partner)
@@ -349,11 +349,12 @@ def test_hr_on_a_partner_submission(api, db, world):
     db.add(submission)
     db.flush()
     res = api.post(f"{URL}/{world['lead'].id}/messages", headers=world["hr"], json={"body": "Looking at it."})
-    assert res.json()["notify"] == [{"kind": "candidate_message", "email": partner.contact_email, "full_name": "Pat", "view_path": "/partner"}]
+    assert sent_notices == [{"kind": "candidate_message", "email": partner.contact_email, "full_name": "Pat", "view_path": "/partner"}]
     db.refresh(submission)
     assert submission.status is PartnerCandidateStatus.under_review
     # The partner's reply goes to whoever reviewed it; nobody has yet.
     assert api.post(f"{URL}/{world['lead'].id}/messages", headers=as_partner, json={"body": "Thanks"}).json()["notify"] == []
+    assert len(sent_notices) == 1  # the partner's own message tells nobody
 
 
 def test_strangers_and_bad_messages_are_refused(api, world):

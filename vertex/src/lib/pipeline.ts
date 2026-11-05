@@ -21,30 +21,12 @@ import { log } from "@/lib/log";
 
 type PlanStage = { id: string; label: string; percent: number; amount: number; trigger_stage: CaseStageKey };
 
-const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
 // One sender per kind, named as FastAPI names them. Since reads handover
 // R7b FastAPI sends some kinds itself (SENT_HERE in
-// vertex_be/app/services/emails.py: the account links and the candidate
-// invite) and never lists them here.
+// vertex_be/app/services/emails.py) and never lists them here.
 export const NOTICE_SENDERS = {
-  referral_commission_earned: (n) =>
-    email.sendReferralCommissionEarnedEmail(n.agent_email, n.agent_name, n.candidate_name, n.milestone, n.amount, n.currency),
-  referral_commission_approved: (n) => email.sendReferralCommissionApprovedEmail(n.email, n.agent_name, n.candidate_name, n.amount, n.currency),
-  referral_commission_paid: (n) => email.sendReferralCommissionPaidEmail(n.email, n.agent_name, n.candidate_name, n.amount, n.currency),
-  candidate_message: (n) => email.sendCandidateMessageNotificationEmail(n.email, n.full_name, `${APP_URL()}${n.view_path}`),
-  application_confirmation: (n) => email.sendApplicationConfirmationEmail(n.email, n.full_name, n.job_title, n.has_account),
-  application_status: (n) => email.sendStatusUpdateEmail(n.email, n.full_name, n.job_title, n.status),
-  candidate_approved: (n) => email.sendCandidateApprovedEmail(n.email, n.full_name),
-  case_stage: (n) => email.sendCaseStageUpdateEmail(n.email, n.full_name, n.job_title, n.stage),
-  partner_case_stage: (n) => email.sendPartnerCaseStageUpdateEmail(n.email, n.partner_name, n.candidate_name, n.job_title, n.stage),
-  case_rejected: (n) => email.sendCaseRejectedEmail(n.email, n.full_name, n.candidate_name, n.job_title, n.reason),
-  partner_case_rejected: (n) => email.sendPartnerCaseRejectedEmail(n.email, n.partner_name, n.candidate_name, n.job_title, n.reason),
   case_reminder: (n) =>
     email.sendCaseReminderEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.channel, n.message ?? undefined),
-  partner_candidate_submitted: (n) => email.sendPartnerCandidateSubmittedEmail(n.partner_name, n.candidate_name),
-  partner_case_created: (n) => email.sendPartnerCaseCreatedEmail(n.email, n.partner_name, n.candidate_name),
-  partner_candidate_rejected: (n) => email.sendPartnerCandidateRejectedEmail(n.email, n.partner_name, n.candidate_name, n.reason),
   // Payments (step 7.2): a consultation booked, a fee paid by card or PayPal.
   consultation_booked: (n) =>
     email.sendConsultationBookingNotification({ fullName: n.full_name, email: n.email, phone: n.phone, amount: n.amount, currency: n.currency }),
@@ -53,12 +35,6 @@ export const NOTICE_SENDERS = {
   milestone_payment_link: (n) =>
     email.sendMilestonePaymentLinkEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.payment_url, n.current_stage_id,
       n.stages.map((s: PlanStage) => ({ id: s.id, label: s.label, percent: s.percent, amount: s.amount, triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage] }))),
-  // Referral agents (users step 8.4).
-  referral_agent_admin_notification: (n) => email.sendReferralAgentAdminNotificationEmail(n.full_name, n.country),
-  referral_agent_approved: (n) =>
-    email.sendReferralAgentApprovedEmail(n.email, n.full_name, n.referral_code, `${APP_URL()}/apply?ref=${n.referral_code}`),
-  referral_agent_rejected: (n) => email.sendReferralAgentRejectedEmail(n.email, n.full_name, n.reason),
-  referral_agent_suspended: (n) => email.sendReferralAgentSuspendedEmail(n.email, n.full_name, n.reason),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
 } satisfies Record<string, (notice: any) => Promise<unknown>>;
 

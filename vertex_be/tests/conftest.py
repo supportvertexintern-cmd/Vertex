@@ -86,3 +86,18 @@ def sent_mail(monkeypatch: pytest.MonkeyPatch) -> list[emails.Mail]:
     monkeypatch.setattr(emails, "dispatch", lambda send: send())
     monkeypatch.setattr(emails, "_send", sent.extend)
     return sent
+
+
+@pytest.fixture
+def sent_notices(monkeypatch: pytest.MonkeyPatch, sent_mail: list[emails.Mail]) -> list[dict]:
+    """The notices FastAPI emailed, as the JSON `notify` would have carried
+    them before it sent them itself (reads handover R7b)."""
+    notices: list[dict] = []
+    mail = emails._mail
+
+    def recording(db, notice):
+        notices.append(notice.model_dump(mode="json"))
+        return mail(db, notice)
+
+    monkeypatch.setattr(emails, "_mail", recording)
+    return notices

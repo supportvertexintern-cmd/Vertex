@@ -466,7 +466,7 @@ def review(
     if "application_status" in changes and account is not None:
         title = _job_title(application.job, application.preferred_sector.name if application.preferred_sector else None)
         notify.append(ApplicationStatusEmail(email=account.email, full_name=account.full_name, job_title=title, status=body.application_status))
-    return {"data": application, "notify": notify}
+    return {"data": application, "notify": deliver(db, notify)}
 
 
 # --- staff corrections -------------------------------------------------------

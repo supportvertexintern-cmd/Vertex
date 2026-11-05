@@ -11842,7 +11842,7 @@
     "type": "object"
    },
    "PartnerSubmittedEmail": {
-    "description": "sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to the\nwebsite's PARTNER_SUBMISSION_NOTIFY_EMAIL.",
+    "description": "sendPartnerCandidateSubmittedEmail(partner_name, candidate_name), to\nPARTNER_SUBMISSION_NOTIFY_EMAIL.",
     "properties": {
      "candidate_name": {
       "title": "Candidate Name",
@@ -13363,7 +13363,7 @@
     "type": "object"
    },
    "ReferralAgentAdminEmail": {
-    "description": "sendReferralAgentAdminNotificationEmail(full_name, country), to the\nwebsite's REFERRAL_AGENT_NOTIFY_EMAIL.",
+    "description": "sendReferralAgentAdminNotificationEmail(full_name, country), to\nREFERRAL_AGENT_NOTIFY_EMAIL.",
     "properties": {
      "country": {
       "title": "Country",
