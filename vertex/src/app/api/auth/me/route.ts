@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/api-auth";
+import { callBackend } from "@/lib/backend";
 
-// GET /api/auth/me — cheap, DB-free session check (JWT decode only) for
-// client components like Navbar that just need to know "is someone
-// logged in, and as what role" to switch their own CTA, not full profile
-// data (candidates/staff each already have dedicated profile endpoints
-// for that).
+// GET /api/auth/me: "is someone signed in, and as what role", for client
+// components like Navbar that switch their own CTA (candidates and staff
+// each have dedicated profile endpoints for more). Since reads handover R7d
+// this app checks only a token's signature and expiry, so the answer is
+// FastAPI's (vertex_be/app/api/v1/me.py), which checks the session is still
+// live: a revoked, deleted or demoted user is nobody here too (G19).
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser(req);
-  if (!user) {
-    return NextResponse.json({ data: null }, { status: 401 });
+  if (!(await getAuthUser(req))) return NextResponse.json({ data: null }, { status: 401 });
+
+  const res = await callBackend<{ id: string; email: string; role: string }>("/api/v1/me");
+  if (!res.ok) {
+    return res.status === 401
+      ? NextResponse.json({ data: null }, { status: 401 })
+      : NextResponse.json({ error: res.error }, { status: res.status });
   }
-  return NextResponse.json({ data: { userId: user.userId, email: user.email, role: user.role } });
+  const { id, email, role } = res.body.data;
+  return NextResponse.json({ data: { userId: id, email, role } });
 }
