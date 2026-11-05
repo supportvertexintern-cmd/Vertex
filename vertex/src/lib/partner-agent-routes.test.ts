@@ -61,7 +61,6 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 const ok = (data: unknown, extra: Record<string, unknown> = {}, status = 200) => ({ ok: true, status, body: { data, ...extra } });
 const refused = (status: number, code: string, message: string, details?: unknown) => ({ ok: false, status, error: { code, message, details } });
 const as = (role: string) => ({ userId: `${role}1`, email: `${role}@test.invalid`, role, sid: "s", ver: 0 });
-const setup = (email: string) => ({ kind: "account_setup", email, full_name: "Contact", token: "setup-link" });
 
 beforeEach(() => {
   callBackend.mockReset();
@@ -82,14 +81,15 @@ describe("partners", () => {
     expect([res.status, await res.json()]).toEqual([201, { data: row }]);
   });
 
-  it("edits, sending the setup email FastAPI lists when the login moves, never the link itself", async () => {
-    callBackend.mockResolvedValueOnce(ok({ id: "p1" }, { notify: [setup("new@test.invalid")] }));
+  // FastAPI sends the setup emails itself since reads handover R7b
+  // (vertex_be/tests/test_partner_agencies.py) and lists none of them.
+  it("edits through FastAPI", async () => {
+    callBackend.mockResolvedValueOnce(ok({ id: "p1" }, { notify: [] }));
     const res = await onePartner.PATCH(request("PATCH", "/api/admin/partners/p1", { contact_email: "new@test.invalid" }), ctx("p1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/partners/p1", { method: "PATCH", body: { contact_email: "new@test.invalid" } });
     const body = await res.json();
     expect(body).toEqual({ data: { id: "p1" } });
-    expect(JSON.stringify(body)).not.toContain("setup-link");
-    expect(state.sent).toEqual([["sendAccountSetupLinkEmail", "setup-link", "new@test.invalid", "Contact"]]);
+    expect(state.sent).toEqual([]);
   });
 
   it("refuses unreadable JSON before calling FastAPI", async () => {
@@ -102,16 +102,16 @@ describe("partners", () => {
     const del = await onePartner.DELETE(request("DELETE", "/api/admin/partners/p1"), ctx("p1"));
     expect([callBackend.mock.calls[0], await del.json()]).toEqual([["/api/v1/partners/p1", { method: "DELETE" }], { data: { id: "p1" } }]);
 
-    callBackend.mockResolvedValueOnce(ok({ id: "p2", user_id: "u2" }, { notify: [setup("c@test.invalid")] }, 201));
+    callBackend.mockResolvedValueOnce(ok({ id: "p2", user_id: "u2" }, { notify: [] }, 201));
     const made = await provision.POST(request("POST", "/api/admin/partners/p2/provision-account", {}), ctx("p2"));
     expect(callBackend.mock.calls[1]).toEqual(["/api/v1/partners/p2/provision-account", { method: "POST", body: {} }]);
     expect([made.status, await made.json()]).toEqual([201, { data: { id: "p2", user_id: "u2" } }]);
 
-    callBackend.mockResolvedValueOnce(ok({ email: "c@test.invalid" }, { notify: [setup("c@test.invalid")] }));
+    callBackend.mockResolvedValueOnce(ok({ email: "c@test.invalid" }, { notify: [] }));
     const reset = await partnerReset.POST(request("POST", "/api/admin/partners/p2/reset-password"), ctx("p2"));
     expect(callBackend.mock.calls[2]).toEqual(["/api/v1/partners/p2/reset-password", { method: "POST" }]);
     expect(await reset.json()).toEqual({ data: { email: "c@test.invalid" } });
-    expect(state.sent.map((s) => s[0])).toEqual(["sendAccountSetupLinkEmail", "sendAccountSetupLinkEmail"]);
+    expect(state.sent).toEqual([]);
   });
 
   it("keeps FastAPI's errors as { error: { code, message } }", async () => {
@@ -129,21 +129,16 @@ describe("partners", () => {
 });
 
 describe("referral agents", () => {
-  it("passes an application on, answers as before and sends both emails", async () => {
-    const notify = [
-      { kind: "referral_agent_application", email: "a@test.invalid", full_name: "Abebe", token: "verify-link" },
-      { kind: "referral_agent_admin_notification", full_name: "Abebe", country: "Ethiopia" },
-    ];
+  // The applicant's verification email is FastAPI's to send since reads
+  // handover R7b; the admin's notification is still the website's.
+  it("passes an application on, answers as before and sends the admin's notification", async () => {
+    const notify = [{ kind: "referral_agent_admin_notification", full_name: "Abebe", country: "Ethiopia" }];
     callBackend.mockResolvedValueOnce(ok({ id: "r1", referral_code: "VTX-ETH-1234" }, { notify }, 201));
     const res = await apply.POST(request("POST", "/api/referral-agents/register", { full_name: "Abebe" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/apply", { method: "POST", body: { full_name: "Abebe" }, asUser: false });
     const body = await res.json();
     expect([res.status, body]).toEqual([201, { data: { id: "r1", referral_code: "VTX-ETH-1234" } }]);
-    expect(JSON.stringify(body)).not.toContain("verify-link");
-    expect(state.sent).toEqual([
-      ["sendReferralAgentApplicationLinkEmail", "verify-link", "a@test.invalid", "Abebe"],
-      ["sendReferralAgentAdminNotificationEmail", "Abebe", "Ethiopia"],
-    ]);
+    expect(state.sent).toEqual([["sendReferralAgentAdminNotificationEmail", "Abebe", "Ethiopia"]]);
   });
 
   it("keeps the older string errors, with details for validation", async () => {
@@ -173,17 +168,16 @@ describe("referral agents", () => {
     expect([bad.status, await bad.json()]).toEqual([400, { error: "Invalid or expired verification token." }]);
   });
 
-  it("approves (an empty body is no body) and sends the approval with the agent's link, then the setup email", async () => {
+  it("approves (an empty body is no body) and sends the approval with the agent's link (FastAPI the setup email)", async () => {
     state.user = as("director");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.test.invalid");
-    const notify = [{ kind: "referral_agent_approved", email: "a@test.invalid", full_name: "Abebe", referral_code: "VTX-ETH-1234" }, setup("a@test.invalid")];
+    const notify = [{ kind: "referral_agent_approved", email: "a@test.invalid", full_name: "Abebe", referral_code: "VTX-ETH-1234" }];
     callBackend.mockResolvedValueOnce(ok({ id: "r1", status: "active" }, { notify }, 201));
     const res = await approve.POST(request("POST", "/api/admin/referral-agents/r1/approve"), ctx("r1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/r1/approve", { method: "POST", body: {} });
     expect([res.status, await res.json()]).toEqual([201, { data: { id: "r1", status: "active" } }]);
     expect(state.sent).toEqual([
       ["sendReferralAgentApprovedEmail", "a@test.invalid", "Abebe", "VTX-ETH-1234", "https://app.test.invalid/apply?ref=VTX-ETH-1234"],
-      ["sendAccountSetupLinkEmail", "setup-link", "a@test.invalid", "Contact"],
     ]);
   });
 

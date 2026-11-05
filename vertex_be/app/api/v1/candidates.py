@@ -39,6 +39,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
 from app.api.notices import CandidateApprovedEmail, MessageEmail, Notice, Notifying, commission_email, invite_email
+from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, calling_service
@@ -431,7 +432,7 @@ def set_status(
         if not result.passed:
             raise ApiError(422, "screening_gate_failed", "Candidate has not cleared the screening gate.", result.failures)
         db.refresh(candidate)
-        return {"data": candidate, "notify": invite_email(result.invite) + commission_email(result.commission)}
+        return {"data": candidate, "notify": deliver(db, invite_email(result.invite) + commission_email(result.commission))}
 
     candidate.lifecycle_status = target
     candidate.return_reason = body.return_reason if needs_reason else None

@@ -32,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notice, Notifying
+from app.services.emails import deliver
 from app.api.v1.users import keep_an_admin
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -313,7 +314,7 @@ def update_partner(partner_id: str, body: UpdateIn, _user: Manager, db: AuditedD
         notify.append(_setup_email(login))
     _saved(db)
     db.refresh(partner)
-    return {"data": partner, "notify": notify}
+    return {"data": partner, "notify": deliver(db, notify)}
 
 
 @router.delete("/partners/{partner_id}", response_model=Data[Removed])
@@ -360,7 +361,7 @@ def provision_account(partner_id: str, body: LoginIn, _user: Manager, db: Audite
     partner.user_id = login.id
     _saved(db)
     db.refresh(partner)
-    return {"data": partner, "notify": [_setup_email(login)]}
+    return {"data": partner, "notify": deliver(db, [_setup_email(login)])}
 
 
 @router.post("/partners/{partner_id}/reset-password", response_model=Notifying[LoginAddress])
@@ -373,5 +374,5 @@ def reset_password(partner_id: str, _user: Manager, db: AuditedDb):
     login = db.get(User, partner.user_id)
     login.password_hash = None
     db.commit()
-    return {"data": {"email": login.email}, "notify": [_setup_email(login)]}
+    return {"data": {"email": login.email}, "notify": deliver(db, [_setup_email(login)])}
 

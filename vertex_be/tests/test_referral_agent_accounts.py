@@ -26,6 +26,9 @@ from app.models.audit import AuditLog
 from app.models.enums import ReferralAgentStatus, Role
 from app.models.identity import Country, Region, User
 from app.models.referral import ReferralAgent
+from app.core.config import settings
+from tests.mail import link
+from tests.mail import token as link_token
 from tests.node_session_vectors import REFERRAL_AGENT_ID, REFERRAL_AGENT_VERIFICATION_TOKEN, SECRET
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
@@ -109,7 +112,7 @@ def test_only_the_website_takes_applications_and_verifications(api, db, director
 # --- applying -------------------------------------------------------------------
 
 
-def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db):
+def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db, sent_mail):
     region = Region(name=f"RA region {secrets.token_hex(3)}")
     db.add(region)
     db.flush()
@@ -128,9 +131,12 @@ def test_an_application_is_pending_with_its_own_code_and_two_emails(api, db):
     assert (row.status, row.email_verified, row.user_id, row.country_id, row.network_size, row.date_of_birth.isoformat()) == (
         ReferralAgentStatus.pending_approval, False, None, country.id, 200, "1990-05-01T00:00:00",
     )
-    first, second = out["notify"]
-    assert (first["kind"], first["email"], first["full_name"]) == ("referral_agent_application", body["email"], "Abebe Kebede")
-    assert verify_referral_agent_verification_token(first["token"]) == row.id
+    [mail] = sent_mail  # FastAPI's to send since reads handover R7b
+    assert (mail.kind, mail.to) == ("referral_agent_application", body["email"])
+    assert "Hi Abebe Kebede, thanks for applying" in mail.html
+    assert link(mail).startswith(f"{settings.APP_URL}/become-a-referral-agent/verify-email?token=")
+    assert verify_referral_agent_verification_token(link_token(mail)) == row.id
+    [second] = out["notify"]
     assert second == {"kind": "referral_agent_admin_notification", "full_name": "Abebe Kebede", "country": name.upper()}
     assert db.scalar(select(AuditLog).where(AuditLog.entity_type == "ReferralAgent", AuditLog.entity_id == row.id, AuditLog.action == "create"))
 
@@ -173,9 +179,9 @@ def test_bad_values_are_refused(api, fields):
 # --- verifying ------------------------------------------------------------------
 
 
-def test_the_link_verifies_once(api, db):
+def test_the_link_verifies_once(api, db, sent_mail):
     out = api.post(f"{URL}/apply", headers=svc(), json=application()).json()
-    token = out["notify"][0]["token"]
+    token = link_token(sent_mail[0])
     first = api.post(f"{URL}/verify-email", headers=svc(), json={"token": token})
     assert (first.status_code, first.json()["data"]) == (200, {"message": "Email verified! Our team will review your application and let you know the outcome."})
     assert db.get(ReferralAgent, out["data"]["id"]).email_verified is True
@@ -221,7 +227,7 @@ def test_a_link_for_a_removed_application(api, db):
 # --- approving ------------------------------------------------------------------
 
 
-def test_approval_activates_and_creates_a_login_without_a_password(api, db, director):
+def test_approval_activates_and_creates_a_login_without_a_password(api, db, director, sent_mail):
     boss, headers = director
     a = agent(db, email_verified=True)
     res = api.post(f"{URL}/{a.id}/approve", headers=headers, json={"role": "admin"})
@@ -233,10 +239,11 @@ def test_approval_activates_and_creates_a_login_without_a_password(api, db, dire
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", data["approved_at"])
     login = db.get(User, data["user_id"])
     assert (login.email, login.role, login.password_hash, login.email_verified) == (a.email, Role.referral_agent, None, True)
-    approved, setup = out["notify"]
+    [approved] = out["notify"]
     assert approved == {"kind": "referral_agent_approved", "email": a.email, "full_name": a.full_name, "referral_code": a.referral_code}
-    assert (setup["kind"], setup["email"]) == ("account_setup", a.email)
-    assert verify_account_setup_token(setup["token"]) == login.id
+    [setup] = sent_mail
+    assert (setup.kind, setup.to) == ("account_setup", a.email)
+    assert verify_account_setup_token(link_token(setup)) == login.id
 
 
 def test_the_login_address_can_differ(api, db, director):
@@ -306,11 +313,11 @@ def test_an_unknown_status_is_refused(api, db, director):
     assert api.patch(f"{URL}/{agent(db).id}", headers=director[1], json={"status": "pending_approval"}).status_code == 422
 
 
-def test_the_api_database_role_can_do_all_of_it(api, db, director):
+def test_the_api_database_role_can_do_all_of_it(api, db, director, sent_mail):
     db.execute(text("SET LOCAL ROLE vertex_api"))
     try:
         applied = api.post(f"{URL}/apply", headers=svc(), json=application())
-        verified = api.post(f"{URL}/verify-email", headers=svc(), json={"token": applied.json()["notify"][0]["token"]})
+        verified = api.post(f"{URL}/verify-email", headers=svc(), json={"token": link_token(sent_mail[0])})
         aid = applied.json()["data"]["id"]
         approved = api.post(f"{URL}/{aid}/approve", headers=director[1], json={})
         suspended = api.patch(f"{URL}/{aid}", headers=director[1], json={"status": "suspended", "reason": "x"})

@@ -246,6 +246,22 @@ def verify_candidate_invite_token(token: str) -> str:
     return _verify_candidate_token("candidate_invite", token)
 
 
+CANDIDATE_INVITE_TTL_SECONDS = 7 * 24 * 60 * 60  # signCandidateInviteToken's "7d"
+
+
+def sign_candidate_invite_token(candidate_id: str) -> str:
+    """The screening invite's link, since FastAPI sends the email (reads
+    handover R7b): keyed from JWT_SECRET as signCandidateInviteToken does,
+    so the website's registration and this service verify it alike."""
+    secret = settings.JWT_SECRET
+    if not secret or len(secret) < 32:
+        raise InvalidToken("JWT_SECRET is not configured")
+    now = epoch_seconds()
+    payload = {"candidateId": candidate_id, "type": "candidate_invite", "iat": now, "exp": now + CANDIDATE_INVITE_TTL_SECONDS,
+               "iss": ISSUER, "aud": "vertex:candidate_invite"}
+    return jwt.encode(payload, key_for("candidate_invite", secret), algorithm=ALGORITHM)
+
+
 def verify_cif_upload_token(token: str) -> str:
     """The candidate id an upload token from the Candidate Information Form
     was signed for (signCifUploadToken)."""

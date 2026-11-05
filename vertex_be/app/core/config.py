@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     SMTP_USER: str | None = None
     SMTP_PASS: str | None = None
     EMAIL_FROM: str = "Vertex International <noreply@vertexinternational.com>"
+    # The website's public address (its NEXT_PUBLIC_APP_URL), for the links
+    # in the emails FastAPI sends (reads handover R7b).
+    APP_URL: str = "http://localhost:3000"
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None

@@ -35,6 +35,7 @@ from sqlalchemy import func, select
 
 from app.api.deps import DbSession
 from app.api.notices import ApplicationConfirmationEmail, ApplicationStatusEmail, Notice, Notifying, commission_email, invite_email
+from app.services.emails import deliver
 from app.api.v1.candidates import DETAIL_EDITORS, MaritalStatus, _blank_is_missing, _date
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
@@ -433,7 +434,7 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
 
     db.commit()
     db.refresh(application)
-    return {"data": application, "notify": notify, "screening_passed": screening_passed}
+    return {"data": application, "notify": deliver(db, notify), "screening_passed": screening_passed}
 
 
 # --- review ------------------------------------------------------------------

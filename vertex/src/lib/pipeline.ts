@@ -10,7 +10,8 @@ import { log } from "@/lib/log";
  * (docs/architecture/pipeline-handover.md, step 6.7): every pipeline route
  * here checks what it can early (role, JSON) and passes the request on.
  *
- * The website still sends the pipeline's emails (owner's decision D1): a
+ * The website still sends some of the pipeline's emails (owner's decision
+ * D1; FastAPI sends the rest itself since reads handover R7b): a
  * FastAPI response lists the emails its write left due in `notify`, each
  * with what its sender in lib/email.ts takes. They're sent after the
  * response (after()), and a failure is logged, never the request's. The
@@ -22,9 +23,11 @@ type PlanStage = { id: string; label: string; percent: number; amount: number; t
 
 const APP_URL = () => process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-// One sender per kind, named as FastAPI names them.
+// One sender per kind, named as FastAPI names them. Since reads handover
+// R7b FastAPI sends some kinds itself (SENT_HERE in
+// vertex_be/app/services/emails.py: the account links and the candidate
+// invite) and never lists them here.
 export const NOTICE_SENDERS = {
-  candidate_invite: (n) => email.sendCandidateInviteEmail(n.candidate_id, n.email, n.full_name),
   referral_commission_earned: (n) =>
     email.sendReferralCommissionEarnedEmail(n.agent_email, n.agent_name, n.candidate_name, n.milestone, n.amount, n.currency),
   referral_commission_approved: (n) => email.sendReferralCommissionApprovedEmail(n.email, n.agent_name, n.candidate_name, n.amount, n.currency),
@@ -50,12 +53,7 @@ export const NOTICE_SENDERS = {
   milestone_payment_link: (n) =>
     email.sendMilestonePaymentLinkEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.payment_url, n.current_stage_id,
       n.stages.map((s: PlanStage) => ({ id: s.id, label: s.label, percent: s.percent, amount: s.amount, triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage] }))),
-  // Accounts (users step 8.3): FastAPI signs the link, the token is sent as is.
-  email_verification: (n) => email.sendVerificationLinkEmail(n.token, n.email, n.full_name),
-  password_reset: (n) => email.sendPasswordResetLinkEmail(n.token, n.email, n.full_name),
-  account_setup: (n) => email.sendAccountSetupLinkEmail(n.token, n.email, n.full_name),
   // Referral agents (users step 8.4).
-  referral_agent_application: (n) => email.sendReferralAgentApplicationLinkEmail(n.token, n.email, n.full_name),
   referral_agent_admin_notification: (n) => email.sendReferralAgentAdminNotificationEmail(n.full_name, n.country),
   referral_agent_approved: (n) =>
     email.sendReferralAgentApprovedEmail(n.email, n.full_name, n.referral_code, `${APP_URL()}/apply?ref=${n.referral_code}`),

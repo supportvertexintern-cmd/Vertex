@@ -35,6 +35,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
 from app.api.notices import Notice, Notifying, PasswordResetEmail, VerificationEmail
+from app.services.emails import deliver
 from app.api.v1.candidates import claimable_candidate, link_account
 from app.api.v1.sessions import security_event
 from app.core.api import ApiError, Email
@@ -184,7 +185,7 @@ def register(body: RegisterIn, db: DbSession, _on: PipelineWrites):
 
     notify: list[Notice] = [VerificationEmail(email=user.email, full_name=user.full_name, token=sign_verification_token(user.id, user.email))]
     message = "Account created successfully. Please check your email to verify your account."
-    return {"data": {"message": message, "user": user}, "notify": notify}
+    return {"data": {"message": message, "user": user}, "notify": deliver(db, notify)}
 
 
 @router.post("/accounts/setup", response_model=Notifying[Registered])
@@ -291,7 +292,7 @@ def forgot_password(body: ForgotIn, request: Request, db: DbSession):
     notify: list[Notice] = []
     if user and can_reset:
         notify.append(PasswordResetEmail(email=user.email, full_name=user.full_name, token=sign_reset_token(user.id, user.email, user.password_hash)))
-    return {"data": {"message": FORGOT_MESSAGE}, "notify": notify}
+    return {"data": {"message": FORGOT_MESSAGE}, "notify": deliver(db, notify)}
 
 
 @router.post("/accounts/reset-password", response_model=Notifying[Done])

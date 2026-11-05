@@ -158,7 +158,7 @@ describe("sends the emails FastAPI lists", () => {
   });
 
   it("has a sender for every kind", () => {
-    expect(Object.keys(NOTICE_SENDERS)).toHaveLength(27); // vertex_be/tests/test_notices.py matches them with FastAPI's
+    expect(Object.keys(NOTICE_SENDERS)).toHaveLength(22); // vertex_be/tests/test_notices.py matches them with FastAPI's
   });
 });
 

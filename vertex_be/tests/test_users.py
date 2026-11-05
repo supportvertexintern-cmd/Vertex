@@ -27,6 +27,7 @@ from app.models.candidate import Candidate
 from app.models.enums import Role
 from app.models.identity import Country, Region, User
 from app.services.sessions import check_password
+from tests.mail import token
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
@@ -108,7 +109,7 @@ def test_no_session_is_401(api, world):
 # --- create ---------------------------------------------------------------------
 
 
-def test_an_admin_creates_staff_and_the_setup_email_is_listed(api, db, world):
+def test_an_admin_creates_staff_and_the_setup_email_is_listed(api, db, world, sent_mail):
     body = new_staff(supervisor_id=world["boss"].id, assigned_country_id=world["countries"][0])
     res = api.post(URL, headers=world["admin"], json=body)
     assert res.status_code == 201
@@ -116,9 +117,11 @@ def test_an_admin_creates_staff_and_the_setup_email_is_listed(api, db, world):
     data = out["data"]
     assert set(data) == {"id", "full_name", "email", "role", "supervisor_id", "supervisor", "assigned_country_id", "assigned_country", "assigned_countries"}
     assert (data["role"], data["supervisor"]["id"], data["assigned_country"]["id"], data["assigned_countries"]) == ("hr", world["boss"].id, world["countries"][0], [])
-    [notice] = out["notify"]
-    assert (notice["kind"], notice["email"], notice["full_name"]) == ("account_setup", body["email"], "New Staff")
-    assert verify_account_setup_token(notice["token"]) == data["id"]
+    assert out["notify"] == []  # FastAPI sends it (reads handover R7b)
+    [mail] = sent_mail
+    assert (mail.kind, mail.to) == ("account_setup", body["email"])
+    assert "Set up your account, New Staff." in mail.html
+    assert verify_account_setup_token(token(mail)) == data["id"]
     assert out["privilege_granted"] is None
     user = db.get(User, data["id"])
     assert (user.password_hash, user.email_verified) == (None, False)
