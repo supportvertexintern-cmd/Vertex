@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Role, ReportCycle } from "@prisma/client";
+import type { Role, ReportCycle } from "@/lib/enums";
 import { REPORT_KPI_LABELS } from "@/lib/reportTemplates";
 import { Target } from "@phosphor-icons/react";
 

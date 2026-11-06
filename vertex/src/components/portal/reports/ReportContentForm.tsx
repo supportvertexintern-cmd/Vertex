@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReportCycle, Role } from "@prisma/client";
+import type { ReportCycle, Role } from "@/lib/enums";
 import SearchableSelect from "@/components/SearchableSelect";
 import EditableRowTable, { type RowValue } from "./EditableRowTable";
 import ReportKpiTable, { type KpiRow } from "./ReportKpiTable";

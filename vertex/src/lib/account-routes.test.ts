@@ -23,7 +23,6 @@ vi.mock("next/server", async (importOriginal) => ({
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
-vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: async () => state.dbUser } } }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
   requireAdmin: (user: { role: string } | null) => (!user ? Response.json({}, { status: 401 }) : user.role === "admin" ? null : Response.json({}, { status: 403 })),

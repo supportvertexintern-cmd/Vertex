@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, hkdfSync, type KeyObject } from "node:crypto";
 import jwt from "jsonwebtoken";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 // Pinned explicitly rather than left to jsonwebtoken's default inference
 // — defense in depth against algorithm-confusion attacks (a token crafted

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { canAccessPortal, homeFor, isStaffRole, PORTAL_ACCESS } from "./rbac";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 const ALL_ROLES: Role[] = [
   "candidate",

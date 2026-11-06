@@ -1,4 +1,4 @@
-import type { Role, CandidateSource } from "@prisma/client";
+import type { Role, CandidateSource } from "@/lib/enums";
 
 export type LifecycleStatus =
   | "identified"

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 import { passOn, queryOf, readJson } from "@/lib/pipeline";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 const STAFF_ROLES: Role[] = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin"];
 

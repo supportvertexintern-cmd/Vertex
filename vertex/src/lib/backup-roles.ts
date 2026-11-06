@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 // Who may use the backup export (its catalogue, record picker and ZIP). The
 // same list as vertex_be/app/services/backup.py's BACKUP_ROLES, which

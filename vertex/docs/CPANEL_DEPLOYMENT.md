@@ -105,19 +105,14 @@ login will fail with `redirect_uri_mismatch`.
 
 ## One-time database setup (only if pointing at a freshly created schema)
 
-If the `DATABASE_URL` is brand new (never had `prisma db push` run
-against it), do this from your local machine before the app will work:
+The website has no database of its own. The backend's Alembic migrations
+create the schema, including the audit-log immutability triggers, and its
+seeds load the reference data (from `vertex_be`):
 
 ```bash
-DATABASE_URL="<production-url>" npx prisma db push
-DATABASE_URL="<production-url>" npm run db:seed
-psql "<production-url>" -f prisma/audit-log-immutability.sql
+MIGRATION_DATABASE_URL="<production-url>" alembic upgrade head
+DATABASE_URL="<production-url>" python -m scripts.seed.reference
 ```
-
-The last step is required and easy to miss — `prisma db push` doesn't
-apply raw SQL, so the audit-log immutability trigger (blocks
-UPDATE/DELETE on `AuditLog` at the database level) has to be run
-separately on every freshly created schema.
 
 ## Resolved: leaked database credential in `probe.js`
 

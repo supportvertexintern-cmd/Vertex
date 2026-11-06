@@ -9,7 +9,7 @@ import { useDebouncedValue } from "@/lib/useDebouncedValue";
 // modules, optionally a status and date range, and download. Columns,
 // related tables and specific records sit behind each module's collapsed
 // "Customize" panel. Every table/column/status/relationship comes live from
-// GET /api/backup/catalog (Prisma schema + the caller's role allowlist), so
+// GET /api/backup/catalog (FastAPI's models + the caller's role allowlist), so
 // new tables appear automatically. Shared across Admin Settings, HR,
 // Operations, Finance and Management/Director backup pages.
 

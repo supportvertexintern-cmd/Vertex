@@ -148,20 +148,8 @@ jobs:
       run:
         working-directory: vertex
 
-    # Integration tests hit a real, seeded database.
+    # The website has no database (reads handover R8), so neither do its tests.
     services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB: vertex_next_test
-          POSTGRES_USER: postgres
-          # Disposable DB reachable only inside this job: no password at all,
-          # so nothing in CI looks like a credential to secret scanners.
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U postgres -d vertex_next_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
       # Document storage tests run against this stack's own MinIO image.
       minio:
         image: ghcr.io/supportvertexintern-cmd/vertex-minio:dev
@@ -185,7 +173,6 @@ jobs:
       packages: read
 
     env:
-      DATABASE_URL: postgresql://postgres@localhost:5432/vertex_next_test
       S3_ENDPOINT: http://localhost:9000
       S3_BUCKET: vertex-ci
       S3_ACCESS_KEY_ID: ci-root
@@ -219,20 +206,6 @@ jobs:
           if npm ls braces --omit=dev --parseable 2>/dev/null | grep -q braces; then
             echo "braces (E1 exception: dev-only) is now a production dependency" >&2; exit 1
           fi
-
-      # The schema comes from the Alembic migrations, exactly as every
-      # deployed stack gets it, never from `prisma db push`: tests must run
-      # against the schema that is deployed (a push here hid a drift
-      # between the two until the 2026-10-11 DAST scan).
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: vertex_be/requirements.txt
-      - run: pip install -r requirements.txt && alembic upgrade head
-        working-directory: vertex_be
-      - run: python -m scripts.seed.reference
-        working-directory: vertex_be
 
       - name: Create the test bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
@@ -328,7 +301,7 @@ jobs:
           cat "$RUNNER_TEMP/keys.env" >> "$GITHUB_ENV"
 
       # The schema comes from the Alembic migrations, exactly as every
-      # deployed stack gets it, never from `prisma db push`: tests must run
+      # deployed stack gets it: tests must run
       # against the schema that is deployed (a push here hid a drift
       # between the two until the 2026-10-11 DAST scan).
       - uses: actions/setup-python@v7

@@ -15,7 +15,7 @@ import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } f
 import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import { ArrowLeft, UploadSimple } from "@phosphor-icons/react";
 
-// Mirrors the Prisma `CaseStatus` enum — the statuses a case can be
+// Mirrors the `CaseStatus` enum — the statuses a case can be
 // set to after a rejection is overturned (2026-09-25).
 const CASE_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "active", label: "Active" },

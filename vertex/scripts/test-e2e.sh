@@ -20,8 +20,8 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-# Same reason as scripts/test.sh: keep this machine's real credentials in
-# vertex/.env away from Prisma, the build and the journeys (CI has no .env).
+# Keep this machine's real credentials in vertex/.env away from the build and
+# the journeys (CI has no .env): `next build` and `next start` both load it.
 HIDDEN=".env.hidden-during-tests"
 [ -f "$HIDDEN" ] && [ ! -f .env ] && mv "$HIDDEN" .env   # left by an interrupted run
 [ ! -f "$HIDDEN" ] || { echo "Both .env and $HIDDEN exist; resolve that first." >&2; exit 1; }

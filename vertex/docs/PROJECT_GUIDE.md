@@ -16,7 +16,7 @@ The repository contains two projects:
 1. `vertex/` is the implemented web platform.
 2. `vertex_app/` is a Flutter multi-platform scaffold that currently contains the default counter example, not a connected Vertex mobile application.
 
-The web application is the production product. It is a Next.js App Router application with React and TypeScript on the frontend and backend, PostgreSQL accessed through Prisma, JWT authentication, role-based access control, private Cloudflare R2 document storage, email notifications, Stripe and PayPal payments, and Vitest/Playwright tests.
+The web application is the production product. It is a Next.js App Router application with React and TypeScript on the frontend and backend, PostgreSQL behind the FastAPI backend (`vertex_be`), JWT authentication, role-based access control, private Cloudflare R2 document storage, email notifications, Stripe and PayPal payments, and Vitest/Playwright tests.
 
 ## 2. Repository Map
 
@@ -28,7 +28,6 @@ Vertex/
 │   ├── src/components/               Shared React UI components
 │   ├── src/lib/                      Auth, validation, integrations, hooks, constants
 │   ├── src/server/                   Server-only access rules and domain services
-│   ├── prisma/                       PostgreSQL schema, seed, and SQL hardening
 │   ├── public/                       Public static assets
 │   ├── e2e/                          Playwright end-to-end tests
 │   ├── docs/                         Product, architecture, operations, and deployment docs
@@ -57,7 +56,7 @@ Route handlers under src/app/api
           +--> JWT/API auth and Zod validation
           +--> RBAC and row-level scope checks
           +--> Domain services under src/server/services
-          +--> Prisma client
+          +--> FastAPI (callBackend)
                     |
                     +--> PostgreSQL
                     +--> Cloudflare R2 for private documents
@@ -72,7 +71,7 @@ Route handlers under src/app/api
 2. `src/proxy.ts` checks the `auth_token` cookie for protected portal prefixes.
 3. The JWT role is checked against the requested portal through `src/lib/rbac.ts`.
 4. An API route authenticates the request, validates input with Zod, and applies role and row-level scope rules.
-5. A server service performs the business operation and uses Prisma for persistence.
+5. The route passes the request to FastAPI, which performs the business operation and owns persistence.
 6. Mutations that require governance are audit logged.
 7. The route returns a response to a page or client component.
 
@@ -229,8 +228,7 @@ Shared components provide reusable UI and keep route pages focused on compositio
 - `jwt.ts`: JWT creation/verification, including short-lived document tokens.
 - `api-auth.ts`: authenticated API request helpers and current-user resolution.
 - `rbac.ts`: central role permissions, portal access, and role home paths.
-- `prisma.ts`: shared Prisma client instance.
-- `audit.ts`: audited Prisma operations and audit persistence.
+- `audit.ts`: records security events through FastAPI.
 - `upload.ts`: R2 storage, MIME and size validation, private file handling, and signed access.
 - `validations.ts`: Zod request and form schemas.
 - `candidateLifecycleStatus.ts`, `partnerCandidateStatus.ts`, `documentTypes.ts`: domain status and document definitions.
@@ -259,7 +257,7 @@ Shared components provide reusable UI and keep route pages focused on compositio
 
 ## 7. Database Model
 
-`prisma/schema.prisma` defines a PostgreSQL schema. The model groups are:
+`vertex_be/app/models/` defines the PostgreSQL schema, and Alembic migrates it. The model groups are:
 
 ### Identity and reference data
 
@@ -313,7 +311,7 @@ Shared components provide reusable UI and keep route pages focused on compositio
 
 The schema uses enums for roles, statuses, report cycles, case stages, payment states, partner states, and governance decisions. Indexes are placed on common scope and status fields such as recruiter, country, lifecycle status, entity/actor audit lookups, and dates.
 
-`prisma/seed.ts` creates initial reference and application data. `prisma/audit-log-immutability.sql` adds database triggers that reject updates and deletes of audit records, complementing application-level audit logging.
+`vertex_be/scripts/seed/` creates initial reference and application data. The baseline migration adds database triggers that reject updates and deletes of audit records, complementing application-level audit logging.
 
 ## 8. Security and Data Protection
 
@@ -354,7 +352,7 @@ The portal shell carries the same brand into dense operational screens: dark nav
 
 ## 10. Configuration and Integrations
 
-- `package.json`: development, build, seed, lint, unit-test, and E2E scripts; dependencies for Next.js, React, Prisma, payments, AI, email, uploads, icons, animation, and testing.
+- `package.json`: development, build, seed, lint, unit-test, and E2E scripts; dependencies for Next.js, React, payments, AI, email, uploads, icons, animation, and testing.
 - `tsconfig.json`: TypeScript compiler and `@/*` source alias.
 - `eslint.config.mjs`: ESLint rules.
 - `postcss.config.mjs`: Tailwind/PostCSS integration.
@@ -394,7 +392,7 @@ npm run build
 npm run db:seed
 ```
 
-Database setup uses `DATABASE_URL` and Prisma. For a new database, run `npx prisma db push`, seed data, and apply the audit immutability SQL.
+The website has no database setup. For a new database, run the backend's `alembic upgrade head`, then `python -m scripts.seed.reference`.
 
 ## 12. Deployment
 
@@ -413,10 +411,9 @@ The app uses `output: 'standalone'` so it can run as a self-hosted Node process.
 Implemented web capabilities are broad and cover the full recruitment-to-mobility workflow. The following boundaries are important when explaining the repository:
 
 - The Flutter project is not yet a mobile client; it is generated platform scaffolding plus the default counter screen.
-- `docs/PLATFORM_ARCHITECTURE.md` is a delivery plan and contains superseded decisions. Use the live Prisma schema and implementation files for current behavior.
+- `docs/PLATFORM_ARCHITECTURE.md` is a delivery plan and contains superseded decisions. Use the backend's models and the implementation files for current behavior.
 - The public forms can be configured for CRM persistence or notification-email intake through admin settings.
 - Partner candidates intentionally use a separate pipeline from internally sourced candidates.
-- Audit immutability requires the raw SQL trigger to be applied; Prisma schema synchronization alone does not install it.
 - Production secrets belong in environment variables and must never be committed or included in deployment archives.
 
 ## 14. Recommended Reading Order

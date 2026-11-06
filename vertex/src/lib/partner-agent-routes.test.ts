@@ -21,7 +21,6 @@ vi.mock("next/server", async (importOriginal) => ({
   after: (fn: () => unknown) => fn(),
 }));
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
-vi.mock("@/lib/prisma", () => ({ prisma: { partner: { findUnique: async () => null }, referralAgent: { findUnique: async () => null } } }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
   requireRole: (user: { role: string } | null, roles: readonly string[]) =>

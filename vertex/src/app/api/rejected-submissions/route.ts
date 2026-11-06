@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 

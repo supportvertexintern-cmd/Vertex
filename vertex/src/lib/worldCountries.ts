@@ -1,7 +1,7 @@
 // Full list of world country names (ISO 3166-1, common short names) for
 // free-choice fields where a candidate's real nationality/country of
 // residence could be literally anywhere — distinct from the admin-managed
-// Country model (prisma/schema.prisma), which deliberately stays scoped to
+// Country model (vertex_be/app/models/identity.py), which deliberately stays scoped to
 // Vertex's actual operational territories (destination programmes +
 // source-market recruiter assignment), not a universal reference list.
 export const WORLD_COUNTRIES: string[] = [

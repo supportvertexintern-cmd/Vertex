@@ -29,8 +29,8 @@ const optionalEmail = z.preprocess((val) => (val === "" || val === null ? undefi
 
 // Same "" → undefined treatment for an optional date-input field. Without
 // this, an untouched <input type="date"> sends "" (passes .optional() the
-// same way), which then reaches Prisma as a raw string for a DateTime?
-// column and crashes ("premature end of input. Expected ISO-8601
+// same way), which then reached Prisma as a raw string for a DateTime?
+// column and crashed ("premature end of input. Expected ISO-8601
 // DateTime") instead of just leaving the column alone.
 const optionalDateString = z.preprocess((val) => (val === "" ? undefined : val), z.string().optional());
 
@@ -42,7 +42,7 @@ const optionalMaritalStatus = z.preprocess((val) => (val === "" ? undefined : va
 
 // Same "" → undefined treatment for gender (2026-08-18) — mandatory on
 // both application forms, but the underlying column stays nullable (see
-// Gender in schema.prisma) so pre-2026-08-18 records don't need a
+// Gender in vertex_be/app/models) so pre-2026-08-18 records don't need a
 // backfill. optionalGender is for edit-path schemas (a field that was
 // left blank at submission can still be filled in later); requiredGender
 // is for the two submission schemas themselves.

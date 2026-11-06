@@ -19,8 +19,8 @@
 #      IMAGES_FROM=<project>'s, e.g. the release candidate on vertex-dev):
 #      - backend: migrates the restored database to head (the real
 #        recovery path), `alembic check` finds no model drift, /health ok
-#        as vertex_api;
-#      - Next.js: Prisma reads every row of every model as vertex_web.
+#        as vertex_api; its models read every row of every table it may
+#        read (all but AuditLog, which step 3 counted).
 #   6. Documents: the archive decrypts, its tree hash matches the manifest,
 #      and every Document.storage_path in the database is in it.
 #   7. Secrets: no env-file secret, private key, cloud/Stripe key,
@@ -109,8 +109,8 @@ check "Roles provisioned (db-roles.sql)" "$(grep -c ERROR "$WORK/roles.err")" 0
 # IMAGES_FROM picks the stack whose images are tested, e.g. vertex-dev to
 # check main's data against the release candidate.
 IMGS="${IMAGES_FROM:-$P}"
-BIMG=$(docker inspect -f '{{.Config.Image}}' "$IMGS-backend-1"); NIMG=$(docker inspect -f '{{.Config.Image}}' "$IMGS-nextjs-1")
-info "Images tested" "\`${BIMG##*/}\`, \`${NIMG##*/}\`"
+BIMG=$(docker inspect -f '{{.Config.Image}}' "$IMGS-backend-1")
+info "Image tested" "\`${BIMG##*/}\`"
 docker run -d --name "$BEC" --network "$NET" \
   -e APP_ENV=development -e DATABASE_URL="postgresql://vertex_api:$API_PW@$DBC:5432/drill" \
   -e MIGRATION_DATABASE_URL="postgresql://vertex_migrator:$MIG_PW@$DBC:5432/drill" "$BIMG" >/dev/null
@@ -120,20 +120,23 @@ done
 check "Backend migrated the restore to head and is healthy" "${h:-no answer}" ok
 info "Schema version after upgrade" "$(sqlr 'select version_num from alembic_version')"
 check "Backend models vs restored schema (alembic check)" "$(docker exec -e DATABASE_URL="postgresql://postgres@$DBC:5432/drill" "$BEC" alembic check >/dev/null 2>&1 && echo "no drift" || echo drift)" "no drift"
-docker run --rm --network "$NET" --entrypoint node -e DATABASE_URL="postgresql://vertex_web:$WEB_PW@$DBC:5432/drill" "$NIMG" -e '
-  const { PrismaClient, Prisma } = require("/app/node_modules/@prisma/client");
-  const prisma = new PrismaClient();
-  (async () => {
-    const bad = [];
-    let rows = 0;
-    for (const m of Prisma.dmmf.datamodel.models) {
-      const d = m.name.charAt(0).toLowerCase() + m.name.slice(1);
-      try { rows += (await prisma[d].findMany()).length; } catch (e) { bad.push(`${m.name}: ${String(e.message).split("\n").filter(Boolean).pop().slice(0, 120)}`); }
-    }
-    console.log(JSON.stringify({ models: Prisma.dmmf.datamodel.models.length, rows, bad }));
-    await prisma.$disconnect();
-  })();' 2>/dev/null | tail -1 > "$WORK/prisma.json"
-check "Next.js (Prisma) reads every model" "$(python -c "import json,sys; d=json.load(open(sys.argv[1])); print('all %d models' % d['models'] if not d['bad'] else 'unreadable: ' + '; '.join(d['bad']))" "$WORK/prisma.json" 2>/dev/null || echo "no answer")" "all $(python -c "import json,sys; print(json.load(open(sys.argv[1]))['models'])" "$WORK/prisma.json" 2>/dev/null || echo '?') models"
+docker exec "$BEC" python -c '
+import json
+import app.models
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from app.db.base import Base
+from app.db.session import engine
+models = [m.class_ for m in Base.registry.mappers if m.class_.__name__ != "AuditLog"]
+bad, rows = [], 0
+for model in models:
+    with Session(engine) as db:
+        try:
+            rows += len(db.scalars(select(model)).unique().all())
+        except Exception as e:
+            bad.append(model.__name__ + ": " + str(e).splitlines()[0][:120])
+print(json.dumps({"models": len(models), "rows": rows, "bad": bad}))' 2>/dev/null | tail -1 > "$WORK/models.json"
+check "Backend models read every table" "$(python -c "import json,sys; d=json.load(open(sys.argv[1])); print('all %d models' % d['models'] if not d['bad'] else 'unreadable: ' + '; '.join(d['bad']))" "$WORK/models.json" 2>/dev/null || echo "no answer")" "all $(python -c "import json,sys; print(json.load(open(sys.argv[1]))['models'])" "$WORK/models.json" 2>/dev/null || echo '?') models"
 
 # 6. Documents
 decrypt "$B/documents.tar.gpg" | python "$HERE/streamstat.py" "$WORK/docs.json" --tar --quiet
