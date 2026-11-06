@@ -4,13 +4,13 @@ from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, pk
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, pk
 from app.models.enums import PaymentStatus
 from app.models.identity import User
 from app.models.jobs import Job
 
 
-class Payment(Base):
+class Payment(SoftDeletable, Base):
     __tablename__ = "Payment"
 
     id: Mapped[str] = pk()
@@ -20,14 +20,14 @@ class Payment(Base):
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     payment_method: Mapped[str]  # "stripe" | "paypal"
     payment_status: Mapped[PaymentStatus] = enum_col(PaymentStatus, default=PaymentStatus.pending)
-    transaction_id: Mapped[str | None] = mapped_column(unique=True)
+    transaction_id: Mapped[str | None] = mapped_column()
     created_at: Mapped[datetime] = created_at_col()
 
     user: Mapped[User] = relationship()
     job: Mapped[Job] = relationship()
 
 
-class ConsultationBooking(Base):
+class ConsultationBooking(SoftDeletable, Base):
     """Paid advisory consultation from the public landing page. Only ever
     created by the Stripe webhook once the charge is confirmed."""
 
@@ -40,6 +40,6 @@ class ConsultationBooking(Base):
     amount: Mapped[float]
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     status: Mapped[str] = mapped_column(default="paid", server_default="paid")
-    stripe_checkout_session_id: Mapped[str] = mapped_column(unique=True)
+    stripe_checkout_session_id: Mapped[str] = mapped_column()
     stripe_payment_intent_id: Mapped[str | None]
     created_at: Mapped[datetime] = created_at_col(index=True)

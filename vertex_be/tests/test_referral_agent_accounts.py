@@ -20,6 +20,7 @@ from app.api.v1 import referral_agents as module
 from app.core.audit import set_audit_actor
 from app.core.config import BASE_DIR, settings
 from app.core.tokens import sign_verification_token, verify_account_setup_token, verify_referral_agent_verification_token
+from app.db.base import SOFT_DELETE_COLUMNS
 from app.db.session import engine, get_db
 from app.main import app
 from app.models.audit import AuditLog
@@ -235,7 +236,7 @@ def test_approval_activates_and_creates_a_login_without_a_password(api, db, dire
     assert res.status_code == 201
     out = res.json()
     data = out["data"]
-    assert set(data) == {c.key for c in inspect(ReferralAgent).columns}
+    assert set(data) == {c.key for c in inspect(ReferralAgent).columns} - SOFT_DELETE_COLUMNS
     assert (data["status"], data["approved_by_id"]) == ("active", boss.id)
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", data["approved_at"])
     login = db.get(User, data["user_id"])

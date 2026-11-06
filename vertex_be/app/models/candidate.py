@@ -7,7 +7,7 @@ from sqlalchemy import CheckConstraint, Index, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.enums import (
     ApplicationStatus,
     CandidateLifecycleStatus,
@@ -30,7 +30,7 @@ def _text_array():
     return mapped_column(ARRAY(Text), default=list, server_default=text("'{}'::text[]"))
 
 
-class Candidate(Base):
+class Candidate(SoftDeletable, Base):
     __tablename__ = "Candidate"
     __table_args__ = (
         Index("Candidate_user_id_idx", "user_id"),
@@ -40,7 +40,7 @@ class Candidate(Base):
 
     id: Mapped[str] = pk()
     # Nullable: a recruiter-sourced lead may not have an account yet (FR-2.1).
-    user_id: Mapped[str | None] = mapped_column(fk("User.id", "CASCADE"), unique=True)
+    user_id: Mapped[str | None] = mapped_column(fk("User.id", "CASCADE"))
     passport_number: Mapped[str | None]
     passport_expiry: Mapped[datetime | None]
     date_of_birth: Mapped[datetime | None]
@@ -109,7 +109,7 @@ class Candidate(Base):
     )
 
 
-class Document(Base):
+class Document(SoftDeletable, Base):
     """Exactly one of candidate_id / partner_candidate_id is set (enforced in
     the upload service): a partner draft's documents are filed under the
     PartnerCandidate and reparented once it's finalized."""
@@ -144,7 +144,7 @@ class Document(Base):
     requirement_type: Mapped[DocumentRequirementType] = relationship()
 
 
-class CandidateMessage(Base):
+class CandidateMessage(SoftDeletable, Base):
     """One continuous thread per candidate, between the candidate's own User
     and their assigned recruiter."""
 
@@ -162,7 +162,7 @@ class CandidateMessage(Base):
     sender: Mapped[User] = relationship()
 
 
-class Application(Base):
+class Application(SoftDeletable, Base):
     """A Candidate Information Form submission."""
 
     __tablename__ = "Application"

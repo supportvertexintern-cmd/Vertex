@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Index, UniqueConstraint, func, text
+from sqlalchemy import Index, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.enums import CaseStage, EmployerClientStatus, JobStatus, MilestonePaymentType
 
 
-class EmployerClient(Base):
+class EmployerClient(SoftDeletable, Base):
     """The employer a vacancy is for (FR-5.2) — distinct from Partner, which
     sources candidates, not jobs."""
 
@@ -32,7 +32,7 @@ class EmployerClient(Base):
     jobs: Mapped[list[Job]] = relationship(back_populates="employer_client")
 
 
-class Job(Base):
+class Job(SoftDeletable, Base):
     """A work-permit programme/opportunity. Its fee schedule is entirely its
     own payment_stages — no fixed installment shape is assumed."""
 
@@ -77,12 +77,10 @@ class Job(Base):
     )
 
 
-class JobSector(Base):
+class JobSector(SoftDeletable, Base):
     """One of the 8 canonical sector names attached to a programme."""
 
     __tablename__ = "JobSector"
-    __table_args__ = (UniqueConstraint("job_id", "sector"),)
-
     id: Mapped[str] = pk()
     job_id: Mapped[str] = mapped_column(fk("Job.id", "CASCADE"), index=True)
     sector: Mapped[str]
@@ -95,7 +93,7 @@ class JobSector(Base):
     )
 
 
-class JobPosition(Base):
+class JobPosition(SoftDeletable, Base):
     """Leaf-level pick on both application forms; city falls back to the
     parent Job's city when unset."""
 
@@ -111,15 +109,13 @@ class JobPosition(Base):
     job_sector: Mapped[JobSector] = relationship(back_populates="positions")
 
 
-class JobPaymentStage(Base):
+class JobPaymentStage(SoftDeletable, Base):
     """One installment of a Job's fee: a percent of service_fee_gbp due once
     a Case reaches trigger_stage. Several may share a trigger_stage; `order`
     sequences them. synced_amount_gbp is the amount stripe_price_id was
     created for (Stripe Prices are immutable)."""
 
     __tablename__ = "JobPaymentStage"
-    __table_args__ = (UniqueConstraint("job_id", "order"),)
-
     id: Mapped[str] = pk()
     job_id: Mapped[str] = mapped_column(fk("Job.id", "CASCADE"), index=True)
     order: Mapped[int]
@@ -135,14 +131,12 @@ class JobPaymentStage(Base):
     job: Mapped[Job] = relationship(back_populates="payment_stages")
 
 
-class JobMilestonePrice(Base):
+class JobMilestonePrice(SoftDeletable, Base):
     """The Stripe price for one milestone of a Job (Next.js milestone
     payments, migration 0004). Prisma sets updated_at, so there is no
     server default."""
 
     __tablename__ = "JobMilestonePrice"
-    __table_args__ = (Index("JobMilestonePrice_job_id_type_key", "job_id", "type", unique=True),)
-
     id: Mapped[str] = pk()
     job_id: Mapped[str] = mapped_column(fk("Job.id", "CASCADE"))
     type: Mapped[MilestonePaymentType] = enum_col(MilestonePaymentType)

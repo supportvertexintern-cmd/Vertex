@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Index, UniqueConstraint, text
+from sqlalchemy import Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.candidate import Candidate
 from app.models.cases import Case
 from app.models.enums import ReferralAgentStatus, ReferralCommissionStatus, ReferralMilestone
 from app.models.identity import Country, User
 
 
-class ReferralAgent(Base):
+class ReferralAgent(SoftDeletable, Base):
     """External referrer: publicly self-registers, approved by director/
     admin, then earns milestone commissions on candidates who sign up with
     their referral_code."""
@@ -22,7 +22,7 @@ class ReferralAgent(Base):
 
     id: Mapped[str] = pk()
     full_name: Mapped[str]
-    email: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column()
     phone: Mapped[str]
     whatsapp_number: Mapped[str | None]
     country: Mapped[str]
@@ -40,13 +40,13 @@ class ReferralAgent(Base):
     status: Mapped[ReferralAgentStatus] = enum_col(
         ReferralAgentStatus, default=ReferralAgentStatus.pending_approval, index=True
     )
-    referral_code: Mapped[str] = mapped_column(unique=True)
+    referral_code: Mapped[str] = mapped_column()
     email_verified: Mapped[bool] = flag(False)
     approved_by_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     approved_at: Mapped[datetime | None]
     rejection_reason: Mapped[str | None]
     suspended_reason: Mapped[str | None]
-    user_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"), unique=True)
+    user_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
 
@@ -59,12 +59,10 @@ class ReferralAgent(Base):
     )
 
 
-class ReferralCommissionRule(Base):
+class ReferralCommissionRule(SoftDeletable, Base):
     """Per-country commission amount for each milestone."""
 
     __tablename__ = "ReferralCommissionRule"
-    __table_args__ = (UniqueConstraint("country_id", "milestone"),)
-
     id: Mapped[str] = pk()
     country_id: Mapped[str] = mapped_column(fk("Country.id", "CASCADE"), index=True)
     milestone: Mapped[ReferralMilestone] = enum_col(ReferralMilestone)
@@ -78,12 +76,11 @@ class ReferralCommissionRule(Base):
     updater: Mapped[User] = relationship()
 
 
-class ReferralCommission(Base):
+class ReferralCommission(SoftDeletable, Base):
     """At most one commission per candidate per milestone."""
 
     __tablename__ = "ReferralCommission"
     __table_args__ = (
-        UniqueConstraint("candidate_id", "milestone"),
         Index("ReferralCommission_agent_id_idx", "referral_agent_id"),
     )
 
@@ -127,7 +124,7 @@ class ReferralCommission(Base):
     paid_by: Mapped[User | None] = relationship(foreign_keys=[paid_by_id])
 
 
-class ReferralAgentTarget(Base):
+class ReferralAgentTarget(SoftDeletable, Base):
     __tablename__ = "ReferralAgentTarget"
     __table_args__ = (Index("ReferralAgentTarget_agent_id_idx", "referral_agent_id"),)
 

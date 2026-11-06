@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.enums import Role
 
 if TYPE_CHECKING:
@@ -15,16 +15,16 @@ if TYPE_CHECKING:
     from app.models.referral import ReferralAgent
 
 
-class Region(Base):
+class Region(SoftDeletable, Base):
     __tablename__ = "Region"
 
     id: Mapped[str] = pk()
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
 
     countries: Mapped[list[Country]] = relationship(back_populates="region")
 
 
-class Country(Base):
+class Country(SoftDeletable, Base):
     """Doubles as the "preferred programme destination" reference list —
     admin populates it with the countries Vertex actually places into,
     not a general world-country list."""
@@ -32,21 +32,21 @@ class Country(Base):
     __tablename__ = "Country"
 
     id: Mapped[str] = pk()
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
     region_id: Mapped[str] = mapped_column(fk("Region.id", "RESTRICT"), index=True)
 
     region: Mapped[Region] = relationship(back_populates="countries")
 
 
-class User(Base):
+class User(SoftDeletable, Base):
     __tablename__ = "User"
     __table_args__ = (Index("User_email_idx", "email"),)
 
     id: Mapped[str] = pk()
     full_name: Mapped[str]
-    email: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column()
     password_hash: Mapped[str | None]
-    google_id: Mapped[str | None] = mapped_column(unique=True)
+    google_id: Mapped[str | None] = mapped_column()
     phone: Mapped[str | None]
     country: Mapped[str | None]
     role: Mapped[Role] = enum_col(Role, default=Role.candidate)
@@ -86,15 +86,12 @@ class User(Base):
     )
 
 
-class InhouseCountryAssignment(Base):
+class InhouseCountryAssignment(SoftDeletable, Base):
     """An In-House Supervisor's assignment to one of (potentially several)
     countries — supersedes assigned_country_id for that one role."""
 
     __tablename__ = "InhouseCountryAssignment"
     __table_args__ = (
-        UniqueConstraint(
-            "inhouse_supervisor_id", "country_id", name="InhouseCountryAssignment_unique"
-        ),
         Index("InhouseCountryAssignment_supervisor_idx", "inhouse_supervisor_id"),
         Index("InhouseCountryAssignment_country_idx", "country_id"),
     )

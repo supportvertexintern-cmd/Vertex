@@ -235,7 +235,8 @@ def test_a_candidate_uploads_their_last_document(api, db, world, clamd):
 def test_a_reupload_replaces_the_file_but_other_documents_add_up(api, db, world):
     first = upload(api, world.own, world.passport).json()["data"]
     second = upload(api, world.own, world.passport, data=PNG, mime="image/png").json()["data"]
-    assert first["storage_path"] not in stored() and second["storage_path"] in stored()
+    # Soft delete: the old row is hidden, and its file stays for a restore.
+    assert first["storage_path"] in stored() and second["storage_path"] in stored()
     assert db.get(Document, first["id"]) is None
     one = upload(api, world.own, "other", label="  Bank letter ").json()["data"]
     two = upload(api, world.own, "other", label="Reference").json()["data"]
