@@ -29,12 +29,12 @@ case "$ACTION" in
   up)
     compose -f docker-compose.minio-console.yml up -d --no-deps --wait minio
     # Same Compose network bug as pgadmin.sh: the recreated container can
-    # come up on only one of its networks. Without `data` the services on
-    # it can't reach MinIO by name; without `edge` the published port stays
-    # dead. Attach whichever is missing (as "minio"), then restart.
+    # come up on only one of its networks. Without `data` or `stores` the
+    # services on them can't reach MinIO by name; without `edge` the published
+    # port stays dead. Attach whichever is missing (as "minio"), then restart.
     container="$(compose ps -q minio)"
     reattached=""
-    for net in "${PROJECT}_data" "${PROJECT}_edge"; do
+    for net in "${PROJECT}_data" "${PROJECT}_stores" "${PROJECT}_edge"; do
       if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | grep -q "\"$net\""; then
         docker network connect --alias minio "$net" "$container"
         reattached=yes

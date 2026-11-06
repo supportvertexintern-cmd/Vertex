@@ -5,9 +5,8 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // FastAPI owns employer clients since backend plan step 4.1
 // (vertex_be/app/api/v1/partners.py): these handlers check the role early,
 // pass the request on with callBackend() and answer with FastAPI's
-// response. FastAPI re-checks the session, the role and the input itself,
-// audits every change, and vertex_web may no longer write the table
-// (deploy/db-roles.sql).
+// response. FastAPI re-checks the session, the role and the input itself and
+// audits every change.
 
 // Must match EMPLOYER_CLIENT_READERS / EMPLOYER_CLIENT_MANAGERS in
 // partners.py (tests check it). Marketing reads the list to link a job

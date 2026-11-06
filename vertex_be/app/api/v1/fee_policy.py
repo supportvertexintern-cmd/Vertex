@@ -8,8 +8,7 @@ Next.js can pass this answer straight on. tests/test_fee_policy.py fails CI
 if the role lists drift apart.
 
 POST /fee-policy is the only writer: Next.js's POST /api/fee-policy passes
-the request on through callBackend(), and vertex_web may no longer write
-the table (deploy/db-roles.sql). The input rules are those of Next.js's
+the request on through callBackend(). The input rules are those of Next.js's
 former updateFeePolicySchema; one policy per country, null = the global
 default.
 """

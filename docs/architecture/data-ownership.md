@@ -42,7 +42,7 @@ could. As a result, two of the plan's Phase 2 tests would fail today:
 
 **Owner's decision (2026-10-13): leave `vertex_api`'s grants as they are.**
 Consequences:
-- The one-writer rule is enforced **on the website's side only**: at each handover (Phase 4 step 7), `vertex_web` loses its write grants on the area's tables, and `test_db_roles.py` proves it can no longer write them.
+- The one-writer rule was enforced **on the website's side** table by table: at each handover (Phase 4 step 7), `vertex_web` lost its write grants on the area's tables. Since reads handover R8 the role is gone and the website has no database access, so mentions of `vertex_web` below are history.
 - For tables Next.js still owns, the rule stays a convention on FastAPI's side: FastAPI code must not write them. Code review checks this, and FastAPI writes only through the audited write helper (Phase 2 step 6).
 - The plan's Phase 2 test "vertex_api cannot write `User.token_version`" can't pass under this decision and is dropped. "vertex_api cannot write `RefreshToken`" still holds and stays.
 - **Residual risk, accepted:** a compromised backend container could change any business table, including `User` roles. The decision can be revisited at any time; the change is a few lines in `db-roles.sql`.

@@ -7,8 +7,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // passes the request on with callBackend() and answers with FastAPI's
 // response. FastAPI re-checks the session, the role and the reporting line
 // (one controlling position per scope, limited to the reviewer's own
-// country or countries), audits every change, and vertex_web may no longer
-// write the table (deploy/db-roles.sql).
+// country or countries) and audits every change.
 
 // Must match RESUBMITTERS in reports.py (tests check it).
 const STAFF_ROLES = ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "admin"] as const;

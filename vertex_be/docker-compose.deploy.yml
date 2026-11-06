@@ -192,11 +192,11 @@ services:
   nextjs:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-nextjs:${IMAGE_TAG:?IMAGE_TAG is required}
 
-    # Explicit list (see backend). Prisma connects as vertex_web; the optional
-    # integration keys are empty unless set in the env file.
+    # Explicit list (see backend). No database login: FastAPI answers every
+    # read and write (reads handover R8). The optional integration keys are
+    # empty unless set in the env file.
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://vertex_web:${DB_WEB_PASSWORD:?DB_WEB_PASSWORD is required}@db:5432/${POSTGRES_DB}
       # Workstream B (security review #5): the client's address comes from the
       # edge proxy's X-Real-IP (lib/client-ip.ts), and rate-limit counters
       # live in Redis, shared by every process (lib/rate-limit.ts).
@@ -248,14 +248,16 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-    # The backend applies migrations; Next.js only reads/writes the schema.
+    # The backend applies migrations; Next.js calls it for all data.
     depends_on:
       backend:
         condition: service_healthy
       minio:
         condition: service_healthy
 
-    networks: [ data, edge ]
+    # `stores` for Redis and MinIO, `edge` for FastAPI and the internet. Never
+    # `data`: it can't reach the database (reads handover R8).
+    networks: [ stores, edge ]
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 768m
@@ -265,7 +267,7 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/supportvertexintern-cmd}/vertex-minio:${IMAGE_TAG:?IMAGE_TAG is required}
     # S3-compatible object storage for uploaded documents. Files live on the
     # host in MINIO_DATA_DIR (D:/VertexData/minio/<env>). Only on the internal
-    # `data` network: no published port, no web console.
+    # `data` and `stores` networks: no published port, no web console.
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
@@ -276,7 +278,7 @@ services:
       VERTEX_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY is required}
     volumes:
       - ${MINIO_DATA_DIR:?MINIO_DATA_DIR is required}:/data
-    networks: [ data ]
+    networks: [ data, stores ]
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 512m
@@ -318,7 +320,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-    networks: [ data ]
+    networks: [ data, stores ]
     restart: unless-stopped
     logging: *default-logging
     mem_limit: 128m
@@ -385,6 +387,9 @@ volumes:
 
 networks:
   data:
+    internal: true
+  # What the website still needs directly, without the database.
+  stores:
     internal: true
   edge:
   static:

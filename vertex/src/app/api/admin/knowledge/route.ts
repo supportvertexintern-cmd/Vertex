@@ -7,8 +7,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // pass the request on with callBackend() and keep this route's response
 // shapes (a plain array, the plain article, { success: true }), so
 // AdminSettings is unchanged. FastAPI re-checks the session, the role and
-// the input itself, and vertex_web may no longer write the table
-// (deploy/db-roles.sql). The Help Center and /api/chat read it directly.
+// the input itself. The Help Center and /api/chat read it directly.
 
 // GET /api/admin/knowledge: every article, by category. Admin only.
 export async function GET(req: NextRequest) {

@@ -6,8 +6,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // plan step 2.2 (vertex_be/app/api/v1/reference.py): these handlers check
 // the role early, pass the request on with callBackend() and answer with
 // FastAPI's response. FastAPI re-checks the session, the role and the input
-// itself, and vertex_web may no longer write either table
-// (deploy/db-roles.sql).
+// itself.
 
 // DELETE /api/admin/sectors/:id: admin only. Applications that chose the
 // sector let go of it (SET NULL).

@@ -9,8 +9,7 @@ import type { Role } from "@/lib/enums";
 // response. FastAPI re-checks the session, the role and the reporting line
 // (only the staff member's own supervisor scores them; admin keeps
 // override), computes the score, category and required action when a
-// scorecard is finalized, audits every change, and vertex_web may no
-// longer write either table (deploy/db-roles.sql).
+// scorecard is finalized and audits every change.
 
 // Must match SCORECARD_REVIEWERS in scorecards.py (tests check it).
 const REVIEWER_ROLES: Role[] = ["country_supervisor", "inhouse_supervisor", "director", "admin"];

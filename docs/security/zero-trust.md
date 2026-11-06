@@ -115,9 +115,9 @@ to a shared store keyed on a trusted client address (gaps G5, G14).
 - **People:** each role gets only the actions its job needs, scoped to its
   region, country or assignments.
 - **Services:** each service has its own credential and only the rights it
-  needs. Today: Next.js uses database role `vertex_web`, FastAPI uses
-  `vertex_api`, migrations use `vertex_migrator`; none can run DDL at runtime,
-  truncate tables, or change the audit log (Phase 1, enforced by
+  needs. Today: FastAPI uses database role `vertex_api`, migrations use
+  `vertex_migrator`, and Next.js has no database access (reads handover R8).
+  The runtime role can't run DDL, truncate tables, or change the audit log (Phase 1, enforced by
   `vertex_be/tests/test_db_roles.py`).
 - **The database superuser is for humans only** (psql, when needed) and for
   `deploy.sh` provisioning. No application **may** hold it, and pgAdmin
@@ -227,8 +227,8 @@ Design so that one compromised piece does limited damage:
   published; `docker-compose.db-port.yml` exists for a deliberate, temporary
   exception (set `POSTGRES_HOST_PORT`) and is off in both.
 - **Small blast radius per service:** each container receives only its own
-  secrets. Next.js holds its database login (`vertex_web`), `JWT_SECRET` and
-  a public URL; FastAPI holds `vertex_api`/`vertex_migrator` logins and
+  secrets. Next.js holds `JWT_SECRET`, its service credential and a public
+  URL, and no database login; FastAPI holds `vertex_api`/`vertex_migrator` logins and
   `SECRET_KEY`. Neither sees the other's, and every value differs between
   dev and staging (checked by fingerprint, Phase 2).
 - **Auditable actions:** data changes are logged automatically

@@ -5,12 +5,17 @@ that updates automatically from `main`. It shows **demo data only**, from
 its own free cloud database (Neon). It runs on Vercel's free Hobby plan
 (the owner accepts its non-commercial terms).
 
+> **Since reads handover R8 this site can't run as described.** The website
+> has no database login and calls FastAPI for all data, and Vercel hosts no
+> FastAPI. Promoting R8 to `main` breaks the site until the owner decides:
+> host a FastAPI for it, retire it, or keep it on an older commit.
+
 ## What it is
 
 | | |
 |---|---|
 | App | The Next.js app, built by Vercel from `main` on every merge (`vertex/vercel.json`: other branches are skipped) |
-| Database | Neon Postgres (free), schema from the Alembic migrations, like every stack. The site connects as `vertex_web`, never as the database owner |
+| Database | Neon Postgres (free), schema from the Alembic migrations, like every stack. Before R8 the site connected as `vertex_web`, never as the database owner |
 | Data | Invented: `vertex_be/scripts/seed/demo.py` (16 accounts, one per role, candidates at different stages, cases, payments, a partner). It refuses to run on a database with any real user |
 | Accounts | Passwords in `D:\VertexData\demo\demo-accounts.txt` (outside Git). Give each customer only the accounts they need |
 | Secrets | Fresh for the demo: new role passwords and a new `JWT_SECRET`. Nothing is copied from the local stacks |
@@ -39,7 +44,7 @@ vertex-dev, vertex-staging or vertex-main.
 **Agent** (from `vertex_be/`):
 
 4. `bash deploy/demo/setup-demo-db.sh db`: roles, schema and demo data.
-5. `DEMO_URL=https://<project>.vercel.app bash deploy/demo/setup-demo-db.sh vercel-env`: sets `DATABASE_URL` (as `vertex_web`), `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, `APP_ENV=demo` and `CSP_MODE` in Vercel, without printing them.
+5. `DEMO_URL=https://<project>.vercel.app bash deploy/demo/setup-demo-db.sh vercel-env`: sets `JWT_SECRET`, `NEXT_PUBLIC_APP_URL`, `APP_ENV=demo` and `CSP_MODE` in Vercel, without printing them.
 6. First deployment: merge to `main` (or `npx vercel --prod` once from `vertex/`), then sign in with a demo account and check the main pages.
 
 ## Every update after that

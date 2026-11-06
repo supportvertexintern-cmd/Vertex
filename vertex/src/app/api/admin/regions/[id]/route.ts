@@ -5,8 +5,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // FastAPI owns regions and countries since backend plan step 2.1
 // (vertex_be/app/api/v1/geography.py): these handlers check the role early,
 // pass the request on with callBackend() and answer with FastAPI's response.
-// FastAPI re-checks the session, the role and the input itself, and
-// vertex_web may no longer write either table (deploy/db-roles.sql).
+// FastAPI re-checks the session, the role and the input itself.
 
 // PATCH /api/admin/regions/:id: rename a region. Admin only.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

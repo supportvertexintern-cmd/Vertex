@@ -7,8 +7,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // pass the request on with callBackend() and answer with FastAPI's
 // response. FastAPI re-checks the session, the role, the scoping (an
 // In-House Supervisor edits only campaigns they created and targets only
-// their own assigned countries) and the input, audits every change, and
-// vertex_web may no longer write either table (deploy/db-roles.sql).
+// their own assigned countries) and the input and audits every change.
 
 // Must match CAMPAIGN_MANAGERS in campaigns.py (tests check it).
 const CAMPAIGN_MANAGER_ROLES = ["inhouse_supervisor", "director", "admin"] as const;

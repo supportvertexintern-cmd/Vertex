@@ -6,8 +6,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // 3.3 (vertex_be/app/api/v1/jobs.py): this handler checks the role early,
 // passes the request on and answers with FastAPI's response. FastAPI
 // re-checks the session, the role, the input and that the ids belong
-// together, audits every change, and vertex_web may no longer write either
-// table (deploy/db-roles.sql).
+// together and audits every change.
 
 // Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
 const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
