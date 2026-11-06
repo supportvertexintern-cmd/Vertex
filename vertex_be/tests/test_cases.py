@@ -256,18 +256,24 @@ def test_an_overturned_rejection_restores_the_approval(api, db, world):
 # --- reminders ---------------------------------------------------------------
 
 
-def test_a_reminder_is_recorded_and_left_for_the_website_to_send(api, db, world):
+def test_a_reminder_is_recorded_and_sent(api, db, world, sent_notices, sent_mail):
     res = api.post(f"{URL}/{world['case'].id}/remind", headers=world["ops"], json={"channel": "payment", "recipient": "partner", "message": "Stage 2 fee"})
     assert res.status_code == 201
     data = res.json()["data"]
     assert (data["channel"], data["recipient"], data["message"]) == ("payment", world["partner"].contact_email, "Stage 2 fee")
-    assert res.json()["notify"] == [{
+    assert res.json()["notify"] == []  # FastAPI sends it (reads handover R7b)
+    assert sent_notices == [{
         "kind": "case_reminder", "email": world["partner"].contact_email, "recipient_name": "Pat", "candidate_name": world["account"].full_name,
         "programme_title": "Care worker", "channel": "payment", "message": "Stage 2 fee",
     }]
     assert db.scalars(select(AuditLog.action).where(AuditLog.entity_id == data["id"])).all() == ["create"]
     to_candidate = api.post(f"{URL}/{world['case'].id}/remind", headers=world["ops"], json={"channel": "document", "recipient": "candidate"}).json()
     assert to_candidate["data"]["recipient"] == world["account"].email
+    payment, document = sent_mail
+    assert (payment.to, payment.subject) == (world["partner"].contact_email, "A payment is due on your case — Vertex International")
+    assert "Hi Pat, A milestone payment is due" in payment.html and "Stage 2 fee" in payment.html
+    assert (document.to, document.subject) == (world["account"].email, "Documents needed to keep your case moving — Vertex International")
+    assert "Stage 2 fee" not in document.html
 
 
 def test_a_reminder_needs_someone_to_send_to(api, db, world):

@@ -2,11 +2,11 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The candidate pipeline is written by FastAPI since the switch (step 6.7):
-// each route checks what it can early and passes the request on, then sends
-// the emails FastAPI lists (owner's decision D1). FastAPI's rules are tested
+// each route checks what it can early and passes the request on; FastAPI
+// sends the emails itself (reads handover R7b). FastAPI's rules are tested
 // in vertex_be/tests; e2e/*.spec.ts goes through the real FastAPI.
 
-const state = vi.hoisted(() => ({ role: "operations_team" as string | null, sent: [] as unknown[][] }));
+const state = vi.hoisted(() => ({ role: "operations_team" as string | null }));
 
 vi.mock("@/lib/api-auth", () => {
   const deny = (status: number) => Response.json({ error: "denied" }, { status });
@@ -24,18 +24,7 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
 
-// Emails are recorded, and sent at once instead of after the response.
-vi.mock("next/server", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/server")>()),
-  after: (fn: () => unknown) => fn(),
-}));
-vi.mock("@/lib/email", () => {
-  const senders = ["sendCaseReminderEmail"];
-  return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
-});
-
-
-import { NOTICE_SENDERS, sendNotices } from "@/lib/pipeline";
+import { setLogSink } from "@/lib/log";
 import * as stage from "@/app/api/cases/[id]/stage/route";
 import * as remind from "@/app/api/cases/[id]/remind/route";
 import * as sign from "@/app/api/cases/[id]/contract/sign/route";
@@ -59,7 +48,6 @@ const ok = (data: unknown, extra: Record<string, unknown> = {}, status = 200) =>
 
 beforeEach(() => {
   state.role = "operations_team";
-  state.sent = [];
   callBackend.mockReset();
   callBackend.mockResolvedValue(ok({ id: "x1" }));
   vi.unstubAllEnvs();
@@ -128,29 +116,32 @@ describe("answers in each route's own shape", () => {
   });
 });
 
-describe("sends the emails FastAPI lists", () => {
+describe("notify", () => {
   const reminder = { kind: "case_reminder", email: "p@test.invalid", recipient_name: "Pat", candidate_name: "Abebe", programme_title: "Care", channel: "payment", message: null };
 
-  it("after the write, never passing notify on", async () => {
-    callBackend.mockResolvedValueOnce(ok({ id: "m1" }, { notify: [reminder] }, 201));
-    state.role = "candidate";
-    const res = await messages.POST(req("POST", '{"body":"Hi"}'), params("c1"));
-    expect(await res.json()).toEqual({ data: { id: "m1" } });
-    expect(state.sent).toEqual([["sendCaseReminderEmail", "p@test.invalid", "Pat", "Abebe", "Care", "payment", undefined]]);
+  async function logged(notify: unknown[]) {
+    const lines: Record<string, unknown>[] = [];
+    setLogSink((l) => lines.push(JSON.parse(l)));
+    try {
+      callBackend.mockResolvedValueOnce(ok({ id: "m1" }, { notify }, 201));
+      state.role = "candidate";
+      const res = await messages.POST(req("POST", '{"body":"Hi"}'), params("c1"));
+      expect(await res.json()).toEqual({ data: { id: "m1" } }); // never passed on
+      await new Promise((r) => setTimeout(r, 0));
+    } finally {
+      setLogSink(null);
+    }
+    return lines.filter((l) => l.event === "email.unsent_notice");
+  }
+
+  it("is empty: FastAPI sends every email itself", async () => {
+    expect(await logged([])).toEqual([]);
   });
 
-  it("one per notice, and an unknown kind (FastAPI's own, say) doesn't stop the rest", async () => {
-    await sendNotices([
-      { kind: "no_such_email" },
-      reminder,
-      { kind: "partner_case_created", email: "p@test.invalid", partner_name: "Agency", candidate_name: "Abebe" },
-      { ...reminder, email: "q@test.invalid" },
-    ]);
-    expect(state.sent.map((s) => s[1])).toEqual(["p@test.invalid", "q@test.invalid"]);
-  });
-
-  it("has a sender for every kind", () => {
-    expect(Object.keys(NOTICE_SENDERS)).toHaveLength(4); // vertex_be/tests/test_notices.py matches them with FastAPI's
+  it("a notice FastAPI didn't send is logged by kind, never its fields", async () => {
+    const [line] = await logged([reminder]);
+    expect(line.kinds).toEqual(["case_reminder"]);
+    expect(JSON.stringify(line)).not.toContain("p@test.invalid");
   });
 });
 

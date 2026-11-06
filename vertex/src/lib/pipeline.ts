@@ -1,8 +1,5 @@
-import { after, NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { callBackend, type BackendResult, type CallBackendOptions } from "@/lib/backend";
-import * as email from "@/lib/email";
-import { createReceiptPdf } from "@/lib/invoice";
-import { CASE_STAGE_LABELS, type CaseStageKey } from "@/components/portal/caseStages";
 import { log } from "@/lib/log";
 
 /**
@@ -10,52 +7,11 @@ import { log } from "@/lib/log";
  * (docs/architecture/pipeline-handover.md, step 6.7): every pipeline route
  * here checks what it can early (role, JSON) and passes the request on.
  *
- * The website still sends some of the pipeline's emails (owner's decision
- * D1; FastAPI sends the rest itself since reads handover R7b): a
- * FastAPI response lists the emails its write left due in `notify`, each
- * with what its sender in lib/email.ts takes. They're sent after the
- * response (after()), and a failure is logged, never the request's. The
- * kinds here and in vertex_be/app/api/notices.py must match: a test on
- * each side reads the other.
+ * FastAPI sends every email a write leaves due itself since reads handover
+ * R7b (vertex_be/app/services/emails.py). A response still carries
+ * `notify`, always empty (vertex_be/tests/test_notices.py); it's never
+ * passed on, and one that isn't empty is logged by kind, as an email lost.
  */
-
-type PlanStage = { id: string; label: string; percent: number; amount: number; trigger_stage: CaseStageKey };
-
-// One sender per kind, named as FastAPI names them. Since reads handover
-// R7b FastAPI sends some kinds itself (SENT_HERE in
-// vertex_be/app/services/emails.py) and never lists them here.
-export const NOTICE_SENDERS = {
-  case_reminder: (n) =>
-    email.sendCaseReminderEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.channel, n.message ?? undefined),
-  // Payments (step 7.2): a consultation booked, a fee paid by card or PayPal.
-  consultation_booked: (n) =>
-    email.sendConsultationBookingNotification({ fullName: n.full_name, email: n.email, phone: n.phone, amount: n.amount, currency: n.currency }),
-  payment_receipt: (n) => createReceiptPdf(n.payment_id, n.full_name, n.email, n.job_title, n.amount, n.transaction_id, new Date(n.date)),
-  // A case milestone's Stripe Payment Link (step 7.3), with the whole plan.
-  milestone_payment_link: (n) =>
-    email.sendMilestonePaymentLinkEmail(n.email, n.recipient_name, n.candidate_name, n.programme_title, n.payment_url, n.current_stage_id,
-      n.stages.map((s: PlanStage) => ({ id: s.id, label: s.label, percent: s.percent, amount: s.amount, triggerStageLabel: CASE_STAGE_LABELS[s.trigger_stage] }))),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FastAPI's shapes, checked by vertex_be/tests/test_notices.py
-} satisfies Record<string, (notice: any) => Promise<unknown>>;
-
-export type Notice = { kind: keyof typeof NOTICE_SENDERS } & Record<string, unknown>;
-
-/** Sends each email after the response; an unknown kind or a failed send is logged. */
-export async function sendNotices(notices: unknown): Promise<void> {
-  if (!Array.isArray(notices)) return;
-  for (const notice of notices as Notice[]) {
-    const send = NOTICE_SENDERS[notice.kind] as ((n: Notice) => Promise<unknown>) | undefined;
-    if (!send) {
-      log.error("email.unknown_notice", { kind: notice.kind });
-      continue;
-    }
-    try {
-      await send(notice);
-    } catch (err) {
-      log.error("email.send_failed", { kind: notice.kind, err });
-    }
-  }
-}
 
 export interface PassOnOptions {
   /** Answer with `data` itself, as an older route did (default: {data}). */
@@ -66,7 +22,7 @@ export interface PassOnOptions {
   reshape?: (data: unknown, body: Record<string, unknown>) => unknown;
 }
 
-/** The route's answer from FastAPI's, sending the emails it lists. */
+/** The route's answer from FastAPI's. */
 export function pipelineResponse(result: BackendResult<unknown>, options: PassOnOptions = {}): NextResponse {
   if (!result.ok) {
     const { message, details } = result.error;
@@ -74,7 +30,7 @@ export function pipelineResponse(result: BackendResult<unknown>, options: PassOn
     return NextResponse.json(error, { status: result.status });
   }
   const { data, notify } = result.body as { data: unknown; notify?: unknown };
-  if (Array.isArray(notify) && notify.length > 0) after(() => sendNotices(notify));
+  if (Array.isArray(notify) && notify.length > 0) log.error("email.unsent_notice", { kinds: notify.map((n) => (n as { kind?: unknown })?.kind) });
   const shaped = options.reshape ? options.reshape(data, result.body) : data;
   return NextResponse.json(options.unwrap ? shaped : { data: shaped }, { status: result.status });
 }

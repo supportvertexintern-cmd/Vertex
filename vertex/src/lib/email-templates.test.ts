@@ -4,7 +4,8 @@
 // so vertex_be/app/assets/email_templates.json is exactly what lib/email.ts
 // would send. FastAPI fills the same placeholders (HTML-escaped) and applies
 // an admin's EmailTemplate override by the template's event, as lib/email.ts
-// does. This test fails when the two drift; to regenerate:
+// does. The receipt comes from lib/invoice.ts the same way (FastAPI draws its
+// PDF itself). This test fails when the two drift; to regenerate:
 //   UPDATE_EMAIL_TEMPLATES=1 npx vitest run src/lib/email-templates.test.ts
 import fs from "node:fs";
 import path from "node:path";
@@ -15,6 +16,7 @@ const state = vi.hoisted(() => {
   // The staff notifications go to a configured address; FastAPI has its own setting.
   process.env.PARTNER_SUBMISSION_NOTIFY_EMAIL = "staff@test.invalid";
   process.env.REFERRAL_AGENT_NOTIFY_EMAIL = "staff@test.invalid";
+  process.env.CONSULTATION_NOTIFY_EMAIL = "staff@test.invalid";
   return { sent: [] as { to: string; subject: string; html: string }[], events: [] as string[] };
 });
 
@@ -36,6 +38,7 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/jwt", () => ({ signCandidateInviteToken: () => "{{token}}" }));
 
 import * as email from "./email";
+import { createReceiptPdf } from "./invoice";
 
 const OUT = path.resolve(__dirname, "../../../vertex_be/app/assets/email_templates.json");
 
@@ -45,9 +48,28 @@ const OUT = path.resolve(__dirname, "../../../vertex_be/app/assets/email_templat
 // (a label lookup, upper-casing, toLocaleString) and comes back as `{{name}}`;
 // FastAPI computes the same value (app/services/emails.py). `links` puts the
 // links a sender builds back as the placeholder an override uses for them.
+// `cut` takes HTML a sender repeats (the plan's rows) out as a placeholder,
+// and `parts` keeps the pieces FastAPI repeats in its place. `plain` is an
+// email outside emailLayout (no logo, no year).
 type Values = Record<string, string>;
-type Case = { send: (v: Values) => Promise<unknown>; links?: Record<string, string> };
+type Case = {
+  send: (v: Values) => Promise<unknown>;
+  links?: Record<string, string>;
+  cut?: (v: Values) => Record<string, string>;
+  parts?: (v: Values) => Record<string, string>;
+  plain?: boolean;
+};
 const num = (value: string) => value as unknown as number; // toLocaleString() on the token returns it unchanged
+const fixed = (value: string) => ({ toFixed: () => value }) as unknown as number; // as toFixed(2)
+// Math.round() can't keep a token: this number stands for {{percent}}.
+const PERCENT = 987654;
+const planStage = (v: Values): email.MilestonePlanStage => ({
+  id: "current", label: v.label, percent: PERCENT, amount: num(v.amount), triggerStageLabel: v.triggerStageLabel,
+});
+const consultation = (v: Values, name: boolean, phone: boolean) =>
+  email.sendConsultationBookingNotification({
+    fullName: name ? v.fullName : null, email: v.email, phone: phone ? v.phone : null, amount: num(v.amount), currency: v.currency,
+  });
 const CASES: Record<string, Case> = {
   email_verification: {
     send: (v) => email.sendVerificationLinkEmail(v.token, v.to, v.fullName),
@@ -91,9 +113,34 @@ const CASES: Record<string, Case> = {
   },
   referral_commission_approved: { send: (v) => email.sendReferralCommissionApprovedEmail(v.to, v.agentName, v.candidateName, num(v.amount), v.currency) },
   referral_commission_paid: { send: (v) => email.sendReferralCommissionPaidEmail(v.to, v.agentName, v.candidateName, num(v.amount), v.currency) },
+  // Batch 3: a template per variant, the plan's rows as parts, the receipt.
+  "case_reminder.document": { send: (v) => email.sendCaseReminderEmail(v.to, v.recipientName, v.candidateName, v.programmeTitle, "document") },
+  "case_reminder.document_message": {
+    send: (v) => email.sendCaseReminderEmail(v.to, v.recipientName, v.candidateName, v.programmeTitle, "document", v.message),
+  },
+  "case_reminder.payment": { send: (v) => email.sendCaseReminderEmail(v.to, v.recipientName, v.candidateName, v.programmeTitle, "payment") },
+  "case_reminder.payment_message": {
+    send: (v) => email.sendCaseReminderEmail(v.to, v.recipientName, v.candidateName, v.programmeTitle, "payment", v.message),
+  },
+  milestone_payment_link: {
+    send: (v) => email.sendMilestonePaymentLinkEmail(v.to, v.recipientName, v.candidateName, v.programmeTitle, v.paymentUrl, "current", [planStage(v)]),
+    cut: (v) => ({ planRows: email.milestonePlanRow(planStage(v), "Stage 1 of 1", true) }),
+    parts: (v) => ({
+      row_current: email.milestonePlanRow(planStage(v), v.position, true),
+      row_upcoming: email.milestonePlanRow(planStage(v), v.position, false),
+    }),
+  },
+  "consultation_booked.name_phone": { send: (v) => consultation(v, true, true) },
+  "consultation_booked.name_no_phone": { send: (v) => consultation(v, true, false) },
+  "consultation_booked.no_name_phone": { send: (v) => consultation(v, false, true) },
+  "consultation_booked.no_name_no_phone": { send: (v) => consultation(v, false, false) },
+  payment_receipt: {
+    send: (v) => createReceiptPdf("p", v.candidateName, v.to, v.jobTitle, fixed(v.amount), "t", new Date(0)),
+    plain: true,
+  },
 };
 
-type Template = { event: string | null; subject: string; html: string };
+type Template = { event: string | null; subject: string; html: string; parts?: Record<string, string> };
 
 async function capture(c: Case): Promise<Template> {
   state.sent.length = 0;
@@ -105,8 +152,15 @@ async function capture(c: Case): Promise<Template> {
   await c.send(values);
   expect(state.sent).toHaveLength(1);
   const [mail] = state.sent;
-  const named = (text: string) => names.reduce((out, name, i) => out.replaceAll(`§${i}§`, `{{${name}}}`), text);
-  let html = named(mail.html)
+  let raw = mail.html;
+  for (const [name, piece] of Object.entries(c.cut?.(values) ?? {})) {
+    expect(raw, `${name} isn't in the email`).toContain(piece);
+    raw = raw.replaceAll(piece, `{{${name}}}`);
+  }
+  const named = (text: string) =>
+    names.reduce((out, name, i) => out.replaceAll(`§${i}§`, `{{${name}}}`), text).replaceAll(String(PERCENT), "{{percent}}");
+  const parts = c.parts && Object.fromEntries(Object.entries(c.parts(values)).map(([name, piece]) => [name, named(piece)]));
+  let html = named(raw)
     .replaceAll("{{app_url}}/vertex-logo.png", "{{logo}}")
     .replace(`© ${new Date().getFullYear()} `, "© {{year}} ");
   let subject = named(mail.subject);
@@ -114,7 +168,7 @@ async function capture(c: Case): Promise<Template> {
     html = html.replaceAll(link, `{{${name}}}`);
     subject = subject.replaceAll(link, `{{${name}}}`);
   }
-  return { event: state.events[0] ?? null, subject, html };
+  return { event: state.events[0] ?? null, subject, html, ...(parts && { parts }) };
 }
 
 describe("email_templates.json", () => {
@@ -123,9 +177,11 @@ describe("email_templates.json", () => {
     for (const [kind, c] of Object.entries(CASES)) templates[kind] = await capture(c);
 
     for (const [kind, t] of Object.entries(templates)) {
-      const names = new Set([...`${t.subject}${t.html}`.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]));
+      const all = `${t.subject}${t.html}${Object.values(t.parts ?? {}).join("")}`;
+      const names = new Set([...all.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]));
       expect(names.has("token"), `${kind}: a link left unnamed`).toBe(false);
-      expect(`${t.subject}${t.html}`, `${kind}: a value lost its name`).not.toContain("§");
+      expect(all, `${kind}: a value lost its name`).not.toContain("§");
+      if (CASES[kind].plain) continue;
       expect(t.html, `${kind}: no logo`).toContain("{{logo}}");
       expect(t.html, `${kind}: no year`).toContain("{{year}}");
     }

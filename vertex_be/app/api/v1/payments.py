@@ -15,8 +15,8 @@ Stripe delivers an event at least once, so each write is idempotent.
 PayPal (D2): creating the order, and capturing it once FastAPI has checked
 with PayPal that it's this user's order for this job's fee.
 
-The website builds the receipts and sends the emails (D3), listed in
-`notify`. Every write is on the audit trail (Payment, ConsultationBooking
+FastAPI draws the receipt and sends it and the booking notice
+(app/services/emails.py, reads handover R7b). Every write is on the audit trail (Payment, ConsultationBooking
 and CasePayment are in AUDITED_MODELS), which fixes gap G22: the website
 wrote these without it.
 """

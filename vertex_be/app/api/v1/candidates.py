@@ -14,9 +14,9 @@ drift), the same access rules (app/core/scope.py), transitions
 (app/services/candidate_lifecycle.py), messages, status codes and JSON.
 Who the caller is comes from their session, never from the request.
 
-The website keeps sending the emails (owner's decision D1, 2026-10-29): a
-response lists the emails now due in `notify`, next to `data`, and the
-website sends them after the write has committed.
+The emails a write leaves due are sent by FastAPI after the write has
+committed (app/services/emails.py, reads handover R7b; before it the
+website sent them, owner's decision D1).
 
 Approving a candidate opens their case (app/services/case_lifecycle.py,
 step 6.5).

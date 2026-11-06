@@ -23,16 +23,11 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
 
-// Emails and receipts are recorded, and sent at once.
+// The invoice email is recorded. FastAPI sends the receipt, the payment link
+// and the booking notice itself since reads handover R7b
+// (vertex_be/tests/test_payments.py, test_case_payments.py).
 const sent = vi.hoisted(() => [] as unknown[][]);
-vi.mock("next/server", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("next/server")>()),
-  after: (fn: () => unknown) => fn(),
-}));
-vi.mock("@/lib/invoice", () => ({ createReceiptPdf: async (...args: unknown[]) => void sent.push(["createReceiptPdf", ...args]) }));
 vi.mock("@/lib/email", () => ({
-  sendConsultationBookingNotification: async (...args: unknown[]) => void sent.push(["sendConsultationBookingNotification", ...args]),
-  sendMilestonePaymentLinkEmail: async (...args: unknown[]) => void sent.push(["sendMilestonePaymentLinkEmail", ...args]),
   sendCasePaymentInvoiceEmail: async (...args: unknown[]) => {
     if (state.emailFails) throw new Error("SMTP down");
     sent.push(["sendCasePaymentInvoiceEmail", ...args]);
@@ -60,7 +55,6 @@ import * as onePayment from "@/app/api/cases/[id]/payments/[paymentId]/route";
 import * as checkStatus from "@/app/api/cases/[id]/payments/[paymentId]/check-status/route";
 import * as markPaid from "@/app/api/cases/[id]/payments/[paymentId]/mark-paid/route";
 import * as receipt from "@/app/api/cases/[id]/payments/[paymentId]/receipt/route";
-import { CASE_STAGE_LABELS } from "@/components/portal/caseStages";
 
 const req = (body?: string) =>
   new NextRequest("http://localhost/api/admin/referral-commission-rules", { method: "POST", body, headers: body ? { "content-type": "application/json" } : {} });
@@ -108,15 +102,6 @@ describe("the Stripe webhook (step 7.2)", () => {
     expect([res.status, await res.json()]).toEqual([200, { received: true }]);
   });
 
-  it("sends the receipt or booking email FastAPI lists", async () => {
-    callBackend.mockResolvedValueOnce({
-      ok: true, status: 200,
-      body: { data: { received: true }, notify: [{ kind: "consultation_booked", full_name: "Sara", email: "s@test.invalid", phone: null, amount: 75, currency: "EUR" }] },
-    });
-    await webhook.POST(delivery());
-    expect(sent).toEqual([["sendConsultationBookingNotification", { fullName: "Sara", email: "s@test.invalid", phone: null, amount: 75, currency: "EUR" }]]);
-  });
-
   it("an error status for Stripe to retry when FastAPI refuses or is down", async () => {
     callBackend.mockResolvedValueOnce({ ok: false, status: 400, error: { code: "invalid_signature", message: "Webhook signature verification failed." } });
     expect((await webhook.POST(delivery())).status).toBe(400);
@@ -137,19 +122,12 @@ describe("PayPal (step 7.2)", () => {
     expect((await createOrder.POST(post("{}"))).status).toBe(400);
   });
 
-  it("captures through FastAPI, answering { success, paymentId } and sending the receipt", async () => {
+  it("captures through FastAPI, answering { success, paymentId }", async () => {
     state.role = "candidate";
-    callBackend.mockResolvedValueOnce({
-      ok: true, status: 200,
-      body: {
-        data: { id: "pay1" },
-        notify: [{ kind: "payment_receipt", payment_id: "pay1", full_name: "Abebe", email: "a@test.invalid", job_title: "Care", amount: 49.5, transaction_id: "CAP1", date: "2026-10-29T10:00:00.000Z" }],
-      },
-    });
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: { id: "pay1" }, notify: [] } });
     const res = await captureOrder.POST(post('{"orderID":"ORDER1","jobId":"j1"}'));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/payments/paypal/orders/ORDER1/capture", { method: "POST", body: { jobId: "j1" } });
     expect(await res.json()).toEqual({ success: true, paymentId: "pay1" });
-    expect(sent[0].slice(0, 3)).toEqual(["createReceiptPdf", "pay1", "Abebe"]);
   });
 
   it("a refused capture keeps the older error shape, and nobody signed in is 401", async () => {
@@ -181,24 +159,10 @@ describe("case payments (step 7.3)", () => {
     expect((await casePayments.POST(send("{}"), ctx)).status).toBe(403);
   });
 
-  it("a payment link: FastAPI creates it, this app emails the plan with the stage labels", async () => {
-    callBackend.mockResolvedValueOnce({
-      ok: true, status: 201,
-      body: {
-        data: { payment: row, url: "https://buy.stripe.test/1" },
-        notify: [{
-          kind: "milestone_payment_link", email: "a@test.invalid", recipient_name: "Abebe", candidate_name: "Abebe", programme_title: "Care",
-          payment_url: "https://buy.stripe.test/1", current_stage_id: "s1",
-          stages: [{ id: "s1", label: "Deposit", percent: 40, amount: 400, trigger_stage: "registration_document_submission" }],
-        }],
-      },
-    });
+  it("a payment link: FastAPI creates it (and emails the plan)", async () => {
+    callBackend.mockResolvedValueOnce({ ok: true, status: 201, body: { data: { payment: row, url: "https://buy.stripe.test/1" }, notify: [] } });
     const res = await paymentLink.POST(send('{"job_payment_stage_id":"s1","recipient":"candidate"}'), ctx);
     expect([res.status, await res.json()]).toEqual([201, { data: { payment: row, url: "https://buy.stripe.test/1" } }]);
-    expect(sent).toEqual([[
-      "sendMilestonePaymentLinkEmail", "a@test.invalid", "Abebe", "Abebe", "Care", "https://buy.stripe.test/1", "s1",
-      [{ id: "s1", label: "Deposit", percent: 40, amount: 400, triggerStageLabel: CASE_STAGE_LABELS.registration_document_submission }],
-    ]]);
   });
 
   it("a payment link keeps Stripe's failures as { error: { code, message } } and refusals as strings", async () => {
