@@ -1,6 +1,6 @@
 """The emails FastAPI sends (reads handover R7b, app/services/emails.py): its
-templates are lib/email.ts's (the website's email-templates.test.ts pins
-them), filled with escaped values, an admin's override applied. Every kind
+templates are lib/email.ts's, captured from it before R7b removed it
+(app/assets/email_templates.json, their source now), filled with escaped values, an admin's override applied. Every kind
 is sent here since R7b's third batch (tests/test_notices.py)."""
 
 from __future__ import annotations

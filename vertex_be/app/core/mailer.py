@@ -1,5 +1,5 @@
 """Outgoing mail (reads handover R7, D3 and D4 A): messages over SMTP, with
-the settings the website's lib/email.ts uses (SMTP_*, EMAIL_FROM). R7a sends
+the settings the website's lib/email.ts used (SMTP_*, EMAIL_FROM). R7a sends
 the security alerts from here (plain text); R7b the emails a write leaves
 due (HTML, app/services/emails.py), the receipt with its PDF attached.
 

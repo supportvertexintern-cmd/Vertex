@@ -160,7 +160,7 @@ def raise_alert(rule: Rule, key: str, summary: str, detail: dict[str, Any], *, p
         return False
 
 
-def _recipients() -> list[str]:
+def alert_recipients() -> list[str]:
     configured = [a.strip() for a in (settings.SECURITY_ALERT_EMAILS or "").split(",") if a.strip()]
     if configured:
         return configured
@@ -173,7 +173,7 @@ def _notify(rule: Rule, alert_key: str, summary: str, detail: dict[str, Any], re
         if not settings.SMTP_HOST:
             log_event(logging.WARNING, "alert.email_skipped", rule=rule.id, reason="SMTP_HOST not set")
             return
-        to = _recipients()
+        to = alert_recipients()
         if not to:
             log_event(logging.WARNING, "alert.email_skipped", rule=rule.id, reason="no recipients")
             return

@@ -8,7 +8,6 @@ const state = vi.hoisted(() => {
   process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-partners";
   return {
     user: null as null | { userId: string; email: string; role: string; sid: string; ver: number },
-    sent: [] as unknown[][],
   };
 });
 
@@ -21,13 +20,6 @@ vi.mock("next/server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/server")>()),
   after: (fn: () => unknown) => fn(),
 }));
-vi.mock("@/lib/email", () => {
-  const senders = [
-    "sendAccountSetupLinkEmail", "sendReferralAgentApplicationLinkEmail", "sendReferralAgentAdminNotificationEmail",
-    "sendReferralAgentApprovedEmail", "sendReferralAgentRejectedEmail", "sendReferralAgentSuspendedEmail",
-  ];
-  return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
-});
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
 vi.mock("@/lib/prisma", () => ({ prisma: { partner: { findUnique: async () => null }, referralAgent: { findUnique: async () => null } } }));
 vi.mock("@/lib/api-auth", () => ({
@@ -64,7 +56,6 @@ const as = (role: string) => ({ userId: `${role}1`, email: `${role}@test.invalid
 
 beforeEach(() => {
   callBackend.mockReset();
-  state.sent = [];
   state.user = null;
 });
 
@@ -89,7 +80,6 @@ describe("partners", () => {
     expect(callBackend).toHaveBeenCalledWith("/api/v1/partners/p1", { method: "PATCH", body: { contact_email: "new@test.invalid" } });
     const body = await res.json();
     expect(body).toEqual({ data: { id: "p1" } });
-    expect(state.sent).toEqual([]);
   });
 
   it("refuses unreadable JSON before calling FastAPI", async () => {
@@ -111,7 +101,6 @@ describe("partners", () => {
     const reset = await partnerReset.POST(request("POST", "/api/admin/partners/p2/reset-password"), ctx("p2"));
     expect(callBackend.mock.calls[2]).toEqual(["/api/v1/partners/p2/reset-password", { method: "POST" }]);
     expect(await reset.json()).toEqual({ data: { email: "c@test.invalid" } });
-    expect(state.sent).toEqual([]);
   });
 
   it("keeps FastAPI's errors as { error: { code, message } }", async () => {
@@ -137,7 +126,6 @@ describe("referral agents", () => {
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/apply", { method: "POST", body: { full_name: "Abebe" }, asUser: false });
     const body = await res.json();
     expect([res.status, body]).toEqual([201, { data: { id: "r1", referral_code: "VTX-ETH-1234" } }]);
-    expect(state.sent).toEqual([]);
   });
 
   it("keeps the older string errors, with details for validation", async () => {
@@ -173,7 +161,6 @@ describe("referral agents", () => {
     const res = await approve.POST(request("POST", "/api/admin/referral-agents/r1/approve"), ctx("r1"));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/referral-agents/r1/approve", { method: "POST", body: {} });
     expect([res.status, await res.json()]).toEqual([201, { data: { id: "r1", status: "active" } }]);
-    expect(state.sent).toEqual([]);
   });
 
   it("rejects and suspends through FastAPI", async () => {
@@ -184,7 +171,6 @@ describe("referral agents", () => {
     callBackend.mockResolvedValueOnce(ok({ id: "r2", status: "suspended" }, { notify: [] }));
     await oneAgent.PATCH(request("PATCH", "/api/admin/referral-agents/r2", { status: "suspended", reason: "Spam" }), ctx("r2"));
     expect(callBackend).toHaveBeenCalledTimes(2);
-    expect(state.sent).toEqual([]);
   });
 
   it("refuses an in-house supervisor before calling FastAPI (directors and admins only)", async () => {

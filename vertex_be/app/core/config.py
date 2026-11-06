@@ -71,9 +71,9 @@ class Settings(BaseSettings):
     # to send visitors to Google. Unset = Google sign-in answers 503.
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
-    # Outgoing mail (reads handover R7, D3 and D4): the same settings the
-    # website's lib/email.ts uses. Unset SMTP_HOST = nothing is sent; the
-    # alert is still logged and recorded.
+    # Outgoing mail (reads handover R7, D3 and D4): every email the stack
+    # sends goes from here. Unset SMTP_HOST = nothing is sent; an alert is
+    # still logged and recorded, and a form's email is a 502.
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_SECURE: bool = False  # TLS from the start (port 465); else STARTTLS when offered
