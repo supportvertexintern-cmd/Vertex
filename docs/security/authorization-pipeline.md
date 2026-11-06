@@ -19,8 +19,8 @@ data.
 | 5 | **Resource authorization** | Is this identity allowed this specific record | `canAccessCandidate`, `canAccessCase`, `resolveAccess` (threads), ownership comparisons (`candidate.user_id === user.userId`, `partner_id`) | ✅ for candidate/partner paths (tested, §3); staff paths per Q1–Q3 |
 | 6 | **Scope enforcement** | Data boundaries: region, country, assignment, partner | Lists: `scopeCandidatesToRequester`, `scopeCasesToRequester` in the query's `where`. Single records: stage 5 helpers apply the same rules | ✅ candidates/cases; ✅ partners, partner candidates, applications for reviewers (Q1 to Q3, decided 2026-11-02) |
 | 7 | **Contextual controls** | MFA, step-up, rate limits, risk | Per-IP rate limits (`limitByIp`) on public and auth routes. **No MFA or step-up** for any role | ⚠️ rate limits in memory (G5, G14); ❌ MFA (G24) |
-| 8 | **Execution** | The operation itself | Handler body; writes through `auditedPrisma(actor)` | ✅ |
-| 9 | **Security audit** | Record the decision and outcome | `auditedPrisma` (data changes), `auditAccess` (exports), `recordSecurityEvent` (sign-ins, denials via `requireRole`/`forbidden()`, document views; Phase 10). Never credentials (`lib/redact.ts`); filter values allowlisted (`auditFilters`) | ✅ G7, G20, G21 (Phase 10); ⚠️ some writes (G22) not recorded |
+| 8 | **Execution** | The operation itself | FastAPI's handler; writes through its audited sessions | ✅ |
+| 9 | **Security audit** | Record the decision and outcome | FastAPI's audited sessions (data changes), `auditAccess` (exports), `recordSecurityEvent` (sign-ins, denials via `requireRole`/`forbidden()`, document views; Phase 10). Never credentials (`lib/redact.ts`); filter values allowlisted (`auditFilters`) | ✅ G7, G20, G21 (Phase 10); G22 closed (FastAPI makes those writes) |
 
 ## 2. Rules
 
@@ -100,7 +100,7 @@ ownership check in the application route, or making the partner rule in
 | Q1 to Q3 | 6 | Decided 2026-11-02 (reads handover R2 and R4) | Done |
 | G5, G14 | 7 | Rate limits in memory, keyed on a client-settable header | Phase 4 |
 | G24 | 7 | No MFA or step-up authentication for any role, including admin, finance and directors | Phase 4 (authentication) |
-| G7, G20, G21, G22 | 9 | Denials, sign-ins, document views and some writes aren't audited | G21, G22 Phase 2 candidates; G7, G20 Phase 5 |
+| G7, G20, G21, G22 | 9 | Denials, sign-ins, document views and some writes weren't audited | Closed: G7, G20, G21 in Phase 10; G22 when FastAPI took over those writes |
 
 ## 5. What enforces this
 

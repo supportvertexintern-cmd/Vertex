@@ -232,7 +232,7 @@ Design so that one compromised piece does limited damage:
   `SECRET_KEY`. Neither sees the other's, and every value differs between
   dev and staging (checked by fingerprint, Phase 2).
 - **Auditable actions:** data changes are logged automatically
-  (`auditedPrisma`); sensitive reads such as bulk exports are logged with
+  (FastAPI's audited sessions); sensitive reads such as bulk exports are logged with
   `auditAccess`, before the data is returned (gap G16, fixed). Audit
   entries record filter **names**; values are kept only for an allowlist of
   non-personal filters (dates, status, IDs), so a search by name or email is
