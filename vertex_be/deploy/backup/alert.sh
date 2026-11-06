@@ -17,7 +17,7 @@ set -u
 export MSYS_NO_PATHCONV=1
 RULE="${1:?rule}"; SUMMARY="${2:?summary}"; shift 2; DETAIL="$*"
 ROOT="${BACKUP_ROOT:-D:/VertexData/backups}"
-VIA="${ALERT_VIA:-vertex-main}"
+VIA="${ALERT_VIA:-vertex-dev}"
 WINDOW_H="${ALERT_WINDOW_HOURS:-6}"
 STATE="$ROOT/logs/alert-state"; mkdir -p "$STATE"
 NOW=$(date -u +%s); TS=$(date -u +%FT%TZ)

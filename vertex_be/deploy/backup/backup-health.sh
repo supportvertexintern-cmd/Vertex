@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Hourly backup health check (E5). Alerts (alert.sh) when:
-#   - vertex-main's newest complete local backup is older than 7 h
-#     (6-hourly schedule, RPO 6 h), vertex-staging's older than 8 days;
-#   - the newest off-site push of vertex-main is older than 26 h
+#   - vertex-dev's newest complete local backup is older than 26 h (daily);
+#   - the newest off-site push of vertex-dev is older than 26 h
 #     (only once off-site is configured; until then it says so in the log);
 #   - the newest restore drill report is older than 35 days.
 #
@@ -18,7 +17,7 @@ problems=0
 age_h() { python -c "import sys,datetime as d; t=d.datetime.strptime(sys.argv[1],'%Y%m%dT%H%M%SZ').replace(tzinfo=d.timezone.utc); print(int((d.datetime.now(d.timezone.utc)-t).total_seconds()//3600))" "$1"; }
 newest() { ls -d "$ROOT/$1"/*/ 2>/dev/null | while read -r d; do [ -f "$d/manifest.json" ] && basename "$d"; done | sort | tail -1; }
 
-for spec in vertex-main:7 vertex-staging:192; do
+for spec in vertex-dev:26; do
   p=${spec%%:*}; max=${spec##*:}
   n=$(newest "$p")
   if [ -z "$n" ]; then
@@ -30,30 +29,30 @@ for spec in vertex-main:7 vertex-staging:192; do
 done
 
 if [ -f "$CONF" ]; then
-  st="$ROOT/offsite-state/vertex-main.json"
+  st="$ROOT/offsite-state/vertex-dev.json"
   if [ ! -f "$st" ]; then
-    echo "off-site: vertex-main never pushed"; bash "$HERE/alert.sh" offsite_missing "vertex-main has never been copied off-site" "config $CONF"; problems=1
+    echo "off-site: vertex-dev never pushed"; bash "$HERE/alert.sh" offsite_missing "vertex-dev has never been copied off-site" "config $CONF"; problems=1
   else
     h=$(python -c "import json,sys,datetime as d; s=json.load(open(sys.argv[1])); print(int((d.datetime.now(d.timezone.utc)-d.datetime.fromisoformat(s['pushed_at'])).total_seconds()//3600))" "$st")
-    echo "off-site: newest vertex-main push ${h} h ago (limit 26 h)"
-    if [ "$h" -gt 26 ]; then bash "$HERE/alert.sh" offsite_stale "No off-site copy of vertex-main for ${h} hours" "state $st"; problems=1; fi
+    echo "off-site: newest vertex-dev push ${h} h ago (limit 26 h)"
+    if [ "$h" -gt 26 ]; then bash "$HERE/alert.sh" offsite_stale "No off-site copy of vertex-dev for ${h} hours" "state $st"; problems=1; fi
   fi
 else
   echo "off-site: not configured ($CONF missing; exception E5 still open)"
 fi
 
 # Exception E2 (docs/security/exceptions.md): MinIO is accepted on every local
-# stack, main included (owner decision 2026-10-29). Informational only: no alert.
-n=$(newest vertex-main)
+# stack (owner decision 2026-10-29). Informational only: no alert.
+n=$(newest vertex-dev)
 if [ -n "$n" ]; then
-  docs=$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['documents']['files'])" "$ROOT/vertex-main/$n/manifest.json" 2>/dev/null || echo 0)
-  echo "documents in vertex-main backup (MinIO): $docs"
+  docs=$(python -c "import json,sys; print(json.load(open(sys.argv[1]))['documents']['files'])" "$ROOT/vertex-dev/$n/manifest.json" 2>/dev/null || echo 0)
+  echo "documents in vertex-dev backup (MinIO): $docs"
 fi
 
-d=$(ls "$ROOT/drills"/vertex-main-*.md 2>/dev/null | sort | tail -1)
+d=$(ls "$ROOT/drills"/vertex-dev-*.md 2>/dev/null | sort | tail -1)
 if [ -n "$d" ]; then
-  s=$(basename "$d" .md); s=${s#vertex-main-}
+  s=$(basename "$d" .md); s=${s#vertex-dev-}
   h=$(age_h "$s"); echo "drill: newest $s (${h} h old, limit 840 h)"
-  if [ "$h" -gt 840 ]; then bash "$HERE/alert.sh" drill_overdue "No restore drill of vertex-main for $((h / 24)) days" "newest report $d"; problems=1; fi
+  if [ "$h" -gt 840 ]; then bash "$HERE/alert.sh" drill_overdue "No restore drill of vertex-dev for $((h / 24)) days" "newest report $d"; problems=1; fi
 fi
 exit $problems

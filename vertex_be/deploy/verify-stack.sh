@@ -150,8 +150,8 @@ ok "FastAPI → Mailpit (email)" "$(docker exec ${P}-backend-1 python -c "import
 ok "FastAPI → malware scanner" "$(docker exec ${P}-backend-1 python -c 'import os, socket; s = socket.create_connection((os.environ["CLAMD_HOST"], int(os.environ["CLAMD_PORT"])), 5); s.send(b"zPING" + bytes(1)); print(s.recv(16).split(bytes(1))[0].decode())' 2>/dev/null | tail -1 | tr -d "\r")" PONG
 ok "Next.js has no mail settings" "$(docker exec ${P}-nextjs-1 printenv SMTP_HOST >/dev/null 2>&1 && echo yes || echo no)" no
 ok "Mailpit UI on localhost" "$(code http://127.0.0.1:$MP/)" 200
-# Phase 11: main every 6 hours, staging weekly (dev isn't backed up).
-case "$E" in main) MAXH=7 ;; staging) MAXH=192 ;; *) MAXH="" ;; esac
+# Phase 11: only dev is backed up since 2026-11-06, daily.
+case "$E" in dev) MAXH=26 ;; *) MAXH="" ;; esac
 if [ -n "$MAXH" ]; then
   newest=$(ls -d "${BACKUP_ROOT:-D:/VertexData/backups}/$P"/*/manifest.json 2>/dev/null | sort | tail -1)
   age=$( [ -n "$newest" ] && echo $(( ($(date +%s) - $(date -r "$newest" +%s)) / 3600 )) || echo none)

@@ -3,7 +3,7 @@
 # used, not just that the file exists.
 #
 #   bash deploy/backup/restore-drill.sh [project] [backup-dir]   (from vertex_be/)
-#   default: vertex-main, its newest complete backup
+#   default: vertex-dev, its newest complete backup
 #
 # Everything happens in throwaway containers on a new internal Docker
 # network (no published ports, no internet), removed at the end whatever
@@ -32,7 +32,7 @@
 set -uo pipefail
 export MSYS_NO_PATHCONV=1
 
-P="${1:-vertex-main}"
+P="${1:-vertex-dev}"
 ENV_FILE=".env.${P#vertex-}"
 HERE="$(cd "$(dirname "$0")" && { pwd -W 2>/dev/null || pwd; })"
 BE="$(cd "$HERE/../.." && { pwd -W 2>/dev/null || pwd; })"
