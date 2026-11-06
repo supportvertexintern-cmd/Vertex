@@ -24,20 +24,20 @@ Each stack is separate: its own Compose project, networks, database volume and o
 
 ## 2. Schedule
 
-`install-schedule.ps1` registers these Windows scheduled tasks under `\Vertex\`:
+**Owner's decision, 2026-11-06:** only `dev` is backed up. The main and staging stacks were removed on purpose. Their last complete backups (main 2026-10-15, staging 2026-10-11) stay in `D:\VertexData\backups`; no task touches them. Where the sections below describe main or staging, they describe that earlier setup.
+
+`install-schedule.ps1` registers these Windows scheduled tasks under `\Vertex\`, and removes the old main and staging ones:
 
 | Task | When | What |
 |---|---|---|
-| Backup vertex-main | every 6 h (00, 06, 12, 18) | `backup.sh vertex-main` |
-| Backup vertex-staging | Sundays 03:30 | `backup.sh vertex-staging` |
-| Restore drill vertex-main | every 4 weeks, Sunday 04:00 | `restore-drill.sh vertex-main` |
-| Backup health check (E5) | every hour | `backup-health.sh`: alerts if main's newest backup is over 7 h old (staging: 8 days), the newest off-site copy is over 26 h old, or the newest drill is over 35 days old |
+| Backup vertex-dev | daily 03:30 | `backup.sh vertex-dev` (keeps the newest 4) |
+| Restore drill vertex-dev | every 4 weeks, Sunday 04:00 | `restore-drill.sh vertex-dev` |
+| Backup health check (E5) | every hour | `backup-health.sh`: alerts if dev's newest backup is over 26 h old, the newest off-site copy is over 26 h old, or the newest drill is over 35 days old |
 | Off-site prune (E5) | Saturdays 04:30, once off-site is configured | `offsite.py prune … --apply` (admin credential) |
-| Off-site restore drill vertex-main (E5) | every 4 weeks, Saturday 05:00, once off-site is configured | `offsite-drill.sh`: downloads the newest off-site copy and runs the full restore drill on it |
 
 - **Run conditions.** Tasks run as the owner's account, only when logged on: the key is DPAPI-bound to that account, and Docker Desktop runs in that session. A run missed while the PC was off starts as soon as possible afterwards.
 - **Logs** go to `D:\VertexData\backups\logs\`.
-- **Freshness check.** `verify-stack.sh` fails if main's newest backup is more than 7 h old (staging: 8 days).
+- **Freshness check.** `verify-stack.sh` fails if dev's newest backup is more than 26 h old.
 - **Alerts (E5).** A failed backup (`backup.sh` ERR trap), a failed off-site copy and every health-check finding raise an alert through `alert.sh`. The alert is:
   - a line in `logs/alerts.log`;
   - an `alert_raised` row in the stack's audit trail;

@@ -34,6 +34,7 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 OUT="$ROOT/$P/$STAMP"
 v() { grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d '\r'; }
 SU=$(v POSTGRES_USER); DB=$(v POSTGRES_DB); BUCKET=$(v S3_BUCKET)
+# dev keeps the newest 4 (prune.py's "staging" policy).
 case "$P" in vertex-main) POLICY=main ;; *) POLICY=staging ;; esac
 
 log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*"; }
