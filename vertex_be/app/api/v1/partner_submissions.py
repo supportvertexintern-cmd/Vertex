@@ -43,12 +43,12 @@ from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import HR_ROLES, require_role
+from app.db.base import SOFT_DELETE_COLUMNS
 from app.models.candidate import Application, Candidate, Document
 from app.models.enums import CandidateLifecycleStatus, CandidateSource, Gender, JobStatus, PartnerCandidateStatus, Role
 from app.models.identity import Country
 from app.models.jobs import Job
 from app.models.partners import Partner, PartnerCandidate
-from app.services import storage
 from app.services.case_lifecycle import open_case
 from app.services.documents import is_non_programme_type, required_types_by_country
 
@@ -198,6 +198,8 @@ def _row_model(name: str, table) -> type[BaseModel]:
     """Every column of a table, as Prisma returns its row."""
     fields: dict[str, Any] = {}
     for column in table.columns:
+        if column.key in SOFT_DELETE_COLUMNS:
+            continue
         python_type = column.type.python_type
         annotation: Any = UtcDateTime if python_type is datetime else list[str] if python_type is list else python_type
         if column.nullable:
@@ -450,14 +452,10 @@ def correct(submission_id: str, body: DetailsIn, user: Submitter, db: AuditedDb,
     return {"data": row}
 
 
-def _remove_documents(db, documents) -> list[str]:
-    """Deletes the rows (audited) and returns their files, for removal once
-    the deletion has committed."""
-    paths = []
+def _remove_documents(db, documents) -> None:
+    """Soft deletes the rows (audited). Their files are kept, for a restore."""
     for document in documents:
-        paths.append(document.storage_path)
         db.delete(document)
-    return paths
 
 
 @router.delete("/partner/candidates/{submission_id}", response_model=Data[Deleted])
@@ -478,11 +476,9 @@ def abandon_draft(
         raise ApiError(404, "not_found", "Submission not found.")
     if row.status is not PartnerCandidateStatus.draft:
         raise ApiError(409, "invalid_state", "Only an unsubmitted draft can be deleted.")
-    paths = _remove_documents(db, list(row.documents))
+    _remove_documents(db, list(row.documents))
     db.delete(row)
     db.commit()
-    for path in paths:
-        storage.delete_document(path)
     return {"data": {"id": submission_id}}
 
 

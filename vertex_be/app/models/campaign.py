@@ -3,15 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, pk, updated_at_col
 from app.models.enums import CampaignMetric, CampaignStatus
 from app.models.identity import Country, Region, User
 
 
-class Campaign(Base):
+class Campaign(SoftDeletable, Base):
     """criteria is free-form per campaign (roles, quotas, eligibility) since
     campaigns vary by destination market (FR-3.3)."""
 
@@ -35,7 +34,7 @@ class Campaign(Base):
     )
 
 
-class CampaignTarget(Base):
+class CampaignTarget(SoftDeletable, Base):
     """Scoped to exactly one country, one region, or neither (campaign-wide)
     — never more than one, so actuals always compare to one target."""
 
@@ -57,13 +56,11 @@ class CampaignTarget(Base):
     )
 
 
-class RecruiterTarget(Base):
+class RecruiterTarget(SoftDeletable, Base):
     """A Country Supervisor's allocation of a country CampaignTarget to one of
     their recruiters — always traceable to a real campaign goal."""
 
     __tablename__ = "RecruiterTarget"
-    __table_args__ = (UniqueConstraint("campaign_target_id", "recruiter_id"),)
-
     id: Mapped[str] = pk()
     campaign_target_id: Mapped[str] = mapped_column(fk("CampaignTarget.id", "CASCADE"))
     recruiter_id: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)

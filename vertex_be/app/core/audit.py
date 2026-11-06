@@ -42,6 +42,7 @@ from app.core.auth import AuthUser, current_user
 from app.core.logging import REDACTED, log_event, redact, request_id_var
 from app.db.base import new_id
 from app.db.session import engine, get_db
+from app.db.soft_delete import SOFT_DELETED
 from app.models.audit import AuditLog
 
 AUDITED_MODELS: frozenset[str] = frozenset(
@@ -174,7 +175,13 @@ def _entity_id(obj: Any) -> str:
 
 @event.listens_for(Session, "after_flush")
 def _record_changes(db: Session, _flush_context: Any) -> None:
-    changes = [("create", o) for o in db.new] + [("update", o) for o in db.dirty] + [("delete", o) for o in db.deleted]
+    # A soft delete is an update to the database and a delete to everyone else.
+    soft_deleted = db.info.get(SOFT_DELETED, {})
+    changes = (
+        [("create", o) for o in db.new]
+        + [("delete" if id(o) in soft_deleted else "update", o) for o in db.dirty]
+        + [("delete", o) for o in db.deleted]
+    )
     rows = []
     for action, obj in changes:
         table = _table(obj)

@@ -37,7 +37,7 @@ from sqlalchemy.orm import Mapper, RelationshipProperty, Session
 from sqlalchemy.types import JSON
 
 from app.core.clock import utc_now_ms
-from app.db.base import Base
+from app.db.base import SOFT_DELETE_COLUMNS, Base
 from app.models.enums import PartnerCandidateStatus, Role
 
 BACKUP_ROLES = (Role.admin, Role.director, Role.operations_team, Role.operations_director, Role.hr, Role.finance)
@@ -193,7 +193,7 @@ def fields(m: Mapper[Any]) -> list[FieldInfo]:
     excluded = EXCLUDED_FIELDS.get(m.local_table.name, set())
     out = []
     for col in m.local_table.columns:
-        if col.name in excluded:
+        if col.name in excluded or col.name in SOFT_DELETE_COLUMNS:
             continue
         is_list = isinstance(col.type, ARRAY)
         kind, values = _type_of(col.type.item_type if is_list else col.type)
@@ -340,6 +340,10 @@ def _fetch(db: Session, role: Role, m: Mapper[Any], where: list[ColumnElement[bo
     if pk.name not in {c.name for c in cols}:
         cols.append(pk)
     conditions = list(where)
+    # These are the table's own columns, which the ORM's soft delete filter
+    # (app/db/soft_delete.py) doesn't see: deleted rows aren't exported.
+    if "deleted_at" in table.c:
+        conditions.append(table.c.deleted_at.is_(None))
     scoped = row_filter(role, table.name, table)
     if scoped is not None:
         conditions.append(scoped)

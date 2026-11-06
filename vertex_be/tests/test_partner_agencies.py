@@ -19,6 +19,7 @@ from app.api.v1 import partner_agencies as module
 from app.core.audit import set_audit_actor
 from app.core.config import BASE_DIR
 from app.core.tokens import verify_account_setup_token
+from app.db.base import SOFT_DELETE_COLUMNS
 from app.db.session import engine, get_db
 from app.main import app
 from app.models.audit import AuditLog
@@ -107,7 +108,7 @@ def test_no_session_is_401(api):
 
 def test_the_row_is_shaped_as_prisma_wrote_it(api, manager):
     data = api.post(URL, headers=manager, json=new_agency()).json()["data"]
-    assert set(data) == {c.key for c in inspect(Partner).columns}
+    assert set(data) == {c.key for c in inspect(Partner).columns} - SOFT_DELETE_COLUMNS
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z", data["created_at"])
 
 

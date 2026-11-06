@@ -6,7 +6,7 @@ from sqlalchemy import Text, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.candidate import Candidate, Document
 from app.models.enums import (
     ContactChannel,
@@ -20,7 +20,7 @@ from app.models.identity import Country, User
 from app.models.jobs import Job, JobPosition
 
 
-class Partner(Base):
+class Partner(SoftDeletable, Base):
     """An agency / manpower supplier that sources candidates (FR-5.1).
     country_of_operation is free text — an agency can be based anywhere."""
 
@@ -41,7 +41,7 @@ class Partner(Base):
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
     # The partner's own login, null until admin provisions one.
-    user_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"), unique=True)
+    user_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
 
     user: Mapped[User | None] = relationship(back_populates="partner")
     partner_candidates: Mapped[list[PartnerCandidate]] = relationship(
@@ -49,7 +49,7 @@ class Partner(Base):
     )
 
 
-class PartnerCandidate(Base):
+class PartnerCandidate(SoftDeletable, Base):
     """A candidate submitted through a partner's own portal — a separate
     funnel from Candidate/Application. Starts as a "draft" (every form field
     nullable) and is validated in full only when submitted; HR review then
@@ -110,7 +110,7 @@ class PartnerCandidate(Base):
     reviewed_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     rejection_reason: Mapped[str | None]
     bridged_candidate_id: Mapped[str | None] = mapped_column(
-        fk("Candidate.id", "SET NULL"), unique=True
+        fk("Candidate.id", "SET NULL")
     )
 
     # Draft audit (0006): drafted_* when first saved as a draft,

@@ -178,13 +178,11 @@ def _file(db: Session, upload: _Upload, document_type: str, saved: storage.Saved
     """Writes the row, replacing an earlier one of the type, and commits.
     The earlier file goes once the new row is in; the new file goes if it
     isn't."""
-    replaced_path: str | None = None
     if document_type != REPEATABLE_TYPE:
         [(column, owner_id)] = owner.items()
         replaced = db.scalar(select(Document).where(getattr(Document, column) == owner_id, Document.type == document_type))
         if replaced is not None:
-            replaced_path = replaced.storage_path
-            db.delete(replaced)
+            db.delete(replaced)  # soft: the row and its file stay, for a restore
     document = Document(
         **owner,
         type=document_type,
@@ -203,8 +201,6 @@ def _file(db: Session, upload: _Upload, document_type: str, saved: storage.Saved
         db.rollback()
         storage.delete_document(saved.storage_path)
         raise
-    if replaced_path is not None:
-        storage.delete_document(replaced_path)
     db.refresh(document)
     return document
 

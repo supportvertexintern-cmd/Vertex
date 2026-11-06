@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Index, UniqueConstraint
+from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, pk, updated_at_col
 from app.models.candidate import Candidate
 from app.models.enums import (
     CorrectiveActionStatus,
@@ -23,7 +23,7 @@ from app.models.enums import (
 from app.models.identity import Country, User
 
 
-class Report(Base):
+class Report(SoftDeletable, Base):
     """A recruiter's submission rolls up via parent_report_id into their
     supervisor's country report (and on into an in-house report). `content`
     is a point-in-time snapshot taken at submission (FR-3.4) — it must not
@@ -57,7 +57,7 @@ class Report(Base):
     child_reports: Mapped[list[Report]] = relationship(back_populates="parent_report")
 
 
-class ExceptionReport(Base):
+class ExceptionReport(SoftDeletable, Base):
     """Supervisory Reporting Framework §6 — raised ad hoc by any tier and
     escalated independently up regional → country → inhouse → management.
     (Python class name avoids shadowing the builtin; the table is "Exception".)"""
@@ -65,7 +65,7 @@ class ExceptionReport(Base):
     __tablename__ = "Exception"
 
     id: Mapped[str] = pk()
-    reference: Mapped[str] = mapped_column(unique=True)  # "EXC-000123"
+    reference: Mapped[str] = mapped_column()  # "EXC-000123"
     category: Mapped[ExceptionCategory] = enum_col(ExceptionCategory)
     raised_by: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)
     # Snapshot — a later role change must not rewrite which tier raised it.
@@ -103,7 +103,7 @@ class ExceptionReport(Base):
     )
 
 
-class ExceptionCorrectiveAction(Base):
+class ExceptionCorrectiveAction(SoftDeletable, Base):
     __tablename__ = "ExceptionCorrectiveAction"
 
     id: Mapped[str] = pk()
@@ -123,14 +123,12 @@ class ExceptionCorrectiveAction(Base):
     owner: Mapped[User | None] = relationship()
 
 
-class StaffScorecard(Base):
+class StaffScorecard(SoftDeletable, Base):
     """Framework §7 monthly performance review, authored by the direct
     supervisor, never self-submitted. Category/action are stored at
     finalization so later threshold changes don't rewrite history."""
 
     __tablename__ = "StaffScorecard"
-    __table_args__ = (UniqueConstraint("staff_id", "period_month"),)
-
     id: Mapped[str] = pk()
     staff_id: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)
     reviewer_id: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)
@@ -150,10 +148,8 @@ class StaffScorecard(Base):
     )
 
 
-class StaffScorecardArea(Base):
+class StaffScorecardArea(SoftDeletable, Base):
     __tablename__ = "StaffScorecardArea"
-    __table_args__ = (UniqueConstraint("scorecard_id", "area_key"),)
-
     id: Mapped[str] = pk()
     scorecard_id: Mapped[str] = mapped_column(fk("StaffScorecard.id", "CASCADE"))
     area_key: Mapped[str]
@@ -164,13 +160,11 @@ class StaffScorecardArea(Base):
     scorecard: Mapped[StaffScorecard] = relationship(back_populates="areas")
 
 
-class StaffKpiTarget(Base):
+class StaffKpiTarget(SoftDeletable, Base):
     """A supervisor's target for a direct report, keyed to the exact KPI row
     label the recipient's own report uses for that cycle."""
 
     __tablename__ = "StaffKpiTarget"
-    __table_args__ = (UniqueConstraint("staff_id", "cycle", "kpi_label"),)
-
     id: Mapped[str] = pk()
     staff_id: Mapped[str] = mapped_column(fk("User.id", "CASCADE"), index=True)
     cycle: Mapped[ReportCycle] = enum_col(ReportCycle)
@@ -186,7 +180,7 @@ class StaffKpiTarget(Base):
     setter: Mapped[User] = relationship(foreign_keys=[set_by])
 
 
-class RecruiterNote(Base):
+class RecruiterNote(SoftDeletable, Base):
     """A Country Supervisor's one-way note to one of their recruiters."""
 
     __tablename__ = "RecruiterNote"

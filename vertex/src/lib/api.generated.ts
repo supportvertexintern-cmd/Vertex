@@ -1719,8 +1719,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Job
-         * @description Its stages go with it; applications and payments for it are removed
-         *     by Postgres (CASCADE). A job a partner submission or a recorded payment
+         * @description Its stages, applications and payments go with it (soft delete,
+         *     app/db/soft_delete.py). A job a partner submission or a recorded payment
          *     still points to is a 409.
          */
         delete: operations["delete_job_api_v1_jobs__job_id__delete"];

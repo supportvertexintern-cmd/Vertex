@@ -2,24 +2,23 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, fk, flag, pk, updated_at_col
 from app.models.identity import Country
 
 
-class Sector(Base):
+class Sector(SoftDeletable, Base):
     """Admin-managed "type of work" taxonomy (CIF §1)."""
 
     __tablename__ = "Sector"
 
     id: Mapped[str] = pk()
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column()
     created_at: Mapped[datetime] = created_at_col()
 
 
-class DocumentRequirementType(Base):
+class DocumentRequirementType(SoftDeletable, Base):
     """Admin-managed document taxonomy. `key` is the stable identifier stored
     on Document.type, CountryDocumentRequirement.document_type and the
     documents_available arrays; is_universal marks the cv/passport/
@@ -35,10 +34,8 @@ class DocumentRequirementType(Base):
     created_at: Mapped[datetime] = created_at_col()
 
 
-class CountryDocumentRequirement(Base):
+class CountryDocumentRequirement(SoftDeletable, Base):
     __tablename__ = "CountryDocumentRequirement"
-    __table_args__ = (UniqueConstraint("country_id", "document_type"),)
-
     id: Mapped[str] = pk()
     country_id: Mapped[str] = mapped_column(fk("Country.id", "CASCADE"), index=True)
     document_type: Mapped[str] = mapped_column(fk("DocumentRequirementType.key", "CASCADE"))
@@ -48,7 +45,7 @@ class CountryDocumentRequirement(Base):
     requirement_type: Mapped[DocumentRequirementType] = relationship()
 
 
-class SystemSetting(Base):
+class SystemSetting(SoftDeletable, Base):
     __tablename__ = "SystemSetting"
 
     key: Mapped[str] = mapped_column(primary_key=True)
@@ -57,7 +54,7 @@ class SystemSetting(Base):
     updated_at: Mapped[datetime] = updated_at_col()
 
 
-class KnowledgeArticle(Base):
+class KnowledgeArticle(SoftDeletable, Base):
     __tablename__ = "KnowledgeArticle"
 
     id: Mapped[str] = pk()
@@ -68,7 +65,7 @@ class KnowledgeArticle(Base):
     updated_at: Mapped[datetime] = updated_at_col()
 
 
-class EmailTemplate(Base):
+class EmailTemplate(SoftDeletable, Base):
     __tablename__ = "EmailTemplate"
 
     event: Mapped[str] = mapped_column(primary_key=True)  # e.g. "job_applied"

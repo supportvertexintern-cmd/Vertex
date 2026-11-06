@@ -11,6 +11,8 @@ as its value; a missing relation is null. full() is every column.
 
 from __future__ import annotations
 
+from app.db.base import SOFT_DELETE_COLUMNS
+
 import enum
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -59,7 +61,7 @@ def full(row: Any, **relations: Shape | ordered) -> dict[str, Any] | None:
     """Every column of the row (Prisma's include), plus relations."""
     if row is None:
         return None
-    return pick(row, *(c.key for c in row.__table__.columns), **relations)
+    return pick(row, *(c.key for c in row.__table__.columns if c.key not in SOFT_DELETE_COLUMNS), **relations)
 
 
 def each(shape: Shape, rows: Iterable[Any]) -> list[Any]:

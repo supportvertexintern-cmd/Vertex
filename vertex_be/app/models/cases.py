@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, created_at_col, enum_col, fk, flag, pk, updated_at_col
+from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
 from app.models.candidate import Application, Document
 from app.models.enums import (
     CaseOpsReviewStatus,
@@ -19,7 +19,7 @@ from app.models.identity import Country, User
 from app.models.jobs import JobPaymentStage
 
 
-class Case(Base):
+class Case(SoftDeletable, Base):
     """The post-approval mobility lifecycle for one Application.
 
     ops_review_* is Operations' second look at the paperwork and gates stage
@@ -28,7 +28,7 @@ class Case(Base):
     __tablename__ = "Case"
 
     id: Mapped[str] = pk()
-    application_id: Mapped[str] = mapped_column(fk("Application.id", "CASCADE"), unique=True)
+    application_id: Mapped[str] = mapped_column(fk("Application.id", "CASCADE"))
     current_stage: Mapped[CaseStage] = enum_col(
         CaseStage, default=CaseStage.registration_document_submission, index=True
     )
@@ -69,7 +69,7 @@ class Case(Base):
     )
 
 
-class CaseStageEvent(Base):
+class CaseStageEvent(SoftDeletable, Base):
     __tablename__ = "CaseStageEvent"
 
     id: Mapped[str] = pk()
@@ -85,7 +85,7 @@ class CaseStageEvent(Base):
     owner: Mapped[User | None] = relationship()
 
 
-class CaseReminder(Base):
+class CaseReminder(SoftDeletable, Base):
     """Manual, staff-triggered nudge. The row itself is the audit record."""
 
     __tablename__ = "CaseReminder"
@@ -102,11 +102,11 @@ class CaseReminder(Base):
     sender: Mapped[User] = relationship()
 
 
-class RetentionFollowUp(Base):
+class RetentionFollowUp(SoftDeletable, Base):
     __tablename__ = "RetentionFollowUp"
 
     id: Mapped[str] = pk()
-    case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"), unique=True)
+    case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"))
     due_at: Mapped[datetime]  # +90 days from departure/arrival completion
     completed_at: Mapped[datetime | None]
     notes: Mapped[str | None]
@@ -114,7 +114,7 @@ class RetentionFollowUp(Base):
     case: Mapped[Case] = relationship(back_populates="retention_follow_up")
 
 
-class CasePayment(Base):
+class CasePayment(SoftDeletable, Base):
     """One collected (or Stripe-link-pending) installment against a Job
     payment stage. Manually recorded rows default to "collected"; a
     generated Stripe Payment Link row starts "pending" until the webhook."""
@@ -146,14 +146,14 @@ class CasePayment(Base):
     recorder: Mapped[User] = relationship()
 
 
-class Contract(Base):
+class Contract(SoftDeletable, Base):
     """Generated contract + simple electronic signature (typed name +
     authenticated session + timestamp + IP)."""
 
     __tablename__ = "Contract"
 
     id: Mapped[str] = pk()
-    case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"), unique=True)
+    case_id: Mapped[str] = mapped_column(fk("Case.id", "CASCADE"))
     content: Mapped[str]
     status: Mapped[ContractStatus] = enum_col(ContractStatus, default=ContractStatus.draft)
     signed_by_name: Mapped[str | None]
@@ -167,7 +167,7 @@ class Contract(Base):
     creator: Mapped[User] = relationship()
 
 
-class FeePolicy(Base):
+class FeePolicy(SoftDeletable, Base):
     """Admin-configurable milestone-payment policy (FR-4.5). country_id null
     is the global default; a country row overrides it."""
 

@@ -28,7 +28,7 @@ from sqlalchemy import (
     true,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
-from sqlalchemy.orm import DeclarativeBase, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 NAMING_CONVENTION = {
     "pk": "%(table_name)s_pkey",
@@ -49,6 +49,17 @@ class Base(DeclarativeBase):
         dict[str, Any]: JSONB(),
     }
 
+
+class SoftDeletable:
+    """A row that is never really deleted (app/db/soft_delete.py). Neither
+    column is part of any API response or export: see SOFT_DELETE_COLUMNS."""
+
+    deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # The links this delete cleared, {"Table.column": [row ids]}, for a restore.
+    deleted_links: Mapped[dict[str, Any] | None] = mapped_column(nullable=True)
+
+
+SOFT_DELETE_COLUMNS = frozenset({"deleted_at", "deleted_links"})
 
 _BASE36 = string.digits + string.ascii_lowercase
 

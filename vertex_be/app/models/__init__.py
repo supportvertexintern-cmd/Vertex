@@ -41,6 +41,10 @@ from app.models.reporting import (
     StaffScorecardArea,
 )
 
+# After every table: these look them up, and turn soft delete on.
+import app.db.soft_delete  # noqa: E402, F401
+import app.models.live_unique  # noqa: E402, F401
+
 __all__ = [
     "Application",
     "AuditLog",

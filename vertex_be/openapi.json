@@ -24705,7 +24705,7 @@
   },
   "/api/v1/jobs/{job_id}": {
    "delete": {
-    "description": "Its stages go with it; applications and payments for it are removed\nby Postgres (CASCADE). A job a partner submission or a recorded payment\nstill points to is a 409.",
+    "description": "Its stages, applications and payments go with it (soft delete,\napp/db/soft_delete.py). A job a partner submission or a recorded payment\nstill points to is a 409.",
     "operationId": "delete_job_api_v1_jobs__job_id__delete",
     "parameters": [
      {

@@ -544,8 +544,8 @@ def update_job(
 
 @router.delete("/jobs/{job_id}")
 def delete_job(job_id: str, db: AuditedDb, _user: JobManager) -> Data[dict[str, str]]:
-    """Its stages go with it; applications and payments for it are removed
-    by Postgres (CASCADE). A job a partner submission or a recorded payment
+    """Its stages, applications and payments go with it (soft delete,
+    app/db/soft_delete.py). A job a partner submission or a recorded payment
     still points to is a 409."""
     job = _job_or_404(db, job_id)
     with _writing(db):

@@ -15,6 +15,96 @@
 DROP TABLE IF EXISTS pg_temp.readonly_columns;
 CREATE TEMP TABLE readonly_columns (tbl text, col text, decision text CHECK (decision IN ('grant', 'exclude')));
 INSERT INTO readonly_columns (tbl, col, decision) VALUES
+  ('Application', 'deleted_at', 'grant'),   -- business timestamp
+  ('Application', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Campaign', 'deleted_at', 'grant'),   -- business timestamp
+  ('Campaign', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CampaignTarget', 'deleted_at', 'grant'),   -- business timestamp
+  ('CampaignTarget', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Candidate', 'deleted_at', 'grant'),   -- business timestamp
+  ('Candidate', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CandidateMessage', 'deleted_at', 'grant'),   -- business timestamp
+  ('CandidateMessage', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Case', 'deleted_at', 'grant'),   -- business timestamp
+  ('Case', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CasePayment', 'deleted_at', 'grant'),   -- business timestamp
+  ('CasePayment', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CaseReminder', 'deleted_at', 'grant'),   -- business timestamp
+  ('CaseReminder', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CaseStageEvent', 'deleted_at', 'grant'),   -- business timestamp
+  ('CaseStageEvent', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ConsultationBooking', 'deleted_at', 'grant'),   -- business timestamp
+  ('ConsultationBooking', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Contract', 'deleted_at', 'grant'),   -- business timestamp
+  ('Contract', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Country', 'deleted_at', 'grant'),   -- business timestamp
+  ('Country', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('CountryDocumentRequirement', 'deleted_at', 'grant'),   -- business timestamp
+  ('CountryDocumentRequirement', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Document', 'deleted_at', 'grant'),   -- business timestamp
+  ('Document', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('DocumentRequirementType', 'deleted_at', 'grant'),   -- business timestamp
+  ('DocumentRequirementType', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('EmailTemplate', 'deleted_at', 'grant'),   -- business timestamp
+  ('EmailTemplate', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('EmployerClient', 'deleted_at', 'grant'),   -- business timestamp
+  ('EmployerClient', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ExceptionCorrectiveAction', 'deleted_at', 'grant'),   -- business timestamp
+  ('ExceptionCorrectiveAction', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Exception', 'deleted_at', 'grant'),   -- business timestamp
+  ('Exception', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('FeePolicy', 'deleted_at', 'grant'),   -- business timestamp
+  ('FeePolicy', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('InhouseCountryAssignment', 'deleted_at', 'grant'),   -- business timestamp
+  ('InhouseCountryAssignment', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Job', 'deleted_at', 'grant'),   -- business timestamp
+  ('Job', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('JobMilestonePrice', 'deleted_at', 'grant'),   -- business timestamp
+  ('JobMilestonePrice', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('JobPaymentStage', 'deleted_at', 'grant'),   -- business timestamp
+  ('JobPaymentStage', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('JobPosition', 'deleted_at', 'grant'),   -- business timestamp
+  ('JobPosition', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('JobSector', 'deleted_at', 'grant'),   -- business timestamp
+  ('JobSector', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('KnowledgeArticle', 'deleted_at', 'grant'),   -- business timestamp
+  ('KnowledgeArticle', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Partner', 'deleted_at', 'grant'),   -- business timestamp
+  ('Partner', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('PartnerCandidate', 'deleted_at', 'grant'),   -- business timestamp
+  ('PartnerCandidate', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Payment', 'deleted_at', 'grant'),   -- business timestamp
+  ('Payment', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('RecruiterNote', 'deleted_at', 'grant'),   -- business timestamp
+  ('RecruiterNote', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('RecruiterTarget', 'deleted_at', 'grant'),   -- business timestamp
+  ('RecruiterTarget', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ReferralAgent', 'deleted_at', 'grant'),   -- business timestamp
+  ('ReferralAgent', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ReferralAgentTarget', 'deleted_at', 'grant'),   -- business timestamp
+  ('ReferralAgentTarget', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ReferralCommission', 'deleted_at', 'grant'),   -- business timestamp
+  ('ReferralCommission', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ReferralCommissionRule', 'deleted_at', 'grant'),   -- business timestamp
+  ('ReferralCommissionRule', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Region', 'deleted_at', 'grant'),   -- business timestamp
+  ('Region', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Report', 'deleted_at', 'grant'),   -- business timestamp
+  ('Report', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('RetentionFollowUp', 'deleted_at', 'grant'),   -- business timestamp
+  ('RetentionFollowUp', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('Sector', 'deleted_at', 'grant'),   -- business timestamp
+  ('Sector', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('StaffKpiTarget', 'deleted_at', 'grant'),   -- business timestamp
+  ('StaffKpiTarget', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('StaffScorecard', 'deleted_at', 'grant'),   -- business timestamp
+  ('StaffScorecard', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('StaffScorecardArea', 'deleted_at', 'grant'),   -- business timestamp
+  ('StaffScorecardArea', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('SystemSetting', 'deleted_at', 'grant'),   -- business timestamp
+  ('SystemSetting', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('User', 'deleted_at', 'grant'),   -- business timestamp
+  ('User', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
   ('Application', 'id',                                     'grant'),   -- identifier/link
   ('Application', 'candidate_id',                           'grant'),   -- identifier/link
   ('Application', 'job_id',                                 'grant'),   -- identifier/link
