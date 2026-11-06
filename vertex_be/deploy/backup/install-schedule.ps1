@@ -51,6 +51,8 @@ $monthly = New-ScheduledTaskTrigger -Weekly -WeeksInterval 4 -DaysOfWeek Sunday 
 Register-VertexTask "Restore drill vertex-dev" `
     "bash deploy/backup/restore-drill.sh vertex-dev >> $LogsPosix/restore-drill-vertex-dev.log 2>&1" $monthly 1
 
+$now = Get-Date
+
 # E5: hourly health check (stale backups, stale off-site copy, overdue
 # drill → alert email + audit row).
 $hourly = New-ScheduledTaskTrigger -Once -At $now.Date.AddHours($now.Hour + 1) -RepetitionInterval (New-TimeSpan -Hours 1)

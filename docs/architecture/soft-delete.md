@@ -29,20 +29,39 @@ The code is `vertex_be/app/db/soft_delete.py`. Routes keep calling `db.delete()`
 - **Files:** stored files are kept, including the old file when an upload replaces one. The only file removed is that of an upload that failed to save.
 - **Safety net:** a real `DELETE` of a protected row raises `HardDeleteRefused`, so a path these hooks miss fails loudly instead of destroying data. Bulk deletes on audited tables were already refused.
 
+## Restoring
+
+Admin only, audited as `restore`. There's no website screen yet.
+
+| Route | What it does |
+|---|---|
+| `GET /api/admin/deleted?table=&limit=` | The most recently deleted records, newest first, of one table or all (up to 200) |
+| `POST /api/admin/deleted/{table}/{id}/restore` | Brings the record back |
+
+FastAPI's own routes are `/api/v1/deleted` and `/api/v1/deleted/{table}/{id}/restore`.
+
+- **What comes back:** the record and what its delete cascaded to, matched by the same `deleted_at`. Something deleted earlier, on its own, stays deleted.
+- **Links:** those its delete cleared are put back only where still empty, so a candidate reassigned since stays with its new recruiter.
+- **Refused with a 409:**
+  - `needs_restore_first`: a record it needs is still deleted. The message names it.
+  - `unique_taken`: a live record now has the same email, name or other unique value.
+  - `replaced`: a newer document of the same type has replaced this one.
+- **Sessions:** they don't come back. A restored user signs in again.
+
 ## Exceptions
 
 | What | Why |
 |---|---|
 | `AuditLog` | Already append-only. |
 | `RefreshToken` | Its rows are credentials. A deleted user's sessions really end, and a restored user signs in again. |
-| `DocumentRequirementType.key` | Foreign keys point at it, and a partial index can't back a foreign key. A deleted type's key stays taken, so it can't be re-created under the same key. |
+| `DocumentRequirementType.key` | Foreign keys point at it, and a partial index can't back a foreign key. A deleted type's key stays taken, so it can't be re-created under the same key; restore it instead. |
 | Seeds and e2e fixtures | `purge()` goes straight to the connection to clear local test data. Never used by the app. |
 
 ## What sees deleted rows
 
 | Where | Deleted rows? |
 |---|---|
-| API responses | No, and the two new columns are never in a response. The OpenAPI schema is unchanged. |
+| API responses | No, and the two new columns are never in a response. The existing routes' schemas are unchanged. |
 | Backup export (`app/services/backup.py`) | No. It reads tables directly, so it filters for itself. |
 | Encrypted backups (`pg_dump`) | Yes. They hold the whole database. |
 | pgAdmin (`vertex_readonly`) | Yes. `deleted_at` is readable and `deleted_links` isn't, so a query must filter on `deleted_at` itself. |

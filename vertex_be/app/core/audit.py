@@ -42,7 +42,7 @@ from app.core.auth import AuthUser, current_user
 from app.core.logging import REDACTED, log_event, redact, request_id_var
 from app.db.base import new_id
 from app.db.session import engine, get_db
-from app.db.soft_delete import SOFT_DELETED
+from app.db.soft_delete import RESTORED, SOFT_DELETED
 from app.models.audit import AuditLog
 
 AUDITED_MODELS: frozenset[str] = frozenset(
@@ -176,10 +176,10 @@ def _entity_id(obj: Any) -> str:
 @event.listens_for(Session, "after_flush")
 def _record_changes(db: Session, _flush_context: Any) -> None:
     # A soft delete is an update to the database and a delete to everyone else.
-    soft_deleted = db.info.get(SOFT_DELETED, {})
+    soft_deleted, restored = db.info.get(SOFT_DELETED, {}), db.info.get(RESTORED, {})
     changes = (
         [("create", o) for o in db.new]
-        + [("delete" if id(o) in soft_deleted else "update", o) for o in db.dirty]
+        + [("delete" if id(o) in soft_deleted else "restore" if id(o) in restored else "update", o) for o in db.dirty]
         + [("delete", o) for o in db.deleted]
     )
     rows = []
@@ -187,7 +187,7 @@ def _record_changes(db: Session, _flush_context: Any) -> None:
         table = _table(obj)
         if table not in AUDITED_MODELS:
             continue
-        if action == "update" and not db.is_modified(obj, include_collections=False):
+        if action in ("update", "restore") and not db.is_modified(obj, include_collections=False):
             continue
         if _ACTOR not in db.info:
             raise AuditActorMissing(f"{action} on {table} with no audit actor: use AuditedDb or set_audit_actor()")

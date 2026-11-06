@@ -1238,6 +1238,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deleted": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Deleted
+         * @description The most recently deleted records, newest first, of one table or all.
+         */
+        get: operations["list_deleted_api_v1_deleted_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deleted/{table}/{row_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Deleted
+         * @description The record and everything deleted with it come back, and the links its
+         *     delete cleared are put back where they're still empty. Refused if a record
+         *     it needs is still deleted, or a unique value has been taken since. A user's
+         *     sessions ended for good, so they sign in again. Its stored files were kept.
+         */
+        post: operations["restore_deleted_api_v1_deleted__table___row_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/document-types": {
         parameters: {
             query?: never;
@@ -4816,6 +4859,10 @@ export interface components {
         Data_ReportRow_: {
             data: components["schemas"]["ReportRow"];
         };
+        /** Data[Restored] */
+        Data_Restored_: {
+            data: components["schemas"]["Restored"];
+        };
         /** Data[RetentionRow] */
         Data_RetentionRow_: {
             data: components["schemas"]["RetentionRow"];
@@ -4916,6 +4963,11 @@ export interface components {
         Data_list_CountryWithRegion__: {
             /** Data */
             data: components["schemas"]["CountryWithRegion"][];
+        };
+        /** Data[list[DeletedRow]] */
+        Data_list_DeletedRow__: {
+            /** Data */
+            data: components["schemas"]["DeletedRow"][];
         };
         /** Data[list[DocumentTypeOut]] */
         Data_list_DocumentTypeOut__: {
@@ -5044,6 +5096,17 @@ export interface components {
         Deleted: {
             /** Id */
             id: string;
+        };
+        /** DeletedRow */
+        DeletedRow: {
+            /** Deleted At */
+            deleted_at: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string | null;
+            /** Table */
+            table: string;
         };
         /**
          * DocumentRow
@@ -7128,6 +7191,15 @@ export interface components {
             password: string;
             /** Token */
             token: string;
+        };
+        /** Restored */
+        Restored: {
+            /** Id */
+            id: string;
+            /** Restored */
+            restored: number;
+            /** Table */
+            table: string;
         };
         /** RetentionIn */
         RetentionIn: {
@@ -10710,6 +10782,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_list_RequirementOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_deleted_api_v1_deleted_get: {
+        parameters: {
+            query?: {
+                table?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_DeletedRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_deleted_api_v1_deleted__table___row_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                table: string;
+                row_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Restored_"];
                 };
             };
             /** @description Validation Error */

@@ -35,10 +35,15 @@ from app.core.clock import utc_now_ms
 from app.db.base import Base, SoftDeletable
 
 SOFT_DELETED = "soft_deleted_objects"
+RESTORED = "restored_objects"
 
 
 class HardDeleteRefused(RuntimeError):
     pass
+
+
+class RestoreRefused(Exception):
+    """A record this one needs is still deleted: restore that first."""
 
 
 class _StillReferenced(Exception):
@@ -133,6 +138,7 @@ def _forget_soft_deleted(db: Session, _context: Any) -> None:
     for obj in db.info.pop(SOFT_DELETED, {}).values():
         if obj in db:
             db.expunge(obj)
+    db.info.pop(RESTORED, None)
 
 
 @event.listens_for(SoftDeletable, "before_delete", propagate=True)
@@ -140,3 +146,69 @@ def _refuse_hard_delete(_mapper: Mapper[Any], _connection: Any, target: Any) -> 
     raise HardDeleteRefused(
         f"{type(target).__name__} is soft deleted: call db.delete(row), and don't drop it from a collection"
     )
+
+
+def _deleted_together(db: Session, obj: Any, at: Any, rows: dict[Any, None]) -> None:
+    """obj, and what its delete cascaded to: the same deleted_at. A row deleted
+    earlier, on its own, was a separate delete and stays deleted."""
+    if obj in rows:
+        return
+    rows[obj] = None
+    mapper = inspect(obj).mapper
+    for key, child_mapper in _referencing(mapper.local_table):
+        child = child_mapper.class_
+        if (key.ondelete or "").upper() != "CASCADE" or not issubclass(child, SoftDeletable):
+            continue
+        value = getattr(obj, mapper.get_property_by_column(key.column).key)
+        attr = child_mapper.get_property_by_column(key.parent).key
+        found = select(child).where(getattr(child, attr) == value, child.deleted_at == at)
+        for row in db.scalars(found.execution_options(include_deleted=True)).all():
+            _deleted_together(db, row, at, rows)
+
+
+def _refuse_if_a_parent_is_deleted(db: Session, rows: dict[Any, None]) -> None:
+    for obj in rows:
+        mapper = inspect(obj).mapper
+        for key in mapper.local_table.foreign_keys:
+            value = getattr(obj, mapper.get_property_by_column(key.parent).key)
+            target = next((m for m in Base.registry.mappers if m.local_table is key.column.table), None)
+            if value is None or target is None or not issubclass(target.class_, SoftDeletable):
+                continue
+            column = target.get_property_by_column(key.column).key
+            found = select(target.class_).where(getattr(target.class_, column) == value)
+            parent = db.scalar(found.execution_options(include_deleted=True))
+            if parent is not None and parent.deleted_at is not None and parent not in rows:
+                raise RestoreRefused(f"Restore the deleted {target.local_table.name} ({parent.id}) that it needs first.")
+
+
+def _put_links_back(db: Session, obj: Any) -> None:
+    """Only where the link is still empty: a row reassigned since stays as it is,
+    and one deleted since stays deleted (the query leaves it out)."""
+    mapper = inspect(obj).mapper
+    for link, ids in (obj.deleted_links or {}).items():
+        table, attr = link.split(".", 1)
+        for key, child_mapper in _referencing(mapper.local_table):
+            if child_mapper.local_table.name != table or child_mapper.get_property_by_column(key.parent).key != attr:
+                continue
+            value = getattr(obj, mapper.get_property_by_column(key.column).key)
+            child = child_mapper.class_
+            for row in db.scalars(select(child).where(child_mapper.primary_key[0].in_(ids))).all():
+                if getattr(row, attr) is None:
+                    setattr(row, attr, value)
+
+
+def restore(db: Session, obj: Any) -> int:
+    """Brings obj back with everything deleted with it, and returns how many
+    rows that was. The caller commits: a unique value taken since fails there,
+    with an IntegrityError."""
+    rows: dict[Any, None] = {}
+    with db.no_autoflush:
+        _deleted_together(db, obj, obj.deleted_at, rows)
+        _refuse_if_a_parent_is_deleted(db, rows)
+        for row in rows:
+            _put_links_back(db, row)
+    for row in rows:
+        row.deleted_at = None
+        row.deleted_links = None
+    db.info.setdefault(RESTORED, {}).update({id(r): r for r in rows})
+    return len(rows)
