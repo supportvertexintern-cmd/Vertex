@@ -9,7 +9,8 @@
 #
 # `db` mirrors deploy.sh: roles first (db-roles.sql), then the schema from
 # the Alembic migrations as vertex_migrator, then the roles again; the data
-# is loaded as vertex_web, the role the site uses. The Neon owner is used
+# is loaded as vertex_migrator too (the site's vertex_web can't write these
+# tables since they became FastAPI's). The Neon owner is used
 # only here, never by the site. Every run sets fresh role passwords, so run
 # `vercel-env` after it.
 set -euo pipefail
@@ -53,10 +54,11 @@ db() {
   echo "3/4 roles again (grants on the new tables)"; provision
 
   local web_url; web_url="$(as_role vertex_web "$web" "$owner")"
-  echo "4/4 data (as vertex_web): reference data, then demo data"
+  echo "4/4 data (as vertex_migrator): reference data, then demo data"
+  local mig_url; mig_url="$(as_role vertex_migrator "$mig" "$owner")"
   mkdir -p "$(dirname "$ACCOUNTS")"
-  (cd "$ROOT/vertex" && DATABASE_URL="$web_url" npx tsx prisma/seed.ts >/dev/null 2>&1 || { echo "base seed failed" >&2; exit 1; })
-  (cd "$ROOT/vertex" && DATABASE_URL="$web_url" DEMO_SEED=yes DEMO_ACCOUNTS_FILE="$ACCOUNTS" npx tsx prisma/demo-seed.ts)
+  (cd "$BE" && DATABASE_URL="$mig_url" "$PY" -m scripts.seed.reference >/dev/null 2>&1 || { echo "base seed failed" >&2; exit 1; })
+  (cd "$BE" && DATABASE_URL="$mig_url" DEMO_SEED=yes DEMO_ACCOUNTS_FILE="$ACCOUNTS" "$PY" -m scripts.seed.demo)
 
   # Serverless functions open many short connections: keep each one small.
   case "$web_url" in *"?"*) web_url="${web_url}&connection_limit=3" ;; *) web_url="${web_url}?connection_limit=3" ;; esac

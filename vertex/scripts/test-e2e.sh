@@ -3,7 +3,7 @@
 # build (`next build`, then `next start`) against throwaway services on this
 # machine, never a stack's database, bucket or mail:
 #   - Postgres (password-less), schema from the backend's Alembic migrations,
-#     then the Prisma seed;
+#     then the reference data (vertex_be/scripts/seed);
 #   - this stack's MinIO image, with a test bucket;
 #   - Mailpit, catching the invite and notification emails;
 #   - FastAPI (uvicorn) on the same database, which Next.js calls with
@@ -73,11 +73,17 @@ JWT_SECRET="$(node -e 'process.stdout.write(require("crypto").randomBytes(32).to
 SERVICE_AUTH_SECRET="$(node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))')"
 export JWT_SECRET SERVICE_AUTH_SECRET
 export BACKEND_URL="http://127.0.0.1:$API_PORT"
+# Session keys, as in CI: FastAPI signs sessions and account links with nothing
+# else. A fresh set per run, never printed.
+KEYS="$(mktemp)"
+bash ../vertex_be/deploy/session-keys.sh "$KEYS" >/dev/null
+while IFS= read -r line; do [ -z "$line" ] || export "${line%%=*}=${line#*=}"; done <"$KEYS"
+rm -f "$KEYS"
 
 PYTHON="../vertex_be/env/Scripts/python.exe"
 [ -x "$PYTHON" ] || PYTHON="../vertex_be/env/bin/python"
 (cd ../vertex_be && MIGRATION_DATABASE_URL="$DATABASE_URL" "${PYTHON#../vertex_be/}" -m alembic upgrade head)
-npx prisma db seed
+(cd ../vertex_be && "${PYTHON#../vertex_be/}" -m scripts.seed.reference)
 
 # FastAPI, as in CI's e2e job. It verifies Next.js's sessions (JWT_SECRET)
 # and service token (SERVICE_AUTH_SECRET); its log is printed if it fails.

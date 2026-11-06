@@ -231,7 +231,8 @@ jobs:
           cache-dependency-path: vertex_be/requirements.txt
       - run: pip install -r requirements.txt && alembic upgrade head
         working-directory: vertex_be
-      - run: npx prisma db seed
+      - run: python -m scripts.seed.reference
+        working-directory: vertex_be
 
       - name: Create the test bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
@@ -337,7 +338,8 @@ jobs:
           cache-dependency-path: vertex_be/requirements.txt
       - run: pip install -r requirements.txt && alembic upgrade head
         working-directory: vertex_be
-      - run: npx prisma db seed
+      - run: python -m scripts.seed.reference
+        working-directory: vertex_be
 
       # FastAPI on the same database: Next.js calls it with callBackend()
       # for the areas it owns (backend plan step 2.0). Runs in the

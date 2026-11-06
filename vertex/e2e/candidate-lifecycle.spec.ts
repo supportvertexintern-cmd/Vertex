@@ -1,12 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
-
-test.afterAll(async () => {
-  await prisma.$disconnect();
-});
+import { dbFixture } from "./db-fixture";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -75,7 +68,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByLabel("Email Address").fill(candidateEmail);
 
       // Section 1 is cascading Country → Sector → Position pickers. Jobs
-      // and their positions are seeded reference data (prisma/seed.ts);
+      // and their positions are seeded reference data (vertex_be/scripts/seed/reference.py);
       // most seeded destination countries (Belarus, Poland, etc.) carry
       // extra CountryDocumentRequirement rows beyond the universal
       // cv/passport/passport_photo set — Czech Republic is one of the
@@ -120,15 +113,7 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
     });
 
     await test.step("candidate claims their invite and creates an account (simulated — no SMTP in dev, same pattern as global-setup's other fixtures)", async () => {
-      const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });
-      const password_hash = await bcrypt.hash(PASSWORD, 12);
-      const user = await prisma.user.create({
-        data: { full_name: candidateName, email: candidateEmail, password_hash, role: "candidate", email_verified: true },
-      });
-      await prisma.candidate.update({
-        where: { id: candidate.id },
-        data: { user_id: user.id, lifecycle_status: "guided_to_apply" },
-      });
+      dbFixture("claim", candidateName, candidateEmail, PASSWORD);
     });
 
     await test.step("candidate logs in, uploads required documents, and auto-advances to submitted", async () => {

@@ -11,7 +11,7 @@ its own free cloud database (Neon). It runs on Vercel's free Hobby plan
 |---|---|
 | App | The Next.js app, built by Vercel from `main` on every merge (`vertex/vercel.json`: other branches are skipped) |
 | Database | Neon Postgres (free), schema from the Alembic migrations, like every stack. The site connects as `vertex_web`, never as the database owner |
-| Data | Invented: `prisma/demo-seed.ts` (16 accounts, one per role, candidates at different stages, cases, payments, a partner). It refuses to run on a database with any real user |
+| Data | Invented: `vertex_be/scripts/seed/demo.py` (16 accounts, one per role, candidates at different stages, cases, payments, a partner). It refuses to run on a database with any real user |
 | Accounts | Passwords in `D:\VertexData\demo\demo-accounts.txt` (outside Git). Give each customer only the accounts they need |
 | Secrets | Fresh for the demo: new role passwords and a new `JWT_SECRET`. Nothing is copied from the local stacks |
 | Not on the demo | Document uploads (no cloud bucket yet), malware scanning, email, Stripe/PayPal, the FastAPI backend (it serves no data yet) |
