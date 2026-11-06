@@ -1,9 +1,8 @@
-"""The emails FastAPI leaves due (app/api/notices.py) are each sent by exactly
-one side: FastAPI's own (app/services/emails.py, reads handover R7b) or the
-website's (NOTICE_SENDERS in vertex/src/lib/pipeline.ts), kind for kind, so
+"""The emails FastAPI leaves due (app/api/notices.py) are all sent by FastAPI
+itself since reads handover R7b (app/services/emails.py): every kind has its
+template and values, and the website no longer has senders of its own, so
 no email is silently dropped or sent twice (owner's decisions D1, D4)."""
 
-import re
 import typing
 
 from app.api import notices
@@ -18,23 +17,7 @@ def fastapi_kinds() -> set[str]:
     return {model.model_fields["kind"].default for model in typing.get_args(union)}
 
 
-def website_kinds() -> set[str]:
-    senders = re.search(r"export const NOTICE_SENDERS = \{(.*?)\n\}", PIPELINE_TS, re.S).group(1)
-    return set(re.findall(r"^  (\w+): ", senders, re.M))
-
-
-def test_every_notice_has_a_sender_and_every_sender_a_notice():
-    assert fastapi_kinds() == website_kinds() | SENT_HERE
-    assert not website_kinds() & SENT_HERE
-    assert len(fastapi_kinds()) >= 16
-
-
-def test_each_sender_reads_the_fields_its_notice_carries():
-    union = typing.get_args(notices.Notice)[0]
-    for model in typing.get_args(union):
-        kind = model.model_fields["kind"].default
-        if kind in SENT_HERE:
-            continue
-        line = re.search(rf"^  {kind}: \(n\) =>(.*?)(?=^  \w+: \(n\)|^  // eslint|\Z)", PIPELINE_TS, re.S | re.M).group(1)
-        used = set(re.findall(r"\bn\.(\w+)", line))
-        assert used <= set(model.model_fields) - {"kind"}, (kind, used - set(model.model_fields))
+def test_fastapi_sends_every_notice_and_the_website_none():
+    assert fastapi_kinds() == SENT_HERE
+    assert len(SENT_HERE) >= 27
+    assert "NOTICE_SENDERS" not in PIPELINE_TS and "sendNotices" not in PIPELINE_TS

@@ -1,11 +1,9 @@
 """The emails a pipeline write leaves due (owner's decision D1, 2026-10-29;
 docs/architecture/pipeline-handover.md §4.1). Since reads handover R7b
-(D4 A) FastAPI sends them itself, kind by kind: app/services/emails.py's
-deliver() takes the kinds it sends (SENT_HERE) out of the list. A response
-lists the rest in `notify`, next to `data`, for the website to send once
-FastAPI has answered; each names the lib/email.ts sender it's for and
-carries that sender's arguments. The website never passes `notify` on to
-the browser.
+(D4 A) FastAPI sends every kind itself: app/services/emails.py's deliver()
+renders each with the template of the lib/email.ts sender named here. A
+response still carries `notify`, next to `data`, always empty
+(tests/test_notices.py); the website never passes it on to the browser.
 """
 
 from __future__ import annotations
@@ -233,8 +231,8 @@ class MilestonePaymentLinkEmail(BaseModel):
 
 class _LinkEmail(BaseModel):
     """An email carrying a signed link (users step 8.3, D4 A): FastAPI signs
-    the token, the website builds the URL and sends it. The token is a
-    credential: the website never logs a notice's fields, only its kind."""
+    the token and sends it. The token is a credential: a notice's fields are
+    never logged, only its kind."""
 
     email: str
     full_name: str

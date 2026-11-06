@@ -778,7 +778,7 @@ export async function sendCaseReminderEmail(
 // hardcoded 3-value documentation/permit/visa shape to whatever stages the
 // Job actually defines — each stage already carries its own human label
 // and trigger stage, so there's no fixed lookup table left to maintain.
-interface MilestonePlanStage {
+export interface MilestonePlanStage {
   id: string;
   label: string;
   percent: number;
@@ -786,7 +786,8 @@ interface MilestonePlanStage {
   triggerStageLabel: string;
 }
 
-function milestonePlanRow(stage: MilestonePlanStage, position: string, isCurrent: boolean) {
+// Exported for email-templates.test.ts, which captures a row for FastAPI.
+export function milestonePlanRow(stage: MilestonePlanStage, position: string, isCurrent: boolean) {
   return `
     <tr>
       <td style="padding:10px 0;border-bottom:1px solid ${BRAND.ivory100};vertical-align:top;">

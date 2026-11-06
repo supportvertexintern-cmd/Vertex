@@ -93,7 +93,8 @@ def test_without_a_secret_stripe_is_asked_to_retry(api, monkeypatch):
     assert deliver(api, completed({"id": "cs_x", "metadata": {}})).status_code == 503
 
 
-def test_a_consultation_is_booked_once(api, db):
+def test_a_consultation_is_booked_once(api, db, monkeypatch, sent_notices, sent_mail):
+    monkeypatch.setattr(settings, "CONSULTATION_NOTIFY_EMAIL", "staff@test.invalid")
     session_id = f"cs_{secrets.token_hex(6)}"
     event = completed({
         "id": session_id, "amount_total": 7500, "currency": "eur", "payment_intent": "pi_c1",
@@ -101,27 +102,38 @@ def test_a_consultation_is_booked_once(api, db):
         "metadata": {"type": "consultation"},
     })
     res = deliver(api, event)
-    assert res.json() == {"data": {"received": True}, "notify": [{
+    assert res.json() == {"data": {"received": True}, "notify": []}  # FastAPI sends it (reads handover R7b)
+    assert sent_notices == [{
         "kind": "consultation_booked", "full_name": "Sara Booker", "email": "sara@test.invalid", "phone": "+251 911", "amount": 75.0, "currency": "EUR",
-    }]}
+    }]
+    [mail] = sent_mail
+    assert (mail.to, mail.subject) == ("staff@test.invalid", "New consultation booking — Sara Booker")
+    assert "75 EUR — Pathway Consultation" in mail.html and "+251 911" in mail.html
     again = deliver(api, event)  # Stripe delivers at least once
-    assert again.json()["notify"] == []
+    assert (again.json()["notify"], len(sent_mail)) == ([], 1)
     [booking] = db.scalars(select(ConsultationBooking).where(ConsultationBooking.stripe_checkout_session_id == session_id)).all()
     assert (booking.stripe_payment_intent_id, booking.amount) == ("pi_c1", 75.0)
     assert db.scalars(select(AuditLog.actor_id).where(AuditLog.entity_id == booking.id)).all() == [None]  # audited, by the system
 
 
-def test_an_application_fee_by_card_is_recorded_once_with_a_receipt(api, db, job):
+def test_an_application_fee_by_card_is_recorded_once_with_a_receipt(api, db, job, sent_notices, sent_mail):
     user, _ = person(db, Role.candidate)
     intent = f"pi_{secrets.token_hex(6)}"
     event = completed({"id": "cs_fee", "amount_total": 4950, "payment_intent": intent, "metadata": {"userId": user.id, "jobId": job.id, "jobTitle": "Care worker"}})
-    notice = deliver(api, event).json()["notify"][0]
+    assert deliver(api, event).json()["notify"] == []
+    [notice] = sent_notices
     payment = db.scalar(select(Payment).where(Payment.transaction_id == intent))
     assert (payment.amount, payment.payment_method, payment.payment_status) == (49.5, "stripe", PaymentStatus.completed)
     assert {k: notice[k] for k in ("kind", "payment_id", "email", "job_title", "amount", "transaction_id")} == {
         "kind": "payment_receipt", "payment_id": payment.id, "email": user.email, "job_title": "Care worker", "amount": 49.5, "transaction_id": intent,
     }
+    [mail] = sent_mail
+    assert (mail.to, mail.subject) == (user.email, "Payment Receipt - Vertex International")
+    assert "<strong>$49.50</strong>" in mail.html and "Care worker" in mail.html
+    [pdf] = mail.attachments
+    assert (pdf.filename, pdf.content_type, pdf.content[:5]) == (f"Receipt_{payment.id[:8]}.pdf", "application/pdf", b"%PDF-")
     assert deliver(api, event).json()["notify"] == []
+    assert len(sent_mail) == 1
     assert len(db.scalars(select(Payment).where(Payment.transaction_id == intent)).all()) == 1
 
 
@@ -187,7 +199,7 @@ def fake_paypal(monkeypatch):
     return fake
 
 
-def test_a_fee_is_ordered_captured_and_recorded(api, db, job, fake_paypal):
+def test_a_fee_is_ordered_captured_and_recorded(api, db, job, fake_paypal, sent_notices, sent_mail):
     user, session = person(db, Role.candidate)
     order = api.post("/api/v1/payments/paypal/orders", headers=session, json={"jobId": job.id})
     order_id = order.json()["data"]["id"]
@@ -198,7 +210,7 @@ def test_a_fee_is_ordered_captured_and_recorded(api, db, job, fake_paypal):
     assert res.status_code == 200
     data = res.json()["data"]
     assert (data["payment_method"], data["amount"], data["transaction_id"], data["user_id"]) == ("paypal", 49.5, f"CAP-{order_id}", user.id)
-    assert res.json()["notify"][0]["kind"] == "payment_receipt"
+    assert (res.json()["notify"], [n["kind"] for n in sent_notices], [m.to for m in sent_mail]) == ([], ["payment_receipt"], [user.email])
     assert db.scalars(select(AuditLog.actor_id).where(AuditLog.entity_id == data["id"])).all() == [user.id]
 
 

@@ -8,8 +8,8 @@ amount comes from the ReferralCommissionRule for their country and that
 milestone. A milestone with no rule, or a zero amount, is recorded as paid
 £0, so it still counts on the agent's dashboard.
 
-The website sends the "commission earned" email (owner's decision D1, 2026-
-10-29), so a commission worth paying is returned for the caller to pass on.
+A commission worth paying is returned for the caller to list as a "commission
+earned" email, which app/services/emails.py sends (reads handover R7b).
 """
 
 from __future__ import annotations

@@ -7,8 +7,8 @@ and forgot and reset password. They replace the work of Next.js's
 prefill too, since step 8.5).
 
 They answer as those routes did: the same messages and status codes. The
-website keeps the per-address rate limits and sends the emails each answer
-lists in `notify` (D4 A): FastAPI signs the links. Nobody is signed in, so
+website keeps the per-address rate limits; FastAPI signs the links and
+sends the emails (D4 A, reads handover R7b). Nobody is signed in, so
 only the website may call them (calling_service).
 
 What changes (users-handover.md §6):

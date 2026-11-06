@@ -84,9 +84,11 @@ class Settings(BaseSettings):
     # in the emails FastAPI sends (reads handover R7b).
     APP_URL: str = "http://localhost:3000"
     # Staff notifications (the website's settings of the same names): a partner's
-    # submission, and a new referral agent. Unset = not sent, as before.
+    # submission, a new referral agent, a consultation booked. Unset = not
+    # sent, as before.
     PARTNER_SUBMISSION_NOTIFY_EMAIL: str | None = None
     REFERRAL_AGENT_NOTIFY_EMAIL: str | None = None
+    CONSULTATION_NOTIFY_EMAIL: str | None = None
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None

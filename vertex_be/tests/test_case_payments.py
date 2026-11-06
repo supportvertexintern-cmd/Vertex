@@ -179,7 +179,7 @@ def test_recording_is_refused_when_it_should_be(api, db, world):
 # --- payment links -------------------------------------------------------------
 
 
-def test_a_payment_link_is_created_on_the_stage_price_and_emailed(api, db, world, links):
+def test_a_payment_link_is_created_on_the_stage_price_and_emailed(api, db, world, links, sent_notices, sent_mail):
     res = api.post(f"{URL}/{world['case'].id}/payments/link", headers=world["director"], json={"job_payment_stage_id": world["deposit"].id, "recipient": "candidate"})
     assert res.status_code == 201
     body = res.json()
@@ -189,7 +189,8 @@ def test_a_payment_link_is_created_on_the_stage_price_and_emailed(api, db, world
         "pending", 400, "GBP", "plink_1", world["account"].email,
     )
     assert links.created == [{"price": "price_1", "metadata": {"case_id": world["case"].id, "job_payment_stage_id": world["deposit"].id}}]
-    assert body["notify"] == [{
+    assert body["notify"] == []  # FastAPI sends it (reads handover R7b)
+    assert sent_notices == [{
         "kind": "milestone_payment_link", "email": world["account"].email, "recipient_name": world["account"].full_name,
         "candidate_name": world["account"].full_name, "programme_title": "Care worker", "payment_url": "https://buy.stripe.test/1",
         "current_stage_id": world["deposit"].id,
@@ -198,10 +199,18 @@ def test_a_payment_link_is_created_on_the_stage_price_and_emailed(api, db, world
             {"id": world["balance"].id, "label": "Balance", "percent": 60, "amount": 600, "trigger_stage": "visa_interview_decision"},
         ],
     }]
+    [mail] = sent_mail
+    assert (mail.to, mail.subject) == (world["account"].email, f"Deposit due for {world['account'].full_name} — Vertex International")
+    assert 'href="https://buy.stripe.test/1"' in mail.html and "Deposit — 400 GBP" in mail.html
+    # The whole plan, a row a stage, the current one due now.
+    assert all(row in mail.html for row in ("Stage 1 of 2 · 40%", "Stage 2 of 2 · 60%", "600 GBP"))
+    assert "Due from: Embassy Interview &amp; Visa Decision" in mail.html
+    assert (mail.html.count("Due now"), mail.html.count("Upcoming")) == (1, 1)
     assert actions(db, payment["id"]) == ["create"]
 
     to_partner = api.post(f"{URL}/{world['case'].id}/payments/link", headers=world["finance"], json={"job_payment_stage_id": world["deposit"].id, "recipient": "partner"}).json()
-    assert (to_partner["data"]["payment"]["sent_to_email"], to_partner["notify"][0]["recipient_name"]) == (world["partner"].contact_email, "Pat")
+    assert (to_partner["data"]["payment"]["sent_to_email"], sent_notices[1]["recipient_name"]) == (world["partner"].contact_email, "Pat")
+    assert sent_mail[1].to == world["partner"].contact_email
 
 
 def test_payment_links_are_refused_when_they_should_be(api, db, world, links):
