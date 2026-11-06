@@ -4,14 +4,19 @@ A write lists its emails in `notify` (app/api/notices.py). `deliver()`
 renders them and sends them off the request, as the website's
 `after(() => sendNotices(...))` did. Since R7b's third batch every kind is
 sent here; `deliver()` still returns any kind it doesn't send, and
-tests/test_notices.py checks there is none.
+tests/test_notices.py checks there is none. The emails a request exists to
+send (the contact form, the CIF and its confirmation, a case invoice) are
+built by the *_mail functions below and sent with send_now(), which raises,
+so the request can say it failed.
 
-The templates are lib/email.ts's own, captured by the website's
-src/lib/email-templates.test.ts into app/assets/email_templates.json, each
-with the `{{name}}` placeholders its EmailTemplate override (by `event`)
-uses. Values are HTML-escaped into the body, unlike lib/email.ts, which put
+The templates are lib/email.ts's own, captured from it into
+app/assets/email_templates.json (until R7b removed lib/email.ts, by the
+website's email-templates.test.ts), each with the `{{name}}` placeholders
+its EmailTemplate override (by `event`) uses. The file is the templates'
+source now. Values are HTML-escaped into the body, unlike lib/email.ts, which put
 them in as they came; the only HTML put in as it is is built here from the
-template's own `parts` (the payment plan's rows), its values escaped. A link
+template's own `parts` (the payment plan's rows, the CIF's rows), its values
+escaped. A link
 is a credential: nothing here logs a notice's fields, only its kind.
 """
 
@@ -55,6 +60,7 @@ class Mail:
     subject: str
     html: str
     attachments: tuple[Attachment, ...] = ()
+    reply_to: str | None = None
 
 
 def _url(path: str) -> str:
@@ -216,6 +222,8 @@ VALUES: dict[str, Callable[[BaseModel], Filled]] = {
     "payment_receipt": _receipt,
 }
 SENT_HERE = frozenset(VALUES)
+# The templates sent straight from a request, not as a notice.
+DIRECT = frozenset({"contact", "public_intake", "public_intake_confirmation", "case_invoice"})
 
 
 def _fill(text: str, values: dict[str, str], *, escape: bool, raw: dict[str, str] | None = None) -> str:
@@ -258,12 +266,95 @@ def _in_background(send: Callable[[], None]) -> None:
 dispatch: Callable[[Callable[[], None]], None] = _in_background
 
 
+def _transmit(mail: Mail) -> None:
+    """Sends one email over SMTP; raises if it can't (no SMTP_HOST included)."""
+    if not send_mail([mail.to], mail.subject, mail.html, html=True, attachments=mail.attachments, reply_to=mail.reply_to):
+        raise RuntimeError("SMTP isn't configured")
+
+
 def _send(mails: list[Mail]) -> None:
     for mail in mails:
         try:
-            send_mail([mail.to], mail.subject, mail.html, html=True, attachments=mail.attachments)
+            _transmit(mail)
         except Exception as err:  # noqa: BLE001 - one failure doesn't stop the rest
             log_event(logging.ERROR, "email.send_failed", kind=mail.kind, error=type(err).__name__)
+
+
+def send_now(mail: Mail) -> bool:
+    """Sends in the request, for an email the request exists to send: False
+    (logged by kind) if it didn't go, so the caller can say so."""
+    try:
+        _transmit(mail)
+        return True
+    except Exception as err:  # noqa: BLE001 - the caller answers 502
+        log_event(logging.ERROR, "email.send_failed", kind=mail.kind, error=type(err).__name__)
+        return False
+
+
+def send_later(mail: Mail) -> None:
+    """Sends off the request, a failure logged (the CIF's confirmation)."""
+    dispatch(lambda: _send([mail]))
+
+
+# --- the emails a request sends (R7b, batch 4) ---------------------------------
+
+
+def contact_mail(db: Session, to: str, form: BaseModel) -> Mail:
+    """sendContactMessageEmail: to PUBLIC_FORMS_NOTIFY_EMAIL, replies to the sender."""
+    values = {"name": form.name, "email": form.email, "subject": form.subject, "message": form.message,
+              "registrationNumber": form.registration_number or ""}
+    subject, body = render(db, "contact.registration" if form.registration_number else "contact.no_registration", values)
+    return Mail("contact", to, subject, body, reply_to=form.email)
+
+
+def _yes_no(flag: bool | None, details: str | None) -> str | None:
+    if flag is None:
+        return None
+    return ("Yes" if flag else "No") + (f" — {details}" if details else "")
+
+
+def intake_mail(db: Session, to: str, form: BaseModel, job_title: str, job_country: str, job_city: str) -> Mail:
+    """sendPublicIntakeEmail: the CIF as a document, a row a field, an empty
+    one left out (lib/email.ts's docField), to PUBLIC_FORMS_NOTIFY_EMAIL."""
+    parts = TEMPLATES["public_intake"]["parts"]
+    rows = {
+        "row_job": job_title,
+        "row_destination": f"{job_city}, {job_country}",
+        "row_travel": form.earliest_travel_date,
+        "row_prior_eu_visa": _yes_no(form.prior_eu_visa_applied, form.prior_eu_visa_applied_details),
+        "row_full_name": form.full_name,
+        "row_email": form.email,
+        "row_phone": form.phone,
+        "row_nationality": form.nationality,
+        "row_passport": form.passport_number,
+        "row_location": form.current_location_country_name,
+        "row_schengen": _yes_no(form.holds_schengen_visa, form.holds_schengen_visa_details),
+        "row_refusals": _yes_no(form.prior_visa_refusals, form.prior_visa_refusals_details),
+        "row_embassy": _yes_no(form.available_for_embassy_appointment, None),
+        "row_start": _yes_no(form.willing_to_start_within_30_days, None),
+        "row_contact_channel": form.preferred_contact_channel,
+    }
+    raw = {name: _fill(parts[name], {"value": value}, escape=True) if value else "" for name, value in rows.items()}
+    documents = form.documents_available
+    raw["documents"] = "".join(_fill(parts["document"], {"value": d}, escape=True) for d in documents) if documents else parts["no_documents"]
+    raw["notes"] = _fill(parts["notes"], {"value": form.cover_letter}, escape=True) if form.cover_letter else ""
+    subject, body = render(db, "public_intake", {"fullName": form.full_name, "jobTitle": job_title}, raw)
+    return Mail("public_intake", to, subject, body)
+
+
+def intake_confirmation_mail(db: Session, to: str, full_name: str) -> Mail:
+    subject, body = render(db, "public_intake_confirmation", {"fullName": full_name})
+    return Mail("public_intake_confirmation", to, subject, body)
+
+
+def invoice_mail(db: Session, plan: BaseModel, invoice: Attachment) -> Mail:
+    """sendCasePaymentInvoiceEmail: the uploaded invoice attached; the
+    passport and the sector are mentioned when known."""
+    variant = "_".join(x for x in ("passport" if plan.passport_number else "", "sector" if plan.sector_name else "") if x) or "plain"
+    values = {"recipientName": plan.recipient_name, "candidateName": plan.candidate_name, "passportNumber": plan.passport_number or "",
+              "programmeTitle": plan.programme_title, "sectorName": plan.sector_name or ""}
+    subject, body = render(db, f"case_invoice.{variant}", values)
+    return Mail("case_invoice", plan.recipient_email, subject, body, (invoice,))
 
 
 def _mail(db: Session, notice: BaseModel) -> Mail | None:

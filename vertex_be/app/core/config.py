@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     PARTNER_SUBMISSION_NOTIFY_EMAIL: str | None = None
     REFERRAL_AGENT_NOTIFY_EMAIL: str | None = None
     CONSULTATION_NOTIFY_EMAIL: str | None = None
+    # The public contact form and CIF go here; unset, they fail (502), as
+    # there's no other record of them.
+    PUBLIC_FORMS_NOTIFY_EMAIL: str | None = None
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None

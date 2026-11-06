@@ -955,7 +955,7 @@ function docSectionHeader(num: string, title: string) {
   `;
 }
 
-function docField(label: string, value?: string | null) {
+export function docField(label: string, value?: string | null) {
   if (!value) return "";
   return `
     <tr>
@@ -977,6 +977,20 @@ function docSection(num: string, title: string, rowsHtml: string) {
   `;
 }
 
+// The CIF's document checklist and notes, apart for email-templates.test.ts.
+export function intakeDocuments(documents: string[]) {
+  return documents.length
+    ? documents.map((d) => `<div style="font-size:14px;color:${BRAND.midnight900};padding:3px 0;">✓ ${d}</div>`).join("")
+    : `<div style="font-size:13px;color:rgba(6,33,25,0.45);font-style:italic;">None selected</div>`;
+}
+
+export function intakeNotes(coverLetter?: string) {
+  return coverLetter ? `<div style="margin-bottom:4px;">
+      ${docSectionHeader("—", "Additional Notes")}
+      <p style="font-size:14px;color:${BRAND.midnight900};line-height:1.6;white-space:pre-wrap;margin:0;">${coverLetter}</p>
+    </div>` : "";
+}
+
 export async function sendPublicIntakeEmail(data: PublicIntakeEmailData) {
   const to = process.env.PUBLIC_FORMS_NOTIFY_EMAIL;
   if (!to) {
@@ -988,9 +1002,7 @@ export async function sendPublicIntakeEmail(data: PublicIntakeEmailData) {
     throw new Error("PUBLIC_FORMS_NOTIFY_EMAIL is not configured.");
   }
 
-  const documentsHtml = data.documentsAvailable.length
-    ? data.documentsAvailable.map((d) => `<div style="font-size:14px;color:${BRAND.midnight900};padding:3px 0;">✓ ${d}</div>`).join("")
-    : `<div style="font-size:13px;color:rgba(6,33,25,0.45);font-style:italic;">None selected</div>`;
+  const documentsHtml = intakeDocuments(data.documentsAvailable);
 
   const bodyHtml = `
     <div style="background:${BRAND.ivory100};border-radius:10px;padding:14px 18px;margin-bottom:28px;">
@@ -1049,10 +1061,7 @@ export async function sendPublicIntakeEmail(data: PublicIntakeEmailData) {
       ${docField("Preferred contact channel", data.preferredContactChannel)}
     `)}
 
-    ${data.coverLetter ? `<div style="margin-bottom:4px;">
-      ${docSectionHeader("—", "Additional Notes")}
-      <p style="font-size:14px;color:${BRAND.midnight900};line-height:1.6;white-space:pre-wrap;margin:0;">${data.coverLetter}</p>
-    </div>` : ""}
+    ${intakeNotes(data.coverLetter)}
   `;
 
   const html = emailLayout({

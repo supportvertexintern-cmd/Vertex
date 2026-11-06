@@ -26,13 +26,17 @@ class Attachment(NamedTuple):
     content_type: str  # "application/pdf"
 
 
-def send_mail(to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = ()) -> bool:
+def send_mail(
+    to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = (), reply_to: str | None = None
+) -> bool:
     if not settings.SMTP_HOST:
         return False
     message = EmailMessage()
     message["From"] = settings.EMAIL_FROM
     message["To"] = ", ".join(to)
     message["Subject"] = subject
+    if reply_to:
+        message["Reply-To"] = reply_to
     message.set_content(text, subtype="html" if html else "plain")
     for attachment in attachments:
         maintype, subtype = attachment.content_type.split("/", 1)

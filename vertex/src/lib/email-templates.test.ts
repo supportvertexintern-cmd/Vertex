@@ -17,6 +17,7 @@ const state = vi.hoisted(() => {
   process.env.PARTNER_SUBMISSION_NOTIFY_EMAIL = "staff@test.invalid";
   process.env.REFERRAL_AGENT_NOTIFY_EMAIL = "staff@test.invalid";
   process.env.CONSULTATION_NOTIFY_EMAIL = "staff@test.invalid";
+  process.env.PUBLIC_FORMS_NOTIFY_EMAIL = "staff@test.invalid";
   return { sent: [] as { to: string; subject: string; html: string }[], events: [] as string[] };
 });
 
@@ -66,6 +67,28 @@ const PERCENT = 987654;
 const planStage = (v: Values): email.MilestonePlanStage => ({
   id: "current", label: v.label, percent: PERCENT, amount: num(v.amount), triggerStageLabel: v.triggerStageLabel,
 });
+// The CIF's rows, each its own part filled with {{value}} (empty: left out, as docField did).
+const INTAKE_ROWS = (v: Values): [string, string, string][] => [
+  ["row_job", "Applying for", v.jobTitle],
+  ["row_destination", "Destination", `${v.jobCity}, ${v.jobCountry}`],
+  ["row_travel", "Earliest possible travel date", v.earliestTravelDate],
+  ["row_prior_eu_visa", "Previously applied for an EU visa?", `Yes — ${v.priorEuVisaAppliedDetails}`],
+  ["row_full_name", "Full name", v.fullName],
+  ["row_email", "Email address", v.email],
+  ["row_phone", "Phone number", v.phone],
+  ["row_nationality", "Nationality", v.nationality],
+  ["row_passport", "Passport number", v.passportNumber],
+  ["row_location", "Current location", v.currentLocationCountry],
+  ["row_schengen", "Holds Schengen / EU visa?", `Yes — ${v.holdsSchengenVisaDetails}`],
+  ["row_refusals", "Prior visa refusals", `Yes — ${v.priorVisaRefusalsDetails}`],
+  ["row_embassy", "Available for embassy appointment?", "Yes"],
+  ["row_start", "Willing to start within 30 days?", "Yes"],
+  ["row_contact_channel", "Preferred contact channel", v.preferredContactChannel],
+];
+const invoice = (v: Values, passport: boolean, sector: boolean) =>
+  email.sendCasePaymentInvoiceEmail(v.to, v.recipientName, v.candidateName, passport ? v.passportNumber : null, v.programmeTitle, sector ? v.sectorName : null, {
+    buffer: Buffer.from(""), filename: "i.pdf", contentType: "application/pdf",
+  });
 const consultation = (v: Values, name: boolean, phone: boolean) =>
   email.sendConsultationBookingNotification({
     fullName: name ? v.fullName : null, email: v.email, phone: phone ? v.phone : null, amount: num(v.amount), currency: v.currency,
@@ -138,6 +161,38 @@ const CASES: Record<string, Case> = {
     send: (v) => createReceiptPdf("p", v.candidateName, v.to, v.jobTitle, fixed(v.amount), "t", new Date(0)),
     plain: true,
   },
+  // Batch 4: the emails sent straight from a request (no notice).
+  "contact.registration": {
+    send: (v) => email.sendContactMessageEmail({ name: v.name, email: v.email, subject: v.subject, message: v.message, registration_number: v.registrationNumber }),
+  },
+  "contact.no_registration": { send: (v) => email.sendContactMessageEmail({ name: v.name, email: v.email, subject: v.subject, message: v.message }) },
+  public_intake: {
+    send: (v) =>
+      email.sendPublicIntakeEmail({
+        fullName: v.fullName, email: v.email, phone: v.phone, nationality: v.nationality, passportNumber: v.passportNumber,
+        jobTitle: v.jobTitle, jobCountry: v.jobCountry, jobCity: v.jobCity, earliestTravelDate: v.earliestTravelDate,
+        priorEuVisaApplied: true, priorEuVisaAppliedDetails: v.priorEuVisaAppliedDetails, documentsAvailable: [v.document],
+        currentLocationCountry: v.currentLocationCountry, holdsSchengenVisa: true, holdsSchengenVisaDetails: v.holdsSchengenVisaDetails,
+        priorVisaRefusals: true, priorVisaRefusalsDetails: v.priorVisaRefusalsDetails, availableForEmbassyAppointment: true,
+        willingToStartWithin30Days: true, preferredContactChannel: v.preferredContactChannel, coverLetter: v.coverLetter,
+      }),
+    cut: (v) => ({
+      ...Object.fromEntries(INTAKE_ROWS(v).map(([name, label, value]) => [name, email.docField(label, value)])),
+      documents: email.intakeDocuments([v.document]),
+      notes: email.intakeNotes(v.coverLetter),
+    }),
+    parts: (v) => ({
+      ...Object.fromEntries(INTAKE_ROWS(v).map(([name, label]) => [name, email.docField(label, v.value)])),
+      document: email.intakeDocuments([v.value]),
+      no_documents: email.intakeDocuments([]),
+      notes: email.intakeNotes(v.value),
+    }),
+  },
+  public_intake_confirmation: { send: (v) => email.sendPublicIntakeConfirmationEmail(v.to, v.fullName) },
+  "case_invoice.passport_sector": { send: (v) => invoice(v, true, true) },
+  "case_invoice.passport": { send: (v) => invoice(v, true, false) },
+  "case_invoice.sector": { send: (v) => invoice(v, false, true) },
+  "case_invoice.plain": { send: (v) => invoice(v, false, false) },
 };
 
 type Template = { event: string | null; subject: string; html: string; parts?: Record<string, string> };

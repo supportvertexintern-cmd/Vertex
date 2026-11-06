@@ -332,17 +332,14 @@ def verify(
 # --- opening a document ------------------------------------------------------
 
 
-@router.post("/documents/readable", response_model=Data[Readable], dependencies=[Depends(calling_service)])
-def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineWrites):
-    """assertDocumentReadable: Next.js asks before a stored file leaves the
-    server (a download, an email attachment), for a user or for itself.
-    Uploads are scanned before storage; this catches those accepted while
-    the scanner was unreachable, scanning them now. Infected is always
-    refused; unscanned and still unreachable is served (fail-open)."""
-    set_audit_actor(db, user.user_id if user else None)
-    document = db.scalar(select(Document).where(Document.storage_path == body.storage_path))
+def check_readable(db: Session, storage_path: str, actor_id: str | None) -> str | None:
+    """Before a stored file leaves the server: its scan status, scanning it
+    now if it was stored while the scanner was unreachable. Infected is
+    always refused (403 document_blocked); unscanned and still unreachable is
+    served (fail-open). None: not a candidate document."""
+    document = db.scalar(select(Document).where(Document.storage_path == storage_path))
     if document is None:
-        return {"data": {"scan_status": None}}  # not a candidate document
+        return None
     found: str | None = None  # the signature, when this scan found it
     if document.scan_status == "unscanned":
         data = storage.read_document(document.storage_path)
@@ -355,7 +352,7 @@ def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineW
                 found = result.signature
                 record_security_event(
                     "malware_blocked_download",
-                    actor_id=user.user_id if user else None,
+                    actor_id=actor_id,
                     entity_type="Document",
                     entity_id=document.id,
                     detail={"signature": result.signature},
@@ -364,4 +361,13 @@ def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineW
         # newly_found: the website alerts on a discovery, not on every refusal.
         details = {"document_id": document.id, "newly_found": found is not None, "signature": found}
         raise ApiError(403, "document_blocked", "This document is blocked: it failed a malware scan.", details)
-    return {"data": {"scan_status": document.scan_status}}
+    return document.scan_status
+
+
+@router.post("/documents/readable", response_model=Data[Readable], dependencies=[Depends(calling_service)])
+def readable(body: ReadableIn, user: OptionalUser, db: DbSession, _on: PipelineWrites):
+    """assertDocumentReadable: Next.js asks before a stored file leaves the
+    server (a download link), for a user or for itself (check_readable)."""
+    actor_id = user.user_id if user else None
+    set_audit_actor(db, actor_id)
+    return {"data": {"scan_status": check_readable(db, body.storage_path, actor_id)}}
