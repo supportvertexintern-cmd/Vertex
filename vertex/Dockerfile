@@ -1,14 +1,8 @@
 FROM node:22-alpine AS build
 
-# Prisma's engines need OpenSSL on Alpine.
-RUN apk add --no-cache openssl
-
 WORKDIR /app
 
-# The Prisma schema must exist before `npm ci`, whose postinstall runs
-# `prisma generate`.
 COPY package*.json ./
-COPY prisma ./prisma
 # A slow or flaky connection to the registry shouldn't fail the build:
 # npm retries each download, and the cache keeps what already arrived for
 # the next attempt (BuildKit only; the cache never enters the image).
@@ -31,7 +25,7 @@ FROM node:22-alpine
 # upgrade below run again each day instead of coming from the layer cache,
 # which would keep shipping yesterday's packages (CVE-2026-92392, curl).
 ARG SECURITY_REFRESH=
-RUN echo "security refresh: ${SECURITY_REFRESH}" && apk upgrade --no-cache && apk add --no-cache openssl \
+RUN echo "security refresh: ${SECURITY_REFRESH}" && apk upgrade --no-cache \
  && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
            /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
            /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg
@@ -47,13 +41,10 @@ COPY --from=build /app/src/lib/csp.ts ./src/lib/csp.ts
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
-COPY --from=build /app/prisma ./prisma
 
 USER node
 EXPOSE 3000
 
-# The schema is owned by the backend's Alembic migrations; this container
-# never runs `prisma migrate`.
 CMD ["node", "node_modules/next/dist/bin/next", "start"]
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=6 \

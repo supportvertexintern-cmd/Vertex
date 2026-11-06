@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CaretDown, Check } from "@phosphor-icons/react";
 import { isInternalPortalPath, homeFor } from "@/lib/rbac";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 const BASE_NAV_LINKS = [
   { href: "/", label: "Home" },

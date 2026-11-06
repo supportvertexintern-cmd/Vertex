@@ -1,4 +1,4 @@
-import type { ReportCycle, Role } from "@prisma/client";
+import type { ReportCycle, Role } from "@/lib/enums";
 
 // Supervisory Reporting Framework §3-§5 — the specific KPI-row names for
 // each role's Target-and-Performance table, per cycle. The Report

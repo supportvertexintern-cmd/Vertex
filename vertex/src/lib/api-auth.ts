@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, JwtPayload } from "@/lib/jwt";
 import { cookies } from "next/headers";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 import { recordSecurityEventLater } from "@/lib/audit";
 import { log } from "@/lib/log";
 import { ACCESS_COOKIE } from "@/lib/session";

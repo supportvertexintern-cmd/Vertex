@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 /**
  * Central role/portal permission table (SRS FR-1.1, FR-1.2).

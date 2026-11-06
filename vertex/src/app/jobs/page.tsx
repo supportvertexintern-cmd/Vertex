@@ -45,7 +45,7 @@ export default async function JobsPage({
   const { jobs, total, pages } = await getJobs(params, includePartnerOnly);
   const currentPage = Number(params.page || 1);
 
-  // Matches the sector naming seeded in prisma/seed.ts (2026-08-31, renamed
+  // Matches the sector naming seeded in vertex_be/scripts/seed/reference.py (2026-08-31, renamed
   // to match the business's own Positions by Country & Sector reference
   // sheet) — every work-permit programme's category is one of these.
   const categories = [

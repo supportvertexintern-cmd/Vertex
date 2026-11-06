@@ -7,7 +7,7 @@ function round2(n: number): number {
 // computeCreditServiceSchedule (one upfront payment + N *equal*
 // installments) into a single function that works for any number of
 // stages in any percentage split (2026-09-16, flexible per-Job payment
-// stages — see JobPaymentStage in schema.prisma). Every stage's amount is
+// stages — see JobPaymentStage in vertex_be/app/models/jobs.py). Every stage's amount is
 // computed independently from its own percent except the last, which
 // absorbs whatever rounding remainder is left, so the stages always sum
 // EXACTLY to the staged portion of the fee rather than drifting by a

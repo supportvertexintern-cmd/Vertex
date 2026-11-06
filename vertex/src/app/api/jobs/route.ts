@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { limitByIp } from "@/lib/rate-limit";

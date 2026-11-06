@@ -4,8 +4,8 @@ A modern, full-stack recruitment platform built for international job placements
 
 ## Tech Stack
 - **Frontend:** Next.js 14, React, TypeScript, TailwindCSS v4
-- **Backend:** Next.js API Routes
-- **Database:** PostgreSQL with Prisma ORM (v6)
+- **Backend:** FastAPI (`vertex_be`); the Next.js API routes check the session and pass requests on
+- **Database:** PostgreSQL, owned by FastAPI (SQLAlchemy models, Alembic migrations)
 - **Authentication:** Custom JWT-based auth + bcrypt hashing
 - **Email:** Nodemailer (SMTP)
 - **Validation:** Zod
@@ -20,17 +20,11 @@ A modern, full-stack recruitment platform built for international job placements
 2. **Environment Variables**
    Create a `.env` file with the required values (get them from a maintainer;
    it is gitignored and must never be committed — see `docs/secrets.md`).
-   **Important:** Set your `DATABASE_URL` to a valid PostgreSQL connection string.
 
 3. **Database Setup**
-   Push the Prisma schema to your database to create the necessary tables:
-   ```bash
-   npx prisma db push
-   ```
-   *(Optional)* Seed some data or view the database:
-   ```bash
-   npx prisma studio
-   ```
+   The website has no database of its own: it calls FastAPI. Run the backend
+   (`vertex_be`), whose Alembic migrations create the tables and whose
+   `scripts/seed/` load the reference data.
 
 4. **Run Development Server**
    ```bash
@@ -42,8 +36,7 @@ A modern, full-stack recruitment platform built for international job placements
 - `src/app/*`: Next.js App Router pages and layouts.
 - `src/app/api/*`: Backend REST API routes.
 - `src/components/*`: Reusable React components (Navbar, Footer).
-- `src/lib/*`: Core utilities (Prisma client, JWT, Auth, Email, Rate limiting, File upload).
-- `prisma/schema.prisma`: Database schema definition.
+- `src/lib/*`: Core utilities (the FastAPI client, JWT, Auth, Rate limiting, File upload).
 
 ## Deployment
 
@@ -53,7 +46,7 @@ A modern, full-stack recruitment platform built for international job placements
 - Add all environment variables (including `DATABASE_URL`) to Vercel's Edge Environment settings.
 
 **Database (PostgreSQL)**
-- Production runs on a Prisma Postgres instance; see `vertex/CLAUDE.md` and `vertex/docs/CPANEL_DEPLOYMENT.md`.
+- The schema comes from the backend's Alembic migrations; see `vertex_be/deploy/README.md`.
 - Paste the connection string into the `DATABASE_URL` environment variable. Never commit it (see `docs/secrets.md`).
 
 ## Notes

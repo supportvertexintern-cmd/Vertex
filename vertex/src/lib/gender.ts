@@ -2,7 +2,7 @@
 // on both the Partner and Direct Candidate Application Forms. One shared
 // list so the dropdown UI and the Zod validation enum can't drift apart,
 // same pattern as maritalStatus.ts. Values match the Gender enum in
-// schema.prisma exactly.
+// vertex_be/app/models/enums.py exactly.
 export const GENDER_VALUES = ["male", "female"] as const;
 
 export const GENDER_OPTIONS = [

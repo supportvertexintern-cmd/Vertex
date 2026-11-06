@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
-import type { Role } from "@prisma/client";
+import type { Role } from "@/lib/enums";
 
 // FastAPI owns staff scorecards since backend plan step 5.3
 // (vertex_be/app/api/v1/scorecards.py): these handlers check the role
