@@ -31,7 +31,7 @@ The register in §4 is what [release-checklist.md](release-checklist.md) §3 ask
 | Condition | Result | Evidence |
 |---|---|---|
 | Dev/staging only, no real candidate data | ⚠ **Partly.** MinIO also runs in **vertex-main**, the local stack that holds real data. Today it stores **0 documents**: the newest main backup has 0 objects and 0 `Document` rows, against 46 candidates. The first document uploaded on main breaks this condition | backup manifest of vertex-main, 2026-10-12 |
-| No published ports; internal Docker network only | ✅ dev, staging and main MinIO publish no port and sit only on the stack's internal `data` network. The only MinIO with a port is the end-to-end test instance on `127.0.0.1:9311`, which holds test data only | `docker ps`; `verify-stack.sh` |
+| No published ports; internal Docker network only | ✅ dev, staging and main MinIO publish no port and sit only on the stack's internal `data` and `stores` networks. The only MinIO with a port is the end-to-end test instance on `127.0.0.1:9311`, which holds test data only | `docker ps`; `verify-stack.sh` |
 | Unique, non-default root credentials in secrets, not compose files | ✅ Compose requires them from the env file (`${MINIO_ROOT_PASSWORD:?}`). Each stack has a different 40-character password, none default. Compared by hash only; nothing printed | env files (not in Git) |
 | Expiry = S3 production cutover date; MinIO removed that day | ✅ Set (§4), re-decided 2026-10-29: **review 2027-01-10, or before Vertex is hosted outside this machine, whichever comes first**. The first real document on vertex-main no longer ends the exception | owner's decision 2026-10-29 (below); `backup-health.sh` logs main's document count, no alert |
 

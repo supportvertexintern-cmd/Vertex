@@ -3,16 +3,15 @@
 # settings. Demo data only; no secret is ever printed.
 #
 #   bash deploy/demo/setup-demo-db.sh db          # schema, roles, demo data on the Neon database
-#   bash deploy/demo/setup-demo-db.sh vercel-env  # push DATABASE_URL, JWT_SECRET and the rest to Vercel
+#   bash deploy/demo/setup-demo-db.sh vercel-env  # push JWT_SECRET and the rest to Vercel
 #
 # Run from vertex_be/. First: powershell -File deploy/demo/demo-creds.ps1 set owner
 #
 # `db` mirrors deploy.sh: roles first (db-roles.sql), then the schema from
 # the Alembic migrations as vertex_migrator, then the roles again; the data
-# is loaded as vertex_migrator too (the site's vertex_web can't write these
-# tables since they became FastAPI's). The Neon owner is used
-# only here, never by the site. Every run sets fresh role passwords, so run
-# `vercel-env` after it.
+# is loaded as vertex_migrator too. The Neon owner is used only here, never by
+# the site. Since reads handover R8 the website has no database login: the
+# site needs a FastAPI, which docs/demo-site.md says isn't decided yet.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 BE="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -35,11 +34,11 @@ print(u.urlunsplit((p.scheme, "%s:%s@%s" % (e["ROLE"], u.quote(e["PW"], safe="")
 db() {
   local owner; owner="$(creds get owner)"
   case "$owner" in *-pooler.*) echo "Use Neon's direct connection string (without -pooler) for setup" >&2; exit 1;; esac
-  local mig api web ro
-  mig=$(openssl rand -hex 24); api=$(openssl rand -hex 24); web=$(openssl rand -hex 24); ro=$(openssl rand -hex 24)
+  local mig api ro
+  mig=$(openssl rand -hex 24); api=$(openssl rand -hex 24); ro=$(openssl rand -hex 24)
 
   provision() {
-    { printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set web_pw '%s'\n\\set readonly_pw '%s'\n" "$mig" "$api" "$web" "$ro"
+    { printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set readonly_pw '%s'\n" "$mig" "$api" "$ro"
       cat "$BE/deploy/readonly-columns.sql" "$BE/deploy/db-roles.sql"
     } | PGURL="$owner" docker run --rm -i --network host -e PGURL postgres:17-alpine sh -c 'psql "$PGURL" -q -v ON_ERROR_STOP=1' >/dev/null
   }
@@ -53,16 +52,12 @@ db() {
   grep -E "Running upgrade" "$log" || echo "   already at the latest revision"; rm -f "$log"
   echo "3/4 roles again (grants on the new tables)"; provision
 
-  local web_url; web_url="$(as_role vertex_web "$web" "$owner")"
   echo "4/4 data (as vertex_migrator): reference data, then demo data"
   local mig_url; mig_url="$(as_role vertex_migrator "$mig" "$owner")"
   mkdir -p "$(dirname "$ACCOUNTS")"
   (cd "$BE" && DATABASE_URL="$mig_url" "$PY" -m scripts.seed.reference >/dev/null 2>&1 || { echo "base seed failed" >&2; exit 1; })
   (cd "$BE" && DATABASE_URL="$mig_url" DEMO_SEED=yes DEMO_ACCOUNTS_FILE="$ACCOUNTS" "$PY" -m scripts.seed.demo)
 
-  # Serverless functions open many short connections: keep each one small.
-  case "$web_url" in *"?"*) web_url="${web_url}&connection_limit=3" ;; *) web_url="${web_url}?connection_limit=3" ;; esac
-  printf '%s\n' "$web_url" | creds set web >/dev/null
   echo "Done. Demo accounts: $ACCOUNTS. Next: setup-demo-db.sh vercel-env"
 }
 
@@ -75,7 +70,6 @@ vercel_env() {
     npx vercel env add "$1" production >/dev/null
     echo "set $1"
   }
-  creds get web | put DATABASE_URL
   openssl rand -hex 32 | put JWT_SECRET
   printf '%s' "$DEMO_URL" | put NEXT_PUBLIC_APP_URL
   printf 'demo' | put APP_ENV

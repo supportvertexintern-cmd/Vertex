@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 // verified child reports it names. FastAPI owns report writes since backend
 // plan step 5.4 (vertex_be/app/api/v1/reports.py): it re-checks the
 // session, the role, the period rules and the reporting line, audits every
-// change, and vertex_web may no longer write the table. This GET stays
+// change. This GET stays
 // here: it only reads.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);

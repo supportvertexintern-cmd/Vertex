@@ -21,7 +21,7 @@ assumed. Gaps found while mapping are numbered G20 onward (continuing
                                     │ cookie auth_token, proxy.ts, guards    │      │ deploy.sh
   Browser ──127.0.0.1:8081/8082──►  │                                        │      │ (superuser via
      Flutter web (nginx) ── static  └───────────────│───────────────────────┘      │  docker exec psql)
-     no HTTP calls, own network            vertex_web│ (Prisma)                     │
+     no HTTP calls, own network    service credential│ (callBackend)                │
                                                     ▼                              ▼
   Browser ──127.0.0.1:8001/8002──►  FastAPI ──vertex_api──►  ┌──────────────────────────────┐
      /, /api/v1/health, /docs       (startup: alembic as     │ PostgreSQL 15 (one per stack)│
@@ -29,16 +29,17 @@ assumed. Gaps found while mapping are numbered G20 onward (continuing
                                                              └──────────────▲───────────────┘
   pgAdmin (on demand, 127.0.0.1:5050/5151) ──vertex_readonly (column allowlist)┘
 
-  Networks per stack: data (internal: db, backend, nextjs, pgadmin) · edge (ports + egress:
-  backend, nextjs, pgadmin) · static (flutter-web only). dev and staging share nothing.
+  Networks per stack: data (internal: db, backend, minio, redis, mailpit, pgadmin) · stores
+  (internal: minio, redis, nextjs) · edge (ports + egress: backend, nextjs, mailpit, pgadmin)
+  · static (flutter-web only). dev and staging share nothing.
 
   Separately (not on this PC): Vercel project `vertex` → public vertex-self-pi.vercel.app,
   same Next.js code, Prisma Postgres at db.prisma.io as a superuser login (see §3, P5b).
 ```
 
-There is **no** call between application services: Next.js never calls
-FastAPI, FastAPI calls nothing, Flutter calls nothing. The only thing
-Next.js and FastAPI share is the database, each through its own role.
+Next.js calls FastAPI for every read and write, with a service credential
+(`callBackend`). Since reads handover R8 it has no database login and no
+network path to the database. Flutter calls nothing.
 
 ## 2. Summary
 
@@ -48,7 +49,7 @@ Next.js and FastAPI share is the database, each through its own role.
 | P2 | Next.js server → FastAPI | **N/A**: no code calls FastAPI |
 | P3 | Browser / mobile → FastAPI | Only `/`, `/api/v1/health`, `/docs`; no data, no auth. Flutter: **N/A** (its `ApiService` is never constructed) |
 | P4 | FastAPI → PostgreSQL | ✅ `vertex_api` (runtime), `vertex_migrator` (startup migrations) |
-| P5 | Next.js/Prisma → PostgreSQL | ✅ `vertex_web`; on Vercel, a superuser login (P5b) |
+| P5 | Next.js → PostgreSQL | **Removed in reads handover R8**: no login, not on the `data` network |
 | P6 | Background workers → databases / APIs | **N/A**: no scheduler, queue or cron; reminders are manual by design. The only timer is the in-memory rate-limit sweep |
 | P7 | Administrative tools → protected endpoints | ✅ admin API routes (P1), pgAdmin, `psql` via `docker exec` |
 | P8 | File storage (upload, download, delete) | ✅ Next.js → Cloudflare R2 |
@@ -108,23 +109,11 @@ Next.js and FastAPI share is the database, each through its own role.
 | Audit | Migrations recorded in `alembic_version`; no per-query audit (FastAPI writes no data yet) |
 | Failure behavior | Migration fails → container exits → deploy fails before traffic moves. DB down at runtime → 503 health |
 
-### P5 Next.js / Prisma → PostgreSQL
+### P5 Next.js → PostgreSQL: removed
 
-| | |
-|---|---|
-| Identity | `vertex_web` (same limits as `vertex_api`, separate password) |
-| Authentication / authorization | As P4 |
-| Secrets | `DB_WEB_PASSWORD` |
-| Network exposure | `data` network only |
-| Audit | `auditedPrisma` writes `AuditLog` rows for data changes; **plain `prisma` writes are not audited** (G22) |
-| Failure behavior | DB unreachable → Prisma error → 500; no fallback, no stale data served |
-
-**P5b (Vercel):** the same code at `vertex-self-pi.vercel.app` connects to
-Prisma Postgres (`db.prisma.io:5432`, SSL, internet-reachable) with the
-database's generated login, which is a **superuser**. No Phase 1 roles.
-Preview and Development share the same URL (previews are now off). Its
-`public` schema had no tables when checked (2026-10-10). Tracked in the
-incident section of [phase2-verification.md](phase2-verification.md).
+Reads handover R8 removed this path. Next.js has no `DATABASE_URL`, the
+`vertex_web` role is dropped, and `nextjs` is on the `stores` and `edge`
+networks, not `data`. `verify-stack.sh` checks all three.
 
 ### P6 Background workers — N/A
 
@@ -149,7 +138,7 @@ That is the human administrator and the runner (P9), nobody else.
 **Update 2026-10-10:** the local stacks now store documents in their own
 MinIO (`vertex_be/deploy/README.md`, "Object storage"), not Cloudflare R2.
 Next.js uses a per-environment app key limited by policy to one bucket;
-MinIO is only on the internal `data` network, with no published port.
+MinIO is only on the internal `data` and `stores` networks, with no published port.
 `verify-stack.sh` checks that the key can read, write and delete in its
 bucket and cannot list other buckets, create or delete buckets, make its
 bucket public or use the admin API. The table below still describes the
@@ -175,7 +164,7 @@ Files are never public; every read goes through a signed, short-lived link.
 | CI (`ci.yml`, GitHub-hosted) | `GITHUB_TOKEN`, `contents: read` | Read code; tests use throwaway trust-auth databases | None real | GitHub cloud | Actions logs | Runs on pull requests only. A failed job turns **CI passed** red, which should block the merge; nothing enforces that on GitHub Free, and a direct push to `dev`/`staging` builds and deploys without CI |
 | Image build/push (`build.yml`) | `GITHUB_TOKEN`, `packages: write` | Push `ghcr.io/supportvertexintern-cmd/vertex-*` on every push to `dev`/`staging`/`main` | — | GitHub cloud | Actions logs, GHCR | Build fails → no deploy |
 | Local deploy (`deploy-local.yml`, self-hosted runner `vertex-pc`) | `GITHUB_TOKEN`, now **`packages: read`** (was write, fixed here); local Docker | Pull images, run `deploy.sh`: provision roles as superuser, start the stack, migrations as `vertex_migrator` | Reads `.env.<env>` from disk (all of that environment's secrets) | Outbound only (polls GitHub); no inbound port | Actions logs; GitHub environment `dev`/`staging` | `set -eu`, health waits, network repair after each stage; the job fails and reports, but containers already recreated stay on the new version, so a service can be left down (happened 2026-10-09; no automatic rollback) |
-| Vercel | Vercel GitHub app | Builds `main` only (`ignoreCommand`), for the customer demo site | Vercel env vars: `vertex_web` on the Neon demo database, a demo-only `JWT_SECRET` | Public | Vercel dashboard | **On again from 2026-10-13, demo data only** ([demo-site.md](../demo-site.md)). Off 2026-10-10 to 2026-10-13 |
+| Vercel | Vercel GitHub app | Builds `main` only (`ignoreCommand`), for the customer demo site | Vercel env vars: a demo-only `JWT_SECRET` | Public | Vercel dashboard | **On again from 2026-10-13, demo data only** ([demo-site.md](../demo-site.md)). Off 2026-10-10 to 2026-10-13 |
 
 Who can deploy: anyone who can push to `dev` or `staging` (locally), or run the production release as `vars.PROD_DEPLOYER` (`production.yml`, runner `prod-ops`; manual, `main` only). The runner
 account can read both environments' env files and control Docker, so it is

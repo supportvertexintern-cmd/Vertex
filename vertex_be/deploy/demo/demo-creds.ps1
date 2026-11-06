@@ -7,10 +7,9 @@
 #   powershell -File demo-creds.ps1 status
 #
 # owner  the Neon database owner: schema setup and role provisioning only.
-# web    vertex_web's string, written by setup-demo-db.sh, sent to Vercel.
 param(
     [Parameter(Mandatory = $true)][ValidateSet("set", "get", "status")][string]$Action,
-    [ValidateSet("owner", "web")][string]$Name = "owner"
+    [ValidateSet("owner")][string]$Name = "owner"
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +40,6 @@ switch ($Action) {
         [Console]::Out.Write([Text.Encoding]::UTF8.GetString($raw))
     }
     "status" {
-        foreach ($n in "owner", "web") { Write-Output "${n}: $(if (Test-Path (File-For $n)) { 'stored' } else { 'missing' })" }
+        foreach ($n in "owner") { Write-Output "${n}: $(if (Test-Path (File-For $n)) { 'stored' } else { 'missing' })" }
     }
 }

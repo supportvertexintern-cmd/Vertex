@@ -3,22 +3,22 @@
 --
 --   vertex_migrator  owns the schema; used only by `alembic upgrade` (DDL)
 --   vertex_api       FastAPI runtime: read/write rows, no DDL
---   vertex_web       Next.js/Prisma runtime: read/write rows, no DDL
 --   vertex_readonly  people browsing data (pgAdmin): SELECT on allowlisted columns only
 --
--- Neither runtime role can create/alter/drop objects, create roles or
--- databases, truncate tables, touch migration bookkeeping, or change/delete
--- audit log rows. The superuser (POSTGRES_USER) is for administration only.
+-- The website has no database access (reads handover R8): it calls FastAPI.
+--
+-- The runtime role can't create/alter/drop objects, create roles or databases,
+-- truncate tables, touch migration bookkeeping, or change/delete audit log
+-- rows. The superuser (POSTGRES_USER) is for administration only.
 --
 -- psql variables (set by deploy.sh; an empty password leaves it unchanged,
 -- which is how the test suite runs this without touching real credentials):
---   :migrator_pw  :api_pw  :web_pw  :readonly_pw
+--   :migrator_pw  :api_pw  :readonly_pw
 
 \set ON_ERROR_STOP on
 
 SELECT set_config('vertex.migrator_pw', :'migrator_pw', false),
        set_config('vertex.api_pw', :'api_pw', false),
-       set_config('vertex.web_pw', :'web_pw', false),
        set_config('vertex.readonly_pw', :'readonly_pw', false);
 
 DO $$
@@ -29,7 +29,6 @@ BEGIN
   -- Roles: login only, no special powers.
   FOR r IN SELECT * FROM (VALUES ('vertex_migrator', 'vertex.migrator_pw'),
                                  ('vertex_api', 'vertex.api_pw'),
-                                 ('vertex_web', 'vertex.web_pw'),
                                  ('vertex_readonly', 'vertex.readonly_pw')) AS t(role, setting)
   LOOP
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = r.role) THEN
@@ -55,14 +54,14 @@ BEGIN
 
   -- Database: nobody connects by default.
   EXECUTE format('REVOKE ALL ON DATABASE %I FROM PUBLIC', current_database());
-  EXECUTE format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO vertex_migrator, vertex_api, vertex_web', current_database());
+  EXECUTE format('GRANT CONNECT, TEMPORARY ON DATABASE %I TO vertex_migrator, vertex_api', current_database());
   EXECUTE format('GRANT CONNECT ON DATABASE %I TO vertex_readonly', current_database());
 END $$;
 
 -- Schema: only the migrator may create objects.
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE, CREATE ON SCHEMA public TO vertex_migrator;
-GRANT USAGE ON SCHEMA public TO vertex_api, vertex_web, vertex_readonly;
+GRANT USAGE ON SCHEMA public TO vertex_api, vertex_readonly;
 
 -- Hand every existing object in public to the migrator, so migrations can
 -- alter tables first created by the superuser (or by Prisma, historically).
@@ -105,15 +104,30 @@ BEGIN
   END LOOP;
 END $$;
 
--- Runtime roles: row access only.
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vertex_api, vertex_web;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vertex_api, vertex_web;
+-- Reads handover R8: the website's role goes. It owns nothing by now (the
+-- block above handed every object to the migrator), so DROP OWNED only revokes
+-- its grants and default privileges. Managed Postgres: a non-superuser owner
+-- has to be a member of the role to do that.
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'vertex_web') THEN
+    IF NOT (SELECT rolsuper FROM pg_roles WHERE rolname = current_user) THEN
+      GRANT vertex_web TO CURRENT_USER;
+    END IF;
+    DROP OWNED BY vertex_web;
+    DROP ROLE vertex_web;
+  END IF;
+END $$;
+
+-- Runtime role: row access only.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO vertex_api;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO vertex_api;
 
 -- Objects created by future migrations get the same grants automatically.
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vertex_api, vertex_web;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO vertex_api;
 ALTER DEFAULT PRIVILEGES FOR ROLE vertex_migrator IN SCHEMA public
-  GRANT USAGE, SELECT ON SEQUENCES TO vertex_api, vertex_web;
+  GRANT USAGE, SELECT ON SEQUENCES TO vertex_api;
 
 -- Read-only browsing role (pgAdmin): an ALLOWLIST. Every deploy revokes all
 -- its access and default privileges, then grants SELECT only on columns
@@ -145,138 +159,36 @@ END $$;
 DO $$
 BEGIN
   IF to_regclass('public."AuditLog"') IS NOT NULL THEN
-    REVOKE UPDATE, DELETE, TRUNCATE ON "AuditLog" FROM vertex_api, vertex_web;
-    -- Phase 10: reading the trail is limited to the service that shows it
-    -- (Next.js: case history, security monitor). FastAPI may append, not read.
+    REVOKE UPDATE, DELETE, TRUNCATE ON "AuditLog" FROM vertex_api;
+    -- Phase 10: FastAPI may append, not read. It asks the functions below.
     REVOKE SELECT ON "AuditLog" FROM vertex_api;
-    -- Reads handover R7a (D3 A): the website records its few events through
-    -- FastAPI (POST /api/v1/audit-events) and no longer shows the trail, so
-    -- it can neither read nor append to it. FastAPI is the only writer.
-    REVOKE SELECT, INSERT ON "AuditLog" FROM vertex_web;
   END IF;
   -- G9: FastAPI verifies those sessions, so it may ask whether one is live
   -- (yes/no, migration 0007) without reading any session row.
   IF to_regprocedure('public.vertex_session_is_live(text, text)') IS NOT NULL THEN
-    REVOKE ALL ON FUNCTION public.vertex_session_is_live(text, text) FROM PUBLIC, vertex_web, vertex_readonly;
+    REVOKE ALL ON FUNCTION public.vertex_session_is_live(text, text) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_session_is_live(text, text) TO vertex_api;
   END IF;
   -- Reads handover R5: the two pages that show the audit trail ask these
   -- (migration 0008), which return a case's history without the snapshots
   -- and the dates submissions were rejected; vertex_api still can't SELECT.
   IF to_regprocedure('public.vertex_case_trail(text)') IS NOT NULL THEN
-    REVOKE ALL ON FUNCTION public.vertex_case_trail(text) FROM PUBLIC, vertex_web, vertex_readonly;
+    REVOKE ALL ON FUNCTION public.vertex_case_trail(text) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_case_trail(text) TO vertex_api;
   END IF;
   IF to_regprocedure('public.vertex_rejection_dates(text, text[])') IS NOT NULL THEN
-    REVOKE ALL ON FUNCTION public.vertex_rejection_dates(text, text[]) FROM PUBLIC, vertex_web, vertex_readonly;
+    REVOKE ALL ON FUNCTION public.vertex_rejection_dates(text, text[]) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_rejection_dates(text, text[]) TO vertex_api;
   END IF;
   -- R7a: the alert monitor's counts (migration 0009), numbers only.
   IF to_regprocedure('public.vertex_security_count(text, text, text, timestamp)') IS NOT NULL THEN
-    REVOKE ALL ON FUNCTION public.vertex_security_count(text, text, text, timestamp) FROM PUBLIC, vertex_web, vertex_readonly;
+    REVOKE ALL ON FUNCTION public.vertex_security_count(text, text, text, timestamp) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_security_count(text, text, text, timestamp) TO vertex_api;
   END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
-    REVOKE ALL ON alembic_version FROM vertex_api, vertex_web;
+    REVOKE ALL ON alembic_version FROM vertex_api;
   END IF;
   IF to_regclass('public._prisma_migrations') IS NOT NULL THEN
-    REVOKE ALL ON _prisma_migrations FROM vertex_api, vertex_web;
-  END IF;
-END $$;
-
--- One writer per table (docs/architecture/data-ownership.md): tables handed
--- over to FastAPI. Next.js keeps reading them (vertex_web SELECT) but may no
--- longer change them; its handlers write through callBackend() instead.
--- Foreign-key actions (a deleted country setting country_id to null) still
--- work: Postgres runs them as the table's owner. tests/test_db_roles.py
--- reads this list and checks each table.
-DO $$
-DECLARE
-  t text;
-BEGIN
-  FOREACH t IN ARRAY ARRAY[  -- FastAPI-owned tables
-    'FeePolicy',  -- reference data, step 1.2 (2026-10-24)
-    'Region',     -- reference data, step 2.1
-    'Country',    -- reference data, step 2.1
-    'Sector',     -- reference data, step 2.2
-    'CountryDocumentRequirement',  -- reference data, step 2.2
-    'SystemSetting',  -- reference data, step 2.3
-    'KnowledgeArticle',  -- content, step 3.1
-    'EmailTemplate',  -- content, step 3.1
-    'Job',  -- jobs, step 3.2
-    'JobPaymentStage',  -- jobs, step 3.2
-    'DocumentRequirementType',  -- jobs, step 3.2 (receipt types)
-    'JobSector',  -- jobs, step 3.3
-    'JobPosition',  -- jobs, step 3.3
-    'EmployerClient',  -- partners, step 4.1
-    'Campaign',  -- recruitment operations, step 5.1
-    'CampaignTarget',  -- recruitment operations, step 5.1
-    'RecruiterTarget',  -- recruitment operations, step 5.2
-    'StaffKpiTarget',  -- recruitment operations, step 5.2
-    'RecruiterNote',  -- recruitment operations, step 5.2
-    'StaffScorecard',  -- recruitment operations, step 5.3
-    'StaffScorecardArea',  -- recruitment operations, step 5.3
-    'Report',  -- recruitment operations, step 5.4
-    'Candidate',  -- candidate pipeline, step 6.7 (the switch)
-    'CandidateMessage',  -- candidate pipeline, step 6.7
-    'Document',  -- candidate pipeline, step 6.7
-    'Application',  -- candidate pipeline, step 6.7
-    'Case',  -- candidate pipeline, step 6.7
-    'CaseStageEvent',  -- candidate pipeline, step 6.7
-    'CaseReminder',  -- candidate pipeline, step 6.7
-    'Contract',  -- candidate pipeline, step 6.7
-    'RetentionFollowUp',  -- candidate pipeline, step 6.7
-    'Exception',  -- candidate pipeline, step 6.7
-    'ExceptionCorrectiveAction',  -- candidate pipeline, step 6.7
-    'PartnerCandidate',  -- candidate pipeline, step 6.7
-    'ReferralCommission',  -- candidate pipeline, step 6.7
-    'ReferralCommissionRule',  -- payments, step 7.1
-    'Payment',  -- payments, step 7.2 (the Stripe webhook, PayPal)
-    'ConsultationBooking',  -- payments, step 7.2
-    'CasePayment',  -- payments, step 7.3 (a case's milestone payments)
-    'JobMilestonePrice',  -- payments, step 7.4 (kept with its data; Prisma has no model for it)
-    'ReferralAgentTarget',  -- users and sessions, step 8.1 (users-handover.md)
-    'RefreshToken',  -- users and sessions, step 8.2: FastAPI issues sessions; no read for Next.js since reads handover R7d (below)
-    'User',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.2; E10 closed)
-    'Partner',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.4)
-    'ReferralAgent',  -- users and sessions, step 8.5 (FastAPI wrote it from 8.4)
-    'InhouseCountryAssignment'  -- users and sessions, step 8.5 (FastAPI wrote it from 8.3)
-  ] LOOP
-    IF to_regclass(format('public.%I', t)) IS NOT NULL THEN
-      EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.%I FROM vertex_web', t);
-    END IF;
-  END LOOP;
-END $$;
-
--- Review item #8 (users step 8.5): Next.js reads users but never their
--- credentials; its Prisma client leaves these columns out of every query
--- (vertex/src/lib/prisma.ts). It may SELECT every other column. The
--- list is recomputed on every run, and deploy.sh runs this again after the
--- migrations, so a column a migration adds is readable before the new
--- website starts. tests/test_db_roles.py checks both sides.
-DO $$
-DECLARE
-  r record;
-  cols text;
-BEGIN
-  FOR r IN SELECT * FROM (VALUES ('User', ARRAY['password_hash', 'google_id'])) AS t(tbl, hidden)
-  LOOP
-    IF to_regclass(format('public.%I', r.tbl)) IS NOT NULL THEN
-      SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) INTO cols
-        FROM information_schema.columns
-       WHERE table_schema = 'public' AND table_name = r.tbl AND column_name <> ALL (r.hidden);
-      -- Revoking the table's SELECT also drops its column grants.
-      EXECUTE format('REVOKE SELECT ON public.%I FROM vertex_web', r.tbl);
-      EXECUTE format('GRANT SELECT (%s) ON public.%I TO vertex_web', cols, r.tbl);
-    END IF;
-  END LOOP;
-END $$;
-
--- Reads handover R7d (D2 A): FastAPI checks every request's session, so the
--- website reads no session row at all.
-DO $$
-BEGIN
-  IF to_regclass('public."RefreshToken"') IS NOT NULL THEN
-    REVOKE SELECT ON "RefreshToken" FROM vertex_web;
+    REVOKE ALL ON _prisma_migrations FROM vertex_api;
   END IF;
 END $$;

@@ -13,4 +13,4 @@ services:
       MINIO_BROWSER: "on"
     ports:
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
-    networks: [ data, edge ]
+    networks: [ data, stores, edge ]

@@ -105,7 +105,7 @@ These were already recorded and are unchanged:
 
 | Who | Read | Append | Change or delete |
 |---|---|---|---|
-| `vertex_web` (Next.js) | ❌ revoked in reads handover R7a | ❌ revoked in R7a: it records through FastAPI | ❌ revoked, plus triggers |
+| Next.js | ❌ no database access since reads handover R8 | ❌ it records through FastAPI (`POST /api/v1/audit-events`) | ❌ |
 | `vertex_api` (FastAPI) | ❌ **no `SELECT`** (revoked in Phase 10). Functions only it may run: a case's history without snapshots and the dates submissions were rejected (migration 0008, R5), and the alert monitor's counts (0009, R7a), numbers only | ✅ the only writer | ❌ |
 | `vertex_readonly` (pgAdmin) | ❌ no `AuditLog` columns granted | ❌ | ❌ |
 | `vertex_migrator` (owner) | ✅ | ✅ | ❌ triggers refuse even the owner |

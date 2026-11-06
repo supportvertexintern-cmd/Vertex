@@ -21,7 +21,6 @@ This is enforced, not just requested — see
 | `POSTGRES_USER` (superuser) | `deploy.sh` to provision roles; you, via psql, only when needed | everything — **never** given to an app, never pre-registered in pgAdmin |
 | `vertex_migrator` | `alembic upgrade` at backend start | own and change the schema |
 | `vertex_api` | FastAPI | read/write rows; no DDL, no `TRUNCATE`, append-only audit log |
-| `vertex_web` | Next.js/Prisma | same as `vertex_api` |
 | `vertex_readonly` | people browsing data in pgAdmin | `SELECT` on allowlisted columns only (`vertex_be/deploy/readonly-columns.sql`): no secrets, audit log or personal data; new columns hidden until classified (CI enforces) |
 
 Roles and grants come from `vertex_be/deploy/db-roles.sql`, applied on every
@@ -41,7 +40,7 @@ this. Each container receives only its own connection string.
 
 | Secret | How |
 |---|---|
-| `DB_API_PASSWORD` / `DB_WEB_PASSWORD` / `DB_MIGRATOR_PASSWORD` | Change it in the env file and redeploy — `deploy.sh` re-sets the role password and restarts the services with the new URL. |
+| `DB_API_PASSWORD` / `DB_MIGRATOR_PASSWORD` | Change it in the env file and redeploy — `deploy.sh` re-sets the role password and restarts the services with the new URL. |
 | `POSTGRES_PASSWORD` (superuser) | `ALTER ROLE <user> PASSWORD '…'` via psql, then update the env file (the variable only takes effect on a brand-new volume). Update pgAdmin's saved password. |
 | `SECRET_KEY` / `JWT_SECRET` | Change and redeploy; existing sessions/tokens become invalid. `JWT_SECRET` must be at least 32 characters (Next.js refuses to sign or verify otherwise). Every token purpose's key is derived from it, so rotating it invalidates all of them; to invalidate one type only (e.g. all password-reset links), bump that purpose's `KEY_VERSION` in `vertex/src/lib/jwt.ts`. |
 | pgAdmin login | Only read on first start: change the env file, remove the stack's `*_pgadmin_data` volume, start pgAdmin again. |

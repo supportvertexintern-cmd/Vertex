@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import select
 
 from app.core.audit import AUDITED_MODELS
+from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.audit import AuditLog
@@ -15,7 +16,6 @@ from app.models.enums import Role
 from app.models.identity import Country, Region, User
 from app.models.reference import DocumentRequirementType
 from tests.test_auth import add_session, bearer, session_token
-from tests.test_db_roles import fastapi_owned_tables
 
 
 @pytest.fixture
@@ -52,16 +52,17 @@ def unique(prefix: str) -> str:
 # rotate every 15 minutes per signed-in user, so they're recorded as security
 # events, not row by row. Nothing else may join this list quietly.
 NOT_ROW_AUDITED = {"RefreshToken"}
+TABLES = set(Base.metadata.tables) - {"AuditLog"}  # FastAPI owns them all
 
 
-@pytest.mark.parametrize("table", sorted(set(fastapi_owned_tables()) - NOT_ROW_AUDITED))
+@pytest.mark.parametrize("table", sorted(TABLES - NOT_ROW_AUDITED))
 def test_every_fastapi_owned_table_is_audited(table):
     assert table in AUDITED_MODELS
 
 
 def test_only_sessions_are_excused():
     assert NOT_ROW_AUDITED == {"RefreshToken"}
-    assert NOT_ROW_AUDITED <= set(fastapi_owned_tables())
+    assert NOT_ROW_AUDITED <= TABLES
     assert not NOT_ROW_AUDITED & set(AUDITED_MODELS)
 
 

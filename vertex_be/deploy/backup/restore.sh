@@ -71,8 +71,8 @@ log "   row counts match the manifest ($(python -c "import json,sys; print(sum(j
 
 log "5. roles and ownership"
 {
-  printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set web_pw '%s'\n\\set readonly_pw '%s'\n" \
-    "$(v DB_MIGRATOR_PASSWORD)" "$(v DB_API_PASSWORD)" "$(v DB_WEB_PASSWORD)" "$(v DB_READONLY_PASSWORD)"
+  printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set readonly_pw '%s'\n" \
+    "$(v DB_MIGRATOR_PASSWORD)" "$(v DB_API_PASSWORD)" "$(v DB_READONLY_PASSWORD)"
   cat "$BE/deploy/readonly-columns.sql" "$BE/deploy/db-roles.sql"
 } | docker exec -i "$P-db-1" psql -q -v ON_ERROR_STOP=1 -U "$SU" -d "$DB" >/dev/null
 

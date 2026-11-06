@@ -100,8 +100,8 @@ check "Audit-trail immutability triggers" "$(sqlr "select count(*) from pg_trigg
 # 4. Roles, as deploy.sh provisions them (throwaway passwords, this drill only)
 # db-roles.sql also hands every object to vertex_migrator, as on a stack.
 pw() { python -c "import secrets; print(secrets.token_hex(16))"; }
-MIG_PW=$(pw); API_PW=$(pw); WEB_PW=$(pw)
-{ printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set web_pw '%s'\n\\set readonly_pw ''\n" "$MIG_PW" "$API_PW" "$WEB_PW"
+MIG_PW=$(pw); API_PW=$(pw)
+{ printf "\\set migrator_pw '%s'\n\\set api_pw '%s'\n\\set readonly_pw ''\n" "$MIG_PW" "$API_PW"
   cat "$BE/deploy/readonly-columns.sql" "$BE/deploy/db-roles.sql"; } | docker exec -i "$DBC" psql -q -U postgres -d drill >/dev/null 2>"$WORK/roles.err"
 check "Roles provisioned (db-roles.sql)" "$(grep -c ERROR "$WORK/roles.err")" 0
 

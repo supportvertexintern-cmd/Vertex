@@ -19,8 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // POST /api/admin/referral-agents/:id/targets — Director/Admin sets a new
 // referral target for a period. Saved by FastAPI since users and sessions
 // step 8.1 (vertex_be/app/api/v1/referral_agents.py, create_target), which
-// re-checks the role and audits the write; vertex_web may no longer write
-// the table (deploy/db-roles.sql).
+// re-checks the role and audits the write.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, REFERRAL_AGENT_MANAGER_ROLES);

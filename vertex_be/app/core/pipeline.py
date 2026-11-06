@@ -3,10 +3,9 @@ FastAPI's pipeline write endpoints were built group by group (steps 6.2-
 6.6) and serve since the switch (step 6.7), with PIPELINE_WRITES_ENABLED
 on by default.
 
-The setting stays as the rollback, which needs no code change: turn it
-off and restore vertex_web's grants (pipeline-handover.md §6). While it's
-off every pipeline write answers 503 and the website's own writes are
-the ones that work.
+The setting stays as a way to stop pipeline writes with no code change:
+while it's off every one answers 503. It's no longer a rollback: the website
+has no database access since reads handover R8.
 """
 
 from __future__ import annotations

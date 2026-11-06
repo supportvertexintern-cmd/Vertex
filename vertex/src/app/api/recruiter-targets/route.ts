@@ -7,7 +7,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // pass the request on with callBackend() and answer with FastAPI's
 // response. FastAPI re-checks the session, the role and the management
 // hierarchy (read from the database, never from the request), audits every
-// change, and vertex_web may no longer write the table (deploy/db-roles.sql).
+// change.
 
 // Must match TARGET_READERS / TARGET_SETTERS in targets.py (tests check
 // it). A Country Supervisor allocates their country's campaign target

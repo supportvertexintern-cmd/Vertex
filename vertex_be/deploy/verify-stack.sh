@@ -32,15 +32,21 @@ for p in $BP $NP $FP; do ok "Port $p from localhost" "$(code http://127.0.0.1:$p
 ok "Postgres published to host" "$(docker port ${P}-db-1 5432 2>/dev/null | wc -l | tr -d ' ')" 0
 ok "pgAdmin running (off by default)" "$(docker ps -q --filter name=${P}-pgadmin-1 | wc -l | tr -d ' ')" 0
 ok "\`data\` network internal" "$(docker network inspect -f '{{.Internal}}' ${P}_data)" true
+ok "\`stores\` network internal" "$(docker network inspect -f '{{.Internal}}' ${P}_stores)" true
 ok "Database container → internet" "$(docker exec ${P}-db-1 nc -z -w 5 1.1.1.1 443 >/dev/null 2>&1 && echo yes || echo no)" no
-ok "Next.js → database" "$(docker exec ${P}-nextjs-1 nc -z -w 3 db 5432 >/dev/null 2>&1 && echo yes || echo no)" yes
+# Reads handover R8: the website has no way to the database and no login for it.
+ok "Next.js → database" "$(docker exec ${P}-nextjs-1 nc -z -w 3 db 5432 >/dev/null 2>&1 && echo yes || echo no)" no
+ok "Next.js on the \`data\` network" "$(docker inspect -f '{{json .NetworkSettings.Networks}}' ${P}-nextjs-1 | grep -c "\"${P}_data\"")" 0
+ok "Next.js has a database URL" "$(docker exec ${P}-nextjs-1 printenv DATABASE_URL | wc -l | tr -d ' ')" 0
+ok "vertex_web role exists" "$(docker exec ${P}-db-1 psql -U "$SU" -d "$DB" -tAc "select count(*) from pg_roles where rolname = 'vertex_web'" | tr -d '\r')" 0
+ok "Next.js → FastAPI" "$(docker exec ${P}-nextjs-1 nc -z -w 3 backend 8000 >/dev/null 2>&1 && echo yes || echo no)" yes
+ok "Next.js → MinIO" "$(docker exec ${P}-nextjs-1 nc -z -w 3 minio 9000 >/dev/null 2>&1 && echo yes || echo no)" yes
 ok "Next.js → internet (best of 3)" "$(for i in 1 2 3; do docker exec ${P}-nextjs-1 nc -z -w 5 1.1.1.1 443 >/dev/null 2>&1 && { echo yes; break; }; done | grep -q yes && echo yes || echo no)" yes
 ok "Flutter → database" "$(docker exec ${P}-flutter-web-1 nc -z -w 3 db 5432 >/dev/null 2>&1 && echo yes || echo no)" no
 # Fails closed: if the comparison itself errors, report it rather than 0.
 missing=$(set -o pipefail; cd "$BE" && IMAGE_TAG=x docker compose -p "$P" --env-file "$ENVF" -f docker-compose.deploy.yml config --format json | python deploy/verify_networks.py "$P" | tr -d '\r' | { grep -c . || true; }) || missing="check failed"
 ok "Containers missing a network" "$missing" 0
 ok "Backend connects as" "$(docker exec ${P}-backend-1 printenv DATABASE_URL | sed -E 's#postgresql://([^:]+):.*#\1#')" vertex_api
-ok "Next.js connects as" "$(docker exec ${P}-nextjs-1 printenv DATABASE_URL | sed -E 's#postgresql://([^:]+):.*#\1#')" vertex_web
 # Workstream B: Next.js only behind the edge proxy; Redis internal and locked.
 ok "Next.js published to host (edge proxy only)" "$(docker port ${P}-nextjs-1 2>/dev/null | wc -l | tr -d ' ')" 0
 ok "Next.js trusts the proxy's address" "$(docker exec ${P}-nextjs-1 printenv TRUST_PROXY_HEADERS)" true
@@ -52,21 +58,13 @@ ok "vertex_readonly: SELECT id FROM User" "$( [ -n "$(net vertex_readonly "$(v D
 ok "vertex_readonly: SELECT password_hash" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
 ok "vertex_readonly: SELECT email (personal data)" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select email from "User" limit 1')" "permission denied"
 ok "vertex_readonly: read AuditLog" "$(net vertex_readonly "$(v DB_READONLY_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
-ok "vertex_web: UPDATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
-ok "vertex_web: TRUNCATE AuditLog" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
-# Reads handover R7a: the website records through FastAPI and reads no trail.
-ok "vertex_web: read AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
-ok "vertex_web: read RefreshToken (R7d)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select count(*) from "RefreshToken"')" "permission denied"
-ok "vertex_web: append to AuditLog (R7a)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "insert into \"AuditLog\" (id, entity_type, entity_id, action) values ('probe', 'x', 'x', 'x')")" "permission denied"
-# Users step 8.5: the website reads users without their credentials, and writes none.
-ok "vertex_web: SELECT password_hash" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'select password_hash from "User" limit 1')" "permission denied"
-ok "vertex_web: UPDATE User" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'update "User" set email = email where false')" "permission denied"
+ok "vertex_api: UPDATE AuditLog" "$(net vertex_api "$(v DB_API_PASSWORD)" 'update "AuditLog" set action = action')" "permission denied"
+ok "vertex_api: TRUNCATE AuditLog" "$(net vertex_api "$(v DB_API_PASSWORD)" 'truncate "AuditLog"')" "permission denied"
 ok "vertex_api: read AuditLog (Phase 10)" "$(net vertex_api "$(v DB_API_PASSWORD)" 'select count(*) from "AuditLog"')" "permission denied"
 # Reads handover R5: a case's history through a function, without the snapshots.
 ok "vertex_api: a case's trail (0008)" "$( [ -n "$(net vertex_api "$(v DB_API_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" ] && echo allowed)" allowed
-ok "vertex_web: a case's trail (0008)" "$(net vertex_web "$(v DB_WEB_PASSWORD)" "select count(*) from public.vertex_case_trail('none')")" "permission denied"
 ok "vertex_api: the alert monitor's counts (0009)" "$(net vertex_api "$(v DB_API_PASSWORD)" "select public.vertex_security_count('access_denied', 'actor_id', 'none', now()::timestamp)")" 0
-ok "vertex_web: disable AuditLog triggers" "$(net vertex_web "$(v DB_WEB_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
+ok "vertex_api: disable AuditLog triggers" "$(net vertex_api "$(v DB_API_PASSWORD)" 'alter table "AuditLog" disable trigger audit_log_no_update')" "must be owner"
 ok "vertex_api: CREATE TABLE" "$(net vertex_api "$(v DB_API_PASSWORD)" 'create table probe(i int)')" "permission denied"
 # Object storage (MinIO). The app's key is handed to a throwaway `mc` through
 # an env file, never argv; every probe runs on the internal network.

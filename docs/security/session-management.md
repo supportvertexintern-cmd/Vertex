@@ -52,7 +52,7 @@ Code: FastAPI issues, rotates and revokes sessions since users and sessions step
 
 So logout, the kill switch, and a password or role change end FastAPI access on the next request too. Differences, both deliberate:
 - **Bearer only.** FastAPI reads the token from `Authorization: Bearer`, never from the `auth_token` cookie, so other sites can't make a browser send authenticated requests to it (CSRF). The Flutter app and Next.js's server-side calls send the header.
-- **Session rows.** Since step 8.2 `vertex_api` writes `RefreshToken` and `vertex_web` only reads it. The request check still asks `vertex_session_is_live(user_id, family_id)` (migration `0007`), a `SECURITY DEFINER` function that answers only yes or no and is executable by `vertex_api` alone.
+- **Session rows.** Since step 8.2 `vertex_api` writes `RefreshToken`, and the website has no database access since reads handover R8. The request check still asks `vertex_session_is_live(user_id, family_id)` (migration `0007`), a `SECURITY DEFINER` function that answers only yes or no and is executable by `vertex_api` alone.
 
 ## 2. What ends a session
 

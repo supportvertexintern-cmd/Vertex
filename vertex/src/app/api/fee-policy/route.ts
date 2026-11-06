@@ -42,8 +42,7 @@ export async function GET(req: NextRequest) {
 // FeePolicy since the reference-data handover (backend plan step 1.2): this
 // passes the request on and answers with FastAPI's response. FastAPI checks
 // the session, the role and the input itself (vertex_be/app/api/v1/
-// fee_policy.py); the role check here only saves a round trip, and
-// vertex_web can no longer write the table (deploy/db-roles.sql).
+// fee_policy.py); the role check here only saves a round trip.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [...FEE_POLICY_MANAGER_ROLES]);

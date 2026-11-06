@@ -35,9 +35,10 @@ vertex-main holds the main data (restored 2026-10-10 from the old
 with `APP_ENV=production`.
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
-  and never runs `prisma migrate`, so the schema has one owner.
-- Each service connects as its own **least-privilege database role**
-  (`vertex_migrator`, `vertex_api`, `vertex_web`), provisioned by
+  and has no database access at all (reads handover R8), so the schema and the
+  data have one owner.
+- The backend connects as **least-privilege database roles**
+  (`vertex_migrator`, `vertex_api`), provisioned by
   [`db-roles.sql`](db-roles.sql) on every deploy. The superuser is for admin
   only. See [docs/secrets.md](../../docs/secrets.md).
 - **Flutter web** gets its API URL at runtime from `/config.json` (from
@@ -195,7 +196,7 @@ Each stack has its own MinIO (S3 API) for uploaded documents. Files are on
 this PC in `D:\VertexData\minio\<env>` (MinIO's own format: a folder per
 file, so open documents through the app or `mc`, not by double-clicking).
 
-- Only on the internal `data` network: no published port, web console off.
+- Only on the internal `data` and `stores` networks: no published port, web console off.
   On a development stack the console can be started on demand
   (`ENV_FILE=.env.dev sh deploy/minio-console.sh vertex-dev up`, then
   `down`): http://localhost:9001, login `MINIO_ROOT_USER` /

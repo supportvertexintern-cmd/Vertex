@@ -114,9 +114,9 @@ class Settings(BaseSettings):
     PAYPAL_CLIENT_SECRET: str | None = None
     PAYPAL_API_BASE: str | None = None
     # The candidate pipeline handover (docs/architecture/pipeline-handover.md):
-    # on since the switch (step 6.7), FastAPI writes the pipeline. The roll-
-    # back: turn it off and restore vertex_web's grants (pipeline-handover.md
-    # §6); every pipeline write then answers 503.
+    # on since the switch (step 6.7), FastAPI writes the pipeline. Off, every
+    # pipeline write answers 503; the website can't take over since reads
+    # handover R8, so this only stops writes.
     PIPELINE_WRITES_ENABLED: bool = True
     # Document storage, as the web app's (vertex/src/lib/upload.ts, the same
     # variables): S3-compatible, so MinIO (S3_ENDPOINT, the local and
