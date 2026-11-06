@@ -2,8 +2,10 @@
 # Raises a backup alert (E5), the same way the app raises security alerts
 # (Phase 10): a log line, an `alert_raised` row in the audit trail, and an
 # email to SECURITY_ALERT_EMAILS (default: every admin), sent through the
-# stack's own Next.js container so it uses that stack's SMTP settings
-# (Mailpit locally, a real relay in production).
+# stack's own backend container so it uses that stack's SMTP settings
+# (Mailpit locally, a real relay in production) and the same recipients as
+# a security alert (app/services/security_monitor.py; the website sent it
+# before reads handover R7b).
 #
 #   bash deploy/backup/alert.sh <rule> "<summary>" [detail...]     (from vertex_be/)
 #
@@ -33,7 +35,7 @@ echo "$NOW" > "$STATE/$RULE"
 
 # The stack to send through: ALERT_VIA, else any running stack.
 for p in "$VIA" vertex-main vertex-staging vertex-dev; do
-  if [ "$(docker inspect -f '{{.State.Running}}' "$p-nextjs-1" 2>/dev/null)" = true ]; then VIA="$p"; break; fi
+  if [ "$(docker inspect -f '{{.State.Running}}' "$p-backend-1" 2>/dev/null)" = true ]; then VIA="$p"; break; fi
 done
 
 BE="$(cd "$(dirname "$0")/../.." && { pwd -W 2>/dev/null || pwd; })"
@@ -56,23 +58,15 @@ Time:    $TS
 Details: ${DETAIL:-none}
 
 Runbook: docs/security/backup-recovery.md. Logs: $ROOT/logs/."
-docker exec -e ALERT_SUBJECT="$SUBJECT" -e ALERT_TEXT="$TEXT" -e ALERT_TO="${ALERT_TO:-}" -w /app "$VIA-nextjs-1" node -e '
-const nodemailer = require("nodemailer");
-const { PrismaClient } = require("@prisma/client");
-(async () => {
-  let to = (process.env.ALERT_TO || process.env.SECURITY_ALERT_EMAILS || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!to.length) {
-    const prisma = new PrismaClient();
-    to = (await prisma.user.findMany({ where: { role: "admin" }, select: { email: true } })).map((u) => u.email);
-    await prisma.$disconnect();
-  }
-  if (!to.length || !process.env.SMTP_HOST) { console.log("alert email skipped (no recipients or SMTP)"); return; }
-  const t = nodemailer.createTransport({
-    host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT) || 587, secure: process.env.SMTP_SECURE === "true",
-    ...(process.env.SMTP_USER ? { auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } } : {}),
-  });
-  await t.sendMail({ from: process.env.EMAIL_FROM || "Vertex <noreply@vertex.invalid>", to, subject: process.env.ALERT_SUBJECT, text: process.env.ALERT_TEXT });
-  console.log(`alert email sent to ${to.length} recipient(s)`);
-})().catch((e) => { console.log("alert email failed: " + e.message); });
+docker exec -e ALERT_SUBJECT="$SUBJECT" -e ALERT_TEXT="$TEXT" -e ALERT_TO="${ALERT_TO:-}" "$VIA-backend-1" python -c '
+import os
+from app.core.mailer import send_mail
+from app.services.security_monitor import alert_recipients
+to = [a.strip() for a in os.environ["ALERT_TO"].split(",") if a.strip()] or alert_recipients()
+try:
+    sent = bool(to) and send_mail(to, os.environ["ALERT_SUBJECT"], os.environ["ALERT_TEXT"])
+    print(f"alert email sent to {len(to)} recipient(s)" if sent else "alert email skipped (no recipients or SMTP)")
+except Exception as e:
+    print(f"alert email failed: {e}")
 ' 2>&1 | tail -1 || echo "alert: email not sent"
 exit 0

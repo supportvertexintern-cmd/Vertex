@@ -71,9 +71,9 @@ class Settings(BaseSettings):
     # to send visitors to Google. Unset = Google sign-in answers 503.
     GOOGLE_CLIENT_ID: str | None = None
     GOOGLE_CLIENT_SECRET: str | None = None
-    # Outgoing mail (reads handover R7, D3 and D4): the same settings the
-    # website's lib/email.ts uses. Unset SMTP_HOST = nothing is sent; the
-    # alert is still logged and recorded.
+    # Outgoing mail (reads handover R7, D3 and D4): every email the stack
+    # sends goes from here. Unset SMTP_HOST = nothing is sent; an alert is
+    # still logged and recorded, and a form's email is a 502.
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_SECURE: bool = False  # TLS from the start (port 465); else STARTTLS when offered
@@ -89,6 +89,9 @@ class Settings(BaseSettings):
     PARTNER_SUBMISSION_NOTIFY_EMAIL: str | None = None
     REFERRAL_AGENT_NOTIFY_EMAIL: str | None = None
     CONSULTATION_NOTIFY_EMAIL: str | None = None
+    # The public contact form and CIF go here; unset, they fail (502), as
+    # there's no other record of them.
+    PUBLIC_FORMS_NOTIFY_EMAIL: str | None = None
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None

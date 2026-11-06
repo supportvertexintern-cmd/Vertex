@@ -1,5 +1,5 @@
 """Outgoing mail (reads handover R7, D3 and D4 A): messages over SMTP, with
-the settings the website's lib/email.ts uses (SMTP_*, EMAIL_FROM). R7a sends
+the settings the website's lib/email.ts used (SMTP_*, EMAIL_FROM). R7a sends
 the security alerts from here (plain text); R7b the emails a write leaves
 due (HTML, app/services/emails.py), the receipt with its PDF attached.
 
@@ -26,13 +26,17 @@ class Attachment(NamedTuple):
     content_type: str  # "application/pdf"
 
 
-def send_mail(to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = ()) -> bool:
+def send_mail(
+    to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = (), reply_to: str | None = None
+) -> bool:
     if not settings.SMTP_HOST:
         return False
     message = EmailMessage()
     message["From"] = settings.EMAIL_FROM
     message["To"] = ", ".join(to)
     message["Subject"] = subject
+    if reply_to:
+        message["Reply-To"] = reply_to
     message.set_content(text, subtype="html" if html else "plain")
     for attachment in attachments:
         maintype, subtype = attachment.content_type.split("/", 1)

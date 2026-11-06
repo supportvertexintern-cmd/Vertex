@@ -1,6 +1,6 @@
 """The emails FastAPI sends (reads handover R7b, app/services/emails.py): its
-templates are lib/email.ts's (the website's email-templates.test.ts pins
-them), filled with escaped values, an admin's override applied. Every kind
+templates are lib/email.ts's, captured from it before R7b removed it
+(app/assets/email_templates.json, their source now), filled with escaped values, an admin's override applied. Every kind
 is sent here since R7b's third batch (tests/test_notices.py)."""
 
 from __future__ import annotations
@@ -36,11 +36,12 @@ from app.models.reference import EmailTemplate
 from app.services import emails, receipt
 from tests.mail import link, token
 
-SEND = emails._send  # before the sent_mail fixture replaces it
+SEND, TRANSMIT = emails._send, emails._transmit  # before the sent_mail fixture replaces the transport
 
 
 def test_every_kind_sent_here_has_its_template_and_values():
-    assert {key.split(".")[0] for key in emails.TEMPLATES} == emails.SENT_HERE == set(emails.VALUES)
+    assert {key.split(".")[0] for key in emails.TEMPLATES} == emails.SENT_HERE | emails.DIRECT
+    assert emails.SENT_HERE == set(emails.VALUES) and not emails.SENT_HERE & emails.DIRECT
     for key, template in emails.TEMPLATES.items():
         if key != "payment_receipt":  # lib/invoice.ts's own plain email
             assert "{{logo}}" in template["html"] and "{{year}}" in template["html"], key
@@ -263,13 +264,14 @@ def test_a_failure_is_logged_by_kind_without_the_link(db, sent_mail, monkeypatch
 def test_one_send_failing_doesnt_stop_the_rest(monkeypatch, caplog):
     tried = []
 
-    def send_mail(to, subject, body, *, html=False, attachments=()):
+    def send_mail(to, subject, body, *, html=False, attachments=(), reply_to=None):
         tried.append(to[0])
         if to[0] == "a@test.invalid":
             raise OSError("smtp down")
         return True
 
     monkeypatch.setattr(emails, "send_mail", send_mail)
+    monkeypatch.setattr(emails, "_transmit", TRANSMIT)
     with caplog.at_level(logging.ERROR, logger="vertex"):
         SEND([emails.Mail("password_reset", "a@test.invalid", "s", "h"), emails.Mail("account_setup", "b@test.invalid", "s", "h")])
     assert tried == ["a@test.invalid", "b@test.invalid"]

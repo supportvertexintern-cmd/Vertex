@@ -938,32 +938,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Record Invoice
-         * @description POST /api/cases/[id]/payments/invoice, once the website has sent the
-         *     email: a pending payment for the invoiced stage.
+         * Send Invoice
+         * @description POST /api/cases/[id]/payments/invoice: Finance emails a milestone
+         *     invoice they made elsewhere and uploaded, to the candidate or their
+         *     partner; once it's sent, a pending payment for the invoiced stage.
          */
-        post: operations["record_invoice_api_v1_cases__case_id__payments_invoice_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/cases/{case_id}/payments/invoice/check": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Check Invoice
-         * @description The invoice's checks, writing nothing: what the website needs to send
-         *     the email before /invoice records it.
-         */
-        post: operations["check_invoice_api_v1_cases__case_id__payments_invoice_check_post"];
+        post: operations["send_invoice_api_v1_cases__case_id__payments_invoice_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1358,10 +1338,7 @@ export interface paths {
         /**
          * Readable
          * @description assertDocumentReadable: Next.js asks before a stored file leaves the
-         *     server (a download, an email attachment), for a user or for itself.
-         *     Uploads are scanned before storage; this catches those accepted while
-         *     the scanner was unreachable, scanning them now. Infected is always
-         *     refused; unscanned and still unreachable is served (fail-open).
+         *     server (a download link), for a user or for itself (check_readable).
          */
         post: operations["readable_api_v1_documents_readable_post"];
         delete?: never;
@@ -1734,8 +1711,7 @@ export interface paths {
         };
         /**
          * Get Public Job
-         * @description A public job: active or closed (closed ones stay reachable from old
-         *     links), never a draft. Partner-only as for the listing.
+         * @description A public job: find_public_job.
          */
         get: operations["get_public_job_api_v1_jobs__job_id__get"];
         /** Update Job */
@@ -2369,6 +2345,48 @@ export interface paths {
          * @description Stripe's event, passed on by the website as it came.
          */
         post: operations["stripe_webhook_api_v1_payments_stripe_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public-forms/contact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Contact
+         * @description POST /api/contact: the message, emailed to the team (reply-to the sender).
+         */
+        post: operations["contact_api_v1_public_forms_contact_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public-forms/intake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Intake
+         * @description POST /api/public-intake/application: the CIF, emailed to the team for
+         *     a public job still taking applications, then a confirmation to the
+         *     applicant, off the request.
+         */
+        post: operations["intake_api_v1_public_forms_intake_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4463,6 +4481,22 @@ export interface components {
          * @enum {string}
          */
         ContactChannel: "email" | "whatsapp" | "phone";
+        /**
+         * ContactIn
+         * @description contactMessageSchema.
+         */
+        ContactIn: {
+            /** Email */
+            email: string;
+            /** Message */
+            message: string;
+            /** Name */
+            name: string;
+            /** Registration Number */
+            registration_number?: string | null;
+            /** Subject */
+            subject: string;
+        };
         /** ContractIn */
         ContractIn: {
             /** Content */
@@ -4698,10 +4732,6 @@ export interface components {
         Data_FinalizedOut_: {
             data: components["schemas"]["FinalizedOut"];
         };
-        /** Data[InvoicePlan] */
-        Data_InvoicePlan_: {
-            data: components["schemas"]["InvoicePlan"];
-        };
         /** Data[JobOut] */
         Data_JobOut_: {
             data: components["schemas"]["JobOut"];
@@ -4797,6 +4827,10 @@ export interface components {
         /** Data[RuleRow] */
         Data_RuleRow_: {
             data: components["schemas"]["RuleRow"];
+        };
+        /** Data[Sent] */
+        Data_Sent_: {
+            data: components["schemas"]["Sent"];
         };
         /** Data[SignedIn] */
         Data_SignedIn_: {
@@ -5324,6 +5358,53 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * IntakeIn
+         * @description The CIF's fields the email shows (submitApplicationSchema, checked by the website).
+         */
+        IntakeIn: {
+            /** Available For Embassy Appointment */
+            available_for_embassy_appointment: boolean;
+            /** Cover Letter */
+            cover_letter?: string | null;
+            /** Current Location Country Name */
+            current_location_country_name: string;
+            /**
+             * Documents Available
+             * @default []
+             */
+            documents_available: string[];
+            /** Earliest Travel Date */
+            earliest_travel_date: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Holds Schengen Visa */
+            holds_schengen_visa?: boolean | null;
+            /** Holds Schengen Visa Details */
+            holds_schengen_visa_details?: string | null;
+            /** Job Id */
+            job_id: string;
+            /** Nationality */
+            nationality?: string | null;
+            /** Passport Number */
+            passport_number?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Preferred Contact Channel */
+            preferred_contact_channel?: string | null;
+            /** Prior Eu Visa Applied */
+            prior_eu_visa_applied?: boolean | null;
+            /** Prior Eu Visa Applied Details */
+            prior_eu_visa_applied_details?: string | null;
+            /** Prior Visa Refusals */
+            prior_visa_refusals?: boolean | null;
+            /** Prior Visa Refusals Details */
+            prior_visa_refusals_details?: string | null;
+            /** Willing To Start Within 30 Days */
+            willing_to_start_within_30_days: boolean;
+        };
+        /**
          * InviteEmail
          * @description sendCandidateInviteEmail(candidate_id, email, full_name).
          */
@@ -5355,28 +5436,6 @@ export interface components {
              * @enum {string}
              */
             recipient: "candidate" | "partner";
-        };
-        /**
-         * InvoicePlan
-         * @description What the website needs to send the invoice email.
-         */
-        InvoicePlan: {
-            /** Candidate Name */
-            candidate_name: string;
-            /** Passport Number */
-            passport_number: string | null;
-            /** Programme Title */
-            programme_title: string;
-            /** Recipient Email */
-            recipient_email: string;
-            /** Recipient Name */
-            recipient_name: string;
-            /** Sector Name */
-            sector_name: string | null;
-            /** Stage Label */
-            stage_label: string;
-            /** Storage Path */
-            storage_path: string;
         };
         /** IssueRow */
         IssueRow: {
@@ -7213,6 +7272,14 @@ export interface components {
             /** Full Name */
             full_name: string;
             role: components["schemas"]["Role"];
+        };
+        /** Sent */
+        Sent: {
+            /**
+             * Sent
+             * @default true
+             */
+            sent: boolean;
         };
         /** SessionOut */
         SessionOut: {
@@ -10103,7 +10170,7 @@ export interface operations {
             };
         };
     };
-    record_invoice_api_v1_cases__case_id__payments_invoice_post: {
+    send_invoice_api_v1_cases__case_id__payments_invoice_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -10125,41 +10192,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_CasePaymentRow_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    check_invoice_api_v1_cases__case_id__payments_invoice_check_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                case_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["InvoiceIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Data_InvoicePlan_"];
                 };
             };
             /** @description Validation Error */
@@ -12768,6 +12800,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_Received_"];
+                };
+            };
+        };
+    };
+    contact_api_v1_public_forms_contact_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Sent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    intake_api_v1_public_forms_intake_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IntakeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Sent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

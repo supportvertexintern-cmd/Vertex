@@ -12,11 +12,11 @@ document) is checked against the case before it's used.
 Recording, linking and invoicing are gated by the effective FeePolicy (the
 candidate's country's, else the global one).
 
-The invoice email carries the uploaded file and must be sent before the
-payment is recorded, so a failed send never leaves an "invoiced" payment
-behind. The website checks first (/invoice/check, which writes nothing),
-reads and scans the file, sends it, then records (/invoice, which checks
-again). The link email is listed in `notify` as usual.
+The invoice email carries the uploaded file and is sent before the payment
+is recorded, so a failed send never leaves an "invoiced" payment behind:
+/invoice checks, reads the file, refuses one that fails the malware scan,
+sends it, then records (reads handover R7b; the website did the middle
+part). The link email is sent off the request, as every notice.
 
 Every write is on the audit trail (CasePayment is in AUDITED_MODELS).
 """
@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
@@ -34,12 +35,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from app.api.notices import MilestonePaymentLinkEmail, MilestonePlanStage, Notifying
-from app.services.emails import deliver
+from app.api.v1.documents import check_readable
+from app.services import storage
+from app.services.emails import deliver, invoice_mail, send_now
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.logging import log_event
+from app.core.mailer import Attachment
 from app.core.rbac import FINANCE_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_case
 from app.models.candidate import Candidate, Document
@@ -124,8 +128,9 @@ class LinkOut(BaseModel):
     url: str
 
 
-class InvoicePlan(BaseModel):
-    """What the website needs to send the invoice email."""
+@dataclass(frozen=True)
+class InvoicePlan:
+    """Who the invoice email goes to, and what it says."""
 
     recipient_email: str
     recipient_name: str
@@ -345,18 +350,34 @@ def _invoice_plan(db, case_id: str, body: InvoiceIn, user: AuthUser) -> tuple[Ca
     return case, stage, plan
 
 
-@router.post("/cases/{case_id}/payments/invoice/check", response_model=Data[InvoicePlan])
-def check_invoice(case_id: str, body: InvoiceIn, user: Finance, db: AuditedDb):
-    """The invoice's checks, writing nothing: what the website needs to send
-    the email before /invoice records it."""
-    return {"data": _invoice_plan(db, case_id, body, user)[2]}
+INVOICE_TYPES = {"pdf": "application/pdf", "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
+
+
+def _invoice_file(db, plan: InvoicePlan, user: AuthUser) -> Attachment:
+    """The uploaded invoice, if it's readable and passes the malware scan."""
+    content = storage.read_document(plan.storage_path)
+    if content is None:
+        raise ApiError(502, "invoice_file_missing", "Could not read the uploaded invoice file.")
+    try:
+        check_readable(db, plan.storage_path, user.user_id)
+    except ApiError as err:
+        if err.code == "document_blocked":
+            raise ApiError(422, "invoice_blocked", err.message) from None
+        raise
+    extension = (plan.storage_path.rsplit(".", 1)[-1] if "." in plan.storage_path else "bin").lower()
+    stem = re.sub(r"\s+", "_", plan.stage_label)
+    filename = f"{stem}_Invoice.{extension}"
+    return Attachment(filename, content, INVOICE_TYPES.get(extension, "application/octet-stream"))
 
 
 @router.post("/cases/{case_id}/payments/invoice", response_model=Data[CasePaymentRow], status_code=status.HTTP_201_CREATED)
-def record_invoice(case_id: str, body: InvoiceIn, user: Finance, db: AuditedDb):
-    """POST /api/cases/[id]/payments/invoice, once the website has sent the
-    email: a pending payment for the invoiced stage."""
+def send_invoice(case_id: str, body: InvoiceIn, user: Finance, db: AuditedDb):
+    """POST /api/cases/[id]/payments/invoice: Finance emails a milestone
+    invoice they made elsewhere and uploaded, to the candidate or their
+    partner; once it's sent, a pending payment for the invoiced stage."""
     _, stage, plan = _invoice_plan(db, case_id, body, user)
+    if not send_now(invoice_mail(db, plan, _invoice_file(db, plan, user))):
+        raise ApiError(502, "invoice_email_failed", "Failed to send invoice email.")
     payment = CasePayment(
         case_id=case_id,
         job_payment_stage_id=stage.id,

@@ -145,7 +145,9 @@ ok "Logs are JSON (backend access line)" "$(docker logs --since 2m ${P}-backend-
 ok "Credentials in container logs" "$(for c in nextjs backend; do docker logs ${P}-$c-1 2>&1; done | grep -cE 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[a-z]+://[^:@/ ]+:[^@/ ]+@|password_hash\":\"\$2' | tr -d ' ')" 0
 ok "Log rotation (all containers)" "$(docker ps --filter "label=com.docker.compose.project=$P" -q | xargs docker inspect -f '{{index .HostConfig.LogConfig.Config "max-size"}}' | sort -u | tr '
 ' ' ' | sed 's/ $//')" 10m
-ok "Next.js → Mailpit (alert email)" "$(docker exec ${P}-nextjs-1 nc -z -w 3 mailpit 1025 >/dev/null 2>&1 && echo yes || echo no)" yes
+# FastAPI sends every email, the backup alert's included (reads handover R7b).
+ok "FastAPI → Mailpit (email)" "$(docker exec ${P}-backend-1 python -c "import socket; socket.create_connection(('mailpit', 1025), 3)" >/dev/null 2>&1 && echo yes || echo no)" yes
+ok "Next.js has no mail settings" "$(docker exec ${P}-nextjs-1 printenv SMTP_HOST >/dev/null 2>&1 && echo yes || echo no)" no
 ok "Mailpit UI on localhost" "$(code http://127.0.0.1:$MP/)" 200
 # Phase 11: main every 6 hours, staging weekly (dev isn't backed up).
 case "$E" in main) MAXH=7 ;; staging) MAXH=192 ;; *) MAXH="" ;; esac

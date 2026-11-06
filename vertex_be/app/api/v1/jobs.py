@@ -454,14 +454,19 @@ def list_public_jobs(
     return Data(data=PublicJobList(jobs=_public_jobs(db, PublicJobOut, jobs), total=total, page=page_n, pages=math.ceil(total / limit_n)))
 
 
-@router.get("/jobs/{job_id}")
-def get_public_job(job_id: str, db: DbSession, user: WebsiteOrUser, audience: str | None = None) -> Data[PublicJobDetailOut]:
+def find_public_job(db, job_id: str, user: AuthUser | None, audience: str | None = None) -> Job | None:
     """A public job: active or closed (closed ones stay reachable from old
     links), never a draft. Partner-only as for the listing."""
     where = [Job.id == job_id, Job.status.in_([JobStatus.active, JobStatus.closed])]
     if not _partner_only_visible(user, audience):
         where.append(Job.partner_only.is_(False))
-    job = db.scalars(select(Job).where(*where).options(*_PUBLIC_LOADS)).first()
+    return db.scalars(select(Job).where(*where).options(*_PUBLIC_LOADS)).first()
+
+
+@router.get("/jobs/{job_id}")
+def get_public_job(job_id: str, db: DbSession, user: WebsiteOrUser, audience: str | None = None) -> Data[PublicJobDetailOut]:
+    """A public job: find_public_job."""
+    job = find_public_job(db, job_id, user, audience)
     if job is None:
         raise ApiError(404, "not_found", "Job not found.")
     return Data(data=_public_jobs(db, PublicJobDetailOut, [job])[0])

@@ -7,8 +7,9 @@ which now pass requests on through callBackend(): admin only, the same 400
 {data} so the admin Settings page still gets plain arrays and objects.
 Every change is on the audit trail.
 
-Reads stay in Next.js: the Help Center and /api/chat read the articles, and
-lib/email.ts reads a template before sending (vertex_web keeps SELECT).
+Reads stay in Next.js: the Help Center and /api/chat read the articles
+(vertex_web keeps SELECT until reads handover R8). FastAPI applies a
+template when it sends (app/services/emails.py).
 """
 
 from __future__ import annotations

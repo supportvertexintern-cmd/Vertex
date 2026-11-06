@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // JSON early and passes the request on. FastAPI's rules are tested in
 // vertex_be/tests (test_referral_commissions.py, …).
 
-const state = vi.hoisted(() => ({ role: "admin" as string | null, emailFails: false, blocked: false }));
+const state = vi.hoisted(() => ({ role: "admin" as string | null }));
 
 vi.mock("@/lib/api-auth", () => {
   const deny = (status: number) => Response.json({ error: "denied" }, { status });
@@ -23,26 +23,8 @@ vi.mock("@/lib/backend", async (importOriginal) => ({
   callBackend: (...args: unknown[]) => callBackend(...args),
 }));
 
-// The invoice email is recorded. FastAPI sends the receipt, the payment link
-// and the booking notice itself since reads handover R7b
+// FastAPI sends every payment email itself since reads handover R7b
 // (vertex_be/tests/test_payments.py, test_case_payments.py).
-const sent = vi.hoisted(() => [] as unknown[][]);
-vi.mock("@/lib/email", () => ({
-  sendCasePaymentInvoiceEmail: async (...args: unknown[]) => {
-    if (state.emailFails) throw new Error("SMTP down");
-    sent.push(["sendCasePaymentInvoiceEmail", ...args]);
-  },
-}));
-vi.mock("@/lib/upload", () => ({ getStorageContent: async () => ({ buffer: Buffer.from("%PDF"), extension: "pdf" }) }));
-vi.mock("@/lib/document-access", () => {
-  class DocumentBlockedError extends Error {}
-  return {
-    DocumentBlockedError,
-    assertDocumentReadable: async () => {
-      if (state.blocked) throw new DocumentBlockedError("This file failed the malware scan.");
-    },
-  };
-});
 
 import * as rules from "@/app/api/admin/referral-commission-rules/route";
 import * as webhook from "@/app/api/webhooks/stripe/route";
@@ -60,10 +42,7 @@ const req = (body?: string) =>
   new NextRequest("http://localhost/api/admin/referral-commission-rules", { method: "POST", body, headers: body ? { "content-type": "application/json" } : {} });
 
 beforeEach(() => {
-  sent.length = 0;
   state.role = "admin";
-  state.emailFails = false;
-  state.blocked = false;
   callBackend.mockReset();
   callBackend.mockResolvedValue({ ok: true, status: 200, body: { data: { id: "r1", amount: 25 } } });
 });
@@ -172,34 +151,26 @@ describe("case payments (step 7.3)", () => {
     expect(await (await paymentLink.POST(send("{}"), ctx)).json()).toEqual({ error: "Self-applicants only." });
   });
 
-  const plan = {
-    recipient_email: "p@test.invalid", recipient_name: "Bridge Agency", candidate_name: "Abebe", passport_number: "EP1",
-    programme_title: "Care", sector_name: "Healthcare", stage_label: "First Stage", storage_path: "cases/inv.pdf",
-  };
   const invoiceBody = '{"job_payment_stage_id":"s1","amount":400,"recipient":"partner","invoice_document_id":"d1"}';
 
-  it("an invoice is checked, emailed with its file, and only then recorded", async () => {
-    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: plan } });
+  it("an invoice: FastAPI sends it and records it, in one call", async () => {
     callBackend.mockResolvedValueOnce({ ok: true, status: 201, body: { data: row } });
     const res = await invoice.POST(send(invoiceBody), ctx);
     expect([res.status, await res.json()]).toEqual([201, { data: row }]);
-    expect(callBackend.mock.calls.map(([path]) => path)).toEqual(["/api/v1/cases/case1/payments/invoice/check", "/api/v1/cases/case1/payments/invoice"]);
-    expect(sent[0].slice(0, 7)).toEqual(["sendCasePaymentInvoiceEmail", "p@test.invalid", "Bridge Agency", "Abebe", "EP1", "Care", "Healthcare"]);
-    expect((sent[0][7] as { filename: string }).filename).toBe("First_Stage_Invoice.pdf");
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/cases/case1/payments/invoice", { method: "POST", body: JSON.parse(invoiceBody) });
   });
 
-  it("an invoice that can't be sent, or whose file is blocked, is never recorded", async () => {
-    state.emailFails = true;
-    callBackend.mockResolvedValue({ ok: true, status: 200, body: { data: plan } });
-    const failed = await invoice.POST(send(invoiceBody), ctx);
-    expect([failed.status, (await failed.json()).error.code]).toEqual([502, "invoice_email_failed"]);
-    state.emailFails = false;
-    state.blocked = true;
-    const blocked = await invoice.POST(send(invoiceBody), ctx);
-    expect([blocked.status, (await blocked.json()).error.code]).toEqual([422, "invoice_blocked"]);
-    expect(callBackend.mock.calls.every(([path]) => String(path).endsWith("/check"))).toBe(true);
+  it("an invoice's refusals are strings; a blocked file and a failed send keep { code, message }", async () => {
     callBackend.mockResolvedValueOnce({ ok: false, status: 404, error: { code: "not_found", message: "Invoice file not found for this candidate." } });
     expect(await (await invoice.POST(send(invoiceBody), ctx)).json()).toEqual({ error: "Invoice file not found for this candidate." });
+    callBackend.mockResolvedValueOnce({ ok: false, status: 422, error: { code: "invoice_blocked", message: "Blocked." } });
+    const blocked = await invoice.POST(send(invoiceBody), ctx);
+    expect([blocked.status, await blocked.json()]).toEqual([422, { error: { code: "invoice_blocked", message: "Blocked." } }]);
+    callBackend.mockResolvedValueOnce({ ok: false, status: 502, error: { code: "invoice_email_failed", message: "Failed to send invoice email." } });
+    const failed = await invoice.POST(send(invoiceBody), ctx);
+    expect([failed.status, (await failed.json()).error.code]).toEqual([502, "invoice_email_failed"]);
+    state.role = "operations_team";
+    expect((await invoice.POST(send(invoiceBody), ctx)).status).toBe(403);
   });
 
   it("check-status and mark-paid answer { data, message }; the receipt { data }", async () => {

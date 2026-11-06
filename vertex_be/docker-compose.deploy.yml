@@ -14,7 +14,7 @@
 #  - Networks are split. `data` is internal (no outbound traffic, no
 #    published ports): only the database and the services that use it.
 #    `edge` carries published ports and outbound traffic for those services
-#    (Next.js needs SMTP/Stripe/AI APIs); the database is not on it, so it
+#    (Next.js needs Stripe/AI APIs); the database is not on it, so it
 #    can't reach the internet. Flutter's static server sits alone on
 #    `static`. Postgres is unpublished unless docker-compose.db-port.yml is
 #    added (deploy.sh does that when POSTGRES_HOST_PORT is set).
@@ -73,6 +73,7 @@ services:
       PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
       REFERRAL_AGENT_NOTIFY_EMAIL: ${REFERRAL_AGENT_NOTIFY_EMAIL:-}
       CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
+      PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
       # Session keys (session-keys-handover.md), written by
       # deploy/session-keys.sh. The private key and the account-link secret
       # are this service's alone; the public keys are shared with Next.js.
@@ -217,21 +218,9 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      # Unset = this stack's Mailpit (nothing leaves the PC).
-      SMTP_HOST: ${SMTP_HOST:-mailpit}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_SECURE: ${SMTP_SECURE:-}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      EMAIL_FROM: ${EMAIL_FROM:-}
-      # Security alerts (lib/security-monitor.ts): comma-separated; unset =
-      # every admin user.
-      SECURITY_ALERT_EMAILS: ${SECURITY_ALERT_EMAILS:-}
+      # No mail settings: FastAPI sends every email since reads handover R7b.
       APP_ENV: ${APP_ENV}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      PARTNER_SUBMISSION_NOTIFY_EMAIL: ${PARTNER_SUBMISSION_NOTIFY_EMAIL:-}
-      PUBLIC_FORMS_NOTIFY_EMAIL: ${PUBLIC_FORMS_NOTIFY_EMAIL:-}
-      CONSULTATION_NOTIFY_EMAIL: ${CONSULTATION_NOTIFY_EMAIL:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       # The Stripe webhook secret and PayPal's credentials are the backend's
       # since payments step 7.2: this app only passes those requests on.

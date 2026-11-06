@@ -8,7 +8,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // shapes (a plain array, the plain template), so AdminSettings is
 // unchanged. FastAPI re-checks the session, the role and the input itself,
 // and vertex_web may no longer write the table (deploy/db-roles.sql).
-// lib/email.ts reads a template directly before sending.
+// FastAPI applies an override when it sends (vertex_be/app/services/emails.py).
 
 // GET /api/admin/emails: every template override, by event. Admin only.
 export async function GET(req: NextRequest) {

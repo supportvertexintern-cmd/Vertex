@@ -20,6 +20,7 @@ from app.models.identity import Country, Region, User
 from app.models.jobs import Job, JobPaymentStage
 from app.models.partners import Partner
 from app.models.reference import DocumentRequirementType
+from app.services import emails, storage
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
 
@@ -238,24 +239,52 @@ def invoice_body(world, **fields) -> dict:
     return {"job_payment_stage_id": world["deposit"].id, "amount": 400, "recipient": "partner", "invoice_document_id": world["invoice"].id, "invoice_reference": "INV-7"} | fields
 
 
-def test_an_invoice_is_checked_then_recorded_once_sent(api, db, world):
-    case = world["case"].id
-    check = api.post(f"{URL}/{case}/payments/invoice/check", headers=world["finance"], json=invoice_body(world))
-    assert check.status_code == 200
-    assert check.json()["data"] == {
-        "recipient_email": world["partner"].contact_email, "recipient_name": "Bridge Agency", "candidate_name": world["account"].full_name,
-        "passport_number": "EP123", "programme_title": "Care worker", "sector_name": "Healthcare", "stage_label": "Deposit",
-        "storage_path": "cases/invoice.pdf",
-    }
-    assert db.scalars(select(CasePayment).where(CasePayment.case_id == case)).all() == []
+INVOICE_BYTES = b"%PDF-1.4 the invoice"
 
-    res = api.post(f"{URL}/{case}/payments/invoice", headers=world["finance"], json=invoice_body(world))
+
+@pytest.fixture
+def stored(monkeypatch) -> dict[str, bytes]:
+    files = {"cases/invoice.pdf": INVOICE_BYTES}
+    monkeypatch.setattr(storage, "read_document", files.get)
+    return files
+
+
+def test_an_invoice_is_emailed_with_its_file_then_recorded(api, db, world, stored, sent_mail):
+    res = api.post(f"{URL}/{world['case'].id}/payments/invoice", headers=world["finance"], json=invoice_body(world))
     assert res.status_code == 201
     data = res.json()["data"]
     assert (data["status"], data["currency"], data["receipt_reference"], data["receipt_document_id"], data["sent_to_email"]) == (
         "pending", "GBP", "INV-7", world["invoice"].id, world["partner"].contact_email,
     )
     assert actions(db, data["id"]) == ["create"]
+    [mail] = sent_mail
+    name = world["account"].full_name
+    assert (mail.to, mail.subject) == (world["partner"].contact_email, f"Invoice for {name} — Care worker")
+    assert "Dear Bridge Agency," in mail.html and "(Passport Number: EP123)" in mail.html and "<strong>Healthcare</strong> sector" in mail.html
+    assert mail.attachments == (emails.Attachment("Deposit_Invoice.pdf", INVOICE_BYTES, "application/pdf"),)
+
+
+def test_an_invoice_that_cant_go_is_never_recorded(api, db, world, stored, sent_mail, monkeypatch):
+    case = world["case"].id
+    send = lambda: api.post(f"{URL}/{case}/payments/invoice", headers=world["finance"], json=invoice_body(world))  # noqa: E731
+    stored.clear()
+    assert (send().status_code, error(send())["code"]) == (502, "invoice_file_missing")
+    stored["cases/invoice.pdf"] = INVOICE_BYTES
+
+    def down(_mail):
+        raise OSError("smtp down")
+
+    monkeypatch.setattr(emails, "_transmit", down)
+    res = send()
+    assert (res.status_code, error(res)) == (502, {"code": "invoice_email_failed", "message": "Failed to send invoice email."})
+    monkeypatch.setattr(emails, "_transmit", sent_mail.append)
+
+    world["invoice"].scan_status = "infected"
+    db.flush()
+    res = send()
+    assert (res.status_code, error(res)["code"]) == (422, "invoice_blocked")
+    assert sent_mail == []
+    assert db.scalars(select(CasePayment).where(CasePayment.case_id == case)).all() == []
 
 
 def test_an_invoice_file_must_be_this_candidates(api, db, world):
@@ -265,7 +294,7 @@ def test_an_invoice_file_must_be_this_candidates(api, db, world):
     elsewhere = Document(candidate_id=other.id, type=world["kind"].key, storage_path="x/other.pdf")
     db.add(elsewhere)
     db.flush()
-    res = api.post(f"{URL}/{world['case'].id}/payments/invoice/check", headers=world["finance"], json=invoice_body(world, invoice_document_id=elsewhere.id))
+    res = api.post(f"{URL}/{world['case'].id}/payments/invoice", headers=world["finance"], json=invoice_body(world, invoice_document_id=elsewhere.id))
     assert (res.status_code, error(res)["message"]) == (404, "Invoice file not found for this candidate.")
     world["candidate"].partner_id = None
     db.flush()

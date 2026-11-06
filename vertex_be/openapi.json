@@ -4068,6 +4068,54 @@
     "title": "ContactChannel",
     "type": "string"
    },
+   "ContactIn": {
+    "description": "contactMessageSchema.",
+    "properties": {
+     "email": {
+      "maxLength": 320,
+      "title": "Email",
+      "type": "string"
+     },
+     "message": {
+      "maxLength": 5000,
+      "minLength": 10,
+      "title": "Message",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 150,
+      "minLength": 2,
+      "title": "Name",
+      "type": "string"
+     },
+     "registration_number": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Registration Number"
+     },
+     "subject": {
+      "maxLength": 200,
+      "minLength": 2,
+      "title": "Subject",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "email",
+     "subject",
+     "message"
+    ],
+    "title": "ContactIn",
+    "type": "object"
+   },
    "ContractIn": {
     "properties": {
      "content": {
@@ -4784,18 +4832,6 @@
     "title": "Data[FinalizedOut]",
     "type": "object"
    },
-   "Data_InvoicePlan_": {
-    "properties": {
-     "data": {
-      "$ref": "#/components/schemas/InvoicePlan"
-     }
-    },
-    "required": [
-     "data"
-    ],
-    "title": "Data[InvoicePlan]",
-    "type": "object"
-   },
    "Data_JobOut_": {
     "properties": {
      "data": {
@@ -5082,6 +5118,18 @@
      "data"
     ],
     "title": "Data[RuleRow]",
+    "type": "object"
+   },
+   "Data_Sent_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Sent"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Sent]",
     "type": "object"
    },
    "Data_SignedIn_": {
@@ -6722,6 +6770,182 @@
     "title": "HTTPValidationError",
     "type": "object"
    },
+   "IntakeIn": {
+    "description": "The CIF's fields the email shows (submitApplicationSchema, checked by the website).",
+    "properties": {
+     "available_for_embassy_appointment": {
+      "title": "Available For Embassy Appointment",
+      "type": "boolean"
+     },
+     "cover_letter": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Letter"
+     },
+     "current_location_country_name": {
+      "title": "Current Location Country Name",
+      "type": "string"
+     },
+     "documents_available": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Documents Available",
+      "type": "array"
+     },
+     "earliest_travel_date": {
+      "title": "Earliest Travel Date",
+      "type": "string"
+     },
+     "email": {
+      "maxLength": 320,
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "maxLength": 100,
+      "minLength": 2,
+      "title": "Full Name",
+      "type": "string"
+     },
+     "holds_schengen_visa": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Holds Schengen Visa"
+     },
+     "holds_schengen_visa_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Holds Schengen Visa Details"
+     },
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "nationality": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nationality"
+     },
+     "passport_number": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Passport Number"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "preferred_contact_channel": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Contact Channel"
+     },
+     "prior_eu_visa_applied": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prior Eu Visa Applied"
+     },
+     "prior_eu_visa_applied_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prior Eu Visa Applied Details"
+     },
+     "prior_visa_refusals": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prior Visa Refusals"
+     },
+     "prior_visa_refusals_details": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prior Visa Refusals Details"
+     },
+     "willing_to_start_within_30_days": {
+      "title": "Willing To Start Within 30 Days",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "job_id",
+     "full_name",
+     "email",
+     "earliest_travel_date",
+     "current_location_country_name",
+     "available_for_embassy_appointment",
+     "willing_to_start_within_30_days"
+    ],
+    "title": "IntakeIn",
+    "type": "object"
+   },
    "InviteEmail": {
     "description": "sendCandidateInviteEmail(candidate_id, email, full_name).",
     "properties": {
@@ -6797,69 +7021,6 @@
      "invoice_document_id"
     ],
     "title": "InvoiceIn",
-    "type": "object"
-   },
-   "InvoicePlan": {
-    "description": "What the website needs to send the invoice email.",
-    "properties": {
-     "candidate_name": {
-      "title": "Candidate Name",
-      "type": "string"
-     },
-     "passport_number": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Passport Number"
-     },
-     "programme_title": {
-      "title": "Programme Title",
-      "type": "string"
-     },
-     "recipient_email": {
-      "title": "Recipient Email",
-      "type": "string"
-     },
-     "recipient_name": {
-      "title": "Recipient Name",
-      "type": "string"
-     },
-     "sector_name": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Sector Name"
-     },
-     "stage_label": {
-      "title": "Stage Label",
-      "type": "string"
-     },
-     "storage_path": {
-      "title": "Storage Path",
-      "type": "string"
-     }
-    },
-    "required": [
-     "recipient_email",
-     "recipient_name",
-     "candidate_name",
-     "passport_number",
-     "programme_title",
-     "sector_name",
-     "stage_label",
-     "storage_path"
-    ],
-    "title": "InvoicePlan",
     "type": "object"
    },
    "IssueRow": {
@@ -14488,6 +14649,17 @@
      "role"
     ],
     "title": "Sender",
+    "type": "object"
+   },
+   "Sent": {
+    "properties": {
+     "sent": {
+      "default": true,
+      "title": "Sent",
+      "type": "boolean"
+     }
+    },
+    "title": "Sent",
     "type": "object"
    },
    "SessionOut": {
@@ -22137,8 +22309,8 @@
   },
   "/api/v1/cases/{case_id}/payments/invoice": {
    "post": {
-    "description": "POST /api/cases/[id]/payments/invoice, once the website has sent the\nemail: a pending payment for the invoiced stage.",
-    "operationId": "record_invoice_api_v1_cases__case_id__payments_invoice_post",
+    "description": "POST /api/cases/[id]/payments/invoice: Finance emails a milestone\ninvoice they made elsewhere and uploaded, to the candidate or their\npartner; once it's sent, a pending payment for the invoiced stage.",
+    "operationId": "send_invoice_api_v1_cases__case_id__payments_invoice_post",
     "parameters": [
      {
       "in": "path",
@@ -22187,65 +22359,7 @@
       "session": []
      }
     ],
-    "summary": "Record Invoice",
-    "tags": [
-     "payments and finance"
-    ]
-   }
-  },
-  "/api/v1/cases/{case_id}/payments/invoice/check": {
-   "post": {
-    "description": "The invoice's checks, writing nothing: what the website needs to send\nthe email before /invoice records it.",
-    "operationId": "check_invoice_api_v1_cases__case_id__payments_invoice_check_post",
-    "parameters": [
-     {
-      "in": "path",
-      "name": "case_id",
-      "required": true,
-      "schema": {
-       "title": "Case Id",
-       "type": "string"
-      }
-     }
-    ],
-    "requestBody": {
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/InvoiceIn"
-       }
-      }
-     },
-     "required": true
-    },
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/Data_InvoicePlan_"
-        }
-       }
-      },
-      "description": "Successful Response"
-     },
-     "422": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      },
-      "description": "Validation Error"
-     }
-    },
-    "security": [
-     {
-      "session": []
-     }
-    ],
-    "summary": "Check Invoice",
+    "summary": "Send Invoice",
     "tags": [
      "payments and finance"
     ]
@@ -23370,7 +23484,7 @@
   },
   "/api/v1/documents/readable": {
    "post": {
-    "description": "assertDocumentReadable: Next.js asks before a stored file leaves the\nserver (a download, an email attachment), for a user or for itself.\nUploads are scanned before storage; this catches those accepted while\nthe scanner was unreachable, scanning them now. Infected is always\nrefused; unscanned and still unreachable is served (fail-open).",
+    "description": "assertDocumentReadable: Next.js asks before a stored file leaves the\nserver (a download link), for a user or for itself (check_readable).",
     "operationId": "readable_api_v1_documents_readable_post",
     "requestBody": {
      "content": {
@@ -24637,7 +24751,7 @@
     ]
    },
    "get": {
-    "description": "A public job: active or closed (closed ones stay reachable from old\nlinks), never a draft. Partner-only as for the listing.",
+    "description": "A public job: find_public_job.",
     "operationId": "get_public_job_api_v1_jobs__job_id__get",
     "parameters": [
      {
@@ -26830,6 +26944,104 @@
     "summary": "Stripe Webhook",
     "tags": [
      "payments and finance"
+    ]
+   }
+  },
+  "/api/v1/public-forms/contact": {
+   "post": {
+    "description": "POST /api/contact: the message, emailed to the team (reply-to the sender).",
+    "operationId": "contact_api_v1_public_forms_contact_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ContactIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Sent_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Contact",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/public-forms/intake": {
+   "post": {
+    "description": "POST /api/public-intake/application: the CIF, emailed to the team for\na public job still taking applications, then a confirmation to the\napplicant, off the request.",
+    "operationId": "intake_api_v1_public_forms_intake_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IntakeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Sent_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     }
+    ],
+    "summary": "Intake",
+    "tags": [
+     "content"
     ]
    }
   },

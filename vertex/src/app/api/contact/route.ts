@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { contactMessageSchema } from "@/lib/validations";
 import { rateLimit, retryAfter } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/client-ip";
-import { sendContactMessageEmail } from "@/lib/email";
+import { callBackend } from "@/lib/backend";
 
-import { log } from "@/lib/log";
-// POST /api/contact — the public /contact page had no backend at all
-// (client-side simulated success). Always emails PUBLIC_FORMS_NOTIFY_EMAIL
-// — unlike the CIF, there's no CRM record this could otherwise create, so
-// nothing here is gated by the intake_mode admin setting.
+const FAILED = "We couldn't send your message right now. Please try again shortly or email us directly.";
+
+// POST /api/contact — always emails PUBLIC_FORMS_NOTIFY_EMAIL; unlike the
+// CIF, there's no CRM record this could otherwise create, so nothing here
+// is gated by the intake_mode admin setting. FastAPI sends it since reads
+// handover R7b (vertex_be/app/api/v1/public_forms.py); this route keeps the
+// rate limit and the form's messages.
 export async function POST(req: NextRequest) {
   const ip = clientKey(req.headers);
   const rl = await rateLimit(`contact:${ip}`, { max: 5, windowMs: 60_000 });
@@ -24,12 +26,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors }, { status: 422 });
   }
 
-  try {
-    await sendContactMessageEmail(parsed.data);
-  } catch (error) {
-    log.error("api.failed_to_send_contact_form_notification_email", { err: error });
-    return NextResponse.json({ error: "We couldn't send your message right now. Please try again shortly or email us directly." }, { status: 502 });
-  }
+  const sent = await callBackend("/api/v1/public-forms/contact", { method: "POST", body: parsed.data, asUser: false });
+  if (!sent.ok) return NextResponse.json({ error: FAILED }, { status: 502 });
 
   return NextResponse.json({ success: true }, { status: 201 });
 }

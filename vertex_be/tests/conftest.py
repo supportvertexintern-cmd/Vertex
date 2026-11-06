@@ -84,7 +84,7 @@ def sent_mail(monkeypatch: pytest.MonkeyPatch) -> list[emails.Mail]:
     never over SMTP."""
     sent: list[emails.Mail] = []
     monkeypatch.setattr(emails, "dispatch", lambda send: send())
-    monkeypatch.setattr(emails, "_send", sent.extend)
+    monkeypatch.setattr(emails, "_transmit", sent.append)
     return sent
 
 

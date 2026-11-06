@@ -8,7 +8,6 @@ const state = vi.hoisted(() => {
   process.env.JWT_SECRET ??= "test-only-signing-value-not-a-real-secret-accounts";
   return {
     user: null as null | { userId: string; email: string; role: string; sid: string; ver: number },
-    sent: [] as unknown[][],
     dbUser: null as unknown,
   };
 });
@@ -23,10 +22,6 @@ vi.mock("next/server", async (importOriginal) => ({
   after: (fn: () => unknown) => fn(),
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
-vi.mock("@/lib/email", () => {
-  const senders = ["sendVerificationLinkEmail", "sendPasswordResetLinkEmail", "sendAccountSetupLinkEmail"];
-  return Object.fromEntries(senders.map((name) => [name, async (...args: unknown[]) => void state.sent.push([name, ...args])]));
-});
 vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
 vi.mock("@/lib/prisma", () => ({ prisma: { user: { findUnique: async () => state.dbUser } } }));
 vi.mock("@/lib/api-auth", () => ({
@@ -62,7 +57,6 @@ const admin = { userId: "admin1", email: "a@test.invalid", role: "admin", sid: "
 
 beforeEach(() => {
   callBackend.mockReset();
-  state.sent = [];
   state.user = null;
   state.dbUser = null;
 });
@@ -76,7 +70,6 @@ describe("registration and verification", () => {
     const res = await register.POST(request("POST", "/api/auth/register", { password: "Pass-word-1", invite: "inv" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/accounts/register", { method: "POST", body: { password: "Pass-word-1", invite: "inv" }, asUser: false });
     expect([res.status, await res.json()]).toEqual([201, { message: "Account created successfully. Please check your email to verify your account.", user }]);
-    expect(state.sent).toEqual([]);
   });
 
   it("sends a setup link's password to the setup endpoint", async () => {
@@ -127,7 +120,6 @@ describe("forgot and reset password", () => {
     expect([path, call.body, call.asUser, call.forward["X-Forwarded-For"]]).toEqual(["/api/v1/accounts/forgot-password", { email: "a@test.invalid" }, false, "203.0.113.7"]);
     const body = await res.json();
     expect(body).toEqual({ message: "If an account exists for that email, we've sent a password reset link." });
-    expect(state.sent).toEqual([]); // FastAPI emails the link
   });
 
   it("passes a reset on", async () => {
@@ -160,7 +152,6 @@ describe("the admin user pages", () => {
     const res = await users.POST(request("POST", "/api/admin/users", { full_name: "New", email: "n@test.invalid", role: "hr" }));
     expect(callBackend).toHaveBeenCalledWith("/api/v1/users", { method: "POST", body: { full_name: "New", email: "n@test.invalid", role: "hr" } });
     expect([res.status, await res.json()]).toEqual([201, { data: row }]);
-    expect(state.sent).toEqual([]);
   });
 
   // The admin-granted alert is FastAPI's since reads handover R7a
