@@ -34,7 +34,7 @@ assumed. Gaps found while mapping are numbered G20 onward (continuing
   · static (flutter-web only). dev and staging share nothing.
 
   Separately (not on this PC): Vercel project `vertex` → public vertex-self-pi.vercel.app,
-  same Next.js code, Prisma Postgres at db.prisma.io as a superuser login (see §3, P5b).
+  same Next.js code. It can't run since reads handover R8, with no FastAPI (docs/demo-site.md).
 ```
 
 Next.js calls FastAPI for every read and write, with a service credential
@@ -68,7 +68,7 @@ network path to the database. Flutter calls nothing.
 | Authorization | Per handler: `requireRole`/`requireAdmin` (role from the token), then record checks (`canAccessCandidate`, `canAccessCase`, scope filters). Default deny enforced by `route-guards.test.ts` |
 | Secrets | `JWT_SECRET` (per-purpose keys derived from it) |
 | Network exposure | `127.0.0.1:3001` (dev), `:3002` (staging); not the LAN (G15). Vercel: public internet |
-| Audit | Data writes through `auditedPrisma` (who, what, before/after); bulk exports via `auditAccess` (G16). Since Phase 10: sign-ins, failures, logouts, resets, denials and document views too, each with the request's `X-Request-ID` ([audit-logging-monitoring.md](audit-logging-monitoring.md)) |
+| Audit | Data writes through FastAPI's audited sessions (who, what, before/after); bulk exports via `auditAccess` (G16). Since Phase 10: sign-ins, failures, logouts, resets, denials and document views too, each with the request's `X-Request-ID` ([audit-logging-monitoring.md](audit-logging-monitoring.md)) |
 | Failure behavior | Missing/invalid/expired/wrong-purpose token → `null` user → 401/403 or redirect: fails closed. Missing `JWT_SECRET` → every verify fails (closed). Rate limits are per process and reset on restart (G5); keyed on `X-Forwarded-For` (G14) |
 | Known limits | None for sessions since G19 was fixed (2026-10-12): role comes from the database, and demotion, deletion and password change take effect on the next request |
 
@@ -126,7 +126,7 @@ by staff through P1 (`cases/[id]/remind`). The only timer is
 
 | Tool | Identity | Enforcement | Exposure | Audit | Failure |
 |---|---|---|---|---|---|
-| Admin API routes (`/api/admin/**`) | Session (P1) | `requireAdmin` / `requireRole`; never public (route-guards test) | As P1 | Writes via `auditedPrisma`; exports via `auditAccess` | 401/403 |
+| Admin API routes (`/api/admin/**`) | Session (P1) | `requireAdmin` / `requireRole`; never public (route-guards test) | As P1 | Writes through FastAPI, on the audit trail; exports via `auditAccess` | 401/403 |
 | pgAdmin | `PGADMIN_EMAIL`/`PASSWORD` to the UI, then `vertex_readonly` to the DB | Column allowlist (`readonly-columns.sql`): no secrets, no personal data, no `AuditLog`; read only | Off by default; `127.0.0.1:5050` / `:5151` when started with `deploy/pgadmin.sh` | Postgres logs only | Unclassified columns stay hidden (default deny) |
 | `psql` as superuser | `POSTGRES_USER` via `docker exec` (local socket) | Docker access on this PC | Not network-reachable | None | n/a |
 
@@ -147,7 +147,7 @@ request flow, which is unchanged; read "R2" as "the configured S3 store".
 
 | Operation | Caller → receiver | Identity | Authentication | Authorization | Audit | Failure |
 |---|---|---|---|---|---|---|
-| Upload `POST /api/upload` | Browser → Next.js → R2 | Session, or a CIF upload token (`X-Upload-Token`, 4 h, one candidate, G17 key) | Session or token verified | Ownership/role checks; MIME allowlist; size ≤ `MAX_FILE_SIZE_MB` (5 MB) | `Document` row via `auditedPrisma` | Storage not configured → error; invalid token → 401; wrong candidate → 403 |
+| Upload `POST /api/upload` | Browser → Next.js → FastAPI → MinIO | Session, or a CIF upload token (`X-Upload-Token`, 4 h, one candidate, G17 key) | Session or token verified | Ownership/role checks; MIME allowlist; size ≤ `MAX_FILE_SIZE_MB` (5 MB) | `Document` row written and audited by FastAPI | Storage not configured → error; invalid token → 401; wrong candidate → 403 |
 | Download link `GET /api/documents/[id]/signed-url` | Browser → Next.js | Session | `getAuthUser` | Role + record scope | **None (G21)** | 401/403/404 |
 | Download `GET /api/documents/file?token=` | Browser → Next.js → R2 | Document token (5 min, one storage path, G17 key) | Token verified | Possession of the token | **None (G21)** | Invalid/expired → 401; missing object → 404 |
 | Delete (replacing a document) | Next.js → R2 | Server | Inside an authorized upload | As upload | DB change audited; the R2 delete itself isn't | Missing object ignored |
@@ -175,10 +175,10 @@ hook (GitHub branch protection needs a paid plan for this private repo).
 
 | Path | Identity / check | Secrets | Audit | Failure |
 |---|---|---|---|---|
-| Stripe → `POST /api/webhooks/stripe` (inbound, public) | Stripe signature (`constructEvent`) | `STRIPE_WEBHOOK_SECRET` | **Payment status updates use plain `prisma`: not audited (G22)** | Bad signature → 400 |
+| Stripe → `POST /api/webhooks/stripe` (inbound, public) | Stripe signature (`constructEvent`) | `STRIPE_WEBHOOK_SECRET` | Next.js passes the body on; FastAPI verifies it and writes on the audit trail with no actor (G22 closed) | Bad signature → 400 |
 | Next.js → Stripe API | API key | `STRIPE_SECRET_KEY` | Payment rows via handlers | Error → 500 |
-| Next.js → PayPal (create/capture order) | Client credentials | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | **Capture writes via plain `prisma` (G22)** | Error → 4xx/5xx |
-| Google → `GET /api/auth/google/callback` | OAuth code exchange; `state` is a validated same-site path (G12), not an anti-forgery value (G13) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | **User creation/link via plain `prisma`; sign-in not audited (G20, G22)** | Error → redirect to login |
+| FastAPI → PayPal (create/capture order) | Client credentials | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Capture written on the audit trail (G22 closed) | Error → 4xx/5xx |
+| Google → `GET /api/auth/google/callback` | OAuth code exchange; `state` is a validated same-site path (G12), not an anti-forgery value (G13) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Next.js passes the code on; FastAPI links an existing account on the audit trail, refuses an unknown one, and records the sign-in (G20, G22 closed) | Error → redirect to login |
 | Next.js → SMTP | SMTP login | `SMTP_*` | None | Logged, request continues (emails can be lost silently) |
 | Next.js → Gemini (`/api/chat`, public, rate-limited) | API key | `GOOGLE_GENERATIVE_AI_API_KEY` (the AI SDK's default) | None | Error → 500 |
 
@@ -188,6 +188,6 @@ hook (GitHub branch protection needs a paid plan for this private repo).
 |---|---|---|---|
 | G20 | Authentication events aren't audited: successful and failed logins, Google sign-ins, logouts. A brute-force or account-takeover attempt leaves no trace in `AuditLog` | Medium | With G7 (Phase 5) |
 | G21 | Viewing a document leaves no record: issuing a signed link (`documents/[id]/signed-url`) and downloading it aren't audited, though these are passports and CVs | Medium | Phase 2 candidate: `auditAccess(actor, "Document", "view", …)` on link issue |
-| G22 | Some writes bypass the audited client: Stripe webhook payment updates, PayPal capture, Google sign-in user creation. Money and account changes with no audit row | Medium | Phase 2 candidate: switch to `auditedPrisma(null)` (system actor) |
+| G22 | Some writes bypass the audited client: Stripe webhook payment updates, PayPal capture, Google sign-in user creation. Money and account changes with no audit row | Medium | **Closed**: FastAPI makes all three writes, on the audit trail (`vertex_be/app/api/v1/payments.py`, `sessions.py`) |
 | — | Deploy job's registry token could push images | Low | **Fixed here** (`packages: read` on the deploy job) |
 | — | R2 key scope unverified | Unknown | Owner: check in Cloudflare that the key is limited to the one bucket |

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 // cycle. FastAPI owns these writes since backend plan step 5.2
 // (vertex_be/app/api/v1/targets.py), which re-checks the label
 // (app/core/report_templates.py, a tested copy of REPORT_KPI_LABELS) and
-// the same three-level hierarchy (can_manage), audits the change.
+// the same three-level hierarchy (can_manage) and audits the change.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, STAFF_ROLES);
