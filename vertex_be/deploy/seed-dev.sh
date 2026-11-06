@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Loads a development stack's database with the reference data
-# (vertex/prisma/seed.ts: regions, countries, sectors, document requirements,
-# job programmes) and the test accounts (vertex/scripts/seed-test-accounts.ts:
+# (scripts/seed/reference.py: regions, countries, sectors, document requirements,
+# job programmes) and the test accounts (scripts/seed/test_accounts.py:
 # one per staff role plus a partner, all with password TestPassword123!).
 # Safe to re-run: both upsert. Refuses any stack whose env file isn't
 # APP_ENV=development.
@@ -35,16 +35,9 @@ unpublish() {
 compose -f docker-compose.db-port.yml up -d --no-deps --wait db >/dev/null
 trap unpublish EXIT
 
-# Prisma fills unset variables from vertex/.env (this machine's own
-# credentials). The seed's only outside call is the Stripe pricing sync,
-# which an empty key skips, so set it here.
 export DATABASE_URL="postgresql://vertex_migrator:$(env_value DB_MIGRATOR_PASSWORD)@localhost:$SEED_DB_PORT/$(env_value POSTGRES_DB)"
-export STRIPE_SECRET_KEY=
-
-(
-  cd ../vertex
-  [ -d node_modules ] || npm ci
-  npx prisma db seed
-  npx tsx scripts/seed-test-accounts.ts
-)
+PYTHON="env/Scripts/python.exe"
+[ -x "$PYTHON" ] || PYTHON="env/bin/python"
+"$PYTHON" -m scripts.seed.reference
+"$PYTHON" -m scripts.seed.test_accounts
 echo "Seeded. Sign in at $(env_value NEXT_PUBLIC_APP_URL) as e.g. admin@test.local / TestPassword123!"

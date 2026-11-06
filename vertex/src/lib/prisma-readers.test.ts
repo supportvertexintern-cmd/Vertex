@@ -11,10 +11,7 @@ import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "..");
 
-const STILL_READING: Record<string, string[]> = {
-  // prisma/seed.ts's helpers: they move with the seeds.
-  "R8 close": ["server/services/paymentReceiptTypes.ts", "server/services/stripeProvisioning.ts"],
-};
+const STILL_READING: Record<string, string[]> = {};
 
 const IMPORTS_PRISMA = /from\s+["'](?:@\/lib\/prisma|(?:\.\.?\/)+(?:lib\/)?prisma)["']/;
 const IS_TEST = /\.test\.tsx?$|(^|\/)test-[\w-]+\.ts$/;

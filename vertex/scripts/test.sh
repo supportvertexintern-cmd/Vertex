@@ -3,7 +3,7 @@
 # job does, against throwaway services on this machine, never a stack's
 # database or bucket:
 #   - Postgres (password-less), schema from the backend's Alembic migrations,
-#     then the Prisma seed;
+#     then the reference data (vertex_be/scripts/seed);
 #   - this stack's MinIO image, with a test bucket;
 #   - ClamAV, for the malware-scanning tests.
 #
@@ -60,7 +60,7 @@ export DATABASE_URL="postgresql://postgres@localhost:$PG_PORT/vertex_next_test"
 PYTHON="../vertex_be/env/Scripts/python.exe"
 [ -x "$PYTHON" ] || PYTHON="../vertex_be/env/bin/python"
 (cd ../vertex_be && MIGRATION_DATABASE_URL="$DATABASE_URL" "${PYTHON#../vertex_be/}" -m alembic upgrade head)
-npx prisma db seed
+(cd ../vertex_be && "${PYTHON#../vertex_be/}" -m scripts.seed.reference)
 
 until docker exec "$S3" sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"' >/dev/null 2>&1; do sleep 1; done
 docker exec "$S3" sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc mb --ignore-existing l/vertex-ci' >/dev/null

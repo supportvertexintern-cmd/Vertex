@@ -3,14 +3,8 @@ import path from "path";
 config({ path: path.resolve(__dirname, "../.env") });
 
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { PrismaClient } from "@prisma/client";
 import { signAs } from "../src/lib/test-tokens";
-
-const prisma = new PrismaClient();
-
-test.afterAll(async () => {
-  await prisma.$disconnect();
-});
+import { dbFixture } from "./db-fixture";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -98,8 +92,8 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
     });
 
     await test.step("the partner claims its invite and sets a password", async () => {
-      const partner = await prisma.partner.findFirst({ where: { contact_email: PARTNER_CONTACT_EMAIL } });
-      if (!partner?.user_id) throw new Error("Partner login was not provisioned.");
+      const partner = dbFixture<{ user_id: string | null }>("partner-login", PARTNER_CONTACT_EMAIL);
+      if (!partner.user_id) throw new Error("Partner login was not provisioned.");
       // The link FastAPI emails (users step 8.4), signed here: no inbox in CI.
       const setupToken = signAs("account_setup", { userId: partner.user_id, type: "account_setup" }, "7d");
 

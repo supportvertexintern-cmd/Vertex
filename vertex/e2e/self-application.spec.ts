@@ -1,12 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
-
-test.afterAll(async () => {
-  await prisma.$disconnect();
-});
+import { dbFixture } from "./db-fixture";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -94,7 +87,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
     });
 
     await test.step("the candidate lands in HR's Self Applications queue — not any recruiter's — with no recruiter assigned", async () => {
-      const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });
+      const candidate = dbFixture<{ source: string; recruiter_id: string | null; lifecycle_status: string }>("candidate", candidateName);
       expect(candidate.source).toBe("self_registered");
       expect(candidate.recruiter_id).toBeNull();
       // A complete self-application is screened automatically on submit
@@ -122,15 +115,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
     });
 
     await test.step("candidate claims their invite and creates an account (simulated — no SMTP in dev, same pattern as candidate-lifecycle.spec.ts)", async () => {
-      const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });
-      const password_hash = await bcrypt.hash(PASSWORD, 12);
-      const user = await prisma.user.create({
-        data: { full_name: candidateName, email: candidateEmail, password_hash, role: "candidate", email_verified: true },
-      });
-      await prisma.candidate.update({
-        where: { id: candidate.id },
-        data: { user_id: user.id, lifecycle_status: "guided_to_apply" },
-      });
+      dbFixture("claim", candidateName, candidateEmail, PASSWORD);
     });
 
     await test.step("candidate logs in, uploads required documents, and auto-advances to submitted", async () => {
@@ -172,9 +157,7 @@ test.describe("Self-submission routing to HR (2026-07-31)", () => {
       await expect(page.getByText("Case Created", { exact: true }).first()).toBeVisible({ timeout: 25_000 });
       await expect(page.getByRole("link", { name: "View Case" })).toBeVisible({ timeout: 25_000 });
 
-      const candidate = await prisma.candidate.findFirstOrThrow({ where: { full_name: candidateName } });
-      const caseRow = await prisma.case.findFirst({ where: { application: { candidate_id: candidate.id } } });
-      expect(caseRow).not.toBeNull();
+      expect(dbFixture<{ has_case: boolean }>("candidate", candidateName).has_case).toBe(true);
     });
   });
 });
