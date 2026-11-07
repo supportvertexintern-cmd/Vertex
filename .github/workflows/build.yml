@@ -28,11 +28,15 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { image: vertex-backend, context: vertex_be }
-          - { image: vertex-flutter-web, context: vertex_app }
-          - { image: vertex-nextjs, context: vertex }
+          # cache: how much of the layer cache to save (Actions cache, 10 GB).
+          # max also saves the build stages; worth it where they rarely change
+          # and are slow (the Flutter SDK, MinIO's Go build). Next.js's build
+          # stage is new on every push, so min: npm ci runs each build instead.
+          - { image: vertex-backend, context: vertex_be, cache: max }
+          - { image: vertex-flutter-web, context: vertex_app, cache: max }
+          - { image: vertex-nextjs, context: vertex, cache: min }
           # Also the MinIO service image CI's integration tests run against.
-          - { image: vertex-minio, context: vertex_be/deploy/minio }
+          - { image: vertex-minio, context: vertex_be/deploy/minio, cache: max }
     steps:
       - uses: actions/checkout@v7
 
@@ -78,4 +82,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
           cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=${{ matrix.cache }},scope=${{ matrix.image }}
