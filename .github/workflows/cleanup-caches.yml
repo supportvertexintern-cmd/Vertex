@@ -1,0 +1,36 @@
+# Keeps the 10 GB Actions cache from filling: a closed pull request's caches
+# are deleted at once, and every Sunday caches unused for 20+ days go.
+name: Cleanup caches
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: "0 3 * * 0"   # Sundays 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete PR caches
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --limit 1000 --ref refs/pull/${{ github.event.pull_request.number }}/merge --json id --jq '.[].id' \
+            | xargs -r -n1 gh cache delete
+
+      - name: Delete caches unused for 20+ days
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --limit 1000 --json id,lastAccessedAt \
+            --jq '.[] | select(.lastAccessedAt < (now - 20*86400 | floor | todate)) | .id' \
+            | xargs -r -n1 gh cache delete

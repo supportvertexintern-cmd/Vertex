@@ -20,6 +20,7 @@ self-hosted runner on a public repository is a risk of its own. On 2026-11-07 it
 | You click "Run workflow" on `main` in **Deploy local stacks** | `deploy-local.yml` | `vertex-host` | Local `vertex-main` stack updated (never automatic) |
 | You click "Run workflow" on `main` in **Production release** | `production.yml` | `prod-ops` (ops-server) | Pull images, migrate, restart, health check, auto-rollback, tag `vYYYY.MM.DD` |
 | Monday | `image-scan.yml` | GitHub-hosted | All four images rebuilt from fresh bases (`--pull --no-cache`), full Trivy report kept 90 days, gate on fixable HIGH/CRITICAL (exceptions in [security/exceptions.md](security/exceptions.md), dated ignores in `.trivyignore.yaml`) |
+| Sunday 03:00 UTC, and when a pull request closes | `cleanup-caches.yml` | GitHub-hosted | Delete a closed pull request's Actions caches; weekly, caches unused for 20+ days |
 | Sunday 03:30 UTC | `cleanup-packages.yml` | GitHub-hosted | Delete untagged image versions, keep newest 20 |
 | Monday | Dependabot | GitHub | Grouped update PRs into `dev` |
 
