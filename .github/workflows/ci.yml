@@ -248,7 +248,7 @@ jobs:
         ports: ["9000:9000"]
       # Catches the invite and notification emails the journeys send.
       mailpit:
-        image: axllent/mailpit
+        image: axllent/mailpit:v1.33.0
         ports: ["1025:1025"]
 
     permissions:
@@ -367,7 +367,10 @@ jobs:
       # it runs again daily instead of coming from the layer cache.
       - name: Build date
         id: day
-        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+        # Hourly (2026-11-07): with a daily key, a fix the distribution
+        # published after that day's first build stayed out of every image
+        # until the next day (zlib, CVE-2026-76844 and -85091).
+        run: echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}

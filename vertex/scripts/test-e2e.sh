@@ -55,7 +55,7 @@ docker run -d --rm --name "$PG" \
 docker run -d --rm --name "$S3" \
   -e MINIO_ROOT_USER=ci-root -e MINIO_ROOT_PASSWORD="$S3_SECRET" -e MINIO_BROWSER=off \
   -p "127.0.0.1:$S3_PORT:9000" "$MINIO_IMAGE" >/dev/null
-docker run -d --rm --name "$MAIL" -p "127.0.0.1:$SMTP_PORT:1025" axllent/mailpit:v1.31.4 >/dev/null
+docker run -d --rm --name "$MAIL" -p "127.0.0.1:$SMTP_PORT:1025" axllent/mailpit:v1.33.0 >/dev/null
 
 until docker exec "$PG" pg_isready -U postgres -q >/dev/null 2>&1; do sleep 1; done
 

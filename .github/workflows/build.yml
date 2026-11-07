@@ -59,11 +59,14 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      # The OS security upgrade in each Dockerfile is keyed on the date, so
-      # it runs again daily instead of coming from the layer cache.
+      # The OS security upgrade in each Dockerfile is keyed on the date and
+      # hour, so it runs again hourly instead of coming from the layer cache.
       - name: Build date
         id: day
-        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+        # Hourly (2026-11-07): with a daily key, a fix the distribution
+        # published after that day's first build stayed out of every image
+        # until the next day (zlib, CVE-2026-76844 and -85091).
+        run: echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v7
