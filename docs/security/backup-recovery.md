@@ -30,6 +30,8 @@ Each stack is separate: its own Compose project, networks, database volume and o
 
 **Before real personal data is loaded**, all three must be done: off-site backups configured and a restore from them tested (§9, waiting for the owner's bucket); a retention period for deleted personal data, including how long it survives in backups (docs/architecture/soft-delete.md, waiting for legal); and no stray files in the repository (`*.log` is ignored since 2026-11-07).
 
+**Staging's trigger:** staging backups are enabled before staging stores any meaningful business data, real candidate information, or data that can't be rebuilt from its seeds.
+
 Staging came back on 2026-11-07, as a new stack with an empty database and no backups: `deploy/seed-staging.sh` can rebuild what it starts with. Anything added to it later is lost if its volume is. If staging starts holding data worth keeping, add it to `install-schedule.ps1` and to the 26 h row in `verify-stack.sh`.
 
 `install-schedule.ps1` registers these Windows scheduled tasks under `\Vertex\`, and removes the old main and staging ones:
