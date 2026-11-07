@@ -7,6 +7,7 @@ It creates and deletes users, so it refuses anything but a local database.
     ... candidate <name>              the candidate, as JSON (has_case: a case exists)
     ... partner-login <contact email> the partner's user id
     ... claim <name> <email> <password>  a candidate's account, as if they'd used their invite
+    ... alert <email>                  an open security alert about that account, as the monitor writes one
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import json
 import sys
 from urllib.parse import urlsplit
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from scripts.seed.common import database_url, first, hash_password, purge, run, upsert
@@ -28,6 +29,8 @@ from app.models.identity import Country, InhouseCountryAssignment, Region, User 
 from app.models.jobs import Job  # noqa: E402
 from app.models.partners import Partner, PartnerCandidate  # noqa: E402
 from app.models.reference import SystemSetting  # noqa: E402
+from app.models.security import SecurityAlert  # noqa: E402
+from app.db.base import new_id  # noqa: E402
 from app.models.reporting import StaffKpiTarget  # noqa: E402
 
 PASSWORD = "E2ETestPassword123!"  # gitleaks:allow  (a throwaway test database)
@@ -95,6 +98,7 @@ def teardown(db: Session) -> None:
     # candidates go first, or every run leaves one behind.
     purge(db, delete(Candidate).where(Candidate.recruiter_id.in_(e2e_users)))
     purge(db, delete(Candidate).where(Candidate.partner_id.in_(partners)))
+    purge(db, delete(SecurityAlert).where(SecurityAlert.alert_key.startswith("e2e:", autoescape=True)))
     # Restricted foreign keys to the country: before the country goes.
     purge(db, delete(PartnerCandidate).where(PartnerCandidate.partner_id.in_(partners)))
     purge(db, delete(Partner).where(Partner.name == PARTNER))
@@ -137,7 +141,22 @@ def claim(db: Session, name: str, email: str, password: str) -> dict:
     return {"id": row.id}
 
 
-COMMANDS = {"setup": setup, "teardown": teardown, "candidate": candidate, "partner-login": partner_login, "claim": claim}
+def alert(db: Session, email: str) -> dict:
+    """An open alert about the account, as security_monitor.raise_alert writes it
+    (straight to the table, as the monitor does)."""
+    user = first(db, User, email=email)
+    if user is None:
+        raise SystemExit(f"No account {email!r}")
+    row = {
+        "id": new_id(), "rule": "brute_force_account", "alert_key": f"e2e:brute_force_account:{user.id}", "severity": "high",
+        "summary": "10 failed sign-ins for one account in 15 minutes", "user_id": user.id, "ip": "198.51.100.23",
+        "detail": {"failures": 10, "last_ip": "198.51.100.23"}, "status": "open",
+    }
+    db.connection().execute(insert(SecurityAlert.__table__).values(row))
+    return {"id": row["id"]}
+
+
+COMMANDS = {"setup": setup, "teardown": teardown, "candidate": candidate, "partner-login": partner_login, "claim": claim, "alert": alert}
 
 
 if __name__ == "__main__":

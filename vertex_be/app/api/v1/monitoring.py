@@ -13,6 +13,12 @@ reads the trail, so it is itself recorded (audit_trail_viewed).
 The list is filtered in the database where it can be, then by the latest
 sign-in, which comes from the trail, then paginated: logins number in the
 hundreds, not candidates' thousands.
+
+Phase 2: Suspicious Activity. Every alert the security monitor raises is a
+SecurityAlert row (migration 0013). Admins list them, and move each from
+open to reviewing, resolved or dismissed; resolving or dismissing needs a
+note. Each change is an audited row change: who, when, the note. An open
+or reviewing alert is a flag on its account in User Accounts.
 """
 
 from __future__ import annotations
@@ -22,18 +28,20 @@ from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy import func, or_, select, text
 
 from app.api.deps import DbSession
 from app.api.v1.sessions import SessionRow, security_event
 from app.core.api import ApiError, Data, Page, PageParams, UtcDateTime, page_params
+from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
-from app.models.enums import Role
+from app.models.enums import Role, SecurityAlertSeverity, SecurityAlertStatus
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
+from app.models.security import SecurityAlert
 from app.services.sessions import list_sessions
 
 router = APIRouter(prefix="/monitoring")
@@ -41,6 +49,7 @@ router = APIRouter(prefix="/monitoring")
 Admin = Annotated[AuthUser, Depends(require_role(Role.admin))]
 
 AccountStatus = Literal["not_activated", "active", "deactivated"]
+UNREVIEWED = (SecurityAlertStatus.open, SecurityAlertStatus.reviewing)
 SortKey = Literal["created_at", "full_name", "last_sign_in_at"]
 HISTORY_LIMIT = 50
 
@@ -72,6 +81,8 @@ class AccountRow(BaseModel):
     deactivated_at: UtcDateTime | None
     deactivated_by: Person | None
     deactivation_reason: str | None
+    # Open or reviewing security alerts about the account.
+    open_alerts: int
 
 
 class SignIn(BaseModel):
@@ -119,6 +130,12 @@ def _rows(db, users: list[User]) -> list[dict[str, Any]]:
         ).all()
     )
     agencies = {a.user_id: a for a in db.execute(select(Partner.user_id, Partner.id, Partner.name).where(Partner.user_id.in_(ids)))}
+    flags = dict(
+        db.execute(
+            select(SecurityAlert.user_id, func.count()).where(SecurityAlert.user_id.in_(ids), SecurityAlert.status.in_(UNREVIEWED))
+            .group_by(SecurityAlert.user_id)
+        ).all()
+    )
     people_ids = {u.created_by for u in users} | {u.deactivated_by for u in users}
     people_ids.discard(None)
     people = {p.id: {"id": p.id, "full_name": p.full_name} for p in db.execute(select(User.id, User.full_name).where(User.id.in_(people_ids)))}
@@ -134,7 +151,7 @@ def _rows(db, users: list[User]) -> list[dict[str, Any]]:
             "last_sign_in_at": sign_in.signed_in_at if sign_in else None, "last_sign_in_ip": sign_in.ip if sign_in else None,
             "active_sessions": sessions.get(u.id, 0),
             "deactivated_at": u.deactivated_at, "deactivated_by": people.get(u.deactivated_by),
-            "deactivation_reason": u.deactivation_reason,
+            "deactivation_reason": u.deactivation_reason, "open_alerts": flags.get(u.id, 0),
         })
     return out
 
@@ -158,6 +175,8 @@ def list_accounts(
     created_to: date | None = None,
     # Not signed in for this many days or more (never, if older than that).
     inactive_days: Annotated[int | None, Query(ge=1, le=3650)] = None,
+    # Only accounts with open or reviewing security alerts.
+    flagged: bool = False,
     sort: SortKey = "created_at",
     direction: Literal["asc", "desc"] = "desc",
 ):
@@ -181,6 +200,8 @@ def list_accounts(
         query = query.where(User.created_at < _start(created_to + timedelta(days=1)))
 
     rows = _rows(db, list(db.scalars(query)))
+    if flagged:
+        rows = [r for r in rows if r["open_alerts"]]
     if inactive_days is not None:
         cutoff = utc_now_ms() - timedelta(days=inactive_days)
         rows = [r for r in rows if (r["last_sign_in_at"] or r["created_at"]) < cutoff]
@@ -215,3 +236,148 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
     sessions = [asdict(s) for s in list_sessions(db, user_id, None)]
     (row,) = _rows(db, [user])
     return {"data": row | {"sessions": sessions, "sign_ins": sign_ins}}
+
+
+# --- Suspicious Activity (phase 2) ------------------------------------------------
+
+
+class AlertAccount(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: Role
+    deactivated: bool
+
+
+class AlertRow(BaseModel):
+    id: str
+    rule: str
+    severity: SecurityAlertSeverity
+    summary: str
+    account: AlertAccount | None
+    ip: str | None
+    detail: dict[str, Any] | None
+    status: SecurityAlertStatus
+    reviewed_by: Person | None
+    reviewed_at: UtcDateTime | None
+    note: str | None
+    created_at: UtcDateTime
+
+
+class AlertSummary(BaseModel):
+    # Open alerts (not yet looked at), for the sidebar's badge.
+    open: int
+    reviewing: int
+    open_by_severity: dict[SecurityAlertSeverity, int]
+
+
+class ReviewIn(BaseModel):
+    status: SecurityAlertStatus
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] | None = None
+
+
+def _alert_rows(db, alerts: list[SecurityAlert]) -> list[dict[str, Any]]:
+    ids = {a.user_id for a in alerts} | {a.reviewed_by for a in alerts}
+    ids.discard(None)
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_(ids)))} if ids else {}
+
+    def account(user_id: str | None) -> dict[str, Any] | None:
+        u = users.get(user_id) if user_id else None
+        if u is None:
+            return None
+        return {"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role, "deactivated": u.deactivated_at is not None}
+
+    def person(user_id: str | None) -> dict[str, Any] | None:
+        u = users.get(user_id) if user_id else None
+        return {"id": u.id, "full_name": u.full_name} if u else None
+
+    return [
+        {
+            "id": a.id, "rule": a.rule, "severity": a.severity, "summary": a.summary, "account": account(a.user_id),
+            "ip": a.ip, "detail": a.detail, "status": a.status, "reviewed_by": person(a.reviewed_by),
+            "reviewed_at": a.reviewed_at, "note": a.note, "created_at": a.created_at,
+        }
+        for a in alerts
+    ]
+
+
+@router.get("/alerts", response_model=Page[AlertRow])
+def list_alerts(
+    _admin: Admin,
+    db: DbSession,
+    paging: Annotated[PageParams, Depends(page_params)],
+    status: Annotated[list[SecurityAlertStatus] | None, Query()] = None,
+    severity: SecurityAlertSeverity | None = None,
+    rule: Annotated[str | None, Query(max_length=100)] = None,
+    user_id: Annotated[str | None, Query(max_length=100)] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    """Newest first. status may repeat (?status=open&status=reviewing)."""
+    query = select(SecurityAlert)
+    if status:
+        query = query.where(SecurityAlert.status.in_(status))
+    if severity is not None:
+        query = query.where(SecurityAlert.severity == severity)
+    if rule:
+        query = query.where(SecurityAlert.rule == rule)
+    if user_id:
+        query = query.where(SecurityAlert.user_id == user_id)
+    if date_from is not None:
+        query = query.where(SecurityAlert.created_at >= _start(date_from))
+    if date_to is not None:
+        query = query.where(SecurityAlert.created_at < _start(date_to + timedelta(days=1)))
+    total = db.scalar(select(func.count()).select_from(query.subquery()))
+    alerts = list(db.scalars(query.order_by(SecurityAlert.created_at.desc(), SecurityAlert.id.desc()).offset(paging.offset).limit(paging.page_size)))
+    return {"data": _alert_rows(db, alerts), "total": total, "page": paging.page, "pageSize": paging.page_size}
+
+
+@router.get("/alerts/summary", response_model=Data[AlertSummary])
+def alert_summary(_admin: Admin, db: DbSession):
+    counts = db.execute(
+        select(SecurityAlert.status, SecurityAlert.severity, func.count()).where(SecurityAlert.status.in_(UNREVIEWED))
+        .group_by(SecurityAlert.status, SecurityAlert.severity)
+    ).all()
+    by_severity = {s: 0 for s in SecurityAlertSeverity}
+    totals = {s: 0 for s in UNREVIEWED}
+    for state, level, n in counts:
+        totals[state] += n
+        if state is SecurityAlertStatus.open:
+            by_severity[level] += n
+    return {"data": {"open": totals[SecurityAlertStatus.open], "reviewing": totals[SecurityAlertStatus.reviewing], "open_by_severity": by_severity}}
+
+
+@router.get("/alerts/rules", response_model=Data[list[str]])
+def alert_rules(_admin: Admin, db: DbSession):
+    """The rules that have raised an alert, for the type filter."""
+    return {"data": list(db.scalars(select(SecurityAlert.rule).distinct().order_by(SecurityAlert.rule)))}
+
+
+CLOSED = (SecurityAlertStatus.resolved, SecurityAlertStatus.dismissed)
+
+
+@router.patch("/alerts/{alert_id}", response_model=Data[AlertRow])
+def review_alert(alert_id: str, body: ReviewIn, admin: Admin, db: AuditedDb):
+    """Moves an alert along: open -> reviewing -> resolved or dismissed (a
+    false positive). Resolving or dismissing needs a note; reopening one
+    is allowed, back to reviewing, with a note too. The row is locked, so
+    two admins can't overwrite each other's review unseen."""
+    alert = db.scalar(select(SecurityAlert).where(SecurityAlert.id == alert_id).with_for_update())
+    if alert is None:
+        raise ApiError(404, "not_found", "Alert not found.")
+    target = body.status
+    if target is alert.status:
+        raise ApiError(409, "unchanged", f"This alert is already {target.value}.")
+    if target is SecurityAlertStatus.open:
+        raise ApiError(422, "invalid_transition", "An alert can't go back to open; mark it reviewing instead.")
+    note = body.note or None
+    if (target in CLOSED or alert.status in CLOSED) and not (note and len(note) >= 3):
+        raise ApiError(422, "note_required", "Add a note (at least 3 characters) saying what was found.", {"note": ["A note is required."]})
+    alert.status = target
+    alert.reviewed_by = admin.user_id
+    alert.reviewed_at = utc_now_ms()
+    if note:
+        alert.note = note
+    db.commit()
+    db.refresh(alert)
+    return {"data": _alert_rows(db, [alert])[0]}

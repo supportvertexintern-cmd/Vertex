@@ -67,6 +67,7 @@ MODEL_LABELS = {
 NEVER_EXPORTED = {
     "RefreshToken": "session credentials (refresh-token hashes, G19); not business data",
     "AuditLog": "the audit trail: read by no service, kept whole in the database backups",
+    "SecurityAlert": "security alerts (addresses, what was attempted): reviewed in the app, kept whole in the database backups",
     "alembic_version": "migration bookkeeping",
 }
 

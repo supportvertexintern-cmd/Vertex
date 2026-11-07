@@ -25,6 +25,7 @@ from app.models.reference import (
     Sector,
     SystemSetting,
 )
+from app.models.security import SecurityAlert
 from app.models.referral import (
     ReferralAgent,
     ReferralAgentTarget,
@@ -81,6 +82,7 @@ __all__ = [
     "RecruiterTarget",
     "ReferralAgent",
     "ReferralAgentTarget",
+    "SecurityAlert",
     "ReferralCommission",
     "ReferralCommissionRule",
     "RefreshToken",

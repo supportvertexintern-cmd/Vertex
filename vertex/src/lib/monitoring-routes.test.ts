@@ -23,6 +23,10 @@ import { POST as deactivate } from "@/app/api/admin/users/[id]/deactivate/route"
 import { POST as reactivate } from "@/app/api/admin/users/[id]/reactivate/route";
 import { POST as setupEmail } from "@/app/api/admin/users/[id]/setup-email/route";
 import { DELETE as endSession } from "@/app/api/admin/users/[id]/sessions/[sessionId]/route";
+import { GET as listAlerts } from "@/app/api/admin/monitoring/alerts/route";
+import { GET as alertSummary } from "@/app/api/admin/monitoring/alerts/summary/route";
+import { GET as alertRules } from "@/app/api/admin/monitoring/alerts/rules/route";
+import { PATCH as reviewAlert } from "@/app/api/admin/monitoring/alerts/[id]/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -105,6 +109,41 @@ describe("User Accounts routes", () => {
       ["/api/v1/monitoring/accounts/u2", "GET"],
       ["/api/v1/users/u2/setup-email", "POST"],
       ["/api/v1/users/u2/sessions/s%2F1", "DELETE"],
+    ]);
+  });
+});
+
+describe("Suspicious Activity routes (phase 2)", () => {
+  const alertId = { params: Promise.resolve({ id: "al1" }) };
+  const patch = (body: unknown) =>
+    new NextRequest("http://localhost/x", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "hr" };
+    expect((await listAlerts(new NextRequest("http://localhost/api/admin/monitoring/alerts"))).status).toBe(403);
+    expect((await alertSummary(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await alertRules(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await reviewAlert(patch({ status: "reviewing" }), alertId)).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("keep a repeated status, drop unknown and empty keys", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: [], total: 0, page: 1, pageSize: 25 } });
+    await listAlerts(new NextRequest("http://localhost/api/admin/monitoring/alerts?status=open&status=reviewing&severity=&rule=brute_force_ip&evil=1&page=1"));
+    expect(callBackend.mock.calls[0][0]).toBe("/api/v1/monitoring/alerts?status=open&status=reviewing&rule=brute_force_ip&page=1");
+  });
+
+  it("the summary, the rules and a review reach their paths", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok({}));
+    await alertSummary(new NextRequest("http://localhost/x"));
+    await alertRules(new NextRequest("http://localhost/x"));
+    await reviewAlert(patch({ status: "resolved", note: "It was them." }), alertId);
+    expect(callBackend.mock.calls.map(([path, options]) => [path, options?.method ?? "GET", options?.body])).toEqual([
+      ["/api/v1/monitoring/alerts/summary", "GET", undefined],
+      ["/api/v1/monitoring/alerts/rules", "GET", undefined],
+      ["/api/v1/monitoring/alerts/al1", "PATCH", { status: "resolved", note: "It was them." }],
     ]);
   });
 });

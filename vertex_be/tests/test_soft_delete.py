@@ -51,9 +51,11 @@ def raw(db, table: str, row_id: str):
     return db.execute(text(f'SELECT * FROM "{table}" WHERE id = :i'), {"i": row_id}).mappings().first()
 
 
-def test_every_table_but_the_exempt_two_is_soft_deleted():
+def test_every_table_but_the_exempt_three_is_soft_deleted():
+    # SecurityAlert (admin monitoring, phase 2) is a security record like the
+    # trail: never deleted, it has no delete route; its review is audited.
     plain = {m.local_table.name for m in Base.registry.mappers if not issubclass(m.class_, SoftDeletable)}
-    assert plain == {"AuditLog", "RefreshToken"}
+    assert plain == {"AuditLog", "RefreshToken", "SecurityAlert"}
 
 
 def test_a_deleted_row_stays_and_no_query_finds_it(db, world):

@@ -267,3 +267,18 @@ class ReferralMilestone(str, enum.Enum):
     work_permit_approved = "work_permit_approved"
     visa_approved = "visa_approved"
     deployed = "deployed"
+
+
+# Admin monitoring, phase 2 (migration 0013): an alert the security monitor
+# raised, as a row admins review.
+class SecurityAlertSeverity(str, enum.Enum):
+    critical = "critical"
+    high = "high"
+    medium = "medium"
+
+
+class SecurityAlertStatus(str, enum.Enum):
+    open = "open"
+    reviewing = "reviewing"
+    resolved = "resolved"
+    dismissed = "dismissed"
