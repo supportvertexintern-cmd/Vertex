@@ -65,6 +65,7 @@ Admin = Annotated[AuthUser, Depends(require_role(Role.admin))]  # requireAdmin()
 
 INVALID_LOGIN = "Invalid email or password."
 SESSION_ENDED = "Please sign in again."
+DEACTIVATED = "This account has been deactivated. Please contact your administrator."
 
 
 # --- the caller, and what gets recorded --------------------------------------
@@ -81,6 +82,12 @@ def _client_ip(request: Request) -> str | None:
 
 def _user_agent(request: Request) -> str | None:
     return request.headers.get("user-agent") if check_service_header(request) is not None else None
+
+
+def _device(request: Request) -> str | None:
+    """The browser, as a sign-in records it for the account's history."""
+    agent = _user_agent(request)
+    return agent[:200] if agent else None
 
 
 def security_event(request: Request, action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:
@@ -234,7 +241,7 @@ def login(body: LoginIn, request: Request, db: DbSession):
 
     def refuse(reason: str, status: int, code: str, message: str) -> ApiError:
         security_event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}" if user else "unknown_account",
-               detail={"reason": reason, "method": "password", "client": body.client, "email_fp": fp})
+               detail={"reason": reason, "method": "password", "client": body.client, "email_fp": fp, "device": _device(request)})
         # The website raises the brute-force alerts from this fingerprint.
         return ApiError(status, code, message, {"email_fp": fp})
 
@@ -247,9 +254,12 @@ def login(body: LoginIn, request: Request, db: DbSession):
         raise refuse("bad_password", 401, "invalid_credentials", INVALID_LOGIN)
     if not user.email_verified:
         raise refuse("email_unverified", 403, "email_unverified", "Please verify your email before logging in.")
+    # Only once the password is right, so it says nothing to a guesser.
+    if user.deactivated_at is not None:
+        raise refuse("deactivated", 403, "account_deactivated", DEACTIVATED)
 
     security_event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
-           detail={"method": "password", "client": body.client, "role": user.role.value})
+           detail={"method": "password", "client": body.client, "role": user.role.value, "device": _device(request)})
     return _signed_in(user, start_session(db, user, _user_agent(request)))
 
 
@@ -280,10 +290,12 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
 
     def refuse(reason: str, user_id: str | None, code: str) -> ApiError:
         security_event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user_id}" if user_id else "unknown_account",
-               detail={"reason": reason, "method": "google", "email_fp": fp})
+               detail={"reason": reason, "method": "google", "email_fp": fp, "device": _device(request)})
         return ApiError(401, code, "Google sign-in was refused.", {"email_fp": fp})
 
     user = db.scalar(select(User).where(User.google_id == found.sub))
+    if user is not None and user.deactivated_at is not None:
+        raise refuse("deactivated", user.id, "account_deactivated")
     if user is None:
         by_email = db.scalar(select(User).where(User.email == found.email))
         if by_email is None:
@@ -292,6 +304,8 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
             raise refuse("google_email_unverified", by_email.id, "google_email_unverified")
         if by_email.google_id:
             raise refuse("google_account_mismatch", by_email.id, "google_no_account")
+        if by_email.deactivated_at is not None:  # before it's linked
+            raise refuse("deactivated", by_email.id, "account_deactivated")
         # Pre-hijack: a password on an account whose email was never
         # verified may not be the owner's. Linking proves the address, so it
         # goes (the trigger moves token_version on, ending its sessions).
@@ -308,7 +322,7 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
         user = by_email
 
     security_event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
-           detail={"method": "google", "role": user.role.value})
+           detail={"method": "google", "role": user.role.value, "device": _device(request)})
     return _signed_in(user, start_session(db, user, _user_agent(request)))
 
 
@@ -403,3 +417,14 @@ def sign_user_out_everywhere(user_id: str, admin: Admin, request: Request, db: D
     security_event(request, "sessions_revoked", actor_id=admin.user_id, entity_type="User", entity_id=user_id,
            detail={"reason": "revoked_by_admin", "sessions": ended})
     return {"data": {"ended": ended}}
+
+
+@router.delete("/users/{user_id}/sessions/{session_id}", response_model=Data[EndedOne])
+def end_user_session(user_id: str, session_id: str, admin: Admin, request: Request, db: DbSession):
+    """One session of a user, from the admin's account view. Scoped to that
+    user: another user's session id matches nothing (404)."""
+    if not revoke_family(db, session_id, "revoked_by_admin", user_id):
+        raise ApiError(404, "not_found", "Session not found.")
+    security_event(request, "sessions_revoked", actor_id=admin.user_id, entity_type="Session", entity_id=session_id,
+           detail={"reason": "revoked_by_admin", "user": user_id})
+    return {"data": {"id": session_id}}

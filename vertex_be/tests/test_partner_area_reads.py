@@ -173,7 +173,7 @@ def test_the_list_is_by_name(api, db, world):
 
 def partner_candidates(api, h, world) -> set[str]:
     detail = data(api.get(f"/api/v1/partners/{world['partner'].id}", headers=h))
-    assert set(detail) == PARTNER_KEYS | {"candidates", "login_activated_at"}
+    assert set(detail) == PARTNER_KEYS | {"candidates", "login_activated_at", "login_deactivated_at"}
     return {c["full_name"] for c in detail["candidates"]}
 
 

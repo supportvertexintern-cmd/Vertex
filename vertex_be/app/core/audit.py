@@ -230,7 +230,9 @@ def _refuse_bulk_writes(state: ORMExecuteState) -> None:
         )
 
 
-SECURITY_INFO_ACTIONS = frozenset({"login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked"})
+SECURITY_INFO_ACTIONS = frozenset(
+    {"login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked", "audit_trail_viewed"}
+)
 
 
 def append_event(action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:

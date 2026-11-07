@@ -51,11 +51,20 @@ class User(SoftDeletable, Base):
     country: Mapped[str | None]
     role: Mapped[Role] = enum_col(Role, default=Role.candidate)
     email_verified: Mapped[bool] = flag(False)
-    # Partner logins (migration 0011): the first successful sign-in activates
-    # the account, and the portal's first-time welcome shows once. Neither
-    # changes on a password reset, nor touches the agency's own status or MOU.
+    # The first successful sign-in activates the account (migration 0011 for
+    # partners, 0012 for every account); a partner's portal shows its
+    # first-time welcome once. Neither changes on a password reset or a
+    # reactivation, nor touches a partner agency's own status or MOU.
     activated_at: Mapped[datetime | None]
     welcomed_at: Mapped[datetime | None]
+    # An admin's deactivation (migration 0012): no sign-in, refresh, setup or
+    # reset link works, and the sessions end. Reactivating clears all three.
+    deactivated_at: Mapped[datetime | None]
+    deactivated_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
+    deactivation_reason: Mapped[str | None]
+    # Who created the account: from migration 0012 on, and before it where
+    # the audit trail names someone.
+    created_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
     # Bumped by a database trigger on password or role change; sessions
@@ -71,12 +80,14 @@ class User(SoftDeletable, Base):
     )
 
     supervisor: Mapped[User | None] = relationship(
-        remote_side="User.id", back_populates="direct_reports"
+        remote_side="User.id", back_populates="direct_reports", foreign_keys="User.supervisor_id"
     )
     # Deleting a user leaves its dependants to the foreign keys (SET NULL or
     # CASCADE), as Prisma's delete did, rather than loading and changing them
     # (users step 8.3): passive_deletes on each of these.
-    direct_reports: Mapped[list[User]] = relationship(back_populates="supervisor", passive_deletes=True)
+    direct_reports: Mapped[list[User]] = relationship(
+        back_populates="supervisor", passive_deletes=True, foreign_keys="User.supervisor_id"
+    )
     assigned_country: Mapped[Country | None] = relationship()
     inhouse_country_assignments: Mapped[list[InhouseCountryAssignment]] = relationship(
         back_populates="inhouse_supervisor", cascade="all, delete-orphan", passive_deletes=True

@@ -22,6 +22,7 @@ const KNOWN_ERRORS = new Set([
   "google_no_account",
   "google_email_unverified",
   "google_unavailable",
+  "account_deactivated",
 ]);
 
 export async function GET(req: NextRequest) {

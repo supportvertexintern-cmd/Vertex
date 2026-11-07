@@ -16,7 +16,8 @@ export interface paths {
         /**
          * Forgot Password
          * @description The same answer whether or not the address has an account; an email
-         *     only for an account that can sign in with a password.
+         *     only for an account that can sign in with a password, and isn't
+         *     deactivated.
          */
         post: operations["forgot_password_api_v1_accounts_forgot_password_post"];
         delete?: never;
@@ -1998,6 +1999,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Accounts */
+        get: operations["list_accounts_api_v1_monitoring_accounts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/accounts/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Account
+         * @description One account, its live sessions and its latest sign-ins and refused
+         *     sign-ins. Reading the history is recorded on the trail first.
+         */
+        get: operations["get_account_api_v1_monitoring_accounts__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-candidates": {
         parameters: {
             query?: never;
@@ -2290,6 +2329,7 @@ export interface paths {
          *     new contact_email on a partner with a login moves the login too: its
          *     password is cleared and the setup email goes to the new address, so the
          *     old password stops working and the new address proves itself.
+         *     Suspending the partner deactivates its login (D2).
          */
         patch: operations["update_partner_api_v1_partners__partner_id__patch"];
         trace?: never;
@@ -3338,6 +3378,49 @@ export interface paths {
         patch: operations["update_user_api_v1_users__user_id__patch"];
         trace?: never;
     };
+    "/api/v1/users/{user_id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate User
+         * @description Blocks the account and ends every session in the same commit, so its
+         *     next request is refused. An admin's row is locked with every other
+         *     admin's (keep_an_admin), anyone else's on its own.
+         */
+        post: operations["deactivate_user_api_v1_users__user_id__deactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reactivate User
+         * @description Sign-in works again. activated_at and welcomed_at stay as they were,
+         *     so a partner isn't welcomed twice; the old reason stays on the trail.
+         */
+        post: operations["reactivate_user_api_v1_users__user_id__reactivate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/{user_id}/reset-password": {
         parameters: {
             query?: never;
@@ -3381,10 +3464,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/{user_id}/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End User Session
+         * @description One session of a user, from the admin's account view. Scoped to that
+         *     user: another user's session id matches nothing (404).
+         */
+        delete: operations["end_user_session_api_v1_users__user_id__sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/{user_id}/setup-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Setup Email
+         * @description The setup email again, for a staff or partner login that hasn't set
+         *     its password: the link works until one is set (7 days).
+         */
+        post: operations["resend_setup_email_api_v1_users__user_id__setup_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountDetail */
+        AccountDetail: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Active Sessions */
+            active_sessions: number;
+            /** Agency */
+            agency: string | null;
+            /** Agency Id */
+            agency_id: string | null;
+            /** Created At */
+            created_at: string;
+            created_by: components["schemas"]["Person"] | null;
+            /** Deactivated At */
+            deactivated_at: string | null;
+            deactivated_by: components["schemas"]["Person"] | null;
+            /** Deactivation Reason */
+            deactivation_reason: string | null;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Last Sign In At */
+            last_sign_in_at: string | null;
+            /** Last Sign In Ip */
+            last_sign_in_ip: string | null;
+            /** Password Set */
+            password_set: boolean;
+            role: components["schemas"]["Role"];
+            /** Sessions */
+            sessions: components["schemas"]["SessionRow"][];
+            /** Sign Ins */
+            sign_ins: components["schemas"]["SignIn-Output"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_activated" | "active" | "deactivated";
+        };
         /** AccountOut */
         AccountOut: {
             /** Email */
@@ -3394,6 +3560,43 @@ export interface components {
             /** Id */
             id: string;
             role: components["schemas"]["Role"];
+        };
+        /** AccountRow */
+        AccountRow: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Active Sessions */
+            active_sessions: number;
+            /** Agency */
+            agency: string | null;
+            /** Agency Id */
+            agency_id: string | null;
+            /** Created At */
+            created_at: string;
+            created_by: components["schemas"]["Person"] | null;
+            /** Deactivated At */
+            deactivated_at: string | null;
+            deactivated_by: components["schemas"]["Person"] | null;
+            /** Deactivation Reason */
+            deactivation_reason: string | null;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Last Sign In At */
+            last_sign_in_at: string | null;
+            /** Last Sign In Ip */
+            last_sign_in_ip: string | null;
+            /** Password Set */
+            password_set: boolean;
+            role: components["schemas"]["Role"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_activated" | "active" | "deactivated";
         };
         /**
          * AccountSetupEmail
@@ -3411,6 +3614,22 @@ export interface components {
             kind: "account_setup";
             /** Token */
             token: string;
+        };
+        /** AccountState */
+        AccountState: {
+            /** Deactivated At */
+            deactivated_at: string | null;
+            /** Deactivated By */
+            deactivated_by: string | null;
+            /** Deactivation Reason */
+            deactivation_reason: string | null;
+            /**
+             * Ended
+             * @default 0
+             */
+            ended: number;
+            /** Id */
+            id: string;
         };
         /** AchievementRow */
         AchievementRow: {
@@ -4693,6 +4912,14 @@ export interface components {
             full_name: string;
             /** Id */
             id: string;
+        };
+        /** Data[AccountDetail] */
+        Data_AccountDetail_: {
+            data: components["schemas"]["AccountDetail"];
+        };
+        /** Data[AccountState] */
+        Data_AccountState_: {
+            data: components["schemas"]["AccountState"];
         };
         /** Data[AgentDetail] */
         Data_AgentDetail_: {
@@ -5978,6 +6205,15 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
         };
+        /** Notifying[SetupSent] */
+        Notifying_SetupSent_: {
+            data: components["schemas"]["SetupSent"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"])[];
+        };
         /** Notifying[StatusOut] */
         Notifying_StatusOut_: {
             data: components["schemas"]["app__api__v1__candidates__StatusOut"];
@@ -6107,6 +6343,17 @@ export interface components {
             status: components["schemas"]["ReferralAgentStatus"];
             /** Total Referrals */
             total_referrals: number;
+        };
+        /** Page[AccountRow] */
+        Page_AccountRow_: {
+            /** Data */
+            data: components["schemas"]["AccountRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
         };
         /** Page[ReportRow] */
         Page_ReportRow_: {
@@ -6316,6 +6563,8 @@ export interface components {
             id: string;
             /** Login Activated At */
             login_activated_at?: string | null;
+            /** Login Deactivated At */
+            login_deactivated_at?: string | null;
             /** Mou Signed At */
             mou_signed_at: string | null;
             mou_status: components["schemas"]["MouStatus"];
@@ -6857,6 +7106,11 @@ export interface components {
         ReadableIn: {
             /** Storage Path */
             storage_path: string;
+        };
+        /** ReasonIn */
+        ReasonIn: {
+            /** Reason */
+            reason: string;
         };
         /** ReceiptIn */
         ReceiptIn: {
@@ -7427,10 +7681,30 @@ export interface components {
             /** Setup */
             setup: string;
         };
+        /** SetupSent */
+        SetupSent: {
+            /** Email */
+            email: string;
+        };
         /** SignIn */
-        SignIn: {
+        "SignIn-Input": {
             /** Signed By Name */
             signed_by_name: string;
+        };
+        /** SignIn */
+        "SignIn-Output": {
+            /** At */
+            at: string;
+            /** Device */
+            device: string | null;
+            /** Ip */
+            ip: string | null;
+            /** Method */
+            method: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Succeeded */
+            succeeded: boolean;
         };
         /** SignedIn */
         SignedIn: {
@@ -10118,7 +10392,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SignIn"];
+                "application/json": components["schemas"]["SignIn-Input"];
             };
         };
         responses: {
@@ -12220,6 +12494,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_Me_"];
+                };
+            };
+        };
+    };
+    list_accounts_api_v1_monitoring_accounts_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                role?: components["schemas"]["Role"] | null;
+                status?: ("not_activated" | "active" | "deactivated") | null;
+                created_from?: string | null;
+                created_to?: string | null;
+                inactive_days?: number | null;
+                sort?: "created_at" | "full_name" | "last_sign_in_at";
+                direction?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AccountRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_account_api_v1_monitoring_accounts__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AccountDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -14691,6 +15036,76 @@ export interface operations {
             };
         };
     };
+    deactivate_user_api_v1_users__user_id__deactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AccountState_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reactivate_user_api_v1_users__user_id__reactivate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AccountState_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reset_password_api_v1_users__user_id__reset_password_post: {
         parameters: {
             query?: never;
@@ -14771,6 +15186,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_Ended_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    end_user_session_api_v1_users__user_id__sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_EndedOne_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_setup_email_api_v1_users__user_id__setup_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_SetupSent_"];
                 };
             };
             /** @description Validation Error */

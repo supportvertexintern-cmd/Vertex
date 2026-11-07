@@ -1,9 +1,10 @@
 """The signed-in caller (gap G9): verifies a Next.js session token and checks
 the session is still live, as getAuthUser() in vertex/src/lib/api-auth.ts
 does. Zero trust (G19): the signature is not enough. The user must still
-exist, their token_version must match the token's, and the token's session
-must still be live, so revocation, deletion, the kill switch and password
-or role changes take effect on the next request. Role and email come from
+exist and not be deactivated, their token_version must match the token's,
+and the token's session must still be live, so revocation, deletion,
+deactivation, the kill switch and password or role changes take effect on
+the next request. Role and email come from
 the database, not the token. Any failure, including the database being
 unreachable, means 401.
 
@@ -83,6 +84,8 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> A
             reason = "user_gone"
         elif user.token_version != claims.ver:
             reason = "version_changed"
+        elif user.deactivated_at is not None:
+            reason = "deactivated"
         elif not db.scalar(
             text("SELECT public.vertex_session_is_live(:user_id, :family_id)"),
             {"user_id": claims.user_id, "family_id": claims.sid},

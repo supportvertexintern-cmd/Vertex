@@ -46,9 +46,10 @@ REUSE_GRACE = timedelta(seconds=30)
 DEVICE_MAX = 200
 
 RevokeReason = Literal[
-    "logout", "logout_everywhere", "revoked_by_user", "revoked_by_admin", "reuse_detected", "token_version_changed", "kill_switch"
+    "logout", "logout_everywhere", "revoked_by_user", "revoked_by_admin", "reuse_detected", "token_version_changed", "kill_switch",
+    "deactivated",
 ]
-RefreshFailure = Literal["missing", "unknown", "revoked", "expired", "superseded", "reused", "version_changed"]
+RefreshFailure = Literal["missing", "unknown", "revoked", "expired", "superseded", "reused", "version_changed", "deactivated"]
 
 
 def _now() -> datetime:
@@ -90,10 +91,11 @@ def _access_token(user: User, family_id: str) -> str:
 
 
 def start_session(db: Session, user: User, user_agent: str | None) -> IssuedSession:
-    """Starts a new session (sign-in) and commits it. A partner's first one
-    activates the login (activated_at), in the same commit."""
-    if user.role is Role.partner and user.activated_at is None:
-        # Sign-in runs without an audit actor: this change is the partner's own.
+    """Starts a new session (sign-in) and commits it. An account's first one
+    activates it (activated_at), in the same commit. The caller has refused
+    a deactivated account already."""
+    if user.activated_at is None:
+        # Sign-in runs without an audit actor: this change is the user's own.
         set_audit_actor(db, user.id)
         user.activated_at = utc_now_ms()
     family_id = str(uuid.uuid4())
@@ -149,6 +151,9 @@ def refresh_session(db: Session, raw: str | None, user_agent: str | None) -> Ref
     if user is None or row.token_version != user.token_version:
         revoke_family(db, row.family_id, "token_version_changed")
         return refused("version_changed")
+    if user.deactivated_at is not None:  # deactivating ended it; a race could leave one
+        revoke_family(db, row.family_id, "deactivated")
+        return refused("deactivated")
 
     # Only one caller can spend a token: the conditional update is the lock.
     spent = db.execute(

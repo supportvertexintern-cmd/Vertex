@@ -17,6 +17,13 @@ What changes (security review #11, #12):
     deleted. The admin rows are locked while that's checked, so two admins
     demoting each other at once can't leave none.
   - Unknown fields are ignored.
+
+Deactivation (admin monitoring, phase 1, 2026-11-07): an admin deactivates
+any login instead of deleting it, with a reason. Its sessions end at once,
+and no sign-in, refresh, setup or reset link works until an admin
+reactivates it, with a reason. Reactivating leaves activated_at and
+welcomed_at as they were. Nobody deactivates themselves, or the last active
+admin; a deactivated admin doesn't count as one.
 """
 
 from __future__ import annotations
@@ -24,7 +31,7 @@ from __future__ import annotations
 import secrets
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic_core import PydanticCustomError
 from sqlalchemy import exists, func, select
@@ -32,16 +39,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.notices import AccountSetupEmail, Notice, Notifying
+from app.api.v1.sessions import security_event
 from app.services.emails import deliver
-from app.core.api import ApiError, Data, Email
+from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
+from app.core.clock import utc_now_ms
 from app.core.rbac import is_staff_role, require_role
 from app.core.tokens import sign_account_setup_token
 from app.models.enums import Role
 from app.models.identity import Country, InhouseCountryAssignment, User
 from app.services import security_monitor
-from app.services.sessions import hash_password
+from app.services.sessions import hash_password, revoke_all_for_user
 
 router = APIRouter()
 
@@ -83,6 +92,10 @@ class UpdateIn(BaseModel):
     supervisor_id: Cuid | None = None
     assigned_country_id: Cuid | None = None
     assigned_country_ids: list[Cuid] | None = None
+
+
+class ReasonIn(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
 
 
 # --- output -------------------------------------------------------------------
@@ -135,6 +148,19 @@ class TemporaryPassword(Data[Removed]):
     temporaryPassword: str  # noqa: N815 (the website's field name)
 
 
+class AccountState(BaseModel):
+    id: str
+    deactivated_at: UtcDateTime | None
+    deactivated_by: str | None
+    deactivation_reason: str | None
+    # Sessions the deactivation ended.
+    ended: int = 0
+
+
+class SetupSent(BaseModel):
+    email: str
+
+
 # --- helpers ------------------------------------------------------------------
 
 
@@ -172,7 +198,8 @@ def keep_an_admin(db, actor_id: str, target_id: str) -> None:
     order, so two such requests wait for each other and the second sees the
     first's change. Refuses if the target is the last admin, or if the
     caller stopped being one meanwhile."""
-    admins = set(db.scalars(select(User.id).where(User.role == Role.admin).order_by(User.id).with_for_update()))
+    active = User.deactivated_at.is_(None)  # a deactivated admin can't act as one
+    admins = set(db.scalars(select(User.id).where(User.role == Role.admin, active).order_by(User.id).with_for_update()))
     if not admins - {target_id}:
         raise ApiError(409, "last_admin", "There must always be at least one admin.")
     if actor_id not in admins:
@@ -211,7 +238,7 @@ def create_user(body: CreateIn, admin: Admin, db: AuditedDb):
 
     user = User(
         full_name=body.full_name, email=body.email, role=body.role, email_verified=False,
-        supervisor_id=body.supervisor_id, assigned_country_id=body.assigned_country_id,
+        supervisor_id=body.supervisor_id, assigned_country_id=body.assigned_country_id, created_by=admin.user_id,
     )
     if body.role is Role.inhouse_supervisor and body.assigned_country_ids:
         user.inhouse_country_assignments = [InhouseCountryAssignment(country_id=c) for c in body.assigned_country_ids]
@@ -295,7 +322,87 @@ def reset_password(user_id: str, admin: Admin, db: AuditedDb):
     user = db.get(User, user_id)
     if user is None:
         raise ApiError(404, "not_found", "User not found.")
+    if user.deactivated_at is not None:
+        raise _deactivated()
     temporary = secrets.token_urlsafe(12)  # generateTemporaryPassword(): 12 random bytes, base64url
     user.password_hash = hash_password(temporary)
     db.commit()
     return {"data": {"id": user_id}, "temporaryPassword": temporary}
+
+
+# --- deactivation (admin monitoring, phase 1) ------------------------------------
+
+
+def _deactivated() -> ApiError:
+    return ApiError(409, "account_deactivated", "This account is deactivated — reactivate it first.")
+
+
+def _state(user: User, ended: int = 0) -> dict[str, Any]:
+    return {
+        "id": user.id, "deactivated_at": user.deactivated_at, "deactivated_by": user.deactivated_by,
+        "deactivation_reason": user.deactivation_reason, "ended": ended,
+    }
+
+
+@router.post("/users/{user_id}/deactivate", response_model=Data[AccountState])
+def deactivate_user(user_id: str, body: ReasonIn, admin: Admin, request: Request, db: AuditedDb):
+    """Blocks the account and ends every session in the same commit, so its
+    next request is refused. An admin's row is locked with every other
+    admin's (keep_an_admin), anyone else's on its own."""
+    if user_id == admin.user_id:
+        raise ApiError(400, "self_deactivate", "You can't deactivate your own account.")
+    user = db.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "not_found", "User not found.")
+    if user.role is Role.admin:
+        keep_an_admin(db, admin.user_id, user_id)
+        db.refresh(user)  # as the lock left it
+    else:
+        db.refresh(user, with_for_update=True)
+    if user.deactivated_at is not None:
+        raise ApiError(409, "already_deactivated", "This account is already deactivated.")
+
+    user.deactivated_at = utc_now_ms()
+    user.deactivated_by = admin.user_id
+    user.deactivation_reason = body.reason
+    db.flush()
+    ended = revoke_all_for_user(db, user_id, "deactivated")  # commits the row too
+    security_event(request, "account_deactivated", actor_id=admin.user_id, entity_type="User", entity_id=user_id,
+                   detail={"reason": body.reason, "role": user.role.value, "ended": ended})
+    return {"data": _state(user, ended)}
+
+
+@router.post("/users/{user_id}/reactivate", response_model=Data[AccountState])
+def reactivate_user(user_id: str, body: ReasonIn, admin: Admin, request: Request, db: AuditedDb):
+    """Sign-in works again. activated_at and welcomed_at stay as they were,
+    so a partner isn't welcomed twice; the old reason stays on the trail."""
+    user = db.scalar(select(User).where(User.id == user_id).with_for_update())
+    if user is None:
+        raise ApiError(404, "not_found", "User not found.")
+    if user.deactivated_at is None:
+        raise ApiError(409, "not_deactivated", "This account isn't deactivated.")
+    previous = user.deactivation_reason
+    user.deactivated_at = None
+    user.deactivated_by = None
+    user.deactivation_reason = None
+    db.commit()
+    security_event(request, "account_reactivated", actor_id=admin.user_id, entity_type="User", entity_id=user_id,
+                   detail={"reason": body.reason, "deactivation_reason": previous, "role": user.role.value})
+    return {"data": _state(user)}
+
+
+@router.post("/users/{user_id}/setup-email", response_model=Notifying[SetupSent])
+def resend_setup_email(user_id: str, _admin: Admin, db: AuditedDb):
+    """The setup email again, for a staff or partner login that hasn't set
+    its password: the link works until one is set (7 days)."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise ApiError(404, "not_found", "User not found.")
+    if user.role is Role.candidate:
+        raise ApiError(422, "not_a_login", "Candidates create their account from their invite.")
+    if user.deactivated_at is not None:
+        raise _deactivated()
+    if user.password_hash:
+        raise ApiError(409, "password_set", "This account has set its password already — reset it instead.")
+    notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
+    return {"data": {"email": user.email}, "notify": deliver(db, notify)}

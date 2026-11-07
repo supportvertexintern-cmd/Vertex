@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase } from "@phosphor-icons/react";
+import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, UserList } from "@phosphor-icons/react";
 
 // System Administrator is restricted to system-level concerns — account
 // provisioning, reference-data taxonomy, technical settings — not
@@ -17,4 +17,8 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
   { href: "/admin/sectors", label: "Sectors & Requirements", icon: Briefcase },
   { href: "/admin/users", label: "Staff & Roles", icon: IdentificationBadge },
   { href: "/admin/settings", label: "Settings", icon: GearSix },
+  // Admin → Monitoring (owner's requirements, 2026-11-07), built a phase at
+  // a time: Security Overview, Partners & Logins, Suspicious Activity and the
+  // Audit Trail join User Accounts as they ship. Admins only (D1).
+  { href: "/admin/monitoring/accounts", label: "User Accounts", icon: UserList, section: "Monitoring" },
 ];

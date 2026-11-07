@@ -11,6 +11,8 @@ export interface PortalNavItem {
   href: string;
   label: string;
   icon: Icon;
+  /** A heading drawn above the first item of each section after the first. */
+  section?: string;
 }
 
 interface PortalShellProps {
@@ -48,12 +50,16 @@ export default function PortalShell({ roleLabel, navItems, children, wideContent
 
   const NavList = () => (
     <nav className="flex flex-col gap-1 px-3">
-      {navItems.map((item) => {
+      {navItems.map((item, i) => {
         const Icon = item.icon;
         const active = item.href === activeHref;
+        const heading = item.section && item.section !== navItems[i - 1]?.section ? item.section : null;
         return (
+          <div key={item.href} className="contents">
+          {heading && (
+            <p className="px-4 pt-5 pb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-50/35">{heading}</p>
+          )}
           <Link
-            key={item.href}
             href={item.href}
             onClick={() => setMobileOpen(false)}
             className={`group flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium tracking-tight transition-colors ${
@@ -65,6 +71,7 @@ export default function PortalShell({ roleLabel, navItems, children, wideContent
             <Icon size={18} weight={active ? "fill" : "regular"} />
             {item.label}
           </Link>
+          </div>
         );
       })}
     </nav>

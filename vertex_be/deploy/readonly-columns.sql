@@ -603,6 +603,10 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('User', 'email_verified',                                'exclude'), -- personal data
   ('User', 'activated_at',                                  'grant'),   -- business timestamp
   ('User', 'welcomed_at',                                   'grant'),   -- business timestamp
+  ('User', 'deactivated_at',                                'grant'),   -- business timestamp
+  ('User', 'deactivated_by',                                'grant'),   -- identifier/link
+  ('User', 'deactivation_reason',                           'exclude'), -- free text/JSON: may hold personal data
+  ('User', 'created_by',                                    'grant'),   -- identifier/link
   ('User', 'created_at',                                    'grant'),   -- business timestamp
   ('User', 'updated_at',                                    'grant'),   -- business timestamp
   ('User', 'supervisor_id',                                 'grant'),   -- identifier/link

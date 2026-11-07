@@ -82,11 +82,14 @@ def test_the_agency_status_and_mou_are_left_as_they_are(api, db):
     assert (agency.status, agency.mou_status, agency.user_id) == (PartnerStatus.pending, MouStatus.none, login.id)
 
 
-def test_only_partner_logins_are_activated(api, db):
+def test_every_login_is_activated_but_only_partners_are_welcomed(api, db):
+    # Admin monitoring (migration 0012): activation is every account's first
+    # sign-in; the welcome stays the partner portal's.
     staff = account(db, role=Role.director)
     token(sign_in(api, staff))
     db.refresh(staff)
-    assert staff.activated_at is None
+    assert staff.activated_at is not None
+    assert staff.welcomed_at is None
 
 
 def test_the_welcome_is_for_partners_only(api, db):
