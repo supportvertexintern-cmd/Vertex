@@ -418,6 +418,7 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('Partner', 'created_at',                                 'grant'),   -- business timestamp
   ('Partner', 'updated_at',                                 'grant'),   -- business timestamp
   ('Partner', 'user_id',                                    'grant'),   -- identifier/link
+  ('Partner', 'created_by',                                 'grant'),   -- identifier/link
   ('PartnerCandidate', 'id',                                'grant'),   -- identifier/link
   ('PartnerCandidate', 'partner_id',                        'grant'),   -- identifier/link
   ('PartnerCandidate', 'status',                            'grant'),   -- status/type value

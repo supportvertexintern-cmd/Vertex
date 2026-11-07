@@ -2117,6 +2117,67 @@ export interface paths {
         patch: operations["review_alert_api_v1_monitoring_alerts__alert_id__patch"];
         trace?: never;
     };
+    "/api/v1/monitoring/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Partner Logins
+         * @description Newest agency first.
+         */
+        get: operations["list_partner_logins_api_v1_monitoring_partners_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/partners.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Partner Logins
+         * @description The filtered list, every page, as CSV. Recorded on the trail first;
+         *     if that fails, nothing leaves (503).
+         */
+        get: operations["export_partner_logins_api_v1_monitoring_partners_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/partners/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Partner Options
+         * @description The countries agencies operate in, and who has added agencies, for the filters.
+         */
+        get: operations["partner_options_api_v1_monitoring_partners_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-candidates": {
         parameters: {
             query?: never;
@@ -5209,6 +5270,10 @@ export interface components {
         Data_PartnerDetail_: {
             data: components["schemas"]["PartnerDetail"];
         };
+        /** Data[PartnerOptions] */
+        Data_PartnerOptions_: {
+            data: components["schemas"]["PartnerOptions"];
+        };
         /** Data[PartnerRow] */
         Data_PartnerRow_: {
             data: components["schemas"]["PartnerRow"];
@@ -6511,6 +6576,17 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Page[PartnerLoginRow] */
+        Page_PartnerLoginRow_: {
+            /** Data */
+            data: components["schemas"]["PartnerLoginRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
         /** Page[ReportRow] */
         Page_ReportRow_: {
             /** Data */
@@ -6715,6 +6791,8 @@ export interface components {
             country_of_operation: string;
             /** Created At */
             created_at: string;
+            /** Created By */
+            created_by?: string | null;
             /** Id */
             id: string;
             /** Login Activated At */
@@ -6753,6 +6831,8 @@ export interface components {
             country_of_operation: string;
             /** Created At */
             created_at: string;
+            /** Created By */
+            created_by?: string | null;
             /** Id */
             id: string;
             /** Mou Signed At */
@@ -6769,6 +6849,52 @@ export interface components {
             /** User Id */
             user_id: string | null;
         };
+        /** PartnerLogin */
+        PartnerLogin: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Created At */
+            created_at: string;
+            created_by: components["schemas"]["Person"] | null;
+            /** Deactivated At */
+            deactivated_at: string | null;
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Last Sign In At */
+            last_sign_in_at: string | null;
+            /** Last Sign In Ip */
+            last_sign_in_ip: string | null;
+            /** Password Set */
+            password_set: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "setup_pending" | "active" | "deactivated";
+        };
+        /** PartnerLoginRow */
+        PartnerLoginRow: {
+            /** Country Of Operation */
+            country_of_operation: string;
+            /** Created At */
+            created_at: string;
+            created_by: components["schemas"]["Person"] | null;
+            /** Id */
+            id: string;
+            login: components["schemas"]["PartnerLogin"] | null;
+            /**
+             * Login Status
+             * @enum {string}
+             */
+            login_status: "no_login" | "setup_pending" | "active" | "deactivated";
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            partner_type: components["schemas"]["PartnerType"];
+            status: components["schemas"]["PartnerStatus"];
+        };
         /**
          * PartnerName
          * @description Everyone else's row: enough to pick or filter by a partner.
@@ -6779,6 +6905,13 @@ export interface components {
             /** Name */
             name: string;
             status: components["schemas"]["PartnerStatus"];
+        };
+        /** PartnerOptions */
+        PartnerOptions: {
+            /** Countries */
+            countries: string[];
+            /** Creators */
+            creators: components["schemas"]["Person"][];
         };
         /** PartnerRow */
         PartnerRow: {
@@ -6794,6 +6927,8 @@ export interface components {
             country_of_operation: string;
             /** Created At */
             created_at: string;
+            /** Created By */
+            created_by?: string | null;
             /** Id */
             id: string;
             /** Mou Signed At */
@@ -12851,6 +12986,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_partner_logins_api_v1_monitoring_partners_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                q?: string | null;
+                country?: string | null;
+                status?: components["schemas"]["PartnerStatus"] | null;
+                login_status?: ("no_login" | "setup_pending" | "active" | "deactivated") | null;
+                created_from?: string | null;
+                created_to?: string | null;
+                created_by?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_PartnerLoginRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_partner_logins_api_v1_monitoring_partners_csv_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                country?: string | null;
+                status?: components["schemas"]["PartnerStatus"] | null;
+                login_status?: ("no_login" | "setup_pending" | "active" | "deactivated") | null;
+                created_from?: string | null;
+                created_to?: string | null;
+                created_by?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    partner_options_api_v1_monitoring_partners_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PartnerOptions_"];
                 };
             };
         };

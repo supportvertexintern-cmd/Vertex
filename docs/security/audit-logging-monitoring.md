@@ -143,6 +143,8 @@ The email has the rule, environment, time, counts and the request ID, and never 
 
 **Reviewing alerts (Suspicious Activity, admins only):** each alert is a row, newest first, filtered by status, severity, type, account and date. The sidebar's badge counts the open ones. An admin marks one **reviewing**, then **resolved** or **dismissed** (a false positive). Closing or reopening one needs a note, and it can't go back to open. Each change is an audited row change (who, when, the note). From an alert, the admin can open its account, end its sessions, or deactivate it (phase 1). An account's open and reviewing alerts are its **Flags** in User Accounts. The rows are never deleted and never exported (`backup.NEVER_EXPORTED`); like the trail, they stay whole in the database backups. Migration 0013 copied in the alerts already on the trail, as open.
 
+**Partners & Logins (admin monitoring phase 3, admins only):** one row per agency, with who added it (`Partner.created_by`, migration 0014, backfilled from the trail's create rows) and its login: when and by whom it was created, its status and latest sign-in. Its CSV (`GET /monitoring/partners.csv`, the filtered list) records an `export` event, with the row count and the filters but never the search text, before it leaves. If the event can't be written, it's refused (503). Cells a spreadsheet would run as formulas are prefixed with an apostrophe.
+
 **Delivery per environment:**
 
 - **Local stacks:** email goes to each stack's own Mailpit, which never relays anything. Web UI:

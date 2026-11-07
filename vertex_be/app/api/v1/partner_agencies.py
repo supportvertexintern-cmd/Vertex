@@ -160,6 +160,8 @@ class PartnerRow(BaseModel):
     created_at: UtcDateTime
     updated_at: UtcDateTime
     user_id: str | None
+    # Who added the agency (migration 0014).
+    created_by: str | None = None
 
 
 class CandidateCount(BaseModel):
@@ -298,9 +300,9 @@ def get_partner(partner_id: str, db: DbSession, user: DetailReader):
 
 
 @router.post("/partners", status_code=status.HTTP_201_CREATED, response_model=Data[PartnerRow])
-def create_partner(body: CreateIn, _user: Manager, db: AuditedDb):
+def create_partner(body: CreateIn, manager: Manager, db: AuditedDb):
     _no_nulls(body)
-    partner = Partner(**body.model_dump(exclude_unset=True))
+    partner = Partner(**body.model_dump(exclude_unset=True), created_by=manager.user_id)
     db.add(partner)
     db.commit()
     db.refresh(partner)

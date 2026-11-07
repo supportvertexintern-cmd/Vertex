@@ -28,6 +28,7 @@ ISO_Z = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z")
 PARTNER_KEYS = {
     "id", "name", "partner_type", "country_of_operation", "business_registration_number", "contact_name", "contact_email",
     "contact_phone", "status", "mou_status", "mou_signed_at", "notes", "created_at", "updated_at", "user_id",
+    "created_by",
 }
 MILESTONES = {"registered", "qualified", "application_submitted", "work_permit_approved", "visa_approved", "deployed"}
 

@@ -42,8 +42,10 @@ class Partner(SoftDeletable, Base):
     updated_at: Mapped[datetime] = updated_at_col()
     # The partner's own login, null until admin provisions one.
     user_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
+    # Who added the agency (migration 0014; before it, from the audit trail).
+    created_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"), index=True)
 
-    user: Mapped[User | None] = relationship(back_populates="partner")
+    user: Mapped[User | None] = relationship(back_populates="partner", foreign_keys=[user_id])
     partner_candidates: Mapped[list[PartnerCandidate]] = relationship(
         back_populates="partner", cascade="all, delete-orphan"
     )
