@@ -7,7 +7,7 @@ import { queryOf } from "@/lib/pipeline";
 // candidates', with its status, who created it, its latest sign-in and its
 // live sessions. FastAPI filters, sorts and pages it, and checks the caller
 // is an admin (vertex_be/app/api/v1/monitoring.py).
-const QUERY = ["q", "role", "status", "created_from", "created_to", "inactive_days", "sort", "direction", "page", "pageSize"] as const;
+const QUERY = ["q", "role", "status", "created_from", "created_to", "inactive_days", "flagged", "sort", "direction", "page", "pageSize"] as const;
 
 // GET /api/admin/monitoring/accounts?q=&role=&status=&created_from=&created_to=&inactive_days=&sort=&direction=&page=&pageSize=
 export async function GET(req: NextRequest) {

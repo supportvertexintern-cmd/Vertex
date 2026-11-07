@@ -120,6 +120,10 @@
       ],
       "title": "Last Sign In Ip"
      },
+     "open_alerts": {
+      "title": "Open Alerts",
+      "type": "integer"
+     },
      "password_set": {
       "title": "Password Set",
       "type": "boolean"
@@ -169,6 +173,7 @@
      "deactivated_at",
      "deactivated_by",
      "deactivation_reason",
+     "open_alerts",
      "sessions",
      "sign_ins"
     ],
@@ -321,6 +326,10 @@
       ],
       "title": "Last Sign In Ip"
      },
+     "open_alerts": {
+      "title": "Open Alerts",
+      "type": "integer"
+     },
      "password_set": {
       "title": "Password Set",
       "type": "boolean"
@@ -355,7 +364,8 @@
      "active_sessions",
      "deactivated_at",
      "deactivated_by",
-     "deactivation_reason"
+     "deactivation_reason",
+     "open_alerts"
     ],
     "title": "AccountRow",
     "type": "object"
@@ -1383,6 +1393,174 @@
      "updated_at"
     ],
     "title": "AgentRow",
+    "type": "object"
+   },
+   "AlertAccount": {
+    "properties": {
+     "deactivated": {
+      "title": "Deactivated",
+      "type": "boolean"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "role",
+     "deactivated"
+    ],
+    "title": "AlertAccount",
+    "type": "object"
+   },
+   "AlertRow": {
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "detail": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ip"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "reviewed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed At"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "rule": {
+      "title": "Rule",
+      "type": "string"
+     },
+     "severity": {
+      "$ref": "#/components/schemas/SecurityAlertSeverity"
+     },
+     "status": {
+      "$ref": "#/components/schemas/SecurityAlertStatus"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "rule",
+     "severity",
+     "summary",
+     "account",
+     "ip",
+     "detail",
+     "status",
+     "reviewed_by",
+     "reviewed_at",
+     "note",
+     "created_at"
+    ],
+    "title": "AlertRow",
+    "type": "object"
+   },
+   "AlertSummary": {
+    "properties": {
+     "open": {
+      "title": "Open",
+      "type": "integer"
+     },
+     "open_by_severity": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "$ref": "#/components/schemas/SecurityAlertSeverity"
+      },
+      "title": "Open By Severity",
+      "type": "object"
+     },
+     "reviewing": {
+      "title": "Reviewing",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "open",
+     "reviewing",
+     "open_by_severity"
+    ],
+    "title": "AlertSummary",
     "type": "object"
    },
    "ApplicationConfirmationEmail": {
@@ -4942,6 +5120,30 @@
     "title": "Data[AgentDetail]",
     "type": "object"
    },
+   "Data_AlertRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AlertRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AlertRow]",
+    "type": "object"
+   },
+   "Data_AlertSummary_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AlertSummary"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AlertSummary]",
+    "type": "object"
+   },
    "Data_ApplicationFeeOut_": {
     "properties": {
      "data": {
@@ -6113,6 +6315,22 @@
      "data"
     ],
     "title": "Data[list[dict[str, Any]]]",
+    "type": "object"
+   },
+   "Data_list_str__": {
+    "properties": {
+     "data": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[str]]",
     "type": "object"
    },
    "DecideIn": {
@@ -11542,6 +11760,37 @@
     "title": "Page[AccountRow]",
     "type": "object"
    },
+   "Page_AlertRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AlertRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[AlertRow]",
+    "type": "object"
+   },
    "Page_ReportRow_": {
     "properties": {
      "data": {
@@ -15040,35 +15289,6 @@
     "title": "ReturnedOut",
     "type": "object"
    },
-   "ReviewIn": {
-    "description": "updateApplicationStatusSchema: the legacy status, and notes.",
-    "properties": {
-     "application_status": {
-      "anyOf": [
-       {
-        "$ref": "#/components/schemas/ApplicationStatus"
-       },
-       {
-        "type": "null"
-       }
-      ]
-     },
-     "internal_notes": {
-      "anyOf": [
-       {
-        "maxLength": 2000,
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Internal Notes"
-     }
-    },
-    "title": "ReviewIn",
-    "type": "object"
-   },
    "ReviewerBrief": {
     "properties": {
      "full_name": {
@@ -15342,6 +15562,25 @@
      "finalized"
     ],
     "title": "ScorecardStatus",
+    "type": "string"
+   },
+   "SecurityAlertSeverity": {
+    "enum": [
+     "critical",
+     "high",
+     "medium"
+    ],
+    "title": "SecurityAlertSeverity",
+    "type": "string"
+   },
+   "SecurityAlertStatus": {
+    "enum": [
+     "open",
+     "reviewing",
+     "resolved",
+     "dismissed"
+    ],
+    "title": "SecurityAlertStatus",
     "type": "string"
    },
    "Sender": {
@@ -17828,6 +18067,35 @@
     "title": "DetailsIn",
     "type": "object"
    },
+   "app__api__v1__applications__ReviewIn": {
+    "description": "updateApplicationStatusSchema: the legacy status, and notes.",
+    "properties": {
+     "application_status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ApplicationStatus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "internal_notes": {
+      "anyOf": [
+       {
+        "maxLength": 2000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internal Notes"
+     }
+    },
+    "title": "ReviewIn",
+    "type": "object"
+   },
    "app__api__v1__campaigns__Named": {
     "properties": {
      "id": {
@@ -18223,6 +18491,30 @@
      "positions"
     ],
     "title": "SectorOut",
+    "type": "object"
+   },
+   "app__api__v1__monitoring__ReviewIn": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "maxLength": 1000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "status": {
+      "$ref": "#/components/schemas/SecurityAlertStatus"
+     }
+    },
+    "required": [
+     "status"
+    ],
+    "title": "ReviewIn",
     "type": "object"
    },
    "app__api__v1__partner_agencies__CreateIn": {
@@ -20447,7 +20739,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/ReviewIn"
+        "$ref": "#/components/schemas/app__api__v1__applications__ReviewIn"
        }
       }
      },
@@ -26745,6 +27037,16 @@
      },
      {
       "in": "query",
+      "name": "flagged",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Flagged",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
       "name": "sort",
       "required": false,
       "schema": {
@@ -26822,7 +27124,7 @@
     ],
     "summary": "List Accounts",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -26870,7 +27172,280 @@
     ],
     "summary": "Get Account",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/alerts": {
+   "get": {
+    "description": "Newest first. status may repeat (?status=open&status=reviewing).",
+    "operationId": "list_alerts_api_v1_monitoring_alerts_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "items": {
+          "$ref": "#/components/schemas/SecurityAlertStatus"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "severity",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/SecurityAlertSeverity"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Severity"
+      }
+     },
+     {
+      "in": "query",
+      "name": "rule",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Rule"
+      }
+     },
+     {
+      "in": "query",
+      "name": "user_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "User Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_AlertRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Alerts",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/alerts/rules": {
+   "get": {
+    "description": "The rules that have raised an alert, for the type filter.",
+    "operationId": "alert_rules_api_v1_monitoring_alerts_rules_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_str__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Alert Rules",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/alerts/summary": {
+   "get": {
+    "operationId": "alert_summary_api_v1_monitoring_alerts_summary_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AlertSummary_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Alert Summary",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/alerts/{alert_id}": {
+   "patch": {
+    "description": "Moves an alert along: open -> reviewing -> resolved or dismissed (a\nfalse positive). Resolving or dismissing needs a note; reopening one\nis allowed, back to reviewing, with a note too. The row is locked, so\ntwo admins can't overwrite each other's review unseen.",
+    "operationId": "review_alert_api_v1_monitoring_alerts__alert_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "alert_id",
+      "required": true,
+      "schema": {
+       "title": "Alert Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__monitoring__ReviewIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AlertRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Review Alert",
+    "tags": [
+     "admin monitoring"
     ]
    }
   },

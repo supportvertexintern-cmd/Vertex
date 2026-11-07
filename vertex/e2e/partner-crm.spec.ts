@@ -231,5 +231,34 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(page.getByRole("button", { name: "Submit Candidate" })).toBeVisible({ timeout: 25_000 });
       await expect(page.getByRole("dialog", { name: "Welcome to Vertex!" })).toHaveCount(0);
     });
+
+    // Admin → Monitoring → Suspicious Activity (phase 2, 2026-11-07).
+    await test.step("an alert about the partner is a row to review, and the admin resolves it with a note", async () => {
+      dbFixture("alert", PARTNER_CONTACT_EMAIL); // as the monitor writes one
+      await logout(page);
+      await login(page, "e2e-admin@test.local", PASSWORD);
+      const navItem = page.getByRole("link", { name: /Suspicious Activity/ }).first();
+      await expect(navItem.getByLabel(/\d+ open/)).toBeVisible({ timeout: 25_000 });
+      await navItem.click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/suspicious/);
+
+      const row = page.locator("tr", { hasText: PARTNER_CONTACT_EMAIL }).filter({ hasText: "Brute force on an account" });
+      await row.first().click({ timeout: 25_000 });
+      const drawer = page.getByRole("dialog", { name: "Brute force on an account" });
+      await expect(drawer.getByText("198.51.100.23").first()).toBeVisible();
+      await drawer.getByRole("button", { name: "Mark reviewing" }).click();
+      await expect(drawer.getByText("Marked reviewing.")).toBeVisible({ timeout: 25_000 });
+      await drawer.getByRole("button", { name: "Resolve" }).click();
+      const ask = page.getByRole("alertdialog", { name: "Resolve alert" });
+      await ask.getByRole("textbox").fill("E2E: the partner mistyped; confirmed by phone.");
+      await ask.getByRole("button", { name: "Resolve" }).click();
+      await expect(drawer.getByText("Marked resolved.")).toBeVisible({ timeout: 25_000 });
+      await expect(drawer.getByText("E2E: the partner mistyped; confirmed by phone.")).toBeVisible();
+      await expect(drawer.getByText("by E2E Admin", { exact: false })).toBeVisible();
+      await page.keyboard.press("Escape");
+
+      await page.getByRole("tab", { name: "Resolved" }).click();
+      await expect(page.locator("tr", { hasText: PARTNER_CONTACT_EMAIL }).first()).toBeVisible({ timeout: 25_000 });
+    });
   });
 });

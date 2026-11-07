@@ -612,6 +612,20 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('User', 'supervisor_id',                                 'grant'),   -- identifier/link
   ('User', 'assigned_country_id',                           'grant'),   -- identifier/link
   ('User', 'token_version',                                 'exclude'), -- session security state
+  -- Security alerts (0013): for the admin's review, never for browsing.
+  ('SecurityAlert', 'id',                                   'grant'),   -- identifier/link
+  ('SecurityAlert', 'rule',                                 'grant'),   -- status/type value
+  ('SecurityAlert', 'alert_key',                            'exclude'), -- may hold an address or email fingerprint
+  ('SecurityAlert', 'severity',                             'grant'),   -- status/type value
+  ('SecurityAlert', 'summary',                              'grant'),   -- generated text, no personal data
+  ('SecurityAlert', 'user_id',                              'grant'),   -- identifier/link
+  ('SecurityAlert', 'ip',                                   'exclude'), -- personal data (address)
+  ('SecurityAlert', 'detail',                               'exclude'), -- free text/JSON: may hold personal data
+  ('SecurityAlert', 'status',                               'grant'),   -- status/type value
+  ('SecurityAlert', 'reviewed_by',                          'grant'),   -- identifier/link
+  ('SecurityAlert', 'reviewed_at',                          'grant'),   -- business timestamp
+  ('SecurityAlert', 'note',                                 'exclude'), -- free text/JSON: may hold personal data
+  ('SecurityAlert', 'created_at',                           'grant'),   -- business timestamp
   -- Sessions (0005, G19): token hashes and devices, never for browsing.
   ('RefreshToken', 'id',                                    'exclude'), -- session security state
   ('RefreshToken', 'user_id',                               'exclude'), -- session security state

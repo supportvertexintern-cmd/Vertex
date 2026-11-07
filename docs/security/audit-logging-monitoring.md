@@ -128,6 +128,7 @@ Rules agreed with the owner on 2026-10-11. Since reads handover R7a they run in 
 | `privilege_granted` | a user becomes `admin` (promotion or creation) | critical | every time |
 | `audit_write_failed` | an audit row can't be written | critical | once / 15 min |
 | `malware_scanner_unavailable` | clamd unreachable, so uploads are accepted unscanned | high | once / hour |
+| `refresh_token_reused` | a spent refresh token is used again (E6); the session is revoked | high | once / session / 15 min |
 
 The last two were added at the owner's invitation to "raise any concern": one means the audit trail is silently failing, the other that the fail-open malware policy is in effect.
 
@@ -135,9 +136,12 @@ The last two were added at the owner's invitation to "raise any concern": one me
 
 1. A log line at level `CRITICAL` (`event: alert.raised`).
 2. An `alert_raised` audit row, keyed by rule and subject, which gives deduplication across processes.
-3. A plain-text email to `SECURITY_ALERT_EMAILS` (comma-separated). If that's unset, it goes to every admin user. FastAPI sends it (`app/core/mailer.py`, the backend's own `SMTP_*` settings) off the request, so a slow mail server never holds one.
+3. A `SecurityAlert` row (admin monitoring phase 2, migration 0013), written in the same transaction as the audit row, for **Admin → Monitoring → Suspicious Activity**. It names the account the alert is about when one is known (the target of a brute force on a known address, the user denied, the session's owner, the uploader, the promoted user) and the address.
+4. A plain-text email to `SECURITY_ALERT_EMAILS` (comma-separated). If that's unset, it goes to every admin user. FastAPI sends it (`app/core/mailer.py`, the backend's own `SMTP_*` settings) off the request, so a slow mail server never holds one.
 
 The email has the rule, environment, time, counts and the request ID, and never credentials.
+
+**Reviewing alerts (Suspicious Activity, admins only):** each alert is a row, newest first, filtered by status, severity, type, account and date. The sidebar's badge counts the open ones. An admin marks one **reviewing**, then **resolved** or **dismissed** (a false positive). Closing or reopening one needs a note, and it can't go back to open. Each change is an audited row change (who, when, the note). From an alert, the admin can open its account, end its sessions, or deactivate it (phase 1). An account's open and reviewing alerts are its **Flags** in User Accounts. The rows are never deleted and never exported (`backup.NEVER_EXPORTED`); like the trail, they stay whole in the database backups. Migration 0013 copied in the alerts already on the trail, as open.
 
 **Delivery per environment:**
 

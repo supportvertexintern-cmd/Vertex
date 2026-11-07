@@ -77,6 +77,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "ReferralCommission",
         "ReferralCommissionRule",
         "ReferralAgentTarget",
+        # Admin monitoring, phase 2: an alert's review (status, note, who).
+        "SecurityAlert",
         # FastAPI-owned reference data, content, jobs, campaign targets and scorecards (steps 2.1-5.3): every
         # write FastAPI makes is on the trail.
         "Region",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
@@ -13,6 +13,8 @@ export interface PortalNavItem {
   icon: Icon;
   /** A heading drawn above the first item of each section after the first. */
   section?: string;
+  /** A count for a badge: an API route answering { data: { open: number } }. */
+  badgeFrom?: string;
 }
 
 interface PortalShellProps {
@@ -34,6 +36,26 @@ export default function PortalShell({ roleLabel, navItems, children, wideContent
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [badges, setBadges] = useState<Record<string, number>>({});
+
+  // Each badge's count, once per page: a failure just shows no badge.
+  const badgeUrls = navItems.map((item) => item.badgeFrom).filter((url): url is string => Boolean(url)).join("|");
+  useEffect(() => {
+    if (!badgeUrls) return;
+    let live = true;
+    for (const url of badgeUrls.split("|")) {
+      fetch(url)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((body) => {
+          const open = Number(body?.data?.open);
+          if (live && Number.isFinite(open)) setBadges((prev) => ({ ...prev, [url]: open }));
+        })
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [badgeUrls, pathname]);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -70,6 +92,14 @@ export default function PortalShell({ roleLabel, navItems, children, wideContent
           >
             <Icon size={18} weight={active ? "fill" : "regular"} />
             {item.label}
+            {item.badgeFrom && badges[item.badgeFrom] > 0 && (
+              <span
+                className={`ml-auto min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold ${active ? "bg-midnight-950 text-gold-300" : "bg-red-500 text-white"}`}
+                aria-label={`${badges[item.badgeFrom]} open`}
+              >
+                {badges[item.badgeFrom]}
+              </span>
+            )}
           </Link>
           </div>
         );

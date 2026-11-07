@@ -6,7 +6,8 @@ the malware scanner being unreachable (uploads accepted unscanned). E6
 (2026-10-12) adds refresh-token reuse, a sign of a stolen session.
 
 An alert is a log line at CRITICAL (event alert.raised), an `alert_raised`
-row in the audit trail, and an email to SECURITY_ALERT_EMAILS
+row in the audit trail, a SecurityAlert row for Admin -> Monitoring ->
+Suspicious Activity (migration 0013), and an email to SECURITY_ALERT_EMAILS
 (comma-separated; default: every admin user). Each alert key fires at most
 once per window: in this process, and across processes through the trail.
 The counts come from vertex_security_count (migration 0009), since
@@ -36,6 +37,7 @@ from app.db.session import engine
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.identity import User
+from app.models.security import SecurityAlert
 
 
 @dataclass(frozen=True)
@@ -91,8 +93,10 @@ def on_security_event(action: str, actor_id: str | None, entity_id: str, detail:
                 r = BRUTE_FORCE_ACCOUNT
                 n = _count(action, "email_fp", fp, r.window_minutes)
                 if n >= r.threshold:
+                    # The account, when the address belongs to one.
+                    user_id = entity_id[5:] if entity_id.startswith("user:") else None
                     raise_alert(r, f"account:{fp}", f"{n} failed sign-ins for one account in {r.window_minutes} minutes",
-                                {"email_fp": fp, "failures": n, "last_ip": ip})
+                                {"email_fp": fp, "failures": n, "last_ip": ip, "user_id": user_id})
             if isinstance(ip, str) and ip:
                 r = BRUTE_FORCE_IP
                 n = _count(action, "ip", ip, r.window_minutes)
@@ -149,6 +153,7 @@ def raise_alert(rule: Rule, key: str, summary: str, detail: dict[str, Any], *, p
                         "id": new_id(), "entity_type": "SecurityAlert", "entity_id": alert_key, "action": "alert_raised",
                         "actor_id": None, "request_id": request_id, "after": clean,
                     })
+                    conn.execute(insert(SecurityAlert.__table__).values(_alert_row(rule, alert_key, summary, clean)))
             except Exception as err:  # noqa: BLE001
                 log_event(logging.ERROR, "alert.persist_failed", rule=rule.id, error=type(err).__name__)
 
@@ -158,6 +163,18 @@ def raise_alert(rule: Rule, key: str, summary: str, detail: dict[str, Any], *, p
     except Exception as err:  # noqa: BLE001
         log_event(logging.ERROR, "alert.failed", rule=rule.id, error=type(err).__name__)
         return False
+
+
+def _alert_row(rule: Rule, alert_key: str, summary: str, detail: dict[str, Any]) -> dict[str, Any]:
+    """The Suspicious Activity row: the account the detail names, if it
+    still exists (a subquery, so a stale id is null, not a failed insert)."""
+    named = next((detail[k] for k in ("user_id", "actor_id") if isinstance(detail.get(k), str) and detail[k]), None)
+    ip = next((detail[k] for k in ("ip", "last_ip") if isinstance(detail.get(k), str) and detail[k]), None)
+    user = select(User.id).where(User.id == named).scalar_subquery() if named else None
+    return {
+        "id": new_id(), "rule": rule.id, "alert_key": alert_key, "severity": rule.severity, "summary": summary,
+        "user_id": user, "ip": ip, "detail": detail, "status": "open",
+    }
 
 
 def alert_recipients() -> list[str]:

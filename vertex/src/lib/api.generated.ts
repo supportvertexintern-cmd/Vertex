@@ -2037,6 +2037,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Alerts
+         * @description Newest first. status may repeat (?status=open&status=reviewing).
+         */
+        get: operations["list_alerts_api_v1_monitoring_alerts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/alerts/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Alert Rules
+         * @description The rules that have raised an alert, for the type filter.
+         */
+        get: operations["alert_rules_api_v1_monitoring_alerts_rules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/alerts/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Alert Summary */
+        get: operations["alert_summary_api_v1_monitoring_alerts_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/alerts/{alert_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Review Alert
+         * @description Moves an alert along: open -> reviewing -> resolved or dismissed (a
+         *     false positive). Resolving or dismissing needs a note; reopening one
+         *     is allowed, back to reviewing, with a note too. The row is locked, so
+         *     two admins can't overwrite each other's review unseen.
+         */
+        patch: operations["review_alert_api_v1_monitoring_alerts__alert_id__patch"];
+        trace?: never;
+    };
     "/api/v1/partner-candidates": {
         parameters: {
             query?: never;
@@ -3538,6 +3618,8 @@ export interface components {
             last_sign_in_at: string | null;
             /** Last Sign In Ip */
             last_sign_in_ip: string | null;
+            /** Open Alerts */
+            open_alerts: number;
             /** Password Set */
             password_set: boolean;
             role: components["schemas"]["Role"];
@@ -3589,6 +3671,8 @@ export interface components {
             last_sign_in_at: string | null;
             /** Last Sign In Ip */
             last_sign_in_ip: string | null;
+            /** Open Alerts */
+            open_alerts: number;
             /** Password Set */
             password_set: boolean;
             role: components["schemas"]["Role"];
@@ -3848,6 +3932,54 @@ export interface components {
             user_id: string | null;
             /** Whatsapp Number */
             whatsapp_number: string | null;
+        };
+        /** AlertAccount */
+        AlertAccount: {
+            /** Deactivated */
+            deactivated: boolean;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            role: components["schemas"]["Role"];
+        };
+        /** AlertRow */
+        AlertRow: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** Created At */
+            created_at: string;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            } | null;
+            /** Id */
+            id: string;
+            /** Ip */
+            ip: string | null;
+            /** Note */
+            note: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            reviewed_by: components["schemas"]["Person"] | null;
+            /** Rule */
+            rule: string;
+            severity: components["schemas"]["SecurityAlertSeverity"];
+            status: components["schemas"]["SecurityAlertStatus"];
+            /** Summary */
+            summary: string;
+        };
+        /** AlertSummary */
+        AlertSummary: {
+            /** Open */
+            open: number;
+            /** Open By Severity */
+            open_by_severity: {
+                [key: string]: number;
+            };
+            /** Reviewing */
+            reviewing: number;
         };
         /**
          * ApplicationConfirmationEmail
@@ -4925,6 +5057,14 @@ export interface components {
         Data_AgentDetail_: {
             data: components["schemas"]["AgentDetail"];
         };
+        /** Data[AlertRow] */
+        Data_AlertRow_: {
+            data: components["schemas"]["AlertRow"];
+        };
+        /** Data[AlertSummary] */
+        Data_AlertSummary_: {
+            data: components["schemas"]["AlertSummary"];
+        };
         /** Data[ApplicationFeeOut] */
         Data_ApplicationFeeOut_: {
             data: components["schemas"]["ApplicationFeeOut"];
@@ -5309,6 +5449,11 @@ export interface components {
             data: {
                 [key: string]: unknown;
             }[];
+        };
+        /** Data[list[str]] */
+        Data_list_str__: {
+            /** Data */
+            data: string[];
         };
         /** DecideIn */
         DecideIn: {
@@ -6348,6 +6493,17 @@ export interface components {
         Page_AccountRow_: {
             /** Data */
             data: components["schemas"]["AccountRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[AlertRow] */
+        Page_AlertRow_: {
+            /** Data */
+            data: components["schemas"]["AlertRow"][];
             /** Page */
             page: number;
             /** Pagesize */
@@ -7515,15 +7671,6 @@ export interface components {
             return_reason: string | null;
             status: components["schemas"]["ReportStatus"];
         };
-        /**
-         * ReviewIn
-         * @description updateApplicationStatusSchema: the legacy status, and notes.
-         */
-        ReviewIn: {
-            application_status?: components["schemas"]["ApplicationStatus"] | null;
-            /** Internal Notes */
-            internal_notes?: string | null;
-        };
         /** ReviewerBrief */
         ReviewerBrief: {
             /** Full Name */
@@ -7622,6 +7769,16 @@ export interface components {
          * @enum {string}
          */
         ScorecardStatus: "draft" | "finalized";
+        /**
+         * SecurityAlertSeverity
+         * @enum {string}
+         */
+        SecurityAlertSeverity: "critical" | "high" | "medium";
+        /**
+         * SecurityAlertStatus
+         * @enum {string}
+         */
+        SecurityAlertStatus: "open" | "reviewing" | "resolved" | "dismissed";
         /** Sender */
         Sender: {
             /** Full Name */
@@ -8242,6 +8399,15 @@ export interface components {
             /** Willing To Start Within 30 Days */
             willing_to_start_within_30_days?: boolean | null;
         };
+        /**
+         * ReviewIn
+         * @description updateApplicationStatusSchema: the legacy status, and notes.
+         */
+        app__api__v1__applications__ReviewIn: {
+            application_status?: components["schemas"]["ApplicationStatus"] | null;
+            /** Internal Notes */
+            internal_notes?: string | null;
+        };
         /** Named */
         app__api__v1__campaigns__Named: {
             /** Id */
@@ -8347,6 +8513,12 @@ export interface components {
             sector: string;
             /** Updated At */
             updated_at: string;
+        };
+        /** ReviewIn */
+        app__api__v1__monitoring__ReviewIn: {
+            /** Note */
+            note?: string | null;
+            status: components["schemas"]["SecurityAlertStatus"];
         };
         /**
          * CreateIn
@@ -9112,7 +9284,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ReviewIn"];
+                "application/json": components["schemas"]["app__api__v1__applications__ReviewIn"];
             };
         };
         responses: {
@@ -12507,6 +12679,7 @@ export interface operations {
                 created_from?: string | null;
                 created_to?: string | null;
                 inactive_days?: number | null;
+                flagged?: boolean;
                 sort?: "created_at" | "full_name" | "last_sign_in_at";
                 direction?: "asc" | "desc";
                 page?: number;
@@ -12556,6 +12729,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_AccountDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_alerts_api_v1_monitoring_alerts_get: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SecurityAlertStatus"][] | null;
+                severity?: components["schemas"]["SecurityAlertSeverity"] | null;
+                rule?: string | null;
+                user_id?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AlertRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    alert_rules_api_v1_monitoring_alerts_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_str__"];
+                };
+            };
+        };
+    };
+    alert_summary_api_v1_monitoring_alerts_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AlertSummary_"];
+                };
+            };
+        };
+    };
+    review_alert_api_v1_monitoring_alerts__alert_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alert_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__monitoring__ReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AlertRow_"];
                 };
             };
             /** @description Validation Error */

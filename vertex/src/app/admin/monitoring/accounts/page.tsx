@@ -8,9 +8,10 @@
 // nobody deactivates themselves or the last active admin, and reactivating
 // never shows a partner the first-time welcome again.
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle, Copy, EnvelopeSimple, Key, Prohibit, SignOut, UserCheck, X } from "@phosphor-icons/react";
+import { useSearchParams } from "next/navigation";
+import { CheckCircle, Copy, EnvelopeSimple, Flag, Key, Prohibit, SignOut, UserCheck, X } from "@phosphor-icons/react";
 import PortalShell from "@/components/portal/PortalShell";
 import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
 import FilterBar from "@/components/portal/FilterBar";
@@ -67,6 +68,7 @@ interface Account {
   deactivated_at: string | null;
   deactivated_by: Person | null;
   deactivation_reason: string | null;
+  open_alerts: number;
 }
 
 interface SessionRow {
@@ -126,6 +128,16 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 export default function UserAccountsPage() {
+  return (
+    <Suspense>
+      <UserAccounts />
+    </Suspense>
+  );
+}
+
+function UserAccounts() {
+  // ?open=<id>: an account opened from elsewhere (a Suspicious Activity item).
+  const linked = useSearchParams().get("open");
   const [rows, setRows] = useState<Account[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -136,15 +148,16 @@ export default function UserAccountsPage() {
   const [inactive, setInactive] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [flagged, setFlagged] = useState("");
   const [sort, setSort] = useState("created_at");
   const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(linked);
 
   const load = useCallback(() => {
     setLoading(true);
     const params = new URLSearchParams({ sort, direction, page: String(page), pageSize: String(PAGE_SIZE) });
-    for (const [key, value] of Object.entries({ q, role, status, inactive_days: inactive, created_from: createdFrom, created_to: createdTo })) {
+    for (const [key, value] of Object.entries({ q, role, status, inactive_days: inactive, created_from: createdFrom, created_to: createdTo, flagged })) {
       if (value) params.set(key, value);
     }
     call(`/api/admin/monitoring/accounts?${params}`)
@@ -155,7 +168,7 @@ export default function UserAccountsPage() {
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load accounts."))
       .finally(() => setLoading(false));
-  }, [q, role, status, inactive, createdFrom, createdTo, sort, direction, page]);
+  }, [q, role, status, inactive, createdFrom, createdTo, flagged, sort, direction, page]);
 
   useEffect(() => {
     const timeout = setTimeout(load, 250); // debounce search-as-you-type
@@ -218,6 +231,16 @@ export default function UserAccountsPage() {
             { value: "90", label: "Not signed in for 90+ days" },
           ]}
         />
+        <SearchableSelect
+          value={flagged}
+          onChange={filter(setFlagged)}
+          placeholder="Flagged or not"
+          className="input-field w-52"
+          options={[
+            { value: "", label: "Flagged or not" },
+            { value: "true", label: "Has open security flags" },
+          ]}
+        />
         <label className="flex items-center gap-2 text-xs text-midnight-900/50">
           Created from
           <input type="date" value={createdFrom} onChange={(e) => filter(setCreatedFrom)(e.target.value)} className="input-field py-2 text-xs w-40" />
@@ -243,6 +266,7 @@ export default function UserAccountsPage() {
                 <SortableTh label="Created" sortKey="created_at" activeSort={sort} activeDir={direction} onSort={handleSort} />
                 <SortableTh label="Last sign-in" sortKey="last_sign_in_at" activeSort={sort} activeDir={direction} onSort={handleSort} />
                 <th className="px-5 py-3 font-semibold text-right">Sessions</th>
+                <th className="px-5 py-3 font-semibold text-right">Flags</th>
               </tr>
             </thead>
             <tbody>
@@ -277,6 +301,19 @@ export default function UserAccountsPage() {
                     {a.last_sign_in_ip && <div className="text-xs text-midnight-900/40">{a.last_sign_in_ip}</div>}
                   </td>
                   <td className="px-5 py-4 text-right text-midnight-900/70">{a.active_sessions}</td>
+                  <td className="px-5 py-4 text-right">
+                    {a.open_alerts > 0 ? (
+                      <Link
+                        href={`/admin/monitoring/suspicious?user=${a.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"
+                      >
+                        <Flag size={12} weight="fill" /> {a.open_alerts}
+                      </Link>
+                    ) : (
+                      <span className="text-midnight-900/30">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -467,6 +504,16 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                   <dd className="text-midnight-900">
                     {when(account.created_at)}
                     {account.created_by && <span className="text-midnight-900/50"> by {account.created_by.full_name}</span>}
+                  </dd>
+                  <dt className="text-midnight-900/45">Security flags</dt>
+                  <dd className="text-midnight-900">
+                    {account.open_alerts > 0 ? (
+                      <Link href={`/admin/monitoring/suspicious?user=${account.id}`} className="text-red-700 underline">
+                        {account.open_alerts} open in Suspicious Activity
+                      </Link>
+                    ) : (
+                      "None open"
+                    )}
                   </dd>
                   <dt className="text-midnight-900/45">Last sign-in</dt>
                   <dd className="text-midnight-900">
