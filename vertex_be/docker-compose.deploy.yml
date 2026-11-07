@@ -280,7 +280,9 @@ services:
   edge:
     # The edge proxy (deploy/edge/Caddyfile), published on NEXTJS_PORT: sets
     # the client's real address for the website. Workstream B.
-    image: caddy:2.10-alpine
+    # 2.11: Alpine 3.24, with musl 1.2.6-r3 (CVE-2026-107891); the 2.10 tags
+    # stay on Alpine 3.22's unpatched musl and older Go modules.
+    image: caddy:2.11-alpine
     volumes:
       # deploy.sh copies the config next to the stack's data and points
       # EDGE_CADDYFILE at the copy: a mount of the checkout's own file breaks
@@ -326,7 +328,7 @@ services:
     # Local mail catcher: the app's email, security alerts included, lands
     # here instead of real inboxes. Web UI on 127.0.0.1 only; it never relays
     # anything onward.
-    image: axllent/mailpit:v1.31.4
+    image: axllent/mailpit:v1.33.0
     environment:
       MP_MAX_MESSAGES: "5000"
     ports:

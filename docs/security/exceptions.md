@@ -66,6 +66,15 @@ Fresh scan on 2026-10-12: backend image `dev-56de2b9`, Debian 13.7, Trivy 0.67.2
 
 **MinIO (6):** in MinIO's own code. The 2 critical ones are in OIDC and LDAP, neither configured; the 4 high ones include unsigned-trailer uploads. The compensating controls are E2's.
 
+### Upstream images: two decisions open (2026-11-07)
+
+Since 2026-11-07 the weekly scan (`image-scan.yml`, job `upstream`) also covers the images we run but don't build. Caddy, Redis, Mailpit and ClamAV are gated like our own images. They were clean that day, after Caddy moved from 2.10 to 2.11, for musl CVE-2026-107891 and 104 other findings, and Mailpit from v1.31.4 to v1.33.0. Two images are reported only, until the owner decides:
+
+| Image | Fixable HIGH/CRITICAL on 2026-11-07 | Where | Options |
+|---|---|---|---|
+| `postgres:15-alpine` | 26, all Go `stdlib` | `gosu`, which only drops root when the container starts; Postgres itself has none | Accept as an exception with an expiry, or gate it and follow upstream's rebuilds |
+| `dpage/pgadmin4:latest` | 10, Python libraries | pgAdmin, started on demand, localhost only, read-only role | Accept, or stop using pgAdmin |
+
 ## 3. Evidence files
 
 - `D:\VertexData\security-scans\e4-20261012\trivy-{backend,nextjs,flutter-web,minio}.json`: today's scans.

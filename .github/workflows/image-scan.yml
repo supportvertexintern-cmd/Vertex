@@ -43,3 +43,47 @@ jobs:
           -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" aquasec/trivy:0.67.2
           image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1
           --ignorefile /trivyignore.yaml ${{ matrix.image }}:weekly
+
+  # The images we run but don't build (docker-compose.deploy.yml and
+  # docker-compose.av.yml), pulled fresh: a newer tag is their fix. Added
+  # 2026-11-07, when the edge proxy turned out to carry an unpatched musl
+  # (CVE-2026-107891) that no scan covered.
+  #
+  # gate: fail on a fixable HIGH/CRITICAL, as for our own images.
+  # report: list only, until the owner decides (docs/security/exceptions.md):
+  #   postgres - every finding is in gosu, the helper that drops root at
+  #              container start; Postgres itself is clean.
+  #   pgadmin  - on demand only, localhost, the read-only database role.
+  upstream:
+    name: Scan upstream (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: "caddy:2.11-alpine", name: caddy, gate: true }
+          - { image: "redis:7.4-alpine", name: redis, gate: true }
+          - { image: "axllent/mailpit:v1.33.0", name: mailpit, gate: true }
+          - { image: "clamav/clamav:stable", name: clamav, gate: true }
+          - { image: "postgres:15-alpine", name: postgres, gate: false }
+          - { image: "dpage/pgadmin4:latest", name: pgadmin, gate: false }
+    steps:
+      - uses: actions/checkout@v7
+      - name: Pull the current image
+        run: docker pull ${{ matrix.image }}
+      - name: Full report (HIGH/CRITICAL, fixed or not)
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" aquasec/trivy:0.67.2
+          image --quiet --severity CRITICAL,HIGH --format json -o /out/trivy-upstream-${{ matrix.name }}.json ${{ matrix.image }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: trivy-upstream-${{ matrix.name }}
+          path: trivy-upstream-${{ matrix.name }}.json
+          retention-days: 90
+      - name: Gate (fixable HIGH/CRITICAL)
+        if: matrix.gate
+        run: >-
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" aquasec/trivy:0.67.2
+          image --quiet --ignore-unfixed --severity CRITICAL,HIGH --exit-code 1
+          --ignorefile /trivyignore.yaml ${{ matrix.image }}

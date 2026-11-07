@@ -248,7 +248,7 @@ jobs:
         ports: ["9000:9000"]
       # Catches the invite and notification emails the journeys send.
       mailpit:
-        image: axllent/mailpit
+        image: axllent/mailpit:v1.33.0
         ports: ["1025:1025"]
 
     permissions:
