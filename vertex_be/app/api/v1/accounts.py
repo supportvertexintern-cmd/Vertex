@@ -61,6 +61,7 @@ INVITE_INVALID = "This invite link is invalid or has expired."
 INVITE_USED = "This invite has already been used or is no longer valid."
 RESET_INVALID = "This reset link is invalid or has expired. Request a new one."
 FORGOT_MESSAGE = "If an account exists for that email, we've sent a password reset link."
+DEACTIVATED = "This account has been deactivated. Please contact your administrator."
 
 
 # --- input --------------------------------------------------------------------
@@ -203,6 +204,8 @@ def complete_setup(body: SetupIn, db: DbSession):
     user = db.scalar(select(User).where(User.id == user_id).with_for_update())
     if user is None or user.password_hash:
         raise ApiError(410, "invite_used", INVITE_USED)
+    if user.deactivated_at is not None:
+        raise ApiError(403, "account_deactivated", DEACTIVATED)
     user.password_hash = password_hash
     user.email_verified = True
     db.commit()
@@ -247,6 +250,8 @@ def setup_prefill(db: DbSession, token: str | None = None):
     user = db.get(User, user_id)
     if user is None or user.password_hash:
         raise ApiError(410, "invite_used", INVITE_USED)
+    if user.deactivated_at is not None:
+        raise ApiError(403, "account_deactivated", DEACTIVATED)
     return {"data": {"full_name": user.full_name, "email": user.email, "phone": "", "country": ""}}
 
 
@@ -281,9 +286,10 @@ def verify_email(body: VerifyIn, db: DbSession):
 @router.post("/accounts/forgot-password", response_model=Notifying[Done])
 def forgot_password(body: ForgotIn, request: Request, db: DbSession):
     """The same answer whether or not the address has an account; an email
-    only for an account that can sign in with a password."""
+    only for an account that can sign in with a password, and isn't
+    deactivated."""
     user = db.scalar(select(User).where(User.email == body.email))
-    can_reset = bool(user and user.password_hash)
+    can_reset = bool(user and user.password_hash and user.deactivated_at is None)
     security_event(
         request, "password_reset_requested", actor_id=None, entity_type="Auth",
         entity_id=f"user:{user.id}" if user else "unknown_account",
@@ -315,6 +321,11 @@ def reset_password(body: ResetIn, request: Request, db: DbSession):
         security_event(request, "password_reset_completed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}",
                        detail={"outcome": "link_already_used"})
         raise ApiError(400, "invalid_link", RESET_INVALID)
+    if user.deactivated_at is not None:
+        db.rollback()
+        security_event(request, "password_reset_completed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}",
+                       detail={"outcome": "account_deactivated"})
+        raise ApiError(403, "account_deactivated", DEACTIVATED)
     set_audit_actor(db, user.id)
     user.password_hash = password_hash
     db.commit()

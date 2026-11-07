@@ -18,13 +18,17 @@ What changes (users-handover.md §6):
     requests can't both give it a login, or remove it while it gains one.
   - A partner's login that has since been made an admin is removed only by
     an admin, and never if it's the last one.
+  - Suspending a partner deactivates its login (owner's decision D2,
+    2026-11-07): the sessions end and it can't sign in. Making the partner
+    active again leaves the login deactivated; an admin reactivates it
+    deliberately (Admin → Monitoring → User Accounts).
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic_core import PydanticCustomError
 from sqlalchemy import exists, func, select
@@ -33,6 +37,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notice, Notifying
 from app.services.emails import deliver
+from app.api.v1.sessions import security_event
 from app.api.v1.users import keep_an_admin
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -41,6 +46,7 @@ from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
 from app.core.scope import candidate_scope
 from app.core.tokens import sign_account_setup_token
+from app.services.sessions import revoke_all_for_user
 from app.models.candidate import Candidate
 from app.models.enums import CandidateLifecycleStatus, MouStatus, PartnerStatus, PartnerType, Role
 from app.models.identity import User
@@ -208,6 +214,8 @@ class PartnerDetail(PartnerRow):
     # When the partner's login first signed in (its activation); null while
     # it never has, or there's no login.
     login_activated_at: UtcDateTime | None = None
+    # When an admin, or the partner's suspension, deactivated the login.
+    login_deactivated_at: UtcDateTime | None = None
 
 
 def _columns(partner: Partner) -> dict[str, object]:
@@ -231,6 +239,9 @@ def _locked(db, partner_id: str) -> Partner:
     if partner is None:
         raise ApiError(404, "not_found", "Partner not found.")
     return partner
+
+
+SUSPENDED_REASON = "Partner agency suspended"
 
 
 def _duplicate() -> ApiError:
@@ -280,7 +291,10 @@ def get_partner(partner_id: str, db: DbSession, user: DetailReader):
     candidates = [PartnerCandidateRef.model_validate(c) for c in db.scalars(query)]
     login = db.get(User, partner.user_id) if partner.user_id else None
     activated = login.activated_at if login else None
-    return Data(data=PartnerDetail.model_validate(_columns(partner) | {"candidates": candidates, "login_activated_at": activated}))
+    deactivated = login.deactivated_at if login else None
+    return Data(data=PartnerDetail.model_validate(
+        _columns(partner) | {"candidates": candidates, "login_activated_at": activated, "login_deactivated_at": deactivated}
+    ))
 
 
 @router.post("/partners", status_code=status.HTTP_201_CREATED, response_model=Data[PartnerRow])
@@ -294,14 +308,19 @@ def create_partner(body: CreateIn, _user: Manager, db: AuditedDb):
 
 
 @router.patch("/partners/{partner_id}", response_model=Notifying[PartnerRow])
-def update_partner(partner_id: str, body: UpdateIn, _user: Manager, db: AuditedDb):
+def update_partner(partner_id: str, body: UpdateIn, manager: Manager, request: Request, db: AuditedDb):
     """Every editable field. Marking the MOU signed stamps mou_signed_at. A
     new contact_email on a partner with a login moves the login too: its
     password is cleared and the setup email goes to the new address, so the
-    old password stops working and the new address proves itself."""
+    old password stops working and the new address proves itself.
+    Suspending the partner deactivates its login (D2)."""
     partner = _locked(db, partner_id)
     _no_nulls(body, NULLABLE)
     changes = body.model_dump(exclude_unset=True)
+    suspending = changes.get("status") is PartnerStatus.suspended and partner.status is not PartnerStatus.suspended
+    owner = db.get(User, partner.user_id) if suspending and partner.user_id else None
+    if owner is not None and (owner.role is not Role.partner or owner.deactivated_at is not None):
+        owner = None  # a login since made staff is an admin's to deactivate
 
     email_changed = "contact_email" in changes and changes["contact_email"] != partner.contact_email
     login = db.get(User, partner.user_id) if email_changed and partner.user_id else None
@@ -317,7 +336,15 @@ def update_partner(partner_id: str, body: UpdateIn, _user: Manager, db: AuditedD
         login.email = changes["contact_email"]
         login.password_hash = None
         notify.append(_setup_email(login))
+    if owner is not None:
+        owner.deactivated_at = utc_now_ms()
+        owner.deactivated_by = manager.user_id
+        owner.deactivation_reason = SUSPENDED_REASON
     _saved(db)
+    if owner is not None:
+        ended = revoke_all_for_user(db, owner.id, "deactivated")
+        security_event(request, "account_deactivated", actor_id=manager.user_id, entity_type="User", entity_id=owner.id,
+                       detail={"reason": SUSPENDED_REASON, "role": owner.role.value, "ended": ended, "partner": partner_id})
     db.refresh(partner)
     return {"data": partner, "notify": deliver(db, notify)}
 
@@ -345,7 +372,7 @@ def delete_partner(partner_id: str, user: Manager, db: AuditedDb):
 
 
 @router.post("/partners/{partner_id}/provision-account", status_code=status.HTTP_201_CREATED, response_model=Notifying[PartnerRow])
-def provision_account(partner_id: str, body: LoginIn, _user: Manager, db: AuditedDb):
+def provision_account(partner_id: str, body: LoginIn, manager: Manager, db: AuditedDb):
     """The partner's own login (SRS FR-5.1), with no password: the setup
     email lets them set it."""
     partner = _locked(db, partner_id)
@@ -356,7 +383,7 @@ def provision_account(partner_id: str, body: LoginIn, _user: Manager, db: Audite
     if db.scalar(select(exists().where(User.email == email))):
         raise _duplicate()
 
-    login = User(full_name=partner.contact_name, email=email, role=Role.partner, email_verified=False)
+    login = User(full_name=partner.contact_name, email=email, role=Role.partner, email_verified=False, created_by=manager.user_id)
     db.add(login)
     try:
         db.flush()
@@ -377,6 +404,8 @@ def reset_password(partner_id: str, _user: Manager, db: AuditedDb):
     if not partner.user_id:
         raise ApiError(422, "no_account", "This partner has no login yet — use Create Partner Login instead.")
     login = db.get(User, partner.user_id)
+    if login.deactivated_at is not None:
+        raise ApiError(409, "account_deactivated", "This partner's login is deactivated — an admin must reactivate it first.")
     login.password_hash = None
     db.commit()
     return {"data": {"email": login.email}, "notify": deliver(db, [_setup_email(login)])}

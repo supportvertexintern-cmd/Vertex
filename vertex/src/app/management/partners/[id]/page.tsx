@@ -47,6 +47,8 @@ interface PartnerDetail {
   user_id: string | null;
   // The login's first sign-in, which activated it; null until then.
   login_activated_at?: string | null;
+  // When the login was deactivated (by an admin, or by suspending the partner).
+  login_deactivated_at?: string | null;
   candidates: SourcedCandidateRow[];
 }
 
@@ -277,7 +279,9 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           <p className="text-sm text-midnight-900/60">
             {!partner.user_id
               ? "No login yet — this partner can't submit candidates until one is created."
-              : partner.login_activated_at
+              : partner.login_deactivated_at
+                ? `Login deactivated on ${new Date(partner.login_deactivated_at).toLocaleString()}. This partner can't sign in until an admin reactivates the login (Admin → Monitoring → User Accounts).`
+                : partner.login_activated_at
                 ? `Account active since ${new Date(partner.login_activated_at).toLocaleString()}. This partner can log in and submit candidates through its own portal.`
                 : "Login created — the account becomes active at the partner's first sign-in, after they set their password from the setup email."}
           </p>
@@ -286,7 +290,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           <button onClick={provisionAccount} disabled={provisioning} className="btn-primary text-xs disabled:opacity-60">
             {provisioning ? "Creating…" : "Create Partner Login"}
           </button>
-        ) : (
+        ) : partner.login_deactivated_at ? null : (
           <button onClick={resetPassword} disabled={resettingPassword} className="btn-secondary text-xs disabled:opacity-60 flex items-center gap-1.5">
             <Key size={14} weight="regular" /> {resettingPassword ? "Resetting…" : "Reset Password"}
           </button>
@@ -380,7 +384,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             className="input-field mb-2"
             options={STATUS_OPTIONS.map((s) => ({ value: s, label: s }))}
           />
-          <p className="text-xs text-midnight-900/45">Suspend a partner to stop attributing new leads to it.</p>
+          <p className="text-xs text-midnight-900/45">Suspend a partner to stop attributing new leads to it. Suspending also deactivates its login; making it active again leaves the login deactivated until an admin reactivates it.</p>
         </div>
 
         <div className="card p-6">

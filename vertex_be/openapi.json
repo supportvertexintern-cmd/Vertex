@@ -1,6 +1,180 @@
 {
  "components": {
   "schemas": {
+   "AccountDetail": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "active_sessions": {
+      "title": "Active Sessions",
+      "type": "integer"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "agency_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "deactivated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivated At"
+     },
+     "deactivated_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "deactivation_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivation Reason"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_sign_in_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In At"
+     },
+     "last_sign_in_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Ip"
+     },
+     "password_set": {
+      "title": "Password Set",
+      "type": "boolean"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     },
+     "sessions": {
+      "items": {
+       "$ref": "#/components/schemas/SessionRow"
+      },
+      "title": "Sessions",
+      "type": "array"
+     },
+     "sign_ins": {
+      "items": {
+       "$ref": "#/components/schemas/SignIn-Output"
+      },
+      "title": "Sign Ins",
+      "type": "array"
+     },
+     "status": {
+      "enum": [
+       "not_activated",
+       "active",
+       "deactivated"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "role",
+     "agency",
+     "agency_id",
+     "status",
+     "password_set",
+     "activated_at",
+     "created_at",
+     "created_by",
+     "last_sign_in_at",
+     "last_sign_in_ip",
+     "active_sessions",
+     "deactivated_at",
+     "deactivated_by",
+     "deactivation_reason",
+     "sessions",
+     "sign_ins"
+    ],
+    "title": "AccountDetail",
+    "type": "object"
+   },
    "AccountOut": {
     "properties": {
      "email": {
@@ -26,6 +200,164 @@
      "role"
     ],
     "title": "AccountOut",
+    "type": "object"
+   },
+   "AccountRow": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "active_sessions": {
+      "title": "Active Sessions",
+      "type": "integer"
+     },
+     "agency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency"
+     },
+     "agency_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "deactivated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivated At"
+     },
+     "deactivated_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "deactivation_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivation Reason"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_sign_in_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In At"
+     },
+     "last_sign_in_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Ip"
+     },
+     "password_set": {
+      "title": "Password Set",
+      "type": "boolean"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     },
+     "status": {
+      "enum": [
+       "not_activated",
+       "active",
+       "deactivated"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "role",
+     "agency",
+     "agency_id",
+     "status",
+     "password_set",
+     "activated_at",
+     "created_at",
+     "created_by",
+     "last_sign_in_at",
+     "last_sign_in_ip",
+     "active_sessions",
+     "deactivated_at",
+     "deactivated_by",
+     "deactivation_reason"
+    ],
+    "title": "AccountRow",
     "type": "object"
    },
    "AccountSetupEmail": {
@@ -56,6 +388,60 @@
      "token"
     ],
     "title": "AccountSetupEmail",
+    "type": "object"
+   },
+   "AccountState": {
+    "properties": {
+     "deactivated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivated At"
+     },
+     "deactivated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivated By"
+     },
+     "deactivation_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivation Reason"
+     },
+     "ended": {
+      "default": 0,
+      "title": "Ended",
+      "type": "integer"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "deactivated_at",
+     "deactivated_by",
+     "deactivation_reason"
+    ],
+    "title": "AccountState",
     "type": "object"
    },
    "AchievementRow": {
@@ -4518,6 +4904,30 @@
      "full_name"
     ],
     "title": "Creator",
+    "type": "object"
+   },
+   "Data_AccountDetail_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AccountDetail"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AccountDetail]",
+    "type": "object"
+   },
+   "Data_AccountState_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AccountState"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AccountState]",
     "type": "object"
    },
    "Data_AgentDetail_": {
@@ -10313,6 +10723,140 @@
     "title": "Notifying[ReminderRow]",
     "type": "object"
    },
+   "Notifying_SetupSent_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/SetupSent"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[SetupSent]",
+    "type": "object"
+   },
    "Notifying_StatusOut_": {
     "properties": {
      "data": {
@@ -10965,6 +11509,37 @@
      "commission_summary"
     ],
     "title": "OwnProfile",
+    "type": "object"
+   },
+   "Page_AccountRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AccountRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[AccountRow]",
     "type": "object"
    },
    "Page_ReportRow_": {
@@ -11727,6 +12302,17 @@
        }
       ],
       "title": "Login Activated At"
+     },
+     "login_deactivated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Login Deactivated At"
      },
      "mou_signed_at": {
       "anyOf": [
@@ -13395,6 +13981,21 @@
     "title": "ReadableIn",
     "type": "object"
    },
+   "ReasonIn": {
+    "properties": {
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "ReasonIn",
+    "type": "object"
+   },
    "ReceiptIn": {
     "properties": {
      "receipt_document_id": {
@@ -14910,7 +15511,20 @@
     "title": "SetupIn",
     "type": "object"
    },
-   "SignIn": {
+   "SetupSent": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email"
+    ],
+    "title": "SetupSent",
+    "type": "object"
+   },
+   "SignIn-Input": {
     "properties": {
      "signed_by_name": {
       "maxLength": 200,
@@ -14921,6 +15535,72 @@
     },
     "required": [
      "signed_by_name"
+    ],
+    "title": "SignIn",
+    "type": "object"
+   },
+   "SignIn-Output": {
+    "properties": {
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "device": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Device"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ip"
+     },
+     "method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Method"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "succeeded": {
+      "title": "Succeeded",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "at",
+     "succeeded",
+     "method",
+     "reason",
+     "ip",
+     "device"
     ],
     "title": "SignIn",
     "type": "object"
@@ -19238,7 +19918,7 @@
  "paths": {
   "/api/v1/accounts/forgot-password": {
    "post": {
-    "description": "The same answer whether or not the address has an account; an email\nonly for an account that can sign in with a password.",
+    "description": "The same answer whether or not the address has an account; an email\nonly for an account that can sign in with a password, and isn't\ndeactivated.",
     "operationId": "forgot_password_api_v1_accounts_forgot_password_post",
     "requestBody": {
      "content": {
@@ -22192,7 +22872,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/SignIn"
+        "$ref": "#/components/schemas/SignIn-Input"
        }
       }
      },
@@ -25953,6 +26633,247 @@
     ]
    }
   },
+  "/api/v1/monitoring/accounts": {
+   "get": {
+    "operationId": "list_accounts_api_v1_monitoring_accounts_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "role",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/Role"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Role"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "not_activated",
+          "active",
+          "deactivated"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "inactive_days",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maximum": 3650,
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Inactive Days"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sort",
+      "required": false,
+      "schema": {
+       "default": "created_at",
+       "enum": [
+        "created_at",
+        "full_name",
+        "last_sign_in_at"
+       ],
+       "title": "Sort",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "direction",
+      "required": false,
+      "schema": {
+       "default": "desc",
+       "enum": [
+        "asc",
+        "desc"
+       ],
+       "title": "Direction",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_AccountRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Accounts",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/monitoring/accounts/{user_id}": {
+   "get": {
+    "description": "One account, its live sessions and its latest sign-ins and refused\nsign-ins. Reading the history is recorded on the trail first.",
+    "operationId": "get_account_api_v1_monitoring_accounts__user_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AccountDetail_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Account",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
   "/api/v1/partner-candidates": {
    "get": {
     "description": "Every submitted (never draft) partner submission, searched, filtered,\nsorted and paged, each with its document completeness and attention\nsignals, the queue's totals and the opportunity filter options.",
@@ -26921,7 +27842,7 @@
     ]
    },
    "patch": {
-    "description": "Every editable field. Marking the MOU signed stamps mou_signed_at. A\nnew contact_email on a partner with a login moves the login too: its\npassword is cleared and the setup email goes to the new address, so the\nold password stops working and the new address proves itself.",
+    "description": "Every editable field. Marking the MOU signed stamps mou_signed_at. A\nnew contact_email on a partner with a login moves the login too: its\npassword is cleared and the setup email goes to the new address, so the\nold password stops working and the new address proves itself.\nSuspending the partner deactivates its login (D2).",
     "operationId": "update_partner_api_v1_partners__partner_id__patch",
     "parameters": [
      {
@@ -30132,6 +31053,122 @@
     ]
    }
   },
+  "/api/v1/users/{user_id}/deactivate": {
+   "post": {
+    "description": "Blocks the account and ends every session in the same commit, so its\nnext request is refused. An admin's row is locked with every other\nadmin's (keep_an_admin), anyone else's on its own.",
+    "operationId": "deactivate_user_api_v1_users__user_id__deactivate_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AccountState_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Deactivate User",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/reactivate": {
+   "post": {
+    "description": "Sign-in works again. activated_at and welcomed_at stay as they were,\nso a partner isn't welcomed twice; the old reason stays on the trail.",
+    "operationId": "reactivate_user_api_v1_users__user_id__reactivate_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AccountState_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Reactivate User",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
   "/api/v1/users/{user_id}/reset-password": {
    "post": {
     "description": "A temporary password, shown to the admin once and never stored or\nlogged in plain text. The user's sessions end (token_version trigger).",
@@ -30268,6 +31305,111 @@
      }
     ],
     "summary": "User Sessions",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/sessions/{session_id}": {
+   "delete": {
+    "description": "One session of a user, from the admin's account view. Scoped to that\nuser: another user's session id matches nothing (404).",
+    "operationId": "end_user_session_api_v1_users__user_id__sessions__session_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "session_id",
+      "required": true,
+      "schema": {
+       "title": "Session Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_EndedOne_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "End User Session",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/users/{user_id}/setup-email": {
+   "post": {
+    "description": "The setup email again, for a staff or partner login that hasn't set\nits password: the link works until one is set (7 days).",
+    "operationId": "resend_setup_email_api_v1_users__user_id__setup_email_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_SetupSent_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Resend Setup Email",
     "tags": [
      "users and sessions"
     ]

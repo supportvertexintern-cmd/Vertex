@@ -65,17 +65,31 @@ So logout, the kill switch, and a password or role change end FastAPI access on 
 | Role change | All of the user's sessions, next request | trigger bumps `token_version` |
 | Account deleted (offboarding) | Immediately | user lookup fails; rows cascade |
 | Admin "Sign out everywhere" | All of the user's sessions, next request | `DELETE /api/admin/users/:id/sessions` (admin only) |
+| Admin "End session" on one of a user's sessions | That session | `DELETE /api/admin/users/:id/sessions/:sessionId` (admin only; another user's session → 404) |
+| Account deactivated (by an admin, or by suspending its partner agency) | All of the user's sessions, next request | `POST /api/admin/users/:id/deactivate`: the families are revoked in the same commit, and `current_user` and refresh both refuse a deactivated account (§2a) |
 | Refresh token reused | That session | family revoked, alert |
 | Kill switch | Every session on the stack | `deploy/sessions-kill-switch.sh` (§5) |
 
 Not applicable today:
 - **MFA reset:** the app has no MFA.
-- **Account disable:** there is no disabled state. Offboarding deletes the account, or uses the admin "Sign out everywhere" first. If a disabled flag is added later, it must end sessions the same way, through the trigger or `revokeAllForUser`.
+
+## 2a. Deactivated accounts (admin monitoring, phase 1, 2026-11-07)
+
+Offboarding no longer needs a delete. An admin deactivates the account under **Admin → Monitoring → User Accounts**, with a reason (`User.deactivated_at`, `deactivated_by`, `deactivation_reason`, migration 0012). Suspending a partner agency deactivates its login too (owner's decision D2); making the agency active again leaves the login deactivated until an admin reactivates it.
+
+While an account is deactivated:
+
+- password and Google sign-in are refused (`account_deactivated`, only after the password is right, so it tells a guesser nothing); Google never links to it;
+- a refresh is refused and that family revoked; a still-valid access token is refused on its next request (`current_user`);
+- account setup and password reset links are refused, forgot-password sends nothing (with its usual answer), and staff or partner password resets wait for reactivation.
+
+Reactivating clears the three fields and nothing else: `activated_at` and `welcomed_at` stay, so a partner never sees the first-time welcome twice. Nobody deactivates their own account, and a deactivated admin doesn't count towards "at least one admin" (`keep_an_admin`). Both actions record `account_deactivated` / `account_reactivated` (who, why, the address) and the row's own audited change.
 
 ## 3. Where users and admins do this
 
 - **Every portal** (`PortalShell`) has **Active sessions** in the sidebar. It lists each signed-in browser (device, signed in, last active, "This browser"), with **End session** per row and **Log out everywhere**.
 - **Admin → Users** has a **Sign out everywhere** button on every row.
+- **Admin → Monitoring → User Accounts** lists every staff, partner and referral-agent login with its status (not yet activated, active, deactivated), who created it, its latest sign-in and address, and its live sessions. An account's view adds each session with **End session**, its last 50 sign-ins and refused sign-ins (read through `vertex_sign_in_history`, migration 0012; opening it records `audit_trail_viewed`), and **Deactivate** / **Reactivate**, **End all sessions**, **Resend setup email**, **Reset password**.
 
 ## 4. Logging and alerts
 
@@ -84,6 +98,8 @@ Not applicable today:
 | `session.issued`, `session.refreshed`, `session.refresh_rejected` (with reason), `session.revoked`, `session.revoked_all` | application log (JSON) |
 | `auth.session_rejected` (user gone, version changed, session ended) | application log |
 | `sessions_revoked` (user, admin or kill switch, with reason and count) | audit trail + log |
+| `account_deactivated`, `account_reactivated` (admin, reason, address, sessions ended) | audit trail + log |
+| `audit_trail_viewed` (an admin opened an account's sign-in history) | audit trail + log |
 | `refresh_token_reused` | audit trail + log + **alert** (rule `refresh_token_reused`, high, email to `SECURITY_ALERT_EMAILS`) |
 
 Refreshes happen every 15 minutes per active user, so they go to the log only, not the audit trail.
@@ -138,6 +154,8 @@ Effects: invite, CIF upload and document links already issued stop working. Re-s
 | Trigger bumps `token_version` on password or role change only | `vertex_be/tests/test_schema.py` |
 | Since step 8.2, only FastAPI (`vertex_api`) writes `RefreshToken` and Next.js reads it; runtime roles can't disable or replace the trigger; new columns hidden from the read-only role | `vertex_be/tests/test_db_roles.py` |
 | Live: a validly signed token without a live session → 401; refresh without a token → 401 | `deploy/verify-stack.sh` |
+| Deactivation blocks password, Google, refresh, a live token, setup and reset links; reactivation keeps the activation and the welcome; reason required; not oneself or the last active admin; suspending a partner deactivates its login; only admins | `vertex_be/tests/test_account_monitoring.py` |
+| An admin deactivates a partner's login, the partner is refused, reactivated it signs in without a second welcome | `vertex/e2e/partner-crm.spec.ts` |
 
 ## 7. Evidence
 

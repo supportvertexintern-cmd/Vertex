@@ -177,5 +177,59 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(row).toBeVisible({ timeout: 25_000 });
       await expect(row.getByText(/^submitted$/i)).toBeVisible();
     });
+
+    // Admin → Monitoring → User Accounts (phase 1, 2026-11-07).
+    const openAccount = async () => {
+      await page.goto("/admin/monitoring/accounts");
+      await page.getByPlaceholder("Search by name or email…").fill(PARTNER_CONTACT_EMAIL);
+      await page.locator("tr", { hasText: PARTNER_CONTACT_EMAIL }).click({ timeout: 25_000 });
+      const drawer = page.getByRole("dialog", { name: "E2E Partner Contact" });
+      await expect(drawer).toBeVisible({ timeout: 25_000 });
+      return drawer;
+    };
+
+    await test.step("an admin sees the partner's login as active and deactivates it, with a reason", async () => {
+      await logout(page);
+      await login(page, "e2e-admin@test.local", PASSWORD);
+      const drawer = await openAccount();
+      await expect(drawer.getByText("Active", { exact: true })).toBeVisible();
+      await expect(drawer.getByText("Partner · E2E Test Partner")).toBeVisible();
+      await expect(drawer.getByText("Signed in", { exact: true }).first()).toBeVisible();
+
+      await drawer.getByRole("button", { name: "Deactivate" }).click();
+      const ask = page.getByRole("alertdialog", { name: "Deactivate account" });
+      await ask.getByRole("textbox").fill("E2E: contract ended");
+      await ask.getByRole("button", { name: "Deactivate" }).click();
+      await expect(drawer.getByText(/Deactivated\. \d+ sessions? ended\./)).toBeVisible({ timeout: 25_000 });
+      await expect(drawer.getByText("“E2E: contract ended”")).toBeVisible();
+    });
+
+    await test.step("the deactivated partner can't sign in", async () => {
+      await page.keyboard.press("Escape"); // the account view covers the sidebar
+      await logout(page);
+      await page.goto("/auth/login");
+      await page.fill("#login-email", PARTNER_CONTACT_EMAIL);
+      await page.fill("#login-password", partnerPassword);
+      await page.click("#login-submit-btn");
+      await expect(page.getByText("This account has been deactivated.", { exact: false })).toBeVisible({ timeout: 25_000 });
+      await expect(page).toHaveURL(/\/auth\/login/);
+    });
+
+    await test.step("reactivated, the partner signs in again, without a second welcome", async () => {
+      await login(page, "e2e-admin@test.local", PASSWORD);
+      const drawer = await openAccount();
+      await drawer.getByRole("button", { name: "Reactivate" }).click();
+      const ask = page.getByRole("alertdialog", { name: "Reactivate account" });
+      await ask.getByRole("textbox").fill("E2E: contract renewed");
+      await ask.getByRole("button", { name: "Reactivate" }).click();
+      await expect(drawer.getByText("Reactivated. The account can sign in again.")).toBeVisible({ timeout: 25_000 });
+      await page.keyboard.press("Escape");
+      await logout(page);
+
+      await login(page, PARTNER_CONTACT_EMAIL, partnerPassword);
+      await expect(page).toHaveURL(/\/partner$/);
+      await expect(page.getByRole("button", { name: "Submit Candidate" })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByRole("dialog", { name: "Welcome to Vertex!" })).toHaveCount(0);
+    });
   });
 });

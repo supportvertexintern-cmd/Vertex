@@ -146,6 +146,8 @@ def test_only_the_api_may_ask_whether_a_session_is_live(conn):
         "SELECT count(*) FROM public.vertex_case_trail('c')",
         "SELECT count(*) FROM public.vertex_rejection_dates('Candidate', ARRAY['c'])",
         "SELECT public.vertex_security_count('access_denied', 'actor_id', 'u', now()::timestamp)",  # R7a
+        "SELECT count(*) FROM public.vertex_last_sign_ins(ARRAY['u'])",  # admin monitoring (0012)
+        "SELECT count(*) FROM public.vertex_sign_in_history('u', 10)",
     ],
 )
 def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
@@ -155,7 +157,7 @@ def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
     assert run_as(conn, "vertex_api", ask) is None
     assert run_as(conn, "vertex_api", 'SELECT before FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
     assert run_as(conn, "vertex_readonly", ask) == INSUFFICIENT_PRIVILEGE
-    for name in ("vertex_case_trail", "vertex_rejection_dates", "vertex_security_count"):
+    for name in ("vertex_case_trail", "vertex_rejection_dates", "vertex_security_count", "vertex_last_sign_ins", "vertex_sign_in_history"):
         owner, public_can = conn.execute(
             text("SELECT pg_get_userbyid(proowner), has_function_privilege('public', oid, 'EXECUTE') FROM pg_proc WHERE proname = :n"), {"n": name}
         ).one()

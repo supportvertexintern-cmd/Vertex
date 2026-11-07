@@ -185,6 +185,16 @@ BEGIN
     REVOKE ALL ON FUNCTION public.vertex_security_count(text, text, text, timestamp) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_security_count(text, text, text, timestamp) TO vertex_api;
   END IF;
+  -- Admin monitoring (migration 0012): each account's latest sign-in, and
+  -- one account's sign-in history, without the snapshots.
+  IF to_regprocedure('public.vertex_last_sign_ins(text[])') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_last_sign_ins(text[]) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_last_sign_ins(text[]) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_sign_in_history(text, integer)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_sign_in_history(text, integer) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_sign_in_history(text, integer) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api;
   END IF;
