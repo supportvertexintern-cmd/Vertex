@@ -45,6 +45,10 @@ const RULES: Record<string, string> = {
   privilege_granted: "Privilege granted",
   audit_write_failed: "Audit trail write failed",
   malware_scanner_unavailable: "Malware scanner unavailable",
+  shared_ip_sign_ins: "Many accounts from one address",
+  sign_in_after_reset_new_ip: "New address after a password reset",
+  partner_login_not_activated: "Partner login not activated",
+  inactive_account: "Inactive login",
 };
 
 const VIEWS = {

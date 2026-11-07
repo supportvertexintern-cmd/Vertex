@@ -281,5 +281,22 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       expect(text).toContain("E2E Test Partner");
       expect(text).toContain(PARTNER_CONTACT_EMAIL);
     });
+
+    // Admin → Monitoring → Audit Trail and Security Overview (phases 4 and 5, 2026-11-07).
+    await test.step("the partner's history shows the admin's changes; the overview counts", async () => {
+      const row = page.locator("tr", { hasText: "E2E Test Partner" }).filter({ hasText: PARTNER_CONTACT_EMAIL });
+      await row.getByRole("link", { name: "View history" }).click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/audit\?entity_type=Partner/);
+      const created = page.locator("tr", { hasText: "E2E Admin" }).filter({ hasText: /^.*create.*$/ });
+      await expect(created.first()).toBeVisible({ timeout: 25_000 });
+      await expect(created.first().getByText("Partner “E2E Test Partner”")).toBeVisible();
+
+      await page.getByRole("link", { name: "Security Overview" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring$/);
+      await expect(page.getByText("Open suspicious items")).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText("Latest alerts")).toBeVisible();
+      await page.getByRole("button", { name: "Run account checks" }).click();
+      await expect(page.getByText(/Nothing new found\.|new items? in Suspicious Activity\./)).toBeVisible({ timeout: 25_000 });
+    });
   });
 });

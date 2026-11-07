@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,6 +9,15 @@ from app.core.access import default_deny
 from app.core.config import settings
 from app.core.logging import RequestContextMiddleware, configure_logging
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.services import security_monitor
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Admin monitoring's scheduled account checks (phase 5).
+    if settings.MONITOR_CHECKS_INTERVAL_MINUTES > 0:
+        security_monitor.start_schedule(settings.MONITOR_CHECKS_INTERVAL_MINUTES)
+    yield
 
 
 def create_app() -> FastAPI:
@@ -21,6 +32,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
         # Default deny (app/core/access.py): runs before every route.
         dependencies=[Depends(default_deny)],
+        lifespan=lifespan,
     )
     # Innermost: the error shape for every response (app/core/api.py).
     api.install(app)

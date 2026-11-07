@@ -137,14 +137,15 @@ export default function UserAccountsPage() {
 
 function UserAccounts() {
   // ?open=<id>: an account opened from elsewhere (a Suspicious Activity item).
-  const linked = useSearchParams().get("open");
+  const search = useSearchParams();
+  const linked = search.get("open");
   const [rows, setRows] = useState<Account[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(search.get("status") ?? "");
   const [inactive, setInactive] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
@@ -497,6 +498,9 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                         partner page
                       </Link>
                     )}
+                    <Link href={`/admin/monitoring/audit?entity_id=${account.id}`} className="ml-2 text-xs text-gold-700 underline">
+                      View history
+                    </Link>
                   </dd>
                   <dt className="text-midnight-900/45">Activated</dt>
                   <dd className="text-midnight-900">{account.activated_at ? when(account.activated_at) : "Not yet: no sign-in so far"}</dd>

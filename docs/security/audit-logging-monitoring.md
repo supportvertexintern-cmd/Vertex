@@ -129,6 +129,16 @@ Rules agreed with the owner on 2026-10-11. Since reads handover R7a they run in 
 | `audit_write_failed` | an audit row can't be written | critical | once / 15 min |
 | `malware_scanner_unavailable` | clamd unreachable, so uploads are accepted unscanned | high | once / hour |
 | `refresh_token_reused` | a spent refresh token is used again (E6); the session is revoked | high | once / session / 15 min |
+| `shared_ip_sign_ins` | ≥ 5 accounts sign in from one address in 60 min (checked on each sign-in) | medium | once / address / hour |
+| `sign_in_after_reset_new_ip` | a sign-in within 24 h of a password reset, from an address the account never signed in from before the reset | high | once / account / day |
+| `partner_login_not_activated` | a partner login still unused 7 days after it was created (scheduled) | medium | once / account / 30 days |
+| `inactive_account` | an activated login, not deactivated, with no sign-in for 60 days (decision D5; scheduled) | medium | once / account / 30 days |
+
+The last four come from admin monitoring phase 5 (owner's requirements 2026-11-07, §4.4).
+
+- **Medium alerts are rows on Suspicious Activity, not emails.** A scheduled scan could otherwise mail every stale login at once. High and critical alerts are emailed as before.
+- **The two scheduled checks** run every `MONITOR_CHECKS_INTERVAL_MINUTES` (default 360; 0 turns them off) in each backend worker, and also from **Run account checks** on the Security Overview. Each rule's window, checked on the trail, stops an account being raised twice.
+- **Sign-in from a new country** waits for an address-to-country source (owner, 2026-11-07).
 
 The last two were added at the owner's invitation to "raise any concern": one means the audit trail is silently failing, the other that the fail-open malware policy is in effect.
 
@@ -144,6 +154,27 @@ The email has the rule, environment, time, counts and the request ID, and never 
 **Reviewing alerts (Suspicious Activity, admins only):** each alert is a row, newest first, filtered by status, severity, type, account and date. The sidebar's badge counts the open ones. An admin marks one **reviewing**, then **resolved** or **dismissed** (a false positive). Closing or reopening one needs a note, and it can't go back to open. Each change is an audited row change (who, when, the note). From an alert, the admin can open its account, end its sessions, or deactivate it (phase 1). An account's open and reviewing alerts are its **Flags** in User Accounts. The rows are never deleted and never exported (`backup.NEVER_EXPORTED`); like the trail, they stay whole in the database backups. Migration 0013 copied in the alerts already on the trail, as open.
 
 **Partners & Logins (admin monitoring phase 3, admins only):** one row per agency, with who added it (`Partner.created_by`, migration 0014, backfilled from the trail's create rows) and its login: when and by whom it was created, its status and latest sign-in. Its CSV (`GET /monitoring/partners.csv`, the filtered list) records an `export` event, with the row count and the filters but never the search text, before it leaves. If the event can't be written, it's refused (503). Cells a spreadsheet would run as formulas are prefixed with an apostrophe.
+
+**Audit Trail (phase 4, admins only):** Admin → Monitoring → Audit Trail lists the trail newest first.
+
+- **How it's read:** through `vertex_audit_trail` (migration 0015). `vertex_api` still can't read `AuditLog`. A call returns at most 200 rows.
+- **Filters:** actor, action, record type, record id, dates. An account's id also matches its security events (`user:<id>`).
+- **What each entry shows:** for a row change, the fields that changed (before → after). For a security event, what it recorded and the address.
+- **Every read** records `audit_trail_viewed`, with its filters. Nothing on the page changes the trail.
+- **"View history"** opens it on one account (from User Accounts) or one agency (from Partners & Logins).
+
+**Security Overview (phase 5, admins only):**
+
+- **Counts for the last 24 hours and the last 7 days:**
+  - open suspicious items by severity;
+  - alerts raised;
+  - failed sign-ins and sign-ins (`vertex_monitoring_counts`);
+  - accounts deactivated;
+  - partner logins not activated after 7 days;
+  - new partners and new partner logins;
+  - active sessions.
+- **The 10 latest alerts.**
+- Each card opens the page that lists it.
 
 **Delivery per environment:**
 

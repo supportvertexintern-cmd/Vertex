@@ -21,6 +21,7 @@ import json
 import logging
 import threading
 import time
+from contextlib import nullcontext
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -43,7 +44,7 @@ from app.models.security import SecurityAlert
 @dataclass(frozen=True)
 class Rule:
     id: str
-    severity: Literal["high", "critical"]
+    severity: Literal["medium", "high", "critical"]
     window_minutes: int
     threshold: int
 
@@ -56,8 +57,19 @@ PRIVILEGE_GRANTED = Rule("privilege_granted", "critical", 1, 1)
 AUDIT_WRITE_FAILED = Rule("audit_write_failed", "critical", 15, 1)
 SCANNER_UNAVAILABLE = Rule("malware_scanner_unavailable", "high", 60, 1)
 REFRESH_TOKEN_REUSED = Rule("refresh_token_reused", "high", 15, 1)
+# Admin monitoring, phase 5 (owner's requirements 2026-11-07, §4.4): account
+# checks. Two run on each sign-in; two on a schedule (run_account_checks).
+# Medium ones are rows on Suspicious Activity, not emails: a scan could
+# otherwise mail every stale login at once. A sign-in from a new country
+# waits for an address-to-country source (owner, 2026-11-07).
+SHARED_ADDRESS = Rule("shared_ip_sign_ins", "medium", 60, 5)
+RESET_NEW_ADDRESS = Rule("sign_in_after_reset_new_ip", "high", 24 * 60, 1)
+PARTNER_NOT_ACTIVATED = Rule("partner_login_not_activated", "medium", 30 * 24 * 60, 1)
+INACTIVE_ACCOUNT = Rule("inactive_account", "medium", 30 * 24 * 60, 1)
+NOT_ACTIVATED_AFTER_DAYS = 7
+INACTIVE_AFTER_DAYS = 60  # decision D5
 RULES = (BRUTE_FORCE_ACCOUNT, BRUTE_FORCE_IP, AUTHORIZATION_PROBING, MALWARE, PRIVILEGE_GRANTED, AUDIT_WRITE_FAILED,
-         SCANNER_UNAVAILABLE, REFRESH_TOKEN_REUSED)
+         SCANNER_UNAVAILABLE, REFRESH_TOKEN_REUSED, SHARED_ADDRESS, RESET_NEW_ADDRESS, PARTNER_NOT_ACTIVATED, INACTIVE_ACCOUNT)
 
 def _in_background(send: Callable[[], None]) -> None:
     threading.Thread(target=send, daemon=True).start()
@@ -102,6 +114,8 @@ def on_security_event(action: str, actor_id: str | None, entity_id: str, detail:
                 n = _count(action, "ip", ip, r.window_minutes)
                 if n >= r.threshold:
                     raise_alert(r, f"ip:{ip}", f"{n} failed sign-ins from one address in {r.window_minutes} minutes", {"ip": ip, "failures": n})
+        elif action == "login_succeeded":
+            _on_sign_in(entity_id, detail)
         elif action == "access_denied" and actor_id:
             r = AUTHORIZATION_PROBING
             n = _count(action, "actor_id", actor_id, r.window_minutes)
@@ -116,6 +130,76 @@ def on_security_event(action: str, actor_id: str | None, entity_id: str, detail:
             raise_alert(MALWARE, f"{action}:{entity_id}", summary, {"actor_id": actor_id, "entity_id": entity_id, "signature": detail.get("signature")})
     except Exception as err:  # noqa: BLE001
         log_event(logging.ERROR, "monitor.evaluate_failed", action=action, error=type(err).__name__)
+
+
+def _on_sign_in(entity_id: str, detail: dict[str, Any]) -> None:
+    user_id = entity_id[5:] if entity_id.startswith("user:") else None
+    ip = detail.get("ip")
+    if not (user_id and isinstance(ip, str) and ip):
+        return
+    with engine.connect() as conn:
+        r = SHARED_ADDRESS
+        n = int(conn.execute(text("SELECT public.vertex_sign_in_accounts_from(:ip, :s)"), {"ip": ip, "s": _since(r.window_minutes)}).scalar() or 0)
+        reset_then_new = bool(conn.execute(
+            text("SELECT public.vertex_new_address_after_reset(:u, :ip, :s)"), {"u": user_id, "ip": ip, "s": _since(RESET_NEW_ADDRESS.window_minutes)}
+        ).scalar())
+    if n >= r.threshold:
+        raise_alert(r, f"ip:{ip}", f"{n} accounts signed in from one address in {r.window_minutes} minutes", {"ip": ip, "accounts": n})
+    if reset_then_new:
+        raise_alert(RESET_NEW_ADDRESS, f"user:{user_id}", "A sign-in from a new address soon after a password reset",
+                    {"user_id": user_id, "ip": ip})
+
+
+def run_account_checks(conn: Any = None) -> int:
+    """The scheduled checks: partner logins never activated a week after
+    their setup email, and logins unused for 60 days that are still active.
+    Each account is raised at most once a month (the rule's window, across
+    processes through the trail). Returns how many alerts were raised.
+    conn: a connection to read from (tests); a new one by default."""
+    now = utc_now_ms()
+    raised = 0
+    with (nullcontext(conn) if conn is not None else engine.connect()) as conn:
+        waiting = conn.execute(
+            select(User.id, User.created_at).where(
+                User.role == Role.partner, User.activated_at.is_(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
+                User.created_at < now - timedelta(days=NOT_ACTIVATED_AFTER_DAYS),
+            )
+        ).all()
+        logins = conn.execute(
+            select(User.id, User.created_at).where(
+                User.role != Role.candidate, User.activated_at.is_not(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
+            )
+        ).all()
+        last = dict(conn.execute(text("SELECT user_id, signed_in_at FROM public.vertex_last_sign_ins(:ids)"), {"ids": [u.id for u in logins]}).all()) if logins else {}
+    for u in waiting:
+        days = (now - u.created_at).days
+        raised += raise_alert(PARTNER_NOT_ACTIVATED, f"user:{u.id}", f"A partner login is still not activated {days} days after it was created",
+                              {"user_id": u.id, "days": days})
+    for u in logins:
+        seen = last.get(u.id) or u.created_at
+        days = (now - seen).days
+        if days >= INACTIVE_AFTER_DAYS:
+            raised += raise_alert(INACTIVE_ACCOUNT, f"user:{u.id}", f"An active login hasn't signed in for {days} days",
+                                  {"user_id": u.id, "days": days})
+    log_event(logging.INFO, "monitor.account_checks", waiting=len(waiting), logins=len(logins), raised=raised)
+    return raised
+
+
+def start_schedule(interval_minutes: int) -> None:
+    """Runs run_account_checks every interval, first a few minutes after
+    start, on a daemon thread. Each worker runs its own; the rules' windows
+    keep an account from being raised twice."""
+
+    def loop() -> None:
+        time.sleep(180)
+        while True:
+            try:
+                run_account_checks()
+            except Exception as err:  # noqa: BLE001
+                log_event(logging.ERROR, "monitor.account_checks_failed", error=type(err).__name__)
+            time.sleep(interval_minutes * 60)
+
+    threading.Thread(target=loop, name="account-checks", daemon=True).start()
 
 
 def on_privilege_granted(actor_id: str | None, user_id: str, was: str | None, now: str) -> None:
@@ -157,8 +241,9 @@ def raise_alert(rule: Rule, key: str, summary: str, detail: dict[str, Any], *, p
             except Exception as err:  # noqa: BLE001
                 log_event(logging.ERROR, "alert.persist_failed", rule=rule.id, error=type(err).__name__)
 
-        log_event(logging.CRITICAL, "alert.raised", alert_key=alert_key, **clean)
-        dispatch(lambda: _notify(rule, alert_key, summary, clean, request_id))
+        log_event(logging.CRITICAL if rule.severity != "medium" else logging.WARNING, "alert.raised", alert_key=alert_key, **clean)
+        if rule.severity != "medium":
+            dispatch(lambda: _notify(rule, alert_key, summary, clean, request_id))
         return True
     except Exception as err:  # noqa: BLE001
         log_event(logging.ERROR, "alert.failed", rule=rule.id, error=type(err).__name__)

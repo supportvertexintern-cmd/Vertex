@@ -32,6 +32,9 @@ import { PATCH as reviewAlert } from "@/app/api/admin/monitoring/alerts/[id]/rou
 import { GET as listPartners } from "@/app/api/admin/monitoring/partners/route";
 import { GET as partnerOptions } from "@/app/api/admin/monitoring/partners/options/route";
 import { GET as exportPartners } from "@/app/api/admin/monitoring/partners/export/route";
+import { GET as overview } from "@/app/api/admin/monitoring/overview/route";
+import { POST as runChecks } from "@/app/api/admin/monitoring/checks/run/route";
+import { GET as auditTrail } from "@/app/api/admin/monitoring/audit/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -185,5 +188,28 @@ describe("Partners & Logins routes (phase 3)", () => {
     passFile.mockResolvedValueOnce({ ok: false, status: 503, error: { code: "audit_unavailable", message: "The export couldn't be recorded, so it wasn't made." } });
     const res = await exportPartners(new NextRequest("http://localhost/x"));
     expect(res.status).toBe(503);
+  });
+});
+
+describe("Audit Trail and Security Overview routes (phases 4 and 5)", () => {
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "partner" };
+    expect((await overview(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await runChecks(new NextRequest("http://localhost/x", { method: "POST" }))).status).toBe(403);
+    expect((await auditTrail(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("the trail passes on its filters and the browser's address; the others their paths", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue({ ok: true, status: 200, body: { data: [], total: 0, page: 1, pageSize: 50 } });
+    await auditTrail(new NextRequest("http://localhost/x?entity_type=Partner&entity_id=p1&action=update&evil=1", { headers: { "x-real-ip": "203.0.113.9" } }));
+    await overview(new NextRequest("http://localhost/x"));
+    await runChecks(new NextRequest("http://localhost/x", { method: "POST" }));
+    const [[trailPath, trail], [overviewPath], [checksPath, checks]] = callBackend.mock.calls;
+    expect(trailPath).toBe("/api/v1/monitoring/audit");
+    expect(Object.fromEntries(Object.entries(trail.query).filter(([, v]) => v !== undefined))).toEqual({ entity_type: "Partner", entity_id: "p1", action: "update" });
+    expect(trail.forward).toBeTruthy();
+    expect([overviewPath, checksPath, checks.method]).toEqual(["/api/v1/monitoring/overview", "/api/v1/monitoring/checks/run", "POST"]);
   });
 });

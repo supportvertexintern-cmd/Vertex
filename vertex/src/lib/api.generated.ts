@@ -2117,6 +2117,66 @@ export interface paths {
         patch: operations["review_alert_api_v1_monitoring_alerts__alert_id__patch"];
         trace?: never;
     };
+    "/api/v1/monitoring/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit Trail
+         * @description Who did what and when, newest first. entity_id also matches the
+         *     security events about that account ("user:<id>"). The read is recorded
+         *     first, with its filters.
+         */
+        get: operations["audit_trail_api_v1_monitoring_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/checks/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Checks
+         * @description The scheduled account checks, now. An account already raised this
+         *     month isn't raised again.
+         */
+        post: operations["run_checks_api_v1_monitoring_checks_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_v1_monitoring_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/partners": {
         parameters: {
             query?: never;
@@ -4304,6 +4364,32 @@ export interface components {
             /** Entity Type */
             entity_type: string;
         };
+        /** AuditRow */
+        AuditRow: {
+            /** Action */
+            action: string;
+            actor: components["schemas"]["Person"] | null;
+            /** At */
+            at: string;
+            /** Changes */
+            changes: components["schemas"]["Change"][];
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            } | null;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Id */
+            id: string;
+            /** Ip */
+            ip: string | null;
+            /** Record */
+            record: string | null;
+            /** Request Id */
+            request_id: string | null;
+        };
         /** Author */
         Author: {
             /** Full Name */
@@ -4745,6 +4831,20 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** Change */
+        Change: {
+            /** After */
+            after?: unknown;
+            /** Before */
+            before?: unknown;
+            /** Field */
+            field: string;
+        };
+        /** ChecksRun */
+        ChecksRun: {
+            /** Raised */
+            raised: number;
+        };
         /** ClaimIn */
         ClaimIn: {
             /** Invite */
@@ -5166,6 +5266,10 @@ export interface components {
         Data_CasePaymentRow_: {
             data: components["schemas"]["CasePaymentRow"];
         };
+        /** Data[ChecksRun] */
+        Data_ChecksRun_: {
+            data: components["schemas"]["ChecksRun"];
+        };
         /** Data[Claimed] */
         Data_Claimed_: {
             data: components["schemas"]["Claimed"];
@@ -5257,6 +5361,10 @@ export interface components {
         /** Data[Overturned] */
         Data_Overturned_: {
             data: components["schemas"]["Overturned"];
+        };
+        /** Data[Overview] */
+        Data_Overview_: {
+            data: components["schemas"]["Overview"];
         };
         /** Data[OwnProfile] */
         Data_OwnProfile_: {
@@ -6481,6 +6589,25 @@ export interface components {
             rejection_reason: string | null;
             status: components["schemas"]["PartnerCandidateStatus"];
         };
+        /** Overview */
+        Overview: {
+            accounts_deactivated: components["schemas"]["Window"];
+            /** Active Sessions */
+            active_sessions: number;
+            alerts_raised: components["schemas"]["Window"];
+            failed_sign_ins: components["schemas"]["Window"];
+            new_partner_logins: components["schemas"]["Window"];
+            new_partners: components["schemas"]["Window"];
+            /** Open Alerts */
+            open_alerts: {
+                [key: string]: number;
+            };
+            /** Partner Logins Not Activated */
+            partner_logins_not_activated: number;
+            /** Recent Alerts */
+            recent_alerts: components["schemas"]["AlertRow"][];
+            sign_ins: components["schemas"]["Window"];
+        };
         /** OwnCandidate */
         OwnCandidate: {
             /** Created At */
@@ -6569,6 +6696,17 @@ export interface components {
         Page_AlertRow_: {
             /** Data */
             data: components["schemas"]["AlertRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[AuditRow] */
+        Page_AuditRow_: {
+            /** Data */
+            data: components["schemas"]["AuditRow"][];
             /** Page */
             page: number;
             /** Pagesize */
@@ -8461,6 +8599,13 @@ export interface components {
             agency_name: string | null;
             /** Show */
             show: boolean;
+        };
+        /** Window */
+        Window: {
+            /** Last 24H */
+            last_24h: number;
+            /** Last 7D */
+            last_7d: number;
         };
         /** Written */
         Written: {
@@ -12986,6 +13131,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    audit_trail_api_v1_monitoring_audit_get: {
+        parameters: {
+            query?: {
+                actor_id?: string | null;
+                action?: string | null;
+                entity_type?: string | null;
+                entity_id?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AuditRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_checks_api_v1_monitoring_checks_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_ChecksRun_"];
+                };
+            };
+        };
+    };
+    overview_api_v1_monitoring_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Overview_"];
                 };
             };
         };
