@@ -91,8 +91,9 @@ describe("API route guards", () => {
       .filter((h) => /\/(export|backup)(\/|$)/.test(h.key))
       .filter((h) => !(h.key in NO_ROW_DATA))
       // auditAccess(), or FastAPI's backup routes, which record the export
-      // before its data leaves (reads handover R7c).
-      .filter((h) => !/auditAccess\(|"\/api\/v1\/backup\//.test(h.body))
+      // before its data leaves (reads handover R7c), as does Partners &
+      // Logins' CSV (vertex_be/tests/test_partners_logins.py).
+      .filter((h) => !/auditAccess\(|"\/api\/v1\/backup\/|"\/api\/v1\/monitoring\/partners\.csv"/.test(h.body))
       .map((h) => h.key);
     expect(unaudited, "call auditAccess() before returning exported data").toEqual([]);
   });

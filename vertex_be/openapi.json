@@ -5576,6 +5576,18 @@
     "title": "Data[PartnerDetail]",
     "type": "object"
    },
+   "Data_PartnerOptions_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PartnerOptions"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PartnerOptions]",
+    "type": "object"
+   },
    "Data_PartnerRow_": {
     "properties": {
      "data": {
@@ -11791,6 +11803,37 @@
     "title": "Page[AlertRow]",
     "type": "object"
    },
+   "Page_PartnerLoginRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/PartnerLoginRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[PartnerLoginRow]",
+    "type": "object"
+   },
    "Page_ReportRow_": {
     "properties": {
      "data": {
@@ -12537,6 +12580,17 @@
       "title": "Created At",
       "type": "string"
      },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
      "id": {
       "title": "Id",
       "type": "string"
@@ -12672,6 +12726,17 @@
       "title": "Created At",
       "type": "string"
      },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
+     },
      "id": {
       "title": "Id",
       "type": "string"
@@ -12748,6 +12813,176 @@
     "title": "PartnerListRow",
     "type": "object"
    },
+   "PartnerLogin": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "deactivated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deactivated At"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_sign_in_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In At"
+     },
+     "last_sign_in_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Ip"
+     },
+     "password_set": {
+      "title": "Password Set",
+      "type": "boolean"
+     },
+     "status": {
+      "enum": [
+       "setup_pending",
+       "active",
+       "deactivated"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "email",
+     "status",
+     "password_set",
+     "created_at",
+     "created_by",
+     "activated_at",
+     "deactivated_at",
+     "last_sign_in_at",
+     "last_sign_in_ip"
+    ],
+    "title": "PartnerLogin",
+    "type": "object"
+   },
+   "PartnerLoginRow": {
+    "properties": {
+     "country_of_operation": {
+      "title": "Country Of Operation",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "login": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PartnerLogin"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "login_status": {
+      "enum": [
+       "no_login",
+       "setup_pending",
+       "active",
+       "deactivated"
+      ],
+      "title": "Login Status",
+      "type": "string"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "partner_type": {
+      "$ref": "#/components/schemas/PartnerType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "partner_type",
+     "country_of_operation",
+     "status",
+     "mou_status",
+     "created_at",
+     "created_by",
+     "login_status",
+     "login"
+    ],
+    "title": "PartnerLoginRow",
+    "type": "object"
+   },
    "PartnerName": {
     "description": "Everyone else's row: enough to pick or filter by a partner.",
     "properties": {
@@ -12769,6 +13004,30 @@
      "status"
     ],
     "title": "PartnerName",
+    "type": "object"
+   },
+   "PartnerOptions": {
+    "properties": {
+     "countries": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Countries",
+      "type": "array"
+     },
+     "creators": {
+      "items": {
+       "$ref": "#/components/schemas/Person"
+      },
+      "title": "Creators",
+      "type": "array"
+     }
+    },
+    "required": [
+     "countries",
+     "creators"
+    ],
+    "title": "PartnerOptions",
     "type": "object"
    },
    "PartnerRow": {
@@ -12803,6 +13062,17 @@
      "created_at": {
       "title": "Created At",
       "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By"
      },
      "id": {
       "title": "Id",
@@ -27444,6 +27714,370 @@
      }
     ],
     "summary": "Review Alert",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/partners": {
+   "get": {
+    "description": "Newest agency first.",
+    "operationId": "list_partner_logins_api_v1_monitoring_partners_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/PartnerStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "login_status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "no_login",
+          "setup_pending",
+          "active",
+          "deactivated"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Login Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_by",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created By"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_PartnerLoginRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Partner Logins",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/partners.csv": {
+   "get": {
+    "description": "The filtered list, every page, as CSV. Recorded on the trail first;\nif that fails, nothing leaves (503).",
+    "operationId": "export_partner_logins_api_v1_monitoring_partners_csv_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/PartnerStatus"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "login_status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "no_login",
+          "setup_pending",
+          "active",
+          "deactivated"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Login Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "created_by",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Created By"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Export Partner Logins",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/partners/options": {
+   "get": {
+    "description": "The countries agencies operate in, and who has added agencies, for the filters.",
+    "operationId": "partner_options_api_v1_monitoring_partners_options_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PartnerOptions_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Options",
     "tags": [
      "admin monitoring"
     ]

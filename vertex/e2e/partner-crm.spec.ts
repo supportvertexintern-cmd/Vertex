@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import path from "path";
+import { readFileSync } from "node:fs";
 config({ path: path.resolve(__dirname, "../.env") });
 
 import { test, expect, type Page, type Locator } from "@playwright/test";
@@ -259,6 +260,26 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
 
       await page.getByRole("tab", { name: "Resolved" }).click();
       await expect(page.locator("tr", { hasText: PARTNER_CONTACT_EMAIL }).first()).toBeVisible({ timeout: 25_000 });
+    });
+
+    // Admin → Monitoring → Partners & Logins (phase 3, 2026-11-07).
+    await test.step("Partners & Logins shows who added the agency and its active login, and exports it", async () => {
+      await page.getByRole("link", { name: "Partners & Logins" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/partners/);
+      await page.getByPlaceholder("Search by agency name or login email…").fill("E2E Test Partner");
+      const row = page.locator("tr", { hasText: "E2E Test Partner" }).filter({ hasText: PARTNER_CONTACT_EMAIL });
+      await expect(row).toBeVisible({ timeout: 25_000 });
+      await expect(row.getByText("by E2E Admin").first()).toBeVisible();
+      await expect(row.getByText("Active", { exact: true }).last()).toBeVisible();
+
+      const download = page.waitForEvent("download");
+      await page.getByRole("link", { name: "Export CSV" }).click();
+      const file = await download;
+      expect(file.suggestedFilename()).toMatch(/^partners-and-logins-\d{4}-\d\d-\d\d\.csv$/);
+      const text = readFileSync(await file.path(), "utf8");
+      expect(text.split("\r\n")[0]).toContain("Agency,Type,Country");
+      expect(text).toContain("E2E Test Partner");
+      expect(text).toContain(PARTNER_CONTACT_EMAIL);
     });
   });
 });

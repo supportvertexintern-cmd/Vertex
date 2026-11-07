@@ -7,9 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ user: null as null | { userId: string; email: string; role: string; sid: string; ver: number } }));
 
 const callBackend = vi.fn();
+const passFile = vi.fn();
 vi.mock("@/lib/backend", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/backend")>()),
   callBackend: (...args: unknown[]) => callBackend(...args),
+  passFile: (...args: unknown[]) => passFile(...args),
 }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
@@ -27,6 +29,9 @@ import { GET as listAlerts } from "@/app/api/admin/monitoring/alerts/route";
 import { GET as alertSummary } from "@/app/api/admin/monitoring/alerts/summary/route";
 import { GET as alertRules } from "@/app/api/admin/monitoring/alerts/rules/route";
 import { PATCH as reviewAlert } from "@/app/api/admin/monitoring/alerts/[id]/route";
+import { GET as listPartners } from "@/app/api/admin/monitoring/partners/route";
+import { GET as partnerOptions } from "@/app/api/admin/monitoring/partners/options/route";
+import { GET as exportPartners } from "@/app/api/admin/monitoring/partners/export/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -44,6 +49,7 @@ function post(body: unknown) {
 
 beforeEach(() => {
   callBackend.mockReset();
+  passFile.mockReset();
   state.user = null;
 });
 
@@ -145,5 +151,39 @@ describe("Suspicious Activity routes (phase 2)", () => {
       ["/api/v1/monitoring/alerts/rules", "GET", undefined],
       ["/api/v1/monitoring/alerts/al1", "PATCH", { status: "resolved", note: "It was them." }],
     ]);
+  });
+});
+
+describe("Partners & Logins routes (phase 3)", () => {
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    expect((await listPartners(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await partnerOptions(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await exportPartners(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+    expect(passFile).not.toHaveBeenCalled();
+  });
+
+  it("the list and the CSV pass on the same filters; the CSV has no paging", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: [], total: 0, page: 1, pageSize: 25 } });
+    const { NextResponse } = await import("next/server");
+    passFile.mockResolvedValueOnce(new NextResponse("Agency,Type", { headers: { "Content-Type": "text/csv" } }));
+    const qs = "q=abc&country=Kenya&status=active&login_status=deactivated&created_by=u9&page=2&pageSize=25&evil=1";
+    await listPartners(new NextRequest(`http://localhost/x?${qs}`));
+    const csv = await exportPartners(new NextRequest(`http://localhost/x?${qs}`));
+    const defined = (q: Record<string, unknown>) => Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined));
+    expect(callBackend.mock.calls[0][0]).toBe("/api/v1/monitoring/partners");
+    expect(defined(callBackend.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", created_by: "u9", page: "2", pageSize: "25" });
+    expect(passFile.mock.calls[0][0]).toBe("/api/v1/monitoring/partners.csv");
+    expect(defined(passFile.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", created_by: "u9" });
+    expect(await csv.text()).toBe("Agency,Type");
+  });
+
+  it("a refused export comes back as an error, not a file", async () => {
+    state.user = admin;
+    passFile.mockResolvedValueOnce({ ok: false, status: 503, error: { code: "audit_unavailable", message: "The export couldn't be recorded, so it wasn't made." } });
+    const res = await exportPartners(new NextRequest("http://localhost/x"));
+    expect(res.status).toBe(503);
   });
 });

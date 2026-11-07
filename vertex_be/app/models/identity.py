@@ -96,7 +96,7 @@ class User(SoftDeletable, Base):
     candidate: Mapped[Candidate | None] = relationship(
         back_populates="user", foreign_keys="Candidate.user_id", passive_deletes=True
     )
-    partner: Mapped[Partner | None] = relationship(back_populates="user", passive_deletes=True)
+    partner: Mapped[Partner | None] = relationship(back_populates="user", passive_deletes=True, foreign_keys="Partner.user_id")
     referral_agent: Mapped[ReferralAgent | None] = relationship(
         back_populates="user", foreign_keys="ReferralAgent.user_id", passive_deletes=True
     )
