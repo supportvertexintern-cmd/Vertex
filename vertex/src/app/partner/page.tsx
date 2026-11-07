@@ -13,6 +13,7 @@ import { usePagination } from "@/lib/usePagination";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { Plus, X, WarningCircle, ChatCircleDots, Trash } from "@phosphor-icons/react";
 import { useDialog } from "@/components/ui/DialogProvider";
+import PartnerWelcome from "@/components/portal/PartnerWelcome";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -107,6 +108,7 @@ export default function PartnerPortalPage() {
 
   return (
     <PortalShell roleLabel="Partner" navItems={PARTNER_NAV_ITEMS}>
+      <PartnerWelcome />
       <div className="flex items-center justify-between mb-2">
         <div>
           <p className="eyebrow mb-3">

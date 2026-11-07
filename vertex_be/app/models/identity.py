@@ -51,6 +51,11 @@ class User(SoftDeletable, Base):
     country: Mapped[str | None]
     role: Mapped[Role] = enum_col(Role, default=Role.candidate)
     email_verified: Mapped[bool] = flag(False)
+    # Partner logins (migration 0011): the first successful sign-in activates
+    # the account, and the portal's first-time welcome shows once. Neither
+    # changes on a password reset, nor touches the agency's own status or MOU.
+    activated_at: Mapped[datetime | None]
+    welcomed_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
     # Bumped by a database trigger on password or role change; sessions

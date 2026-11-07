@@ -108,9 +108,22 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(page.getByText("You're All Set")).toBeVisible({ timeout: 25_000 });
     });
 
-    await test.step("the partner logs in and submits a candidate", async () => {
+    await test.step("the first sign-in activates the account and welcomes the partner, once", async () => {
       await login(page, PARTNER_CONTACT_EMAIL, partnerPassword);
       await expect(page).toHaveURL(/\/partner$/);
+      const welcome = page.getByRole("dialog", { name: "Welcome to Vertex!" });
+      await expect(welcome).toBeVisible({ timeout: 25_000 });
+      await expect(welcome.getByText("Hello, E2E Test Partner!")).toBeVisible();
+      await expect(welcome.getByText("Your partner account has been successfully activated.", { exact: false })).toBeVisible();
+      await welcome.getByRole("button", { name: "Go to Partner Dashboard" }).click();
+      await expect(welcome).toBeHidden();
+      // Not again: the next visit to the dashboard goes straight to it.
+      await page.reload();
+      await expect(page.getByRole("button", { name: "Submit Candidate" })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByRole("dialog", { name: "Welcome to Vertex!" })).toHaveCount(0);
+    });
+
+    await test.step("the partner submits a candidate", async () => {
 
       await page.getByRole("button", { name: "Submit Candidate" }).click();
 

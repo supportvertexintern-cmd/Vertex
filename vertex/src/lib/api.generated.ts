@@ -2215,6 +2215,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/partner/welcome": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Partner Welcome
+         * @description The partner portal's first-time welcome: show is true once, the first
+         *     time the portal asks after the login was activated (its first sign-in),
+         *     and false from then on. The row is locked, so two requests at once can't
+         *     both get it. The agency's own status and MOU are left as they are.
+         */
+        post: operations["partner_welcome_api_v1_partner_welcome_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partners": {
         parameters: {
             query?: never;
@@ -4920,6 +4943,10 @@ export interface components {
         Data_Updated_: {
             data: components["schemas"]["Updated"];
         };
+        /** Data[Welcome] */
+        Data_Welcome_: {
+            data: components["schemas"]["Welcome"];
+        };
         /** Data[dict[str, Any]] */
         Data_dict_str__Any__: {
             /** Data */
@@ -6287,6 +6314,8 @@ export interface components {
             created_at: string;
             /** Id */
             id: string;
+            /** Login Activated At */
+            login_activated_at?: string | null;
             /** Mou Signed At */
             mou_signed_at: string | null;
             mou_status: components["schemas"]["MouStatus"];
@@ -7858,6 +7887,15 @@ export interface components {
          * @enum {string}
          */
         VerificationStatus: "pending" | "verified" | "rejected";
+        /** Welcome */
+        Welcome: {
+            /** Activated At */
+            activated_at: string | null;
+            /** Agency Name */
+            agency_name: string | null;
+            /** Show */
+            show: boolean;
+        };
         /** Written */
         Written: {
             data: components["schemas"]["StaffRow"];
@@ -12610,6 +12648,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    partner_welcome_api_v1_partner_welcome_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Welcome_"];
                 };
             };
         };

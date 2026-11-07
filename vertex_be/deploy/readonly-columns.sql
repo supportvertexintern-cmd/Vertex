@@ -601,6 +601,8 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('User', 'country',                                       'exclude'), -- free text/JSON: may hold personal data
   ('User', 'role',                                          'grant'),   -- status/type value
   ('User', 'email_verified',                                'exclude'), -- personal data
+  ('User', 'activated_at',                                  'grant'),   -- business timestamp
+  ('User', 'welcomed_at',                                   'grant'),   -- business timestamp
   ('User', 'created_at',                                    'grant'),   -- business timestamp
   ('User', 'updated_at',                                    'grant'),   -- business timestamp
   ('User', 'supervisor_id',                                 'grant'),   -- identifier/link
