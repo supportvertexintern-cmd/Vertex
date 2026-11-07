@@ -6,6 +6,12 @@
 |-----------|-------------------|-------------------------------------------------------------------------|
 | `dev`     | `vertex-dev`      | build & push all images to GHCR → auto-deploy to this PC                |
 | `staging` | `vertex-staging`  | build & push all images to GHCR → auto-deploy to this PC                |
+
+The **Deploy local stacks** workflow is switched off for now, so `dev` and `staging` are also
+deployed by hand with `deploy.sh`, from a clean checkout of the commit.
+
+| Branch    | Environment       | On push                                                                 |
+|-----------|-------------------|-------------------------------------------------------------------------|
 | `main`    | `vertex-main`     | build & push only. Deploys **by hand**: Actions → Deploy local stacks → Run workflow → `main` |
 
 Work flows `feature/*` → PR into `dev` → **Promote** `dev` → `staging` → **Promote** `staging` → `main`
@@ -139,6 +145,16 @@ cd vertex_be
 docker login ghcr.io -u BrookTeferi     # once; PAT with read:packages
 ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging staging-<full commit sha>
 ```
+
+A new staging stack starts with an empty database. Load the reference data and
+one admin, whose generated password stays in the env file:
+
+```sh
+ENV_FILE=.env.staging bash deploy/seed-staging.sh vertex-staging
+```
+
+The test accounts stay on development stacks (`deploy/seed-dev.sh`): their
+password is public. Staging isn't backed up (docs/security/backup-recovery.md §2).
 
 Stop a stack: `IMAGE_TAG=x docker compose -p vertex-staging --env-file .env.staging -f docker-compose.deploy.yml down`
 (add `-v` to wipe its database).
