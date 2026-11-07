@@ -48,12 +48,12 @@ Merged into the existing workflows rather than replacing them:
 
 ### C. GHCR packages (after the first `build.yml` run)
 - [ ] For each package `vertex-backend`, `vertex-nextjs`, `vertex-flutter-web`, `vertex-minio`: Package settings → visibility **private**, "Manage Actions access" → add the repository with **Write** (needed by the clean-up workflow)
-- [ ] Old owner's `ghcr.io/brookteferi/vertex-minio`: back to **private** once CI pulls the new owner's image
+- [ ] The former repository's own packages: nothing pulls them any more (every workflow and compose file uses `ghcr.io/supportvertexintern-cmd/`); delete them when that repository is retired
 
 ### D. Windows runner for local stacks
-- [ ] On the PC: remove the runner from the old repo (`config.cmd remove`)
+- [ ] On the PC: remove the runner from the former repository (`config.cmd remove`). **Still open on 2026-11-07:** the runner was registered there, so this repository's deploy jobs stayed queued
 - [ ] Settings → Actions → Runners → New self-hosted runner (Windows) → register with label `vertex-host`, run as a service ([vertex_be/deploy/README.md](../vertex_be/deploy/README.md))
-- [ ] `deploy-local.yml` is started by `workflow_run`, which GitHub only honours once the file is on the default branch (`main`): promote this change to `main` first
+- [ ] `deploy-local.yml` is started by `workflow_run`, which GitHub only honours once the file is on the default branch (`main`): promote this change to `main` first. Staging's deploy doesn't wait for that: Promote dispatches it
 - [ ] Merge something into `dev` and confirm `deploy-local.yml` updates `vertex-dev`
 
 ### E. Production runner on ops-server (server week 1)
