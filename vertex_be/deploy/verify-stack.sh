@@ -4,6 +4,9 @@
 #
 #   LAN_IP=192.168.x.y bash deploy/verify-stack.sh <dev|staging>
 #
+# ENV_FILE overrides the env file (default vertex_be/.env.<stack>). Exits 1
+# when any check fails, so a deploy can stop on it.
+#
 # LAN_IP is this machine's LAN address; ports must NOT answer on it. Without
 # it the LAN rows are skipped. Writes one draft Job row as the superuser and
 # deletes it again (G11 check). Run from vertex_be/.
@@ -11,12 +14,13 @@ set -u
 export MSYS_NO_PATHCONV=1
 # pwd -W: Git Bash gives /d/..., which Docker (with MSYS_NO_PATHCONV) can't use.
 E="$1"; P="vertex-$E"
-BE="$(cd "$(dirname "$0")/.." && { pwd -W 2>/dev/null || pwd; })"; ENVF="$BE/.env.$E"
+BE="$(cd "$(dirname "$0")/.." && { pwd -W 2>/dev/null || pwd; })"; ENVF="${ENV_FILE:-$BE/.env.$E}"
 v() { grep -E "^$1=" "$ENVF" | tail -1 | cut -d= -f2- | tr -d '\r'; }
 DB=$(v POSTGRES_DB); SU=$(v POSTGRES_USER)
 BP=$(v BACKEND_PORT); NP=$(v NEXTJS_PORT); FP=$(v FLUTTER_PORT); GP=$(v PGADMIN_PORT)
 LAN="${LAN_IP:-}"
-ok() { if [ "$2" = "$3" ]; then echo "| $1 | $2 | ✅ |"; else echo "| $1 | $2 (expected $3) | ❌ |"; fi; }
+FAILED=0
+ok() { if [ "$2" = "$3" ]; then echo "| $1 | $2 | ✅ |"; else echo "| $1 | $2 (expected $3) | ❌ |"; FAILED=1; fi; }
 code() { curl -s -o /dev/null -m 5 -w '%{http_code}' "$@"; }
 net() { docker run --rm --network "${P}_data" -e PGPASSWORD="$2" postgres:15-alpine psql -h db -U "$1" -d "$DB" -tAc "$3" 2>&1 | tr -d '\n' | grep -oE 'permission denied|must be owner|^ *[0-9]+ *$' | head -1 | sed -E 's/^ +| +$//g'; }
 
@@ -158,3 +162,4 @@ if [ -n "$MAXH" ]; then
   ok "Newest backup within ${MAXH}h" "$( [ "$age" != none ] && [ "$age" -le "$MAXH" ] && echo yes || echo "no (age: ${age}h)")" yes
 fi
 echo
+exit $FAILED

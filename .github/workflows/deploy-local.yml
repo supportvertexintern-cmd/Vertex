@@ -1,8 +1,11 @@
 name: Deploy local stacks
 
-# The Docker stacks on this PC, from images build.yml already pushed:
+# The Docker stacks on this PC, from images already in GHCR:
 #   build finished on `dev`     → vertex-dev      (automatic)
-#   build finished on `staging` → vertex-staging  (automatic)
+#   Promote moved `staging`     → vertex-staging  (automatic: Promote copies
+#                                 dev's tested images and dispatches this)
+#   build finished on `staging` → vertex-staging  (automatic, when Promote
+#                                 had to build instead)
 #   `main`                      → vertex-main only by hand: Actions → Deploy
 #                                 local stacks → Run workflow → branch `main`
 #                                 (merging to main never deploys by itself).
@@ -72,6 +75,19 @@ jobs:
         run: |
           & "C:\Program Files\Git\bin\bash.exe" deploy/deploy.sh $env:PROJECT $env:IMAGE_TAG
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # The same check as by hand (deploy/verify-stack.sh): a failed row fails
+      # the run, and the table goes to the run's summary.
+      - name: Check the stack
+        shell: powershell
+        working-directory: vertex_be
+        run: |
+          # bash writes the file itself: PowerShell 5.1 would re-encode the output.
+          & "C:\Program Files\Git\bin\bash.exe" -c "bash deploy/verify-stack.sh $env:BRANCH > verify.md"
+          $code = $LASTEXITCODE
+          Get-Content verify.md -Encoding UTF8 | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          if ($code -ne 0) { Write-Output "The stack check failed: see the run's summary." }
+          exit $code
 
       - name: Summary
         if: success()

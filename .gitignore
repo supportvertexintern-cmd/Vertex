@@ -12,6 +12,9 @@
 id_rsa*
 id_ed25519*
 
+# Logs (build output and the like)
+*.log
+
 # Local databases and dumps
 *.db
 *.sqlite

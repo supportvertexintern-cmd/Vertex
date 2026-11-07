@@ -10,7 +10,7 @@ use the 2,000 free minutes; the two self-hosted runners cost nothing.
 |---|---|---|---|
 | Pull request into `dev` | `ci.yml` | GitHub-hosted | Secret scan + only the suites whose folders changed; image builds and Trivy only if a Dockerfile, compose file, workflow or `.trivyignore.yaml` changed |
 | Pull request into `staging` or `main`, or a manual run | `ci.yml` | GitHub-hosted | Everything: secret scan, backend, Flutter, Next.js, end-to-end journeys, image builds + Trivy |
-| Actions → **Promote** → Run workflow from `dev` (→ `staging`) or `staging` (→ `main`) | `promote.yml` | GitHub-hosted | Full CI on that exact commit, then a fast-forward of the next branch (no merge commit, so the branches stay identical), then `build.yml` on it |
+| Every push to `dev`, or Actions → **Promote** → Run workflow from `dev` (→ `staging`) or `staging` (→ `main`) | `promote.yml` | GitHub-hosted | Full CI on that exact commit, then a fast-forward of the next branch (no merge commit, so the branches stay identical), then `build.yml` on it |
 | Merge into `dev`, `staging` or `main` | `build.yml` | GitHub-hosted | Four images (backend, Flutter web, Next.js, MinIO) pushed to GHCR as `<branch>-<sha>` and `<branch>` |
 | Build finished on `dev` / `staging` | `deploy-local.yml` | `vertex-host` (Windows PC) | Local `vertex-dev` / `vertex-staging` stack updated via `vertex_be/deploy/deploy.sh` |
 | You click "Run workflow" on `main` in **Deploy local stacks** | `deploy-local.yml` | `vertex-host` | Local `vertex-main` stack updated (never automatic) |
