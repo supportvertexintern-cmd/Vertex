@@ -15,6 +15,8 @@ export MSYS_NO_PATHCONV=1
 # pwd -W: Git Bash gives /d/..., which Docker (with MSYS_NO_PATHCONV) can't use.
 E="$1"; P="vertex-$E"
 BE="$(cd "$(dirname "$0")/.." && { pwd -W 2>/dev/null || pwd; })"; ENVF="${ENV_FILE:-$BE/.env.$E}"
+# Docker on Windows reads D:/..., not Git Bash's /d/... (MSYS_NO_PATHCONV is on).
+ENVF=$(cygpath -m "$ENVF" 2>/dev/null || printf '%s' "$ENVF")
 v() { grep -E "^$1=" "$ENVF" | tail -1 | cut -d= -f2- | tr -d '\r'; }
 DB=$(v POSTGRES_DB); SU=$(v POSTGRES_USER)
 BP=$(v BACKEND_PORT); NP=$(v NEXTJS_PORT); FP=$(v FLUTTER_PORT); GP=$(v PGADMIN_PORT)
