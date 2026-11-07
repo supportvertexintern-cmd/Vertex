@@ -16,6 +16,7 @@ import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
 import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { useDialog } from "@/components/ui/DialogProvider";
+import { GEOIP_CREDIT, place } from "@/lib/monitoring";
 
 const PAGE_SIZE = 25;
 
@@ -49,6 +50,10 @@ const RULES: Record<string, string> = {
   sign_in_after_reset_new_ip: "New address after a password reset",
   partner_login_not_activated: "Partner login not activated",
   inactive_account: "Inactive login",
+  sign_in_new_country: "Sign-in from a new country",
+  rapid_sign_ins: "Signing in again and again",
+  unusual_read_rate: "Reading data faster than a person",
+  unusual_write_rate: "Changing data faster than a person",
 };
 
 const VIEWS = {
@@ -76,6 +81,7 @@ interface Alert {
   summary: string;
   account: AlertAccount | null;
   ip: string | null;
+  country: string | null;
   detail: Record<string, unknown> | null;
   status: Status;
   reviewed_by: { id: string; full_name: string } | null;
@@ -271,7 +277,7 @@ function SuspiciousActivity() {
                       <span className="text-midnight-900/30">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-midnight-900/70">{a.ip ?? "—"}</td>
+                  <td className="px-5 py-4 text-midnight-900/70">{place(a.ip, a.country)}</td>
                   <td className="px-5 py-4">
                     <Badge className={STATUS[a.status].badge}>{STATUS[a.status].label}</Badge>
                   </td>
@@ -283,6 +289,7 @@ function SuspiciousActivity() {
       )}
 
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} onPageChange={setPage} total={total} pageSize={PAGE_SIZE} />
+      <p className="mt-4 text-xs text-midnight-900/40">{GEOIP_CREDIT}</p>
 
       {open && (
         <AlertDrawer
@@ -446,7 +453,7 @@ function AlertDrawer({ alert, onClose, onChanged }: { alert: Alert; onClose: () 
               </>
             )}
             <dt className="text-midnight-900/45">Address</dt>
-            <dd className="text-midnight-900">{alert.ip ?? "—"}</dd>
+            <dd className="text-midnight-900">{place(alert.ip, alert.country)}</dd>
             <dt className="text-midnight-900/45">Account</dt>
             <dd className="text-midnight-900">
               {account ? (

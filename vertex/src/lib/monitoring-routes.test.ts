@@ -35,6 +35,8 @@ import { GET as exportPartners } from "@/app/api/admin/monitoring/partners/expor
 import { GET as overview } from "@/app/api/admin/monitoring/overview/route";
 import { POST as runChecks } from "@/app/api/admin/monitoring/checks/run/route";
 import { GET as auditTrail } from "@/app/api/admin/monitoring/audit/route";
+import { GET as lockedAccounts } from "@/app/api/admin/monitoring/locked/route";
+import { POST as unlockAccount } from "@/app/api/admin/monitoring/locked/[fp]/unlock/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -211,5 +213,26 @@ describe("Audit Trail and Security Overview routes (phases 4 and 5)", () => {
     expect(Object.fromEntries(Object.entries(trail.query).filter(([, v]) => v !== undefined))).toEqual({ entity_type: "Partner", entity_id: "p1", action: "update" });
     expect(trail.forward).toBeTruthy();
     expect([overviewPath, checksPath, checks.method]).toEqual(["/api/v1/monitoring/overview", "/api/v1/monitoring/checks/run", "POST"]);
+  });
+});
+
+describe("Locked Accounts routes", () => {
+  const fp = { params: Promise.resolve({ fp: "a1b2c3d4e5f60718" }) };
+
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    expect((await lockedAccounts(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await unlockAccount(new NextRequest("http://localhost/x", { method: "POST" }), fp)).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("list and unlock reach FastAPI, the unlock with the browser's address", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok([]));
+    await lockedAccounts(new NextRequest("http://localhost/x"));
+    await unlockAccount(new NextRequest("http://localhost/x", { method: "POST", headers: { "x-real-ip": "203.0.113.9" } }), fp);
+    const [[listPath], [unlockPath, unlock]] = callBackend.mock.calls;
+    expect([listPath, unlockPath, unlock.method]).toEqual(["/api/v1/monitoring/locked", "/api/v1/monitoring/locked/a1b2c3d4e5f60718/unlock", "POST"]);
+    expect(unlock.forward).toBeTruthy();
   });
 });

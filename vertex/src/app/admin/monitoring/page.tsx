@@ -10,6 +10,7 @@ import Link from "next/link";
 import { ArrowsClockwise, CheckCircle } from "@phosphor-icons/react";
 import PortalShell from "@/components/portal/PortalShell";
 import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
+import { GEOIP_CREDIT } from "@/lib/monitoring";
 
 type Severity = "critical" | "high" | "medium";
 
@@ -38,6 +39,8 @@ interface Overview {
   new_partners: Window;
   new_partner_logins: Window;
   active_sessions: number;
+  locked_accounts: number;
+  geoip_month: string | null;
   recent_alerts: RecentAlert[];
 }
 
@@ -60,6 +63,10 @@ const RULES: Record<string, string> = {
   sign_in_after_reset_new_ip: "New address after a password reset",
   partner_login_not_activated: "Partner login not activated",
   inactive_account: "Inactive login",
+  sign_in_new_country: "Sign-in from a new country",
+  rapid_sign_ins: "Signing in again and again",
+  unusual_read_rate: "Reading data faster than a person",
+  unusual_write_rate: "Changing data faster than a person",
 };
 
 function when(iso: string): string {
@@ -182,6 +189,7 @@ export default function SecurityOverviewPage() {
             <Card title="New partners" href="/admin/monitoring/partners" window={data.new_partners} />
             <Card title="New partner logins" href="/admin/monitoring/partners" window={data.new_partner_logins} />
             <Card title="Active sessions now" href="/admin/monitoring/accounts" value={data.active_sessions} />
+            <Card title="Locked accounts now" href="/admin/monitoring/locked" value={data.locked_accounts} note="10 failed sign-ins in 15 minutes." />
           </div>
 
           <h2 className="text-lg font-semibold text-midnight-900 mb-3">Latest alerts</h2>
@@ -208,6 +216,11 @@ export default function SecurityOverviewPage() {
               ))}
             </div>
           )}
+          <p className="mt-6 text-xs text-midnight-900/40">
+            {data.geoip_month
+              ? `Country database: ${data.geoip_month}. ${GEOIP_CREDIT}`
+              : "No country database in this build: countries show as unknown and the new-country check is off."}
+          </p>
         </>
       )}
     </PortalShell>

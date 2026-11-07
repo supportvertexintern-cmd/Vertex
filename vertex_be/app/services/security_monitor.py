@@ -66,10 +66,19 @@ SHARED_ADDRESS = Rule("shared_ip_sign_ins", "medium", 60, 5)
 RESET_NEW_ADDRESS = Rule("sign_in_after_reset_new_ip", "high", 24 * 60, 1)
 PARTNER_NOT_ACTIVATED = Rule("partner_login_not_activated", "medium", 30 * 24 * 60, 1)
 INACTIVE_ACCOUNT = Rule("inactive_account", "medium", 30 * 24 * 60, 1)
+# Owner's additions (2026-11-07): a sign-in from a country the account never
+# signed in from (flag only, decision D4); an account signing in, reading or
+# writing faster than a person would (a script with its session). The rates
+# are counted per account in Redis, or in this process (app/services/activity.py).
+SIGN_IN_NEW_COUNTRY = Rule("sign_in_new_country", "high", 24 * 60, 1)
+RAPID_SIGN_INS = Rule("rapid_sign_ins", "medium", 10, 10)
+UNUSUAL_READS = Rule("unusual_read_rate", "medium", 5, 1500)
+UNUSUAL_WRITES = Rule("unusual_write_rate", "high", 5, 150)
 NOT_ACTIVATED_AFTER_DAYS = 7
 INACTIVE_AFTER_DAYS = 60  # decision D5
 RULES = (BRUTE_FORCE_ACCOUNT, BRUTE_FORCE_IP, AUTHORIZATION_PROBING, MALWARE, PRIVILEGE_GRANTED, AUDIT_WRITE_FAILED,
-         SCANNER_UNAVAILABLE, REFRESH_TOKEN_REUSED, SHARED_ADDRESS, RESET_NEW_ADDRESS, PARTNER_NOT_ACTIVATED, INACTIVE_ACCOUNT)
+         SCANNER_UNAVAILABLE, REFRESH_TOKEN_REUSED, SHARED_ADDRESS, RESET_NEW_ADDRESS, PARTNER_NOT_ACTIVATED, INACTIVE_ACCOUNT,
+         SIGN_IN_NEW_COUNTRY, RAPID_SIGN_INS, UNUSUAL_READS, UNUSUAL_WRITES)
 
 def _in_background(send: Callable[[], None]) -> None:
     threading.Thread(target=send, daemon=True).start()
@@ -145,9 +154,31 @@ def _on_sign_in(entity_id: str, detail: dict[str, Any]) -> None:
         ).scalar())
     if n >= r.threshold:
         raise_alert(r, f"ip:{ip}", f"{n} accounts signed in from one address in {r.window_minutes} minutes", {"ip": ip, "accounts": n})
+    _new_country(user_id, ip, detail.get("country"))
+    from app.services import activity  # noqa: PLC0415 (it raises through this module)
+
+    activity.note_sign_in(user_id)
     if reset_then_new:
         raise_alert(RESET_NEW_ADDRESS, f"user:{user_id}", "A sign-in from a new address soon after a password reset",
                     {"user_id": user_id, "ip": ip})
+
+
+def _new_country(user_id: str, ip: str, country: Any) -> None:
+    """A sign-in from a country none of the account's earlier sign-ins came
+    from. The first sign-in with a known country only sets the baseline."""
+    if not isinstance(country, str) or not country:
+        return
+    from app.services import geoip  # noqa: PLC0415
+
+    with engine.connect() as conn:
+        places = conn.execute(
+            text("SELECT ip, country, n FROM public.vertex_sign_in_places(:u, :b)"), {"u": user_id, "b": utc_now_ms() + timedelta(minutes=1)}
+        ).all()
+    # This sign-in is on the trail already: one of its place's count is its own.
+    known = {c or geoip.country_of(addr) for addr, c, n in places if n - (addr == ip and c == country) > 0} - {None}
+    if known and country not in known:
+        raise_alert(SIGN_IN_NEW_COUNTRY, f"user:{user_id}:{country}", f"A sign-in from a new country ({country})",
+                    {"user_id": user_id, "ip": ip, "country": country, "known_countries": sorted(known)})
 
 
 def run_account_checks(conn: Any = None) -> int:

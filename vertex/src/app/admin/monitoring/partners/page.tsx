@@ -18,6 +18,7 @@ import FilterBar from "@/components/portal/FilterBar";
 import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { useDialog } from "@/components/ui/DialogProvider";
+import { GEOIP_CREDIT, place } from "@/lib/monitoring";
 
 const PAGE_SIZE = 25;
 
@@ -61,6 +62,7 @@ interface Login {
   deactivated_at: string | null;
   last_sign_in_at: string | null;
   last_sign_in_ip: string | null;
+  last_sign_in_country: string | null;
 }
 
 interface Row {
@@ -331,7 +333,9 @@ function PartnersAndLogins() {
                     </td>
                     <td className="px-5 py-4 text-midnight-900/70">
                       <div>{when(r.login?.last_sign_in_at ?? null)}</div>
-                      {r.login?.last_sign_in_ip && <div className="text-xs text-midnight-900/40">{r.login.last_sign_in_ip}</div>}
+                      {r.login?.last_sign_in_ip && (
+                        <div className="text-xs text-midnight-900/40">{place(r.login.last_sign_in_ip, r.login.last_sign_in_country)}</div>
+                      )}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex flex-col items-end gap-2 text-xs">
@@ -372,6 +376,7 @@ function PartnersAndLogins() {
       )}
 
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} onPageChange={setPage} total={total} pageSize={PAGE_SIZE} />
+      <p className="mt-4 text-xs text-midnight-900/40">{GEOIP_CREDIT}</p>
     </PortalShell>
   );
 }

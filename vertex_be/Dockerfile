@@ -27,6 +27,13 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && pip uninstall -y pip \
     && rm -rf /usr/local/lib/python3.11/ensurepip
 
+# Address to country (admin monitoring): DB-IP's free country database,
+# fetched again when the month changes (GEOIP_MONTH, set by build.yml). A
+# failed download leaves the image without it (lookups answer "unknown").
+ARG GEOIP_MONTH=
+COPY scripts/fetch_geoip.py /tmp/fetch_geoip.py
+RUN echo "geoip month: ${GEOIP_MONTH}" && python /tmp/fetch_geoip.py /opt/geoip && rm /tmp/fetch_geoip.py
+
 COPY . /app
 
 # Not root (E4): the remaining OS findings are local privilege escalations

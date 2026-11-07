@@ -90,6 +90,10 @@
       "title": "Email",
       "type": "string"
      },
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
      "full_name": {
       "title": "Full Name",
       "type": "string"
@@ -109,6 +113,17 @@
       ],
       "title": "Last Sign In At"
      },
+     "last_sign_in_country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Country"
+     },
      "last_sign_in_ip": {
       "anyOf": [
        {
@@ -119,6 +134,10 @@
        }
       ],
       "title": "Last Sign In Ip"
+     },
+     "locked": {
+      "title": "Locked",
+      "type": "boolean"
      },
      "open_alerts": {
       "title": "Open Alerts",
@@ -153,6 +172,17 @@
       ],
       "title": "Status",
       "type": "string"
+     },
+     "unlocks_in_seconds": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unlocks In Seconds"
      }
     },
     "required": [
@@ -169,13 +199,17 @@
      "created_by",
      "last_sign_in_at",
      "last_sign_in_ip",
+     "last_sign_in_country",
      "active_sessions",
      "deactivated_at",
      "deactivated_by",
      "deactivation_reason",
      "open_alerts",
      "sessions",
-     "sign_ins"
+     "sign_ins",
+     "locked",
+     "unlocks_in_seconds",
+     "email_fp"
     ],
     "title": "AccountDetail",
     "type": "object"
@@ -315,6 +349,17 @@
       ],
       "title": "Last Sign In At"
      },
+     "last_sign_in_country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Country"
+     },
      "last_sign_in_ip": {
       "anyOf": [
        {
@@ -361,6 +406,7 @@
      "created_by",
      "last_sign_in_at",
      "last_sign_in_ip",
+     "last_sign_in_country",
      "active_sessions",
      "deactivated_at",
      "deactivated_by",
@@ -1439,6 +1485,17 @@
        }
       ]
      },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
      "created_at": {
       "title": "Created At",
       "type": "string"
@@ -1524,6 +1581,7 @@
      "summary",
      "account",
      "ip",
+     "country",
      "detail",
      "status",
      "reviewed_by",
@@ -6047,6 +6105,18 @@
     "title": "Data[Union[list[PartnerListRow], list[PartnerName]]]",
     "type": "object"
    },
+   "Data_Unlocked_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Unlocked"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Unlocked]",
+    "type": "object"
+   },
    "Data_Updated_": {
     "properties": {
      "data": {
@@ -6259,6 +6329,22 @@
      "data"
     ],
     "title": "Data[list[FeePolicyOut]]",
+    "type": "object"
+   },
+   "Data_list_LockedRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/LockedRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[LockedRow]]",
     "type": "object"
    },
    "Data_list_NoteOut__": {
@@ -8403,6 +8489,40 @@
      "created_at"
     ],
     "title": "LinkedJob",
+    "type": "object"
+   },
+   "LockedRow": {
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "unlocks_in_seconds": {
+      "title": "Unlocks In Seconds",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "email_fp",
+     "failures",
+     "unlocks_in_seconds",
+     "account"
+    ],
+    "title": "LockedRow",
     "type": "object"
    },
    "LoginAddress": {
@@ -11664,6 +11784,21 @@
      "failed_sign_ins": {
       "$ref": "#/components/schemas/Window"
      },
+     "geoip_month": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Geoip Month"
+     },
+     "locked_accounts": {
+      "title": "Locked Accounts",
+      "type": "integer"
+     },
      "new_partner_logins": {
       "$ref": "#/components/schemas/Window"
      },
@@ -11705,6 +11840,8 @@
      "new_partners",
      "new_partner_logins",
      "active_sessions",
+     "locked_accounts",
+     "geoip_month",
      "recent_alerts"
     ],
     "title": "Overview",
@@ -13119,6 +13256,17 @@
       ],
       "title": "Last Sign In At"
      },
+     "last_sign_in_country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Sign In Country"
+     },
      "last_sign_in_ip": {
       "anyOf": [
        {
@@ -13154,7 +13302,8 @@
      "activated_at",
      "deactivated_at",
      "last_sign_in_at",
-     "last_sign_in_ip"
+     "last_sign_in_ip",
+     "last_sign_in_country"
     ],
     "title": "PartnerLogin",
     "type": "object"
@@ -16303,6 +16452,17 @@
       "title": "At",
       "type": "string"
      },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
      "device": {
       "anyOf": [
        {
@@ -16358,6 +16518,7 @@
      "method",
      "reason",
      "ip",
+     "country",
      "device"
     ],
     "title": "SignIn",
@@ -18049,6 +18210,24 @@
      "temporaryPassword"
     ],
     "title": "TemporaryPassword",
+    "type": "object"
+   },
+   "Unlocked": {
+    "properties": {
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
+     "unlocked": {
+      "title": "Unlocked",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "email_fp",
+     "unlocked"
+    ],
+    "title": "Unlocked",
     "type": "object"
    },
    "Updated": {
@@ -28169,6 +28348,81 @@
      }
     ],
     "summary": "Run Checks",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/locked": {
+   "get": {
+    "description": "Accounts the per-account limit holds now: 10 failed sign-ins in 15\nminutes lock them for the rest of that window (sessions.py).",
+    "operationId": "locked_api_v1_monitoring_locked_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_LockedRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Locked",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/locked/{email_fp}/unlock": {
+   "post": {
+    "description": "Lifts the lock at once, so the next sign-in is checked as usual.\nRecorded with who did it; the failures stay on the trail.",
+    "operationId": "unlock_api_v1_monitoring_locked__email_fp__unlock_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "email_fp",
+      "required": true,
+      "schema": {
+       "title": "Email Fp",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Unlocked_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Unlock",
     "tags": [
      "admin monitoring"
     ]

@@ -33,6 +33,12 @@ recorded (audit_trail_viewed, with its filters). Nothing here changes it.
 Phase 5: the Security Overview: counts for the last 24 hours and 7 days,
 each linking to its page, and the latest alerts; and the account checks,
 run on a schedule (security_monitor.run_account_checks) or from here.
+
+Owner's additions (2026-11-07): the country of each address (the bundled
+DB-IP database, app/services/geoip.py), on every page that shows one;
+Locked Accounts, the ones the per-account sign-in limit is holding now,
+which an admin can unlock (recorded as login_unlocked); and the script-like
+activity rules, raised by app/services/activity.py.
 """
 
 from __future__ import annotations
@@ -56,8 +62,9 @@ from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role, Securi
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
 from app.models.security import SecurityAlert
-from app.services import security_monitor
-from app.services.sessions import list_sessions
+from app.api.v1 import sessions as api_sessions
+from app.services import geoip, security_monitor
+from app.services.sessions import email_fingerprint, list_sessions
 
 router = APIRouter(prefix="/monitoring")
 
@@ -92,6 +99,7 @@ class AccountRow(BaseModel):
     created_by: Person | None
     last_sign_in_at: UtcDateTime | None
     last_sign_in_ip: str | None
+    last_sign_in_country: str | None
     active_sessions: int
     deactivated_at: UtcDateTime | None
     deactivated_by: Person | None
@@ -107,12 +115,17 @@ class SignIn(BaseModel):
     # Why a sign-in was refused (bad_password, deactivated, ...).
     reason: str | None
     ip: str | None
+    country: str | None
     device: str | None
 
 
 class AccountDetail(AccountRow):
     sessions: list[SessionRow]
     sign_ins: list[SignIn]
+    # Held by the per-account sign-in limit now (too many failed sign-ins).
+    locked: bool
+    unlocks_in_seconds: int | None
+    email_fp: str
 
 
 # --- helpers ------------------------------------------------------------------
@@ -164,6 +177,7 @@ def _rows(db, users: list[User]) -> list[dict[str, Any]]:
             "status": account_status(u), "password_set": bool(u.password_hash), "activated_at": u.activated_at,
             "created_at": u.created_at, "created_by": people.get(u.created_by),
             "last_sign_in_at": sign_in.signed_in_at if sign_in else None, "last_sign_in_ip": sign_in.ip if sign_in else None,
+            "last_sign_in_country": geoip.country_of(sign_in.ip) if sign_in else None,
             "active_sessions": sessions.get(u.id, 0),
             "deactivated_at": u.deactivated_at, "deactivated_by": people.get(u.deactivated_by),
             "deactivation_reason": u.deactivation_reason, "open_alerts": flags.get(u.id, 0),
@@ -245,12 +259,15 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
         {"id": user_id, "n": HISTORY_LIMIT},
     ).all()
     sign_ins = [
-        {"at": h.created_at, "succeeded": h.action == "login_succeeded", "method": h.method, "reason": h.reason, "ip": h.ip, "device": h.device}
+        {"at": h.created_at, "succeeded": h.action == "login_succeeded", "method": h.method, "reason": h.reason, "ip": h.ip,
+         "country": geoip.country_of(h.ip), "device": h.device}
         for h in history
     ]
     sessions = [asdict(s) for s in list_sessions(db, user_id, None)]
     (row,) = _rows(db, [user])
-    return {"data": row | {"sessions": sessions, "sign_ins": sign_ins}}
+    fp = email_fingerprint(user.email)
+    held = {f: left for f, _n, left in api_sessions.locked_accounts()}
+    return {"data": row | {"sessions": sessions, "sign_ins": sign_ins, "locked": fp in held, "unlocks_in_seconds": held.get(fp), "email_fp": fp}}
 
 
 # --- Suspicious Activity (phase 2) ------------------------------------------------
@@ -271,6 +288,7 @@ class AlertRow(BaseModel):
     summary: str
     account: AlertAccount | None
     ip: str | None
+    country: str | None
     detail: dict[str, Any] | None
     status: SecurityAlertStatus
     reviewed_by: Person | None
@@ -309,7 +327,8 @@ def _alert_rows(db, alerts: list[SecurityAlert]) -> list[dict[str, Any]]:
     return [
         {
             "id": a.id, "rule": a.rule, "severity": a.severity, "summary": a.summary, "account": account(a.user_id),
-            "ip": a.ip, "detail": a.detail, "status": a.status, "reviewed_by": person(a.reviewed_by),
+            "ip": a.ip, "country": (a.detail or {}).get("country") or geoip.country_of(a.ip), "detail": a.detail,
+            "status": a.status, "reviewed_by": person(a.reviewed_by),
             "reviewed_at": a.reviewed_at, "note": a.note, "created_at": a.created_at,
         }
         for a in alerts
@@ -414,6 +433,7 @@ class PartnerLogin(BaseModel):
     deactivated_at: UtcDateTime | None
     last_sign_in_at: UtcDateTime | None
     last_sign_in_ip: str | None
+    last_sign_in_country: str | None
 
 
 class PartnerLoginRow(BaseModel):
@@ -466,6 +486,7 @@ def _partner_rows(db, partners: list[Partner]) -> list[dict[str, Any]]:
                 "created_at": login.created_at, "created_by": people.get(login.created_by), "activated_at": login.activated_at,
                 "deactivated_at": login.deactivated_at,
                 "last_sign_in_at": sign_in.signed_in_at if sign_in else None, "last_sign_in_ip": sign_in.ip if sign_in else None,
+                "last_sign_in_country": geoip.country_of(sign_in.ip) if sign_in else None,
             },
         })
     return out
@@ -707,6 +728,10 @@ class Overview(BaseModel):
     new_partners: Window
     new_partner_logins: Window
     active_sessions: int
+    # Held by the per-account sign-in limit now.
+    locked_accounts: int
+    # The bundled country database's month, or null if the image has none.
+    geoip_month: str | None
     recent_alerts: list[AlertRow]
 
 
@@ -751,6 +776,8 @@ def overview(_admin: Admin, db: DbSession):
         "new_partners": _window(db, Partner.created_at),
         "new_partner_logins": _window(db, User.created_at, User.role == Role.partner),
         "active_sessions": int(sessions or 0),
+        "locked_accounts": len(api_sessions.locked_accounts()),
+        "geoip_month": geoip.database_month(),
         "recent_alerts": _alert_rows(db, recent),
     }}
 
@@ -760,3 +787,58 @@ def run_checks(_admin: Admin):
     """The scheduled account checks, now. An account already raised this
     month isn't raised again."""
     return {"data": {"raised": security_monitor.run_account_checks()}}
+
+
+# --- Locked Accounts (owner's addition, 2026-11-07) ---------------------------------
+
+
+class LockedRow(BaseModel):
+    # The account is known by its email's fingerprint, as the limit counts
+    # it (an address typed at sign-in, which may have no account).
+    email_fp: str
+    failures: int
+    unlocks_in_seconds: int
+    account: AlertAccount | None
+
+
+class Unlocked(BaseModel):
+    email_fp: str
+    unlocked: bool
+
+
+def _accounts_by_fingerprint(db, fingerprints: set[str]) -> dict[str, dict[str, Any]]:
+    if not fingerprints:
+        return {}
+    found = {}
+    for u in db.scalars(select(User)):
+        fp = email_fingerprint(u.email)
+        if fp in fingerprints:
+            found[fp] = {"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role, "deactivated": u.deactivated_at is not None}
+    return found
+
+
+@router.get("/locked", response_model=Data[list[LockedRow]])
+def locked(_admin: Admin, db: DbSession):
+    """Accounts the per-account limit holds now: 10 failed sign-ins in 15
+    minutes lock them for the rest of that window (sessions.py)."""
+    held = api_sessions.locked_accounts()
+    accounts = _accounts_by_fingerprint(db, {fp for fp, _n, _left in held})
+    rows = [{"email_fp": fp, "failures": n, "unlocks_in_seconds": left, "account": accounts.get(fp)} for fp, n, left in held]
+    return {"data": sorted(rows, key=lambda r: -r["unlocks_in_seconds"])}
+
+
+@router.post("/locked/{email_fp}/unlock", response_model=Data[Unlocked])
+def unlock(email_fp: str, admin: Admin, request: Request, db: DbSession):
+    """Lifts the lock at once, so the next sign-in is checked as usual.
+    Recorded with who did it; the failures stay on the trail."""
+    if not (8 <= len(email_fp) <= 64 and all(c in "0123456789abcdef" for c in email_fp)):
+        raise ApiError(422, "validation_error", "Validation failed", {"email_fp": ["Not an email fingerprint."]})
+    try:
+        was = api_sessions.unlock_account(email_fp)
+    except Exception:  # noqa: BLE001 (the store is down)
+        raise ApiError(503, "store_unavailable", "The sign-in limit's store can't be reached; try again shortly.") from None
+    account = _accounts_by_fingerprint(db, {email_fp}).get(email_fp)
+    security_event(request, "login_unlocked", actor_id=admin.user_id, entity_type="Auth",
+                   entity_id=f"user:{account['id']}" if account else f"email_fp:{email_fp}",
+                   detail={"email_fp": email_fp, "was_locked": was})
+    return {"data": {"email_fp": email_fp, "unlocked": was}}

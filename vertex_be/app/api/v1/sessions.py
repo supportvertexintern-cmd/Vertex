@@ -44,6 +44,7 @@ from app.core.redis_store import StoreUnavailable, call, counter_store
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
+from app.services import geoip
 from app.services.google_signin import GoogleClient, GoogleFailed, google_client
 from app.services.sessions import (
     IssuedSession,
@@ -91,7 +92,12 @@ def _device(request: Request) -> str | None:
 
 
 def security_event(request: Request, action: str, *, actor_id: str | None, entity_type: str, entity_id: str, detail: dict[str, Any]) -> None:
-    detail = {**detail, "ip": _client_ip(request), "path": request.url.path}
+    ip = _client_ip(request)
+    detail = {**detail, "ip": ip, "path": request.url.path}
+    if action in ("login_succeeded", "login_failed"):
+        # The bundled database's answer (admin monitoring): the new-country
+        # check compares sign-ins by it, and the pages show it.
+        detail["country"] = geoip.country_of(ip)
     record_security_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
 
 
@@ -130,6 +136,51 @@ def _account_locked(fp: str) -> bool:
             return False
     with _failures_lock:
         return len(_recent_failures(fp, time.monotonic())) >= ACCOUNT_MAX_FAILURES
+
+
+def locked_accounts() -> list[tuple[str, int, int]]:
+    """(email fingerprint, failures, seconds until it unlocks) for every
+    account the per-account limit is holding now (admin monitoring)."""
+    store = counter_store()
+    out: list[tuple[str, int, int]] = []
+    if store is not None:
+        prefix = _account_key("")
+
+        def scan(r):
+            found = []
+            for key in r.scan_iter(match=prefix + "*", count=500):
+                key = key.decode() if isinstance(key, bytes) else key
+                found.append((key[len(prefix):], int(r.get(key) or 0), int(r.ttl(key) or 0)))
+            return found
+
+        try:
+            return [row for row in call(store, scan) if row[1] >= ACCOUNT_MAX_FAILURES]
+        except StoreUnavailable as err:
+            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
+            return []
+    now = time.monotonic()
+    with _failures_lock:
+        for fp in list(_failures):
+            times = _recent_failures(fp, now)
+            if len(times) >= ACCOUNT_MAX_FAILURES:
+                out.append((fp, len(times), max(0, int(ACCOUNT_WINDOW_SECONDS - (now - times[0])))))
+    return out
+
+
+def unlock_account(fp: str) -> bool:
+    """Lifts the per-account limit at once. True if it was holding it."""
+    was = _account_locked(fp)
+    store = counter_store()
+    if store is not None:
+        try:
+            call(store, lambda r: r.delete(_account_key(fp)))
+        except StoreUnavailable as err:
+            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
+            raise
+        return was
+    with _failures_lock:
+        _failures.pop(fp, None)
+    return was
 
 
 def _note_failure(fp: str) -> None:

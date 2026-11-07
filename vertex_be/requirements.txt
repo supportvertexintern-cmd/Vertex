@@ -18,6 +18,8 @@ httpx==0.28.1
 # Passwords (users step 8.2): the hashes bcryptjs wrote, read as they are.
 bcrypt==5.0.0
 redis==8.1.0
+# Address to country from the bundled DB-IP database (app/services/geoip.py).
+maxminddb==3.2.0
 # The payment receipt's PDF (app/services/receipt.py, reads handover R7b).
 fpdf2==2.8.9
 

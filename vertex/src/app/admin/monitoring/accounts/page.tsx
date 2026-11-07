@@ -11,7 +11,8 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, Copy, EnvelopeSimple, Flag, Key, Prohibit, SignOut, UserCheck, X } from "@phosphor-icons/react";
+import { CheckCircle, Copy, EnvelopeSimple, Flag, Key, LockOpen, Prohibit, SignOut, UserCheck, X } from "@phosphor-icons/react";
+import { GEOIP_CREDIT, place } from "@/lib/monitoring";
 import PortalShell from "@/components/portal/PortalShell";
 import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
 import FilterBar from "@/components/portal/FilterBar";
@@ -64,6 +65,7 @@ interface Account {
   created_by: Person | null;
   last_sign_in_at: string | null;
   last_sign_in_ip: string | null;
+  last_sign_in_country: string | null;
   active_sessions: number;
   deactivated_at: string | null;
   deactivated_by: Person | null;
@@ -85,12 +87,16 @@ interface SignIn {
   method: string | null;
   reason: string | null;
   ip: string | null;
+  country: string | null;
   device: string | null;
 }
 
 interface AccountDetail extends Account {
   sessions: SessionRow[];
   sign_ins: SignIn[];
+  locked: boolean;
+  unlocks_in_seconds: number | null;
+  email_fp: string;
 }
 
 const REFUSALS: Record<string, string> = {
@@ -299,7 +305,7 @@ function UserAccounts() {
                   </td>
                   <td className="px-5 py-4 text-midnight-900/70">
                     <div>{when(a.last_sign_in_at)}</div>
-                    {a.last_sign_in_ip && <div className="text-xs text-midnight-900/40">{a.last_sign_in_ip}</div>}
+                    {a.last_sign_in_ip && <div className="text-xs text-midnight-900/40">{place(a.last_sign_in_ip, a.last_sign_in_country)}</div>}
                   </td>
                   <td className="px-5 py-4 text-right text-midnight-900/70">{a.active_sessions}</td>
                   <td className="px-5 py-4 text-right">
@@ -323,6 +329,7 @@ function UserAccounts() {
       )}
 
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / PAGE_SIZE))} onPageChange={setPage} total={total} pageSize={PAGE_SIZE} />
+      <p className="mt-4 text-xs text-midnight-900/40">{GEOIP_CREDIT}</p>
 
       {open && <AccountDrawer id={open} onClose={() => setOpen(null)} onChanged={load} />}
     </PortalShell>
@@ -426,6 +433,14 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
     });
   };
 
+  const unlock = async (a: AccountDetail) => {
+    if (!(await dialog.confirm(`Unlock ${a.full_name} now? Their next sign-in is checked as usual.`, { confirmLabel: "Unlock" }))) return;
+    await act(async () => {
+      await call(`/api/admin/monitoring/locked/${a.email_fp}/unlock`, { method: "POST" });
+      return "Unlocked. The account can try signing in again.";
+    });
+  };
+
   const resetPassword = async (a: AccountDetail) => {
     if (!(await dialog.confirm(`Reset the password for ${a.full_name}? Their current password stops working and their sessions end.`, { confirmLabel: "Reset password", danger: true }))) return;
     await act(async () => {
@@ -509,6 +524,15 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                     {when(account.created_at)}
                     {account.created_by && <span className="text-midnight-900/50"> by {account.created_by.full_name}</span>}
                   </dd>
+                  {account.locked && (
+                    <>
+                      <dt className="text-midnight-900/45">Sign-in</dt>
+                      <dd className="text-red-700">
+                        Locked after too many failed sign-ins
+                        {account.unlocks_in_seconds ? `; unlocks by itself in ${Math.ceil(account.unlocks_in_seconds / 60)} min` : ""}
+                      </dd>
+                    </>
+                  )}
                   <dt className="text-midnight-900/45">Security flags</dt>
                   <dd className="text-midnight-900">
                     {account.open_alerts > 0 ? (
@@ -522,7 +546,9 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                   <dt className="text-midnight-900/45">Last sign-in</dt>
                   <dd className="text-midnight-900">
                     {when(account.last_sign_in_at)}
-                    {account.last_sign_in_ip && <span className="text-midnight-900/50"> from {account.last_sign_in_ip}</span>}
+                    {account.last_sign_in_ip && (
+                      <span className="text-midnight-900/50"> from {place(account.last_sign_in_ip, account.last_sign_in_country)}</span>
+                    )}
                   </dd>
                   {account.status === "deactivated" && (
                     <>
@@ -552,6 +578,11 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                     className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                   >
                     <Prohibit size={16} weight="bold" /> Deactivate
+                  </button>
+                )}
+                {account.locked && (
+                  <button type="button" disabled={busy} onClick={() => unlock(account)} className="btn-primary px-4 py-2 text-xs disabled:opacity-60">
+                    <LockOpen size={16} weight="bold" /> Unlock
                   </button>
                 )}
                 {account.status !== "deactivated" && account.sessions.length > 0 && (
@@ -624,7 +655,7 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                                 <span className="text-red-700">Refused: {REFUSALS[s.reason ?? ""] ?? s.reason ?? "unknown"}</span>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-midnight-900/70">{s.ip ?? "—"}</td>
+                            <td className="px-3 py-2 text-midnight-900/70">{place(s.ip, s.country)}</td>
                             <td className="max-w-[12rem] truncate px-3 py-2 text-midnight-900/50" title={s.device ?? ""}>
                               {s.device ?? "—"}
                             </td>
