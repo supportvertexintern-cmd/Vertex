@@ -110,6 +110,16 @@ up_and_wait() {
 
 [ "${SKIP_PULL:-}" = 1 ] || pull_images || exit 1
 
+# The edge proxy's config, copied next to the stack's data (D:/VertexData/edge/
+# <project> on this PC), because the container keeps mounting it after this
+# script ends. The checkout's own file goes away with a deploy folder, or when
+# the runner re-makes its work folder for the next stack, and the proxy then
+# fails at its next restart.
+EDGE_DIR="$(dirname "$(dirname "$(env_value MINIO_DATA_DIR)")")/edge/$PROJECT"
+mkdir -p "$EDGE_DIR"
+cp "$HERE/edge/Caddyfile" "$EDGE_DIR/Caddyfile"
+export EDGE_CADDYFILE="$EDGE_DIR/Caddyfile"
+
 # Compose reuses an existing network even when its definition has changed,
 # so a `data` network created before it was made internal would silently
 # stay open. Recreate the stack's networks (volumes are kept) when it drifts.

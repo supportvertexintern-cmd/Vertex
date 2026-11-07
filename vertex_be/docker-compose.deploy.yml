@@ -282,7 +282,10 @@ services:
     # the client's real address for the website. Workstream B.
     image: caddy:2.10-alpine
     volumes:
-      - ./deploy/edge/Caddyfile:/etc/caddy/Caddyfile:ro
+      # deploy.sh copies the config next to the stack's data and points
+      # EDGE_CADDYFILE at the copy: a mount of the checkout's own file breaks
+      # when that checkout is removed or re-made, at the next restart.
+      - ${EDGE_CADDYFILE:-./deploy/edge/Caddyfile}:/etc/caddy/Caddyfile:ro
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${NEXTJS_PORT}:80"
     depends_on:
