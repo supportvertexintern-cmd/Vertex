@@ -8,8 +8,9 @@
 // reactivated here (with a reason); it is created or reset on the partner's
 // own page, as before.
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle, DownloadSimple, Prohibit, UserCheck } from "@phosphor-icons/react";
 import PortalShell from "@/components/portal/PortalShell";
 import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
@@ -94,6 +95,15 @@ function Badge({ className, children }: { className: string; children: React.Rea
 }
 
 export default function PartnersAndLoginsPage() {
+  return (
+    <Suspense>
+      <PartnersAndLogins />
+    </Suspense>
+  );
+}
+
+function PartnersAndLogins() {
+  const search = useSearchParams();
   const dialog = useDialog();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -105,7 +115,7 @@ export default function PartnersAndLoginsPage() {
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("");
   const [status, setStatus] = useState("");
-  const [loginStatus, setLoginStatus] = useState("");
+  const [loginStatus, setLoginStatus] = useState(search.get("login_status") ?? "");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [createdBy, setCreatedBy] = useState("");
@@ -327,6 +337,9 @@ export default function PartnersAndLoginsPage() {
                       <div className="flex flex-col items-end gap-2 text-xs">
                         <Link href={`/management/partners/${r.id}`} className="font-medium text-gold-700 hover:underline whitespace-nowrap">
                           {r.login ? "Open partner" : "Create login"}
+                        </Link>
+                        <Link href={`/admin/monitoring/audit?entity_type=Partner&entity_id=${r.id}`} className="text-midnight-900/50 hover:underline whitespace-nowrap">
+                          View history
                         </Link>
                         {r.login && r.login_status !== "deactivated" && (
                           <button

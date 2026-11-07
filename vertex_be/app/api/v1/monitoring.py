@@ -25,6 +25,14 @@ and MOU, when and by whom it was added (Partner.created_by, migration
 0014), and its login, if any: when and by whom that was created, its status
 and latest sign-in. The CSV of the filtered list is recorded on the trail
 before it leaves (as every export), and refused if it can't be.
+
+Phase 4: the Audit Trail, read-only: who did what and when, filtered and
+paged through vertex_audit_trail (migration 0015). Each read is itself
+recorded (audit_trail_viewed, with its filters). Nothing here changes it.
+
+Phase 5: the Security Overview: counts for the last 24 hours and 7 days,
+each linking to its page, and the latest alerts; and the account checks,
+run on a schedule (security_monitor.run_account_checks) or from here.
 """
 
 from __future__ import annotations
@@ -48,6 +56,7 @@ from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role, Securi
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
 from app.models.security import SecurityAlert
+from app.services import security_monitor
 from app.services.sessions import list_sessions
 
 router = APIRouter(prefix="/monitoring")
@@ -566,3 +575,188 @@ def export_partner_logins(admin: Admin, db: DbSession, filters: Annotated[Partne
     day = utc_now_ms().date().isoformat()
     return Response("\r\n".join(lines) + "\r\n", media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="partners-and-logins-{day}.csv"'})
+
+
+# --- Audit Trail (phase 4) ------------------------------------------------------------
+
+AUDIT_PAGE_MAX = 200
+# Fields every row change touches, left out of "what changed".
+UNINTERESTING = frozenset({"updated_at"})
+
+
+class Change(BaseModel):
+    field: str
+    before: Any = None
+    after: Any = None
+
+
+class AuditRow(BaseModel):
+    id: str
+    at: UtcDateTime
+    actor: Person | None
+    action: str
+    entity_type: str
+    entity_id: str
+    # The record's name where it has one (a user, a partner, a candidate).
+    record: str | None
+    # A row change: the fields that changed. Anything else (a sign-in, an
+    # export, an alert): what it recorded.
+    changes: list[Change]
+    detail: dict[str, Any] | None
+    ip: str | None
+    request_id: str | None
+
+
+def _changes(action: str, before: dict | None, after: dict | None) -> list[dict[str, Any]]:
+    if action in ("create", "update", "delete", "restore"):
+        before, after = before or {}, after or {}
+        fields = sorted((set(before) | set(after)) - UNINTERESTING)
+        if action == "update" or action == "restore":
+            fields = [f for f in fields if before.get(f) != after.get(f)]
+        else:
+            fields = [f for f in fields if (after if action == "create" else before).get(f) is not None]
+        return [{"field": f, "before": before.get(f), "after": after.get(f)} for f in fields]
+    return []
+
+
+def _record_names(db, rows) -> dict[tuple[str, str], str]:
+    wanted: dict[str, set[str]] = {"User": set(), "Partner": set(), "Candidate": set()}
+    for r in rows:
+        if r.entity_type in wanted:
+            wanted[r.entity_type].add(r.entity_id)
+        elif r.entity_id.startswith("user:"):
+            wanted["User"].add(r.entity_id[5:])
+        if r.actor_id:
+            wanted["User"].add(r.actor_id)
+    from app.models.candidate import Candidate  # noqa: PLC0415 (only here)
+
+    names: dict[tuple[str, str], str] = {}
+    for model, label in ((User, "User"), (Partner, "Partner"), (Candidate, "Candidate")):
+        ids = wanted[label]
+        if ids:
+            column = model.full_name if hasattr(model, "full_name") else model.name
+            for row_id, name in db.execute(select(model.id, column).where(model.id.in_(ids))).all():
+                names[(label, row_id)] = name
+    return names
+
+
+@router.get("/audit", response_model=Page[AuditRow])
+def audit_trail(
+    admin: Admin,
+    request: Request,
+    db: DbSession,
+    paging: Annotated[PageParams, Depends(page_params)],
+    actor_id: Annotated[str | None, Query(max_length=100)] = None,
+    action: Annotated[str | None, Query(max_length=100)] = None,
+    entity_type: Annotated[str | None, Query(max_length=100)] = None,
+    entity_id: Annotated[str | None, Query(max_length=200)] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    """Who did what and when, newest first. entity_id also matches the
+    security events about that account ("user:<id>"). The read is recorded
+    first, with its filters."""
+    filters = {k: v for k, v in {
+        "actor_id": actor_id, "action": action, "entity_type": entity_type, "entity_id": entity_id,
+        "date_from": date_from.isoformat() if date_from else None, "date_to": date_to.isoformat() if date_to else None,
+    }.items() if v}
+    security_event(request, "audit_trail_viewed", actor_id=admin.user_id, entity_type="AuditLog", entity_id=entity_id or "trail",
+                   detail={"view": "audit_trail", "filters": filters, "page": paging.page})
+    size = min(paging.page_size, AUDIT_PAGE_MAX)
+    rows = db.execute(
+        text("SELECT * FROM public.vertex_audit_trail(:actor, :action, :etype, :eid, :from, :to, :limit, :offset)"),
+        {
+            "actor": actor_id or None, "action": action or None, "etype": entity_type or None, "eid": entity_id or None,
+            "from": _start(date_from) if date_from else None, "to": _start(date_to + timedelta(days=1)) if date_to else None,
+            "limit": size, "offset": paging.offset,
+        },
+    ).all()
+    total = rows[0].total if rows else 0
+    names = _record_names(db, rows)
+    out = []
+    for r in rows:
+        key = ("User", r.entity_id[5:]) if r.entity_id.startswith("user:") else (r.entity_type, r.entity_id)
+        changes = _changes(r.action, r.before, r.after)
+        detail = None if changes or r.action in ("create", "update", "delete", "restore") else r.after
+        ip = (r.after or {}).get("ip") if isinstance(r.after, dict) else None
+        actor = {"id": r.actor_id, "full_name": names.get(("User", r.actor_id), "Deleted account")} if r.actor_id else None
+        out.append({
+            "id": r.id, "at": r.created_at, "actor": actor, "action": r.action, "entity_type": r.entity_type, "entity_id": r.entity_id,
+            "record": names.get(key), "changes": changes, "detail": detail, "ip": ip if isinstance(ip, str) else None,
+            "request_id": r.request_id,
+        })
+    return {"data": out, "total": total, "page": paging.page, "pageSize": size}
+
+
+# --- Security Overview (phase 5) ------------------------------------------------------
+
+
+class Window(BaseModel):
+    last_24h: int
+    last_7d: int
+
+
+class Overview(BaseModel):
+    open_alerts: dict[SecurityAlertSeverity, int]
+    alerts_raised: Window
+    failed_sign_ins: Window
+    sign_ins: Window
+    accounts_deactivated: Window
+    # Partner logins whose setup email is more than 7 days old, never used.
+    partner_logins_not_activated: int
+    new_partners: Window
+    new_partner_logins: Window
+    active_sessions: int
+    recent_alerts: list[AlertRow]
+
+
+class ChecksRun(BaseModel):
+    raised: int
+
+
+def _window(db, column, *where) -> dict[str, int]:
+    now = utc_now_ms()
+    count = lambda since: int(db.scalar(select(func.count()).where(column >= since, *where)) or 0)  # noqa: E731
+    return {"last_24h": count(now - timedelta(days=1)), "last_7d": count(now - timedelta(days=7))}
+
+
+@router.get("/overview", response_model=Data[Overview])
+def overview(_admin: Admin, db: DbSession):
+    now = utc_now_ms()
+    trail = {
+        label: dict(db.execute(text("SELECT action, n FROM public.vertex_monitoring_counts(:s)"), {"s": now - delta}).all())
+        for label, delta in (("last_24h", timedelta(days=1)), ("last_7d", timedelta(days=7)))
+    }
+    open_alerts = {s: 0 for s in SecurityAlertSeverity}
+    for level, n in db.execute(
+        select(SecurityAlert.severity, func.count()).where(SecurityAlert.status == SecurityAlertStatus.open).group_by(SecurityAlert.severity)
+    ).all():
+        open_alerts[level] = n
+    waiting = db.scalar(select(func.count()).select_from(User).where(
+        User.role == Role.partner, User.activated_at.is_(None), User.deactivated_at.is_(None),
+        User.created_at < now - timedelta(days=security_monitor.NOT_ACTIVATED_AFTER_DAYS),
+    ))
+    sessions = db.scalar(select(func.count(func.distinct(RefreshToken.family_id))).where(
+        RefreshToken.revoked_at.is_(None), RefreshToken.used_at.is_(None), RefreshToken.expires_at > now,
+    ))
+    recent = list(db.scalars(select(SecurityAlert).order_by(SecurityAlert.created_at.desc(), SecurityAlert.id.desc()).limit(10)))
+    from_trail = lambda action: {k: int(trail[k].get(action, 0)) for k in trail}  # noqa: E731
+    return {"data": {
+        "open_alerts": open_alerts,
+        "alerts_raised": _window(db, SecurityAlert.created_at),
+        "failed_sign_ins": from_trail("login_failed"),
+        "sign_ins": from_trail("login_succeeded"),
+        "accounts_deactivated": _window(db, User.deactivated_at),
+        "partner_logins_not_activated": int(waiting or 0),
+        "new_partners": _window(db, Partner.created_at),
+        "new_partner_logins": _window(db, User.created_at, User.role == Role.partner),
+        "active_sessions": int(sessions or 0),
+        "recent_alerts": _alert_rows(db, recent),
+    }}
+
+
+@router.post("/checks/run", response_model=Data[ChecksRun])
+def run_checks(_admin: Admin):
+    """The scheduled account checks, now. An account already raised this
+    month isn't raised again."""
+    return {"data": {"raised": security_monitor.run_account_checks()}}

@@ -2488,6 +2488,107 @@
     "title": "AuditEventIn",
     "type": "object"
    },
+   "AuditRow": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "actor": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "changes": {
+      "items": {
+       "$ref": "#/components/schemas/Change"
+      },
+      "title": "Changes",
+      "type": "array"
+     },
+     "detail": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Detail"
+     },
+     "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+     },
+     "entity_type": {
+      "title": "Entity Type",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ip"
+     },
+     "record": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Record"
+     },
+     "request_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Request Id"
+     }
+    },
+    "required": [
+     "id",
+     "at",
+     "actor",
+     "action",
+     "entity_type",
+     "entity_id",
+     "record",
+     "changes",
+     "detail",
+     "ip",
+     "request_id"
+    ],
+    "title": "AuditRow",
+    "type": "object"
+   },
    "Author": {
     "properties": {
      "full_name": {
@@ -3995,6 +4096,38 @@
     "title": "CaseWithEvents",
     "type": "object"
    },
+   "Change": {
+    "properties": {
+     "after": {
+      "title": "After"
+     },
+     "before": {
+      "title": "Before"
+     },
+     "field": {
+      "title": "Field",
+      "type": "string"
+     }
+    },
+    "required": [
+     "field"
+    ],
+    "title": "Change",
+    "type": "object"
+   },
+   "ChecksRun": {
+    "properties": {
+     "raised": {
+      "title": "Raised",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "raised"
+    ],
+    "title": "ChecksRun",
+    "type": "object"
+   },
    "ClaimIn": {
     "properties": {
      "invite": {
@@ -5264,6 +5397,18 @@
     "title": "Data[CasePaymentRow]",
     "type": "object"
    },
+   "Data_ChecksRun_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ChecksRun"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ChecksRun]",
+    "type": "object"
+   },
    "Data_Claimed_": {
     "properties": {
      "data": {
@@ -5538,6 +5683,18 @@
      "data"
     ],
     "title": "Data[Overturned]",
+    "type": "object"
+   },
+   "Data_Overview_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Overview"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Overview]",
     "type": "object"
    },
    "Data_OwnProfile_": {
@@ -11492,6 +11649,67 @@
     "title": "Overturned",
     "type": "object"
    },
+   "Overview": {
+    "properties": {
+     "accounts_deactivated": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "active_sessions": {
+      "title": "Active Sessions",
+      "type": "integer"
+     },
+     "alerts_raised": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "failed_sign_ins": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "new_partner_logins": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "new_partners": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "open_alerts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "$ref": "#/components/schemas/SecurityAlertSeverity"
+      },
+      "title": "Open Alerts",
+      "type": "object"
+     },
+     "partner_logins_not_activated": {
+      "title": "Partner Logins Not Activated",
+      "type": "integer"
+     },
+     "recent_alerts": {
+      "items": {
+       "$ref": "#/components/schemas/AlertRow"
+      },
+      "title": "Recent Alerts",
+      "type": "array"
+     },
+     "sign_ins": {
+      "$ref": "#/components/schemas/Window"
+     }
+    },
+    "required": [
+     "open_alerts",
+     "alerts_raised",
+     "failed_sign_ins",
+     "sign_ins",
+     "accounts_deactivated",
+     "partner_logins_not_activated",
+     "new_partners",
+     "new_partner_logins",
+     "active_sessions",
+     "recent_alerts"
+    ],
+    "title": "Overview",
+    "type": "object"
+   },
    "OwnCandidate": {
     "properties": {
      "created_at": {
@@ -11801,6 +12019,37 @@
      "pageSize"
     ],
     "title": "Page[AlertRow]",
+    "type": "object"
+   },
+   "Page_AuditRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AuditRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[AuditRow]",
     "type": "object"
    },
    "Page_PartnerLoginRow_": {
@@ -17947,6 +18196,24 @@
      "activated_at"
     ],
     "title": "Welcome",
+    "type": "object"
+   },
+   "Window": {
+    "properties": {
+     "last_24h": {
+      "title": "Last 24H",
+      "type": "integer"
+     },
+     "last_7d": {
+      "title": "Last 7D",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "last_24h",
+     "last_7d"
+    ],
+    "title": "Window",
     "type": "object"
    },
    "Written": {
@@ -27714,6 +27981,220 @@
      }
     ],
     "summary": "Review Alert",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/audit": {
+   "get": {
+    "description": "Who did what and when, newest first. entity_id also matches the\nsecurity events about that account (\"user:<id>\"). The read is recorded\nfirst, with its filters.",
+    "operationId": "audit_trail_api_v1_monitoring_audit_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "actor_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Actor Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "action",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Action"
+      }
+     },
+     {
+      "in": "query",
+      "name": "entity_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Type"
+      }
+     },
+     {
+      "in": "query",
+      "name": "entity_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_AuditRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Audit Trail",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/checks/run": {
+   "post": {
+    "description": "The scheduled account checks, now. An account already raised this\nmonth isn't raised again.",
+    "operationId": "run_checks_api_v1_monitoring_checks_run_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_ChecksRun_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Run Checks",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/overview": {
+   "get": {
+    "operationId": "overview_api_v1_monitoring_overview_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Overview_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Overview",
     "tags": [
      "admin monitoring"
     ]

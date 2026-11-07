@@ -195,6 +195,24 @@ BEGIN
     REVOKE ALL ON FUNCTION public.vertex_sign_in_history(text, integer) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_sign_in_history(text, integer) TO vertex_api;
   END IF;
+  -- Admin monitoring (migration 0015): the Audit Trail page, and the counts
+  -- the Security Overview and the account checks need.
+  IF to_regprocedure('public.vertex_audit_trail(text, text, text, text, timestamp, timestamp, integer, integer)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_audit_trail(text, text, text, text, timestamp, timestamp, integer, integer) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_audit_trail(text, text, text, text, timestamp, timestamp, integer, integer) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_monitoring_counts(timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_monitoring_counts(timestamp) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_monitoring_counts(timestamp) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_sign_in_accounts_from(text, timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_sign_in_accounts_from(text, timestamp) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_sign_in_accounts_from(text, timestamp) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_new_address_after_reset(text, text, timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_new_address_after_reset(text, text, timestamp) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_new_address_after_reset(text, text, timestamp) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api;
   END IF;

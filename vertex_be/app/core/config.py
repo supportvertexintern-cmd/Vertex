@@ -95,6 +95,9 @@ class Settings(BaseSettings):
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None
+    # Admin monitoring's scheduled account checks (security_monitor.
+    # run_account_checks): every this many minutes; 0 = off (tests).
+    MONITOR_CHECKS_INTERVAL_MINUTES: int = 360
     # Shared rate-limit counters (auth hardening plan, workstream B):
     # redis://:<password>@redis:6379/0 on the stack. Unset = each process
     # keeps its own (tests, a bare uvicorn).

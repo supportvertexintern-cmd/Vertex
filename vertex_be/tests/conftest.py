@@ -37,6 +37,8 @@ def _test_session_keys() -> None:
 
 
 _test_session_keys()
+# No scheduled account checks in tests: they call run_account_checks().
+os.environ["MONITOR_CHECKS_INTERVAL_MINUTES"] = "0"
 
 from collections.abc import Iterator  # noqa: E402
 

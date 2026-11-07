@@ -148,6 +148,10 @@ def test_only_the_api_may_ask_whether_a_session_is_live(conn):
         "SELECT public.vertex_security_count('access_denied', 'actor_id', 'u', now()::timestamp)",  # R7a
         "SELECT count(*) FROM public.vertex_last_sign_ins(ARRAY['u'])",  # admin monitoring (0012)
         "SELECT count(*) FROM public.vertex_sign_in_history('u', 10)",
+        "SELECT count(*) FROM public.vertex_audit_trail(NULL, NULL, NULL, 'u', NULL, NULL, 10, 0)",  # 0015
+        "SELECT count(*) FROM public.vertex_monitoring_counts(now()::timestamp)",
+        "SELECT public.vertex_sign_in_accounts_from('ip', now()::timestamp)",
+        "SELECT public.vertex_new_address_after_reset('u', 'ip', now()::timestamp)",
     ],
 )
 def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
@@ -157,7 +161,8 @@ def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
     assert run_as(conn, "vertex_api", ask) is None
     assert run_as(conn, "vertex_api", 'SELECT before FROM "AuditLog"') == INSUFFICIENT_PRIVILEGE
     assert run_as(conn, "vertex_readonly", ask) == INSUFFICIENT_PRIVILEGE
-    for name in ("vertex_case_trail", "vertex_rejection_dates", "vertex_security_count", "vertex_last_sign_ins", "vertex_sign_in_history"):
+    for name in ("vertex_case_trail", "vertex_rejection_dates", "vertex_security_count", "vertex_last_sign_ins", "vertex_sign_in_history",
+                 "vertex_audit_trail", "vertex_monitoring_counts", "vertex_sign_in_accounts_from", "vertex_new_address_after_reset"):
         owner, public_can = conn.execute(
             text("SELECT pg_get_userbyid(proowner), has_function_privilege('public', oid, 'EXECUTE') FROM pg_proc WHERE proname = :n"), {"n": name}
         ).one()
