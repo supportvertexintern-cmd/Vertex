@@ -1,6 +1,6 @@
-"""partner drafts and stage-based payments (duncmv/vertex sync)
+"""partner drafts and stage-based payments (the upstream web app sync)
 
-The Next.js app now carries the upstream work from duncmv/vertex (Aug 24 to
+The Next.js app now carries the upstream web app work (Aug 24 to
 Oct 16), which needs two schema changes:
 
 - PartnerCandidate draft audit: drafted_at, drafted_by and submitted_by
