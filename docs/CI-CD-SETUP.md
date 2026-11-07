@@ -1,8 +1,12 @@
 # CI/CD setup on GitHub Free
 
-Single developer, private repository `supportvertexintern-cmd/Vertex` on GitHub Free, three long-lived branches
+Single developer, repository `supportvertexintern-cmd/Vertex` on GitHub Free, three long-lived branches
 (`dev` → `staging` → `main`). Everything here costs $0: GitHub-hosted runners
 use the 2,000 free minutes; the two self-hosted runners cost nothing.
+
+**The repository must be private** (§A): `docs/security/` describes known exceptions, and a
+self-hosted runner on a public repository is a risk of its own. On 2026-11-07 it was found
+**public**, readable without signing in; only an admin can change that.
 
 ## What runs when
 
@@ -10,7 +14,7 @@ use the 2,000 free minutes; the two self-hosted runners cost nothing.
 |---|---|---|---|
 | Pull request into `dev` | `ci.yml` | GitHub-hosted | Secret scan + only the suites whose folders changed; image builds and Trivy only if a Dockerfile, compose file, workflow or `.trivyignore.yaml` changed |
 | Pull request into `staging` or `main`, or a manual run | `ci.yml` | GitHub-hosted | Everything: secret scan, backend, Flutter, Next.js, end-to-end journeys, image builds + Trivy |
-| Every push to `dev`, or Actions → **Promote** → Run workflow from `dev` (→ `staging`) or `staging` (→ `main`) | `promote.yml` | GitHub-hosted | Full CI on that exact commit, then a fast-forward of the next branch (no merge commit, so the branches stay identical), then `build.yml` on it |
+| Every push to `dev`, or Actions → **Promote** → Run workflow from `dev` (→ `staging`) or `staging` (→ `main`) | `promote.yml` | GitHub-hosted | Full CI on that exact commit (a second full run: the pull request's ran on the branch's own commit, not the merge, and PRs into `dev` run only the changed suites), then a fast-forward of the next branch (no merge commit, so the branches stay identical). For `staging`: the source's images copied to `staging-<sha>`, not rebuilt, and **Deploy local stacks** dispatched; `build.yml` runs on the target only when the source has no build for that commit (a docs-only push) |
 | Merge into `dev`, `staging` or `main` | `build.yml` | GitHub-hosted | Four images (backend, Flutter web, Next.js, MinIO) pushed to GHCR as `<branch>-<sha>` and `<branch>` |
 | Build finished on `dev` / `staging` | `deploy-local.yml` | `vertex-host` (Windows PC) | Local `vertex-dev` / `vertex-staging` stack updated via `vertex_be/deploy/deploy.sh` |
 | You click "Run workflow" on `main` in **Deploy local stacks** | `deploy-local.yml` | `vertex-host` | Local `vertex-main` stack updated (never automatic) |
@@ -49,10 +53,13 @@ Merged into the existing workflows rather than replacing them:
 ### C. GHCR packages (after the first `build.yml` run)
 - [ ] For each package `vertex-backend`, `vertex-nextjs`, `vertex-flutter-web`, `vertex-minio`: Package settings → visibility **private**, "Manage Actions access" → add the repository with **Write** (needed by the clean-up workflow)
 - [ ] The former repository's own packages: nothing pulls them any more (every workflow and compose file uses `ghcr.io/supportvertexintern-cmd/`); delete them when that repository is retired
+- [ ] Archive the former repository (Settings → Archive), after §D has moved the runner off it. Every branch's content was confirmed in this repository on 2026-11-07, and a bundle of the old local clone is in `D:\VertexData\archive\old-clone-2026-11-07`
 
 ### D. Windows runner for local stacks
-- [ ] On the PC: remove the runner from the former repository (`config.cmd remove`). **Still open on 2026-11-07:** the runner was registered there, so this repository's deploy jobs stayed queued
+- [ ] First cancel any queued **Deploy local stacks** runs (Actions → the run → Cancel workflow): once the runner connects it takes the oldest first, which can roll a stack back to an older commit
+- [ ] On the PC: remove the runner from the former repository (`config.cmd remove`, or delete `.runner`, `.credentials` and `.credentials_rsaparams` if that repository is gone). **Still open on 2026-11-07:** the runner was registered there, so this repository's deploy jobs stayed queued
 - [ ] Settings → Actions → Runners → New self-hosted runner (Windows) → register with label `vertex-host`, run as a service ([vertex_be/deploy/README.md](../vertex_be/deploy/README.md))
+- [ ] Make it recover by itself. On 2026-11-07 a network drop left it running but no longer polling, and it needed a restart by hand. As a service: `services.msc` → the runner → Startup type **Automatic (Delayed Start)**; Recovery: restart the service on the first, second and later failures, after 1 minute, resetting the count after 1 day. From an elevated PowerShell: `sc.exe failure "<service name>" reset= 86400 actions= restart/60000/restart/60000/restart/60000`. Confirm by stopping the runner process: it should be back within about a minute
 - [ ] `deploy-local.yml` is started by `workflow_run`, which GitHub only honours once the file is on the default branch (`main`): promote this change to `main` first. Staging's deploy doesn't wait for that: Promote dispatches it
 - [ ] Merge something into `dev` and confirm `deploy-local.yml` updates `vertex-dev`
 
