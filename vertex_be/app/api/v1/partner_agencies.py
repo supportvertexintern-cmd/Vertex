@@ -205,6 +205,9 @@ class PartnerCandidateRef(BaseModel):
 
 class PartnerDetail(PartnerRow):
     candidates: list[PartnerCandidateRef]
+    # When the partner's login first signed in (its activation); null while
+    # it never has, or there's no login.
+    login_activated_at: UtcDateTime | None = None
 
 
 def _columns(partner: Partner) -> dict[str, object]:
@@ -275,7 +278,9 @@ def get_partner(partner_id: str, db: DbSession, user: DetailReader):
     if user.role not in PARTNER_MANAGER_ROLES:
         query = query.where(candidate_scope(db, user))
     candidates = [PartnerCandidateRef.model_validate(c) for c in db.scalars(query)]
-    return Data(data=PartnerDetail.model_validate(_columns(partner) | {"candidates": candidates}))
+    login = db.get(User, partner.user_id) if partner.user_id else None
+    activated = login.activated_at if login else None
+    return Data(data=PartnerDetail.model_validate(_columns(partner) | {"candidates": candidates, "login_activated_at": activated}))
 
 
 @router.post("/partners", status_code=status.HTTP_201_CREATED, response_model=Data[PartnerRow])
@@ -376,3 +381,29 @@ def reset_password(partner_id: str, _user: Manager, db: AuditedDb):
     db.commit()
     return {"data": {"email": login.email}, "notify": deliver(db, [_setup_email(login)])}
 
+
+# --- first-time welcome (owner's requirement 2026-11-07) ---------------------
+
+
+class Welcome(BaseModel):
+    show: bool
+    agency_name: str | None
+    activated_at: UtcDateTime | None
+
+
+@router.post("/partner/welcome", response_model=Data[Welcome])
+def partner_welcome(user: Annotated[AuthUser, Depends(require_role(Role.partner))], db: AuditedDb):
+    """The partner portal's first-time welcome: show is true once, the first
+    time the portal asks after the login was activated (its first sign-in),
+    and false from then on. The row is locked, so two requests at once can't
+    both get it. The agency's own status and MOU are left as they are."""
+    login = db.scalar(select(User).where(User.id == user.user_id).with_for_update())
+    if login is None:
+        raise ApiError(404, "not_found", "Account not found.")
+    show = login.activated_at is not None and login.welcomed_at is None
+    if show:
+        login.welcomed_at = utc_now_ms()
+    agency = db.scalar(select(Partner.name).where(Partner.user_id == login.id))
+    activated_at = login.activated_at
+    db.commit()
+    return {"data": {"show": show, "agency_name": agency, "activated_at": activated_at}}

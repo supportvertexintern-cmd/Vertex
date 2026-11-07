@@ -29,6 +29,7 @@ import bcrypt
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.audit import set_audit_actor
 from app.core.clock import utc_now_ms
 from app.core.tokens import sign_session_token
 from app.models.enums import Role
@@ -89,7 +90,12 @@ def _access_token(user: User, family_id: str) -> str:
 
 
 def start_session(db: Session, user: User, user_agent: str | None) -> IssuedSession:
-    """Starts a new session (sign-in) and commits it."""
+    """Starts a new session (sign-in) and commits it. A partner's first one
+    activates the login (activated_at), in the same commit."""
+    if user.role is Role.partner and user.activated_at is None:
+        # Sign-in runs without an audit actor: this change is the partner's own.
+        set_audit_actor(db, user.id)
+        user.activated_at = utc_now_ms()
     family_id = str(uuid.uuid4())
     raw = secrets.token_urlsafe(32)
     expires_at = _now() + timedelta(seconds=session_lifetime_seconds(user.role))

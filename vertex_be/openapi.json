@@ -5278,6 +5278,18 @@
     "title": "Data[Updated]",
     "type": "object"
    },
+   "Data_Welcome_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Welcome"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Welcome]",
+    "type": "object"
+   },
    "Data_dict_str__Any__": {
     "properties": {
      "data": {
@@ -11705,6 +11717,17 @@
       "title": "Id",
       "type": "string"
      },
+     "login_activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Login Activated At"
+     },
      "mou_signed_at": {
       "anyOf": [
        {
@@ -16699,6 +16722,43 @@
     ],
     "title": "VerificationStatus",
     "type": "string"
+   },
+   "Welcome": {
+    "properties": {
+     "activated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activated At"
+     },
+     "agency_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Agency Name"
+     },
+     "show": {
+      "title": "Show",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "show",
+     "agency_name",
+     "activated_at"
+    ],
+    "title": "Welcome",
+    "type": "object"
    },
    "Written": {
     "properties": {
@@ -26666,6 +26726,33 @@
     "summary": "Submit Draft",
     "tags": [
      "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/partner/welcome": {
+   "post": {
+    "description": "The partner portal's first-time welcome: show is true once, the first\ntime the portal asks after the login was activated (its first sign-in),\nand false from then on. The row is locked, so two requests at once can't\nboth get it. The agency's own status and MOU are left as they are.",
+    "operationId": "partner_welcome_api_v1_partner_welcome_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Welcome_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Welcome",
+    "tags": [
+     "users and sessions"
     ]
    }
   },

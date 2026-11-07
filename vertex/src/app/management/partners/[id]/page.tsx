@@ -45,6 +45,8 @@ interface PartnerDetail {
   mou_signed_at: string | null;
   notes: string | null;
   user_id: string | null;
+  // The login's first sign-in, which activated it; null until then.
+  login_activated_at?: string | null;
   candidates: SourcedCandidateRow[];
 }
 
@@ -273,7 +275,11 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
         <div>
           <h2 className="text-xs font-semibold text-midnight-900/50 uppercase tracking-wider mb-1">Partner Login</h2>
           <p className="text-sm text-midnight-900/60">
-            {partner.user_id ? "This partner can log in and submit candidates through its own portal." : "No login yet — this partner can't submit candidates until one is created."}
+            {!partner.user_id
+              ? "No login yet — this partner can't submit candidates until one is created."
+              : partner.login_activated_at
+                ? `Account active since ${new Date(partner.login_activated_at).toLocaleString()}. This partner can log in and submit candidates through its own portal.`
+                : "Login created — the account becomes active at the partner's first sign-in, after they set their password from the setup email."}
           </p>
         </div>
         {!partner.user_id ? (
