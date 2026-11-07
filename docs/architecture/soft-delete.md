@@ -14,6 +14,13 @@ The code is `vertex_be/app/db/soft_delete.py`. Routes keep calling `db.delete()`
 
 **This last choice has a known consequence.** Deleted personal data, including passports and other stored files, stays on disk with no time limit and no way to erase it through the app. If a privacy law, contract or erasure request needs it gone, a retention rule or an admin purge has to be added first. The owner should check this with whoever handles compliance.
 
+**Owner's decision, 2026-11-07:** deleted personal data must not stay indefinitely, in the database or in backups, and the retention period waits for legal. Before an erase job is built, legal also has to answer this: the audit trail (`AuditLog`) holds a full copy of every deleted row, in the delete's `before` snapshot and in earlier updates. It's append-only, and database triggers refuse any change to it. Erasing only the rows and their files would leave those copies. So the decision needs to cover both:
+
+1. how long a deleted record and its files are kept before they're erased, and
+2. whether the audit trail's copies of an erased record must be blanked too, keeping who did what and when. That would mean a narrow, audited exception to its append-only rule.
+
+Backups then age the erased data out: dev keeps its newest 4, and the off-site policy keeps up to 6 months (docs/security/backup-recovery.md §5, §9).
+
 ## What happens on a delete
 
 | Foreign key rule | Before | Now |
