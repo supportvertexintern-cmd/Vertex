@@ -235,7 +235,8 @@ docker exec -it vertex-dev-minio-1 sh -c   'export MC_CONFIG_DIR=/tmp/.mc; mc al
 
 ## Edge proxy and Redis (auth hardening, workstream B)
 
-Next.js is no longer published. The `edge` service (Caddy, `deploy/edge/Caddyfile`)
+Next.js is no longer published. The `edge` service (Caddy, `deploy/edge/Caddyfile`, which
+`deploy.sh` copies to `D:/VertexData/edge/<project>/` and mounts from there)
 is published on `NEXTJS_PORT` instead and overwrites `X-Real-IP` and
 `X-Forwarded-For` with the address that actually connected; Next.js reads only
 `X-Real-IP`, and only because the stack sets `TRUST_PROXY_HEADERS=true`
