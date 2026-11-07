@@ -23,7 +23,7 @@ class AuditLog(Base):
     id: Mapped[str] = pk()
     entity_type: Mapped[str]
     entity_id: Mapped[str]
-    action: Mapped[str]  # create | update | delete | verify | approve
+    action: Mapped[str]  # create | update | delete | restore | verify | approve
     actor_id: Mapped[str | None] = mapped_column(index=True)
     before: Mapped[dict[str, Any] | None]
     after: Mapped[dict[str, Any] | None]

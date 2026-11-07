@@ -5084,6 +5084,18 @@
     "title": "Data[ReportRow]",
     "type": "object"
    },
+   "Data_Restored_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Restored"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Restored]",
+    "type": "object"
+   },
    "Data_RetentionRow_": {
     "properties": {
      "data": {
@@ -5390,6 +5402,22 @@
      "data"
     ],
     "title": "Data[list[CountryWithRegion]]",
+    "type": "object"
+   },
+   "Data_list_DeletedRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/DeletedRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[DeletedRow]]",
     "type": "object"
    },
    "Data_list_DocumentTypeOut__": {
@@ -5789,6 +5817,41 @@
      "id"
     ],
     "title": "Deleted",
+    "type": "object"
+   },
+   "DeletedRow": {
+    "properties": {
+     "deleted_at": {
+      "title": "Deleted At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "table": {
+      "title": "Table",
+      "type": "string"
+     }
+    },
+    "required": [
+     "table",
+     "id",
+     "label",
+     "deleted_at"
+    ],
+    "title": "DeletedRow",
     "type": "object"
    },
    "DocumentRow": {
@@ -14219,6 +14282,29 @@
      "token"
     ],
     "title": "ResetIn",
+    "type": "object"
+   },
+   "Restored": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "restored": {
+      "title": "Restored",
+      "type": "integer"
+     },
+     "table": {
+      "title": "Table",
+      "type": "string"
+     }
+    },
+    "required": [
+     "table",
+     "id",
+     "restored"
+    ],
+    "title": "Restored",
     "type": "object"
    },
    "RetentionIn": {
@@ -23208,6 +23294,130 @@
     "summary": "Replace Requirements",
     "tags": [
      "reference data"
+    ]
+   }
+  },
+  "/api/v1/deleted": {
+   "get": {
+    "description": "The most recently deleted records, newest first, of one table or all.",
+    "operationId": "list_deleted_api_v1_deleted_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "table",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Table"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "maximum": 200,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_DeletedRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Deleted",
+    "tags": [
+     "deleted records"
+    ]
+   }
+  },
+  "/api/v1/deleted/{table}/{row_id}/restore": {
+   "post": {
+    "description": "The record and everything deleted with it come back, and the links its\ndelete cleared are put back where they're still empty. Refused if a record\nit needs is still deleted, or a unique value has been taken since. A user's\nsessions ended for good, so they sign in again. Its stored files were kept.",
+    "operationId": "restore_deleted_api_v1_deleted__table___row_id__restore_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "table",
+      "required": true,
+      "schema": {
+       "title": "Table",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "row_id",
+      "required": true,
+      "schema": {
+       "title": "Row Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Restored_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Restore Deleted",
+    "tags": [
+     "deleted records"
     ]
    }
   },

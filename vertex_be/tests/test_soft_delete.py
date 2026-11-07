@@ -217,4 +217,4 @@ def test_a_backup_export_leaves_deleted_rows_out(db, world):
 def test_the_columns_stay_out_of_every_answer():
     schemas = app.openapi()["components"]["schemas"]
     leaked = [name for name, s in schemas.items() if SOFT_DELETE_COLUMNS & set(s.get("properties", {}))]
-    assert leaked == []
+    assert leaked == ["DeletedRow"]  # the admin's list of deleted records, its purpose
