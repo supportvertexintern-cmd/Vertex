@@ -3,8 +3,9 @@
 #   powershell -ExecutionPolicy Bypass -File deploy\backup\install-schedule.ps1
 #
 # Owner's decision (2026-11-06): only dev is backed up, daily, with a monthly
-# restore drill. The main and staging stacks were removed on purpose; their
-# last backups stay in D:\VertexDataackups and nothing here touches them.
+# restore drill. The main stack was removed on purpose, and staging, back since
+# 2026-11-07, can be rebuilt from its seed. Their last backups stay in
+# D:\VertexData\backups and nothing here touches them.
 #
 # Tasks run as this Windows account, "only when logged on" (like the
 # GitHub Actions runner): the backup key is DPAPI-protected for this

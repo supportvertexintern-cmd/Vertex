@@ -16,7 +16,7 @@ from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import CountryDocumentRequirement, DocumentRequirementType, Sector, SystemSetting
 from app.services.documents import PAYMENT_RECEIPT_TYPE_PREFIX
 from app.services.sessions import check_password
-from scripts.seed import demo, e2e, partners, reference, test_accounts
+from scripts.seed import demo, e2e, first_admin, partners, reference, test_accounts
 
 
 def count(db, model) -> int:
@@ -91,6 +91,15 @@ def test_the_test_accounts_sign_in_and_a_rerun_adds_nothing(seeded):
     assert (partner.status, partner.mou_status) == (PartnerStatus.active, MouStatus.signed)
     inhouse = seeded.scalar(select(User.id).where(User.email == "inhouse@test.local"))
     assert seeded.scalar(select(InhouseCountryAssignment).where(InhouseCountryAssignment.inhouse_supervisor_id == inhouse))
+
+
+def test_the_first_admin_signs_in_and_a_rerun_keeps_its_password(db):
+    admin = first_admin.seed(db, "first@stack.test", "the-first-password")
+    assert admin.role == Role.admin and admin.email_verified
+    assert check_password("the-first-password", admin.password_hash)
+    again = first_admin.seed(db, "first@stack.test", "another-password")
+    assert again.id == admin.id and check_password("the-first-password", again.password_hash)
+    assert db.scalar(select(func.count()).select_from(User).where(User.email == "first@stack.test")) == 1
 
 
 def test_the_test_accounts_need_the_reference_data(db):
