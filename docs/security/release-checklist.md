@@ -77,10 +77,13 @@ These fixes are **not part of this release** (`283075f`). They follow in the nex
 
 ## 5. Evidence: commits and CI
 
+These runs were in the repository's former home, before it moved to
+`supportvertexintern-cmd/Vertex` on 2026-10-17; only their ids are kept.
+
 | Stack | Commit | CI | Deploy |
 |---|---|---|---|
-| dev | `283075f` | [CI 38182179972](https://github.com/BrookTeferi/Vertex/actions/runs/38182179972) ✅ | [Deploy 38182177134](https://github.com/BrookTeferi/Vertex/actions/runs/38182177134) ✅ |
-| staging | `283075f` | [CI 38183729774](https://github.com/BrookTeferi/Vertex/actions/runs/38183729774) ✅ | [Deploy 38183727788](https://github.com/BrookTeferi/Vertex/actions/runs/38183727788) ✅ |
+| dev | `283075f` | CI run 38182179972 ✅ | Deploy run 38182177134 ✅ |
+| staging | `283075f` | CI run 38183729774 ✅ | Deploy run 38183727788 ✅ |
 
 **Stack verification on `283075f`:**
 

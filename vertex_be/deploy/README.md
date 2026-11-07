@@ -143,7 +143,7 @@ Re-run a previous *Deploy* run in the Actions tab, or from Git Bash on this PC:
 
 ```sh
 cd vertex_be
-docker login ghcr.io -u BrookTeferi     # once; PAT with read:packages
+docker login ghcr.io -u <your GitHub username>     # once; PAT with read:packages
 ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging staging-<full commit sha>
 ```
 
