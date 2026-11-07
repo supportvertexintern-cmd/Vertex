@@ -4,20 +4,32 @@ name: Promote
 # without a merge commit, so dev, staging and main stay identical instead of
 # collecting "N commits behind" merge commits:
 #
-#   Actions → Promote → Run workflow from `dev`      → staging = dev
-#   Actions → Promote → Run workflow from `staging`  → main    = staging
+#   every push to `dev` (a merged PR)                → staging = dev, deployed
+#   Actions → Promote → Run workflow from `dev`      → the same, by hand
+#   Actions → Promote → Run workflow from `staging`  → main = staging
+#
+# Owner's decision, 2026-11-07: staging gets each tested dev commit through
+# CI/CD, never through its own PRs, and every environment runs the same images.
 #
 # 1. Full CI (ci.yml, everything a PR into staging/main runs, end-to-end
 #    journeys and image scans included) on that exact commit.
 # 2. Fast-forward only: if the target has anything the source doesn't, it
 #    stops instead of overwriting. Changes still enter through dev.
-# 3. Starts build.yml on the target (a push made with GITHUB_TOKEN doesn't
-#    trigger workflows by itself); deploy-local.yml follows from that as
-#    usual. Production stays a separate, manual production.yml run.
+# 3. The images CI-tested on the source are copied to the target's tags
+#    (<target>-<sha>, <target>), not rebuilt, so staging runs exactly what dev
+#    ran. If the source has none for this commit (a docs-only push, which
+#    build.yml skips), build.yml runs on the target instead.
+# 4. Staging only: deploy-local.yml deploys it on this PC and runs the stack
+#    check. main is never deployed from here: vertex-main is by hand, and
+#    production is a separate, manual production.yml run with its own guards.
 
 on:
+  push:
+    branches: [dev]
   workflow_dispatch:
 
+# Pushes in quick succession queue; the newest pending one replaces an older
+# pending one, and the fast-forward check keeps the order right.
 concurrency:
   group: promote-${{ github.ref_name }}
   cancel-in-progress: false
@@ -55,7 +67,9 @@ jobs:
     permissions:
       contents: write
       actions: write
+      packages: write
     env:
+      SOURCE: ${{ github.ref_name }}
       TARGET: ${{ needs.target.outputs.branch }}
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -67,18 +81,66 @@ jobs:
         run: |
           git fetch origin "$TARGET"
           if ! git merge-base --is-ancestor "origin/$TARGET" "$GITHUB_SHA"; then
-            echo "$TARGET has commits that ${{ github.ref_name }} doesn't. Bring them into dev first; nothing was changed." >&2
+            echo "$TARGET has commits that $SOURCE doesn't. Bring them into dev first; nothing was changed." >&2
             exit 1
           fi
           if [ "$(git rev-parse "origin/$TARGET")" = "$GITHUB_SHA" ]; then
             echo "$TARGET is already at ${GITHUB_SHA::7}; nothing to promote."
-            echo "SKIP_BUILD=1" >> "$GITHUB_ENV"
+            echo "SKIP=1" >> "$GITHUB_ENV"
             exit 0
           fi
           # A plain (non-force) push: refused unless it's a fast-forward.
           git push origin "$GITHUB_SHA:refs/heads/$TARGET"
           echo "### Promoted \`${GITHUB_SHA::7}\` to **$TARGET**" >> "$GITHUB_STEP_SUMMARY"
 
+      # build.yml started on the same push as this run and is usually long
+      # done by now (CI takes longer); wait for it rather than guess.
+      - name: Find ${{ github.ref_name }}'s images for this commit
+        if: env.SKIP != '1'
+        run: |
+          for i in $(seq 1 60); do
+            run=$(gh run list --workflow build.yml --branch "$SOURCE" --commit "$GITHUB_SHA" --event push --limit 1 \
+              --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"')
+            case "$run" in
+              "completed success") echo "IMAGES=copy" >> "$GITHUB_ENV"; exit 0 ;;
+              "completed "*) echo "build.yml failed on $SOURCE for ${GITHUB_SHA::7}: $run" >&2; exit 1 ;;
+              "")
+                # build.yml skips docs-only pushes; give it 3 minutes to appear.
+                if [ "$i" -ge 6 ]; then
+                  echo "No $SOURCE build for this commit (docs only?): building $TARGET instead."
+                  echo "IMAGES=build" >> "$GITHUB_ENV"
+                  exit 0
+                fi ;;
+            esac
+            sleep 30
+          done
+          echo "build.yml on $SOURCE didn't finish within 30 minutes" >&2
+          exit 1
+
+      - name: Log in to GHCR
+        if: env.IMAGES == 'copy'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # A registry-side copy: the same manifests under the target's tags.
+      - name: Copy the tested images to ${{ needs.target.outputs.branch }}
+        if: env.IMAGES == 'copy'
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          for image in vertex-backend vertex-flutter-web vertex-nextjs vertex-minio; do
+            repo="ghcr.io/$owner/$image"
+            docker buildx imagetools create -t "$repo:$TARGET-$GITHUB_SHA" -t "$repo:$TARGET" "$repo:$SOURCE-$GITHUB_SHA"
+          done
+          echo "Images: \`$SOURCE-${GITHUB_SHA::7}\` copied to \`$TARGET-${GITHUB_SHA::7}\`, not rebuilt." >> "$GITHUB_STEP_SUMMARY"
+
+      # deploy-local.yml follows a target build by itself (workflow_run).
       - name: Build images for ${{ needs.target.outputs.branch }}
-        if: env.SKIP_BUILD != '1'
+        if: env.IMAGES == 'build'
         run: gh workflow run build.yml --ref "$TARGET"
+
+      - name: Deploy staging
+        if: env.IMAGES == 'copy' && env.TARGET == 'staging'
+        run: gh workflow run deploy-local.yml --ref "$TARGET"

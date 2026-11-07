@@ -4,18 +4,19 @@
 
 | Branch    | Environment       | On push                                                                 |
 |-----------|-------------------|-------------------------------------------------------------------------|
-| `dev`     | `vertex-dev`      | build & push all images to GHCR → auto-deploy to this PC                |
-| `staging` | `vertex-staging`  | build & push all images to GHCR → auto-deploy to this PC                |
-
-The **Deploy local stacks** workflow is switched off for now, so `dev` and `staging` are also
-deployed by hand with `deploy.sh`, from a clean checkout of the commit.
-
-| Branch    | Environment       | On push                                                                 |
-|-----------|-------------------|-------------------------------------------------------------------------|
+| `dev`     | `vertex-dev`      | build & push all images to GHCR → auto-deploy to this PC → **Promote**  |
+| `staging` | `vertex-staging`  | moved by **Promote** only; dev's tested images copied → auto-deploy      |
 | `main`    | `vertex-main`     | build & push only. Deploys **by hand**: Actions → Deploy local stacks → Run workflow → `main` |
 
 Work flows `feature/*` → PR into `dev` → **Promote** `dev` → `staging` → **Promote** `staging` → `main`
 (Actions → Promote: full CI, then a fast-forward, so the three branches stay identical; never merge back).
+
+**Owner's decision, 2026-11-07:** `dev` → `staging` is automatic. Every push to `dev` runs
+Promote: the full CI on that commit, `staging` fast-forwarded to it, dev's images for it copied
+to `staging-<sha>` (not rebuilt), then **Deploy local stacks** deploys vertex-staging and runs
+`verify-stack.sh`; a failed row fails the run. Never open a PR into `staging`: a commit there
+that `dev` lacks stops every later Promote. `staging` → `main` stays by hand, and production
+(`production.yml`) is manual, from `main`, by the allowed deployer, with a typed confirmation.
 CI runs on the PRs into those three branches, not again on the push, so merge
 only when **CI passed** is green. A direct push to `dev` or `staging` deploys
 without CI; the pre-commit hooks refuse commits on `main` and `staging`.
