@@ -27124,7 +27124,7 @@
     ],
     "summary": "List Accounts",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -27172,7 +27172,7 @@
     ],
     "summary": "Get Account",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -27334,7 +27334,7 @@
     ],
     "summary": "List Alerts",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -27361,7 +27361,7 @@
     ],
     "summary": "Alert Rules",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -27387,7 +27387,7 @@
     ],
     "summary": "Alert Summary",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
@@ -27445,7 +27445,7 @@
     ],
     "summary": "Review Alert",
     "tags": [
-     "users and sessions"
+     "admin monitoring"
     ]
    }
   },
