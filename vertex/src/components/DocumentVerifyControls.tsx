@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle, XCircle, Clock } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -22,6 +23,7 @@ export default function DocumentVerifyControls({
   documentId: string;
   initialStatus: string;
 }) {
+  const dialog = useDialog();
   const [status, setStatus] = useState(initialStatus);
   const [saving, setSaving] = useState(false);
 
@@ -36,7 +38,7 @@ export default function DocumentVerifyControls({
       if (!res.ok) throw new Error("Failed to update verification status.");
       setStatus(verification_status);
     } catch {
-      alert("Couldn't update verification status.");
+      void dialog.alert("Couldn't update verification status.");
     } finally {
       setSaving(false);
     }

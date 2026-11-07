@@ -16,6 +16,7 @@ import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
 import { CheckCircle, WarningCircle, CircleNotch, PencilSimple } from "@phosphor-icons/react";
 import { describeApiError } from "@/lib/apiError";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -179,6 +180,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 // widening), so the back-and-forth over a documentation issue happens on
 // one continuous thread, not two separate views of it.
 export default function PartnerCandidateDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const dialog = useDialog();
   const { id } = use(params);
   const [data, setData] = useState<PartnerCandidateDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -350,7 +352,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       formData.append("file", file);
       const res = await fetch(`/api/upload?type=${type}&candidate_id=${data.bridged_candidate_id}`, { method: "POST", body: formData });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Upload failed."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Upload failed.")); return; }
       onDone();
       load();
     } finally {

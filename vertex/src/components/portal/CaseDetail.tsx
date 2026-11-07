@@ -14,6 +14,8 @@ import { isCaseUploadExcludedKey, isPaymentReceiptTypeKey, paymentReceiptTypeKey
 import PaymentStagesPreview, { resolvePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import { ArrowLeft, UploadSimple } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
+import { describeApiError } from "@/lib/apiError";
 
 // Mirrors the `CaseStatus` enum — the statuses a case can be
 // set to after a rejection is overturned (2026-09-25).
@@ -238,6 +240,7 @@ function yesNoWithDetail(value: boolean | null | undefined, detail?: string | nu
 }
 
 export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: Props) {
+  const dialog = useDialog();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -461,7 +464,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_date: stageDate || undefined }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to update stage."); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to update stage.")); return; }
     setNextStage(""); setStageNotes(""); setStageDate("");
     load();
   };
@@ -476,7 +479,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ decision, notes: opsReviewNotes || undefined }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to save review."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to save review.")); return; }
       setOpsReviewNotes("");
       setShowOpsRejectForm(false);
       load();
@@ -495,7 +498,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ reason: caseRejectReason }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to reject case."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to reject case.")); return; }
       setCaseRejectReason("");
       setShowCaseRejectForm(false);
       load();
@@ -514,7 +517,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ status: overturnStatus }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to overturn rejection.")); return; }
       setOverturnedTo(overturnStatus);
       setShowOverturnForm(false);
       setOverturnStatus("");
@@ -532,7 +535,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       body: JSON.stringify({ content: contractContent }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to generate contract."); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to generate contract.")); return; }
     setContractContent("");
     load();
   };
@@ -551,7 +554,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to record payment."); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to record payment.")); return; }
     setPayStageId(""); setPayAmount(""); setPayReceipt(""); setPayReceiptDocumentId(null);
     load();
   };
@@ -571,7 +574,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Receipt upload failed."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Receipt upload failed.")); return; }
       setPayReceiptDocumentId(json.documentId);
     } finally {
       setUploadingReceipt(false);
@@ -613,8 +616,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     try {
       const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}/check-status`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to check payment status."); return; }
-      if (json.message) alert(json.message);
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to check payment status.")); return; }
+      if (json.message) void dialog.alert(json.message);
       load();
     } finally {
       setCheckingPaymentId("");
@@ -633,7 +636,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Invoice upload failed."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Invoice upload failed.")); return; }
       setInvoiceDocumentId(json.documentId);
     } finally {
       setUploadingInvoiceFile(false);
@@ -690,7 +693,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Receipt upload failed."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Receipt upload failed.")); return; }
       setMarkPaidReceiptId((prev) => ({ ...prev, [paymentId]: json.documentId }));
     } finally {
       setUploadingMarkPaidReceiptFor("");
@@ -712,7 +715,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ receipt_document_id: receiptDocumentId }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to mark payment as paid."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to mark payment as paid.")); return; }
       setMarkPaidReceiptId((prev) => {
         const next = { ...prev };
         delete next[paymentId];
@@ -738,14 +741,14 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: formData,
       });
       const uploadJson = await uploadRes.json();
-      if (!uploadRes.ok) { alert(uploadJson.error ?? "Upload failed."); return; }
+      if (!uploadRes.ok) { void dialog.alert(describeApiError(uploadJson, "Upload failed.")); return; }
       const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}/receipt`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ receipt_document_id: uploadJson.documentId }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to replace attachment."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to replace attachment.")); return; }
       load();
     } finally {
       setReplacingReceiptFor("");
@@ -753,7 +756,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   };
 
   const deletePaymentReceipt = async (paymentId: string) => {
-    if (!confirm("Remove this attachment? This cannot be undone.")) return;
+    if (!(await dialog.confirm("Remove this attachment? This cannot be undone.", { confirmLabel: "Remove", danger: true }))) return;
     setDeletingReceiptFor(paymentId);
     try {
       const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}/receipt`, {
@@ -762,7 +765,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ receipt_document_id: null }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to remove attachment."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to remove attachment.")); return; }
       load();
     } finally {
       setDeletingReceiptFor("");
@@ -775,12 +778,12 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
   // above). Frees the stage back up in the Record/Send Link/Send Invoice
   // pickers immediately on reload.
   const deletePayment = async (paymentId: string) => {
-    if (!confirm("Remove this payment record entirely? This cannot be undone — only do this if it was recorded in error and no money actually changed hands.")) return;
+    if (!(await dialog.confirm("Remove this payment record entirely? This cannot be undone — only do this if it was recorded in error and no money actually changed hands.", { confirmLabel: "Remove", danger: true }))) return;
     setDeletingPaymentFor(paymentId);
     try {
       const res = await fetch(`/api/cases/${caseId}/payments/${paymentId}`, { method: "DELETE" });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to remove payment."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to remove payment.")); return; }
       load();
     } finally {
       setDeletingPaymentFor("");
@@ -794,7 +797,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
       body: JSON.stringify({}),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to complete follow-up."); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to complete follow-up.")); return; }
     load();
   };
 
@@ -827,7 +830,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: JSON.stringify({ internal_notes: notesDraft }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Failed to save notes."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to save notes.")); return; }
       setEditingNotes(false);
       load();
     } finally {
@@ -846,7 +849,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
         body: formData,
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Upload failed."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Upload failed.")); return; }
       onDone();
       load();
     } finally {

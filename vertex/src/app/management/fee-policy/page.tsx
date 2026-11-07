@@ -7,6 +7,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { describeApiError } from "@/lib/apiError";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface FeePolicy {
   id: string;
@@ -23,6 +24,7 @@ interface FeePolicy {
 interface Country { id: string; name: string; }
 
 export default function FeePolicyPage() {
+  const dialog = useDialog();
   const [policies, setPolicies] = useState<FeePolicy[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,7 @@ export default function FeePolicyPage() {
       }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(describeApiError(json, "Failed to save.")); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to save.")); return; }
     setCountryId(""); setEnabled(false); setDocumentationAmount(""); setPermitAmount(""); setVisaAmount(""); setCurrency("USD");
     load();
   };

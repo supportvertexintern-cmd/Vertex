@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PaperPlaneRight, PencilSimple, Trash, Check, X } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface Message {
   id: string;
@@ -29,6 +30,7 @@ interface Props {
  * a moderation tool for the other side's messages.
  */
 export default function CandidateMessages({ candidateId }: Props) {
+  const dialog = useDialog();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function CandidateMessages({ candidateId }: Props) {
   };
 
   const deleteMessage = async (messageId: string) => {
-    if (!confirm("Delete this message?")) return;
+    if (!(await dialog.confirm("Delete this message?", { confirmLabel: "Delete", danger: true }))) return;
     setDeletingId(messageId);
     try {
       const res = await fetch(`/api/candidates/${candidateId}/messages/${messageId}`, { method: "DELETE" });

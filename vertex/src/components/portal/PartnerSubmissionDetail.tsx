@@ -13,6 +13,8 @@ import SupportingDocumentUpload from "./SupportingDocumentUpload";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { summarizePaymentStages, type PaymentStageOption } from "@/components/PaymentStagesPreview";
 import { CheckCircle, WarningCircle, Trash } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
+import { describeApiError } from "@/lib/apiError";
 
 interface PartnerCandidateDetail {
   id: string;
@@ -108,6 +110,7 @@ interface Props {
  * submission pre-Case.
  */
 export default function PartnerSubmissionDetail({ id, backHref }: Props) {
+  const dialog = useDialog();
   const router = useRouter();
   const searchParams = useSearchParams();
   const backUrl = searchParams.get("back") || backHref;
@@ -200,13 +203,13 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
   };
 
   const deleteSubmission = async () => {
-    if (!confirm("Delete this submission? This permanently removes the candidate's record, documents, and message thread. This cannot be undone.")) return;
+    if (!(await dialog.confirm("Delete this submission? This permanently removes the candidate's record, documents, and message thread. This cannot be undone.", { confirmLabel: "Delete", danger: true }))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/partner-candidates/${id}`, { method: "DELETE" });
       const body = await res.json();
       if (!res.ok) {
-        alert(body.error?.message ?? "Failed to delete.");
+        void dialog.alert(describeApiError(body, "Failed to delete."));
         return;
       }
       router.push(backUrl ?? "/hr");
@@ -225,7 +228,7 @@ export default function PartnerSubmissionDetail({ id, backHref }: Props) {
         body: JSON.stringify({ status: overturnStatus }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error?.message ?? "Failed to overturn rejection."); return; }
+      if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to overturn rejection.")); return; }
       setOverturnedTo(overturnStatus);
       setShowOverturnForm(false);
       setOverturnStatus("");

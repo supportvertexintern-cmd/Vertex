@@ -15,6 +15,8 @@ import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
 import { PencilSimple, CheckCircle, Trash } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
+import { describeApiError } from "@/lib/apiError";
 
 const STATUS_STYLES: Record<string, string> = {
   identified: "bg-slate-100 text-slate-700",
@@ -146,6 +148,7 @@ interface Props {
  * CaseDetail is; canVerify/canApprove gate which lifecycle actions render.
  */
 export default function CandidateDetail({ candidateId, backHref, canVerify = false, canApprove = false, canVerifyDocuments = false, hrMode = false }: Props) {
+  const dialog = useDialog();
   const router = useRouter();
   const searchParams = useSearchParams();
   const backUrl = searchParams.get("back") || backHref;
@@ -179,13 +182,13 @@ export default function CandidateDetail({ candidateId, backHref, canVerify = fal
   }, []);
 
   const deleteApplication = async () => {
-    if (!confirm("Delete this application? This permanently removes the candidate's record, documents, and message thread. This cannot be undone.")) return;
+    if (!(await dialog.confirm("Delete this application? This permanently removes the candidate's record, documents, and message thread. This cannot be undone.", { confirmLabel: "Delete", danger: true }))) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/candidates/${candidateId}`, { method: "DELETE" });
       const body = await res.json();
       if (!res.ok) {
-        alert(body.error?.message ?? "Failed to delete.");
+        void dialog.alert(describeApiError(body, "Failed to delete."));
         return;
       }
       router.push(backUrl);

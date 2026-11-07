@@ -7,6 +7,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { GlobeHemisphereWest, Plus, MapPin, PencilSimple, Check, X, Trash } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface Region {
   id: string;
@@ -15,6 +16,7 @@ interface Region {
 }
 
 export default function RegionsPage() {
+  const dialog = useDialog();
   const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -140,7 +142,7 @@ export default function RegionsPage() {
   };
 
   const deleteCountry = async (country: { id: string; name: string }) => {
-    if (!window.confirm(`Remove ${country.name}? This can't be undone.`)) return;
+    if (!(await dialog.confirm(`Remove ${country.name}? This can't be undone.`, { confirmLabel: "Remove", danger: true }))) return;
     setSaving(true);
     setError("");
     try {

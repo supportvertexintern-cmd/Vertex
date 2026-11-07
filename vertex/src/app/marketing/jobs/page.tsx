@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import { useDebouncedValue } from "@/lib/useDebouncedValue";
 import { Plus } from "@phosphor-icons/react";
 import FilterBar from "@/components/portal/FilterBar";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface Job {
   id: string;
@@ -36,6 +37,7 @@ const STATUS_OPTIONS = [
 // public-listing service hardcoded status: "active"), now fixed via the
 // status param's staff-only branch on GET /api/jobs.
 export default function AdminJobsPage() {
+  const dialog = useDialog();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -73,13 +75,13 @@ export default function AdminJobsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleDelete = async (jobId: string) => {
-    if (!confirm("Are you sure you want to delete this job? All associated applications will be removed too.")) return;
+    if (!(await dialog.confirm("Are you sure you want to delete this job? All associated applications will be removed too.", { confirmLabel: "Delete", danger: true }))) return;
     const res = await fetch(`/api/jobs/${jobId}`, { method: "DELETE" });
     if (res.ok) {
       setJobs((prev) => prev.filter((j) => j.id !== jobId));
       setTotal((t) => t - 1);
     } else {
-      alert("Failed to delete job.");
+      void dialog.alert("Failed to delete job.");
     }
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 /**
  * Renders a document (CV, passport, etc.) as a click-to-reveal link. Fetches
@@ -16,6 +17,7 @@ export default function DocumentLink({
   label: string;
   className?: string;
 }) {
+  const dialog = useDialog();
   const [loading, setLoading] = useState(false);
 
   const handleClick = async () => {
@@ -26,7 +28,7 @@ export default function DocumentLink({
       const { url } = await res.json();
       window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      alert("Couldn't open this document. It may have been removed.");
+      void dialog.alert("Couldn't open this document. It may have been removed.");
     } finally {
       setLoading(false);
     }

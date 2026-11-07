@@ -8,6 +8,7 @@ import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
 import SearchableSelect from "@/components/SearchableSelect";
 import PaymentStageBuilder, { type PaymentStageDraft } from "@/components/portal/PaymentStageBuilder";
 import { Plus, Trash, PencilSimple, Check, X } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface EmployerClient {
   id: string;
@@ -27,6 +28,7 @@ interface JobSectorData {
 }
 
 export default function EditJobPage({ params }: { params: Promise<{ id: string }> }) {
+  const dialog = useDialog();
   const router = useRouter();
   const { id: jobId } = use(params);
 
@@ -228,7 +230,7 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
   };
 
   const deleteSector = async (sectorId: string) => {
-    if (!window.confirm("Remove this sector? Its positions will be removed too.")) return;
+    if (!(await dialog.confirm("Remove this sector? Its positions will be removed too.", { confirmLabel: "Remove", danger: true }))) return;
     setSectorsError("");
     try {
       const res = await fetch(`/api/jobs/${jobId}/sectors/${sectorId}`, { method: "DELETE" });

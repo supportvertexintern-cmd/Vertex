@@ -12,6 +12,7 @@ import SortableTh from "@/components/SortableTh";
 import { usePagination } from "@/lib/usePagination";
 import { formatPartnerCandidateStatus } from "@/lib/partnerCandidateStatus";
 import { Plus, X, WarningCircle, ChatCircleDots, Trash } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -49,6 +50,7 @@ interface PartnerCandidateRow {
 // Vertex's internal recruiter/screening pipeline, since these candidates
 // don't go through it; the partner already handled that themselves.
 export default function PartnerPortalPage() {
+  const dialog = useDialog();
   const [candidates, setCandidates] = useState<PartnerCandidateRow[]>([]);
   const [needsAttentionCount, setNeedsAttentionCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -243,7 +245,7 @@ export default function PartnerPortalPage() {
                           title="Delete draft"
                           disabled={deletingId === c.id}
                           onClick={async () => {
-                            if (!confirm("Delete this draft? This can't be undone.")) return;
+                            if (!(await dialog.confirm("Delete this draft? This can't be undone.", { confirmLabel: "Delete", danger: true }))) return;
                             setDeletingId(c.id);
                             try {
                               await fetch(`/api/partner/candidates/${c.id}`, { method: "DELETE" });

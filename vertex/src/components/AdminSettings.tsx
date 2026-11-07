@@ -5,6 +5,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import BackupExport from "@/components/BackupExport";
 import { usePagination } from "@/lib/usePagination";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 // Shapes returned by /api/admin/settings (a key-value map), /knowledge and /emails.
 type Settings = Record<string, string>;
@@ -12,6 +13,7 @@ interface KnowledgeArticle { id: string; title: string; category: string; conten
 interface EmailTemplate { event: string; subject: string; body_html: string }
 
 export default function AdminSettings() {
+  const dialog = useDialog();
   const [settings, setSettings] = useState<Settings>({ ai_enabled: "true", whatsapp_number: "", intake_mode: "email" });
   const [knowledge, setKnowledge] = useState<KnowledgeArticle[]>([]);
   const [emails, setEmails] = useState<EmailTemplate[]>([]);
@@ -38,7 +40,7 @@ export default function AdminSettings() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings)
     });
-    if (res.ok) alert("Global settings updated.");
+    if (res.ok) void dialog.alert("Global settings updated.");
   };
 
   const addKnowledge = async (e: React.FormEvent) => {
@@ -56,7 +58,7 @@ export default function AdminSettings() {
   };
 
   const deleteKnowledge = async (id: string) => {
-    if (!confirm("Delete article?")) return;
+    if (!(await dialog.confirm("Delete article?", { confirmLabel: "Delete", danger: true }))) return;
     const res = await fetch(`/api/admin/knowledge?id=${id}`, { method: "DELETE" });
     if (res.ok) setKnowledge(knowledge.filter(k => k.id !== id));
   };
@@ -76,7 +78,7 @@ export default function AdminSettings() {
         return [...prev, updated];
       });
       setEditEmailEvent("");
-      alert("Email template saved.");
+      void dialog.alert("Email template saved.");
     }
   };
 

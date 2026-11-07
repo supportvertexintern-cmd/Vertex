@@ -8,6 +8,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
 import { CheckCircle, Trash, WarningCircle } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const STATUS_STYLES: Record<string, string> = {
   pending_approval: "bg-yellow-100 text-yellow-800",
@@ -81,6 +82,7 @@ interface ReferralAgentDetail {
 }
 
 export default function ReferralAgentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const dialog = useDialog();
   const { id } = use(params);
   const [agent, setAgent] = useState<ReferralAgentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,7 +160,7 @@ export default function ReferralAgentDetailPage({ params }: { params: Promise<{ 
   };
 
   const reject = async () => {
-    const reason = window.prompt("Reason for rejecting this application:");
+    const reason = await dialog.prompt("Reason for rejecting this application:", { confirmLabel: "Reject", danger: true, required: true, multiline: true });
     if (!reason) return;
     setActing(true);
     setError("");
@@ -181,7 +183,7 @@ export default function ReferralAgentDetailPage({ params }: { params: Promise<{ 
   };
 
   const suspend = async () => {
-    const reason = window.prompt("Reason for suspending this agent:");
+    const reason = await dialog.prompt("Reason for suspending this agent:", { confirmLabel: "Suspend", danger: true, required: true, multiline: true });
     if (!reason) return;
     setActing(true);
     setError("");
@@ -204,7 +206,7 @@ export default function ReferralAgentDetailPage({ params }: { params: Promise<{ 
   };
 
   const reactivate = async () => {
-    if (!window.confirm("Reactivate this agent? They'll be able to earn new commissions again.")) return;
+    if (!(await dialog.confirm("Reactivate this agent? They'll be able to earn new commissions again.", { confirmLabel: "Reactivate" }))) return;
     setActing(true);
     setError("");
     setNotice("");
