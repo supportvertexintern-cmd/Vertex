@@ -1,9 +1,10 @@
 #!/usr/bin/env sh
 # Loads a development stack's database with the reference data
 # (scripts/seed/reference.py: regions, countries, sectors, document requirements,
-# job programmes) and the test accounts (scripts/seed/test_accounts.py:
-# one per staff role plus a partner, all with password TestPassword123!).
-# Safe to re-run: both upsert. Refuses any stack whose env file isn't
+# job programmes), the test accounts (scripts/seed/test_accounts.py:
+# one per staff role plus a partner) and the partner logins
+# (scripts/seed/partner_logins.py), all with password TestPassword123!.
+# Safe to re-run: all three upsert. Refuses any stack whose env file isn't
 # APP_ENV=development.
 #
 #   ENV_FILE=.env.dev sh deploy/seed-dev.sh vertex-dev
@@ -40,4 +41,5 @@ PYTHON="env/Scripts/python.exe"
 [ -x "$PYTHON" ] || PYTHON="env/bin/python"
 "$PYTHON" -m scripts.seed.reference
 "$PYTHON" -m scripts.seed.test_accounts
+"$PYTHON" -m scripts.seed.partner_logins
 echo "Seeded. Sign in at $(env_value NEXT_PUBLIC_APP_URL) as e.g. admin@test.local / TestPassword123!"

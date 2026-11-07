@@ -16,7 +16,7 @@ from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import CountryDocumentRequirement, DocumentRequirementType, Sector, SystemSetting
 from app.services.documents import PAYMENT_RECEIPT_TYPE_PREFIX
 from app.services.sessions import check_password
-from scripts.seed import demo, e2e, first_admin, partners, reference, test_accounts
+from scripts.seed import demo, e2e, first_admin, partner_logins, partners, reference, test_accounts
 
 
 def count(db, model) -> int:
@@ -91,6 +91,28 @@ def test_the_test_accounts_sign_in_and_a_rerun_adds_nothing(seeded):
     assert (partner.status, partner.mou_status) == (PartnerStatus.active, MouStatus.signed)
     inhouse = seeded.scalar(select(User.id).where(User.email == "inhouse@test.local"))
     assert seeded.scalar(select(InhouseCountryAssignment).where(InhouseCountryAssignment.inhouse_supervisor_id == inhouse))
+
+
+def test_the_partner_logins_sign_in_as_their_own_agency_and_a_rerun_adds_nothing(seeded):
+    result = partner_logins.seed(seeded)
+    assert result["listed agencies with logins"] == len(partners.PARTNERS)
+    before = (count(seeded, User), count(seeded, Partner), count(seeded, PartnerCandidate))
+    partner_logins.seed(seeded)
+    assert (count(seeded, User), count(seeded, Partner), count(seeded, PartnerCandidate)) == before
+
+    emails = [partner_logins.login_email(p["company"]) for p in partners.PARTNERS]
+    assert len(set(emails)) == len(emails)
+    for p in partners.PARTNERS:
+        agency = seeded.scalar(select(Partner).where(Partner.contact_email == p["email"]))
+        login = seeded.get(User, agency.user_id)
+        assert login.email == partner_logins.login_email(p["company"]) != p["email"]
+        assert login.role == Role.partner and check_password(test_accounts.PASSWORD, login.password_hash)
+        assert (agency.status, agency.mou_status) == (PartnerStatus.active, MouStatus.signed)
+
+    invented = seeded.scalar(select(Partner).where(Partner.name == "Test Atlas Placements"))
+    drafts = seeded.scalars(select(PartnerCandidate).where(PartnerCandidate.partner_id == invented.id)).all()
+    assert sorted(c.status.value for c in drafts) == ["draft", "rejected", "submitted", "under_review"]
+    assert all((c.submitted_at is None) == (c.status.value == "draft") for c in drafts)
 
 
 def test_the_first_admin_signs_in_and_a_rerun_keeps_its_password(db):
