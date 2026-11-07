@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { Handshake, Plus, Trash, Key } from "@phosphor-icons/react";
 import FilterBar from "@/components/portal/FilterBar";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const PARTNER_TYPE_LABELS: Record<string, string> = {
   travel_agency: "Travel Agency",
@@ -73,6 +74,7 @@ const emptyForm = {
 // Staff-managed only: no partner self-service portal, since agency
 // submissions still come in by email and get re-keyed here.
 export default function PartnersPage() {
+  const dialog = useDialog();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,7 +151,7 @@ export default function PartnersPage() {
   };
 
   const deletePartner = async (p: Partner) => {
-    if (!window.confirm(`Remove ${p.name}? This can't be undone.`)) return;
+    if (!(await dialog.confirm(`Remove ${p.name}? This can't be undone.`, { confirmLabel: "Remove", danger: true }))) return;
     setActioningId(p.id);
     setError("");
     setNotice("");
@@ -166,7 +168,7 @@ export default function PartnersPage() {
   };
 
   const resetPassword = async (p: Partner) => {
-    if (!window.confirm(`Reset the password for ${p.name} (${p.contact_email})? Their current password will stop working, and they'll be emailed a link to set a new one.`)) return;
+    if (!(await dialog.confirm(`Reset the password for ${p.name} (${p.contact_email})? Their current password will stop working, and they'll be emailed a link to set a new one.`, { confirmLabel: "Reset password", danger: true }))) return;
     setActioningId(p.id);
     setError("");
     setNotice("");

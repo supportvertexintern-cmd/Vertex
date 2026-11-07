@@ -10,6 +10,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
 import { CheckCircle, PencilSimple, Trash, Key } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const PARTNER_TYPE_LABELS: Record<string, string> = {
   travel_agency: "Travel Agency",
@@ -63,6 +64,7 @@ const emptyDraft = {
 };
 
 export default function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const dialog = useDialog();
   const { id } = use(params);
   const router = useRouter();
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
@@ -155,7 +157,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
 
   const deletePartner = async () => {
     if (!partner) return;
-    if (!window.confirm(`Remove ${partner.name}? This can't be undone.`)) return;
+    if (!(await dialog.confirm(`Remove ${partner.name}? This can't be undone.`, { confirmLabel: "Remove", danger: true }))) return;
     setDeleting(true);
     setError("");
     try {
@@ -171,7 +173,7 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
 
   const resetPassword = async () => {
     if (!partner) return;
-    if (!window.confirm(`Reset the password for ${partner.name} (${partner.contact_email})? Their current password will stop working, and they'll be emailed a link to set a new one.`)) return;
+    if (!(await dialog.confirm(`Reset the password for ${partner.name} (${partner.contact_email})? Their current password will stop working, and they'll be emailed a link to set a new one.`, { confirmLabel: "Reset password", danger: true }))) return;
     setResettingPassword(true);
     setError("");
     setPasswordResetNotice("");

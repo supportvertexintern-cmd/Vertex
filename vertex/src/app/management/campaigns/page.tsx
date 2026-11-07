@@ -8,6 +8,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { Plus, Target, Trash, X } from "@phosphor-icons/react";
 import FilterBar from "@/components/portal/FilterBar";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const METRICS = [
   { value: "verified_candidates", label: "Verified Candidates" },
@@ -42,6 +43,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function CampaignsPage() {
+  const dialog = useDialog();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -104,7 +106,7 @@ export default function CampaignsPage() {
   };
 
   const deleteCampaign = async (id: string) => {
-    if (!confirm("Delete this campaign and all its targets?")) return;
+    if (!(await dialog.confirm("Delete this campaign and all its targets?", { confirmLabel: "Delete", danger: true }))) return;
     await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
     load();
   };

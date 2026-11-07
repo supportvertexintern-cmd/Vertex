@@ -7,6 +7,7 @@ import AIChatWidget from "@/components/AIChatWidget";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import WelcomePopup from "@/components/WelcomePopup";
 import SessionRefresh from "@/components/SessionRefresh";
+import DialogProvider from "@/components/ui/DialogProvider";
 
 const font = Outfit({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={font.variable}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
+        <DialogProvider>
         <SessionRefresh />
         <Navbar />
         <main className="flex-1">{children}</main>
@@ -52,6 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AIChatWidget />
         <WhatsAppButton />
         <WelcomePopup />
+        </DialogProvider>
 
         <div id="google_translate_element" style={{ display: 'none' }}></div>
         <Script src="/js/google-translate.js" strategy="afterInteractive" nonce={nonce} />

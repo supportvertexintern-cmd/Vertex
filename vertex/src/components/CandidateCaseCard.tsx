@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import CaseStageProgress from "@/components/portal/CaseStageProgress";
 import type { CaseStageKey } from "@/components/portal/caseStages";
+import { useDialog } from "@/components/ui/DialogProvider";
+import { describeApiError } from "@/lib/apiError";
 
 interface CandidateCase {
   id: string;
@@ -31,6 +33,7 @@ interface Props {
  * controls here; those stay with staff.
  */
 export default function CandidateCaseCard({ showEmptyState = false }: Props = {}) {
+  const dialog = useDialog();
   const [cases, setCases] = useState<CandidateCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [signName, setSignName] = useState("");
@@ -60,7 +63,7 @@ export default function CandidateCaseCard({ showEmptyState = false }: Props = {}
       body: JSON.stringify({ signed_by_name: signName }),
     });
     const json = await res.json();
-    if (!res.ok) { alert(json.error ?? "Failed to sign."); return; }
+    if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to sign.")); return; }
     setSignName("");
     load();
   };

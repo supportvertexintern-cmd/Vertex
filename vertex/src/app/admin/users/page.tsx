@@ -9,6 +9,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { Plus, Copy, CheckCircle, Trash, Key, CaretDown, Check, SignOut } from "@phosphor-icons/react";
 import FilterBar from "@/components/portal/FilterBar";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 const ROLES = [
   { value: "candidate", label: "Candidate" },
@@ -134,6 +135,7 @@ function CountryMultiSelect({
 }
 
 export default function StaffUsersPage() {
+  const dialog = useDialog();
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,7 +222,7 @@ export default function StaffUsersPage() {
   };
 
   const deleteUser = async (u: StaffUser) => {
-    if (!window.confirm(`Remove ${u.full_name} (${u.email})? This can't be undone.`)) return;
+    if (!(await dialog.confirm(`Remove ${u.full_name} (${u.email})? This can't be undone.`, { confirmLabel: "Remove", danger: true }))) return;
     setSavingId(u.id);
     setError("");
     try {
@@ -236,7 +238,7 @@ export default function StaffUsersPage() {
   };
 
   const resetPassword = async (u: StaffUser) => {
-    if (!window.confirm(`Reset the password for ${u.full_name} (${u.email})? Their current password will stop working.`)) return;
+    if (!(await dialog.confirm(`Reset the password for ${u.full_name} (${u.email})? Their current password will stop working.`, { confirmLabel: "Reset password", danger: true }))) return;
     setSavingId(u.id);
     setError("");
     try {
@@ -253,14 +255,14 @@ export default function StaffUsersPage() {
 
   // G19: ends every session of the user at once; their next request is refused.
   const signOutEverywhere = async (u: StaffUser) => {
-    if (!window.confirm(`Sign ${u.full_name} (${u.email}) out of every browser and device now?`)) return;
+    if (!(await dialog.confirm(`Sign ${u.full_name} (${u.email}) out of every browser and device now?`, { confirmLabel: "Sign out", danger: true }))) return;
     setSavingId(u.id);
     setError("");
     try {
       const res = await fetch(`/api/admin/users/${u.id}/sessions`, { method: "DELETE" });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error?.message || "Failed to end sessions.");
-      window.alert(`${u.full_name}: ${body.data.ended} session${body.data.ended === 1 ? "" : "s"} ended.`);
+      void dialog.alert(`${u.full_name}: ${body.data.ended} session${body.data.ended === 1 ? "" : "s"} ended.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to end sessions.");
     } finally {

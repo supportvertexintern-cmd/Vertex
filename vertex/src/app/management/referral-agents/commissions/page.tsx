@@ -9,6 +9,7 @@ import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { useUrlListState } from "@/lib/useUrlListState";
 import { CheckCircle, CurrencyDollar } from "@phosphor-icons/react";
+import { useDialog } from "@/components/ui/DialogProvider";
 
 interface Country { id: string; name: string; }
 
@@ -48,6 +49,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 export default function ReferralCommissionsPage() {
+  const dialog = useDialog();
   // Reads ?countryId= on initial load — the Country Management hub's
   // "View Commission Ledger" link deep-links here with it prefilled
   // (same useUrlListState precedent as HR's self-applications queue).
@@ -106,7 +108,9 @@ export default function ReferralCommissionsPage() {
   };
 
   const markPaid = async (id: string) => {
-    const reference = window.prompt("Payment reference (optional):") || undefined;
+    const typed = await dialog.prompt("Payment reference (optional):", { confirmLabel: "Mark paid" });
+    if (typed === null) return; // cancelled: nothing is marked paid
+    const reference = typed.trim() || undefined;
     setActingId(id);
     setError("");
     setNotice("");
