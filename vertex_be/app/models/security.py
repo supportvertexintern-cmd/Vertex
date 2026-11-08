@@ -15,7 +15,9 @@ class SecurityAlert(Base):
     as a row for Admin -> Monitoring -> Suspicious Activity (migration 0013).
     The monitor inserts it alongside the trail's alert_raised row and the
     email; admins move it from open to reviewing, resolved or dismissed,
-    each change audited with who, when and the note. Never deleted."""
+    each change audited with who, when and the note. No route deletes one;
+    the daily retention clean-up does, after SECURITY_RETENTION_MONTHS (D3,
+    exceptions.md E11), each delete on the trail."""
 
     __tablename__ = "SecurityAlert"
     __table_args__ = (

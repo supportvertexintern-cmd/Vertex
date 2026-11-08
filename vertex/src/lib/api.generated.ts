@@ -6683,6 +6683,8 @@ export interface components {
             partner_logins_not_activated: number;
             /** Recent Alerts */
             recent_alerts: components["schemas"]["AlertRow"][];
+            /** Retention Months */
+            retention_months: number;
             sign_ins: components["schemas"]["Window"];
         };
         /** OwnCandidate */

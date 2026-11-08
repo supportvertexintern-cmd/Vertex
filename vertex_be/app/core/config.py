@@ -98,6 +98,10 @@ class Settings(BaseSettings):
     # Admin monitoring's scheduled account checks (security_monitor.
     # run_account_checks): every this many minutes; 0 = off (tests).
     MONITOR_CHECKS_INTERVAL_MINUTES: int = 360
+    # How long security alerts and the monitoring pages' sign-in history are
+    # kept, in months (decision D3: 12, interim pending legal, 2026-11-08;
+    # exceptions.md E11). The daily clean-up is security_monitor.run_retention.
+    SECURITY_RETENTION_MONTHS: int = 12
     # The bundled address-to-country database (app/services/geoip.py).
     GEOIP_DIR: str = "/opt/geoip"
     # Shared rate-limit counters (auth hardening plan, workstream B):

@@ -57,6 +57,7 @@ from app.core.api import ApiError, Data, Page, PageParams, UtcDateTime, page_par
 from app.core.audit import AuditedDb, append_event
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
+from app.core.config import settings
 from app.core.rbac import require_role
 from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
 from app.models.identity import RefreshToken, User
@@ -142,9 +143,11 @@ def _rows(db, users: list[User]) -> list[dict[str, Any]]:
     ids = [u.id for u in users]
     if not ids:
         return []
+    cutoff = security_monitor.retention_cutoff()  # D3: a sign-in older than the window isn't shown
     last = {
         r.user_id: r
         for r in db.execute(text("SELECT user_id, signed_in_at, ip FROM public.vertex_last_sign_ins(:ids)"), {"ids": ids})
+        if r.signed_in_at >= cutoff
     }
     now = utc_now_ms()
     sessions = dict(
@@ -258,10 +261,11 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
         text("SELECT created_at, action, method, reason, ip, device FROM public.vertex_sign_in_history(:id, :n)"),
         {"id": user_id, "n": HISTORY_LIMIT},
     ).all()
+    cutoff = security_monitor.retention_cutoff()  # D3: older history isn't shown
     sign_ins = [
         {"at": h.created_at, "succeeded": h.action == "login_succeeded", "method": h.method, "reason": h.reason, "ip": h.ip,
          "country": geoip.country_of(h.ip), "device": h.device}
-        for h in history
+        for h in history if h.created_at >= cutoff
     ]
     sessions = [asdict(s) for s in list_sessions(db, user_id, None)]
     (row,) = _rows(db, [user])
@@ -719,6 +723,8 @@ class Window(BaseModel):
 
 class Overview(BaseModel):
     open_alerts: dict[SecurityAlertSeverity, int]
+    # How long alerts and sign-in history are kept (D3).
+    retention_months: int
     alerts_raised: Window
     failed_sign_ins: Window
     sign_ins: Window
@@ -768,6 +774,7 @@ def overview(_admin: Admin, db: DbSession):
     from_trail = lambda action: {k: int(trail[k].get(action, 0)) for k in trail}  # noqa: E731
     return {"data": {
         "open_alerts": open_alerts,
+        "retention_months": settings.SECURITY_RETENTION_MONTHS,
         "alerts_raised": _window(db, SecurityAlert.created_at),
         "failed_sign_ins": from_trail("login_failed"),
         "sign_ins": from_trail("login_succeeded"),

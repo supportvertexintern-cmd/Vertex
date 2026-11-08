@@ -9,7 +9,7 @@ import SearchableSelect from "@/components/SearchableSelect";
 import Pagination from "@/components/Pagination";
 import { usePagination } from "@/lib/usePagination";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
-import { CheckCircle, PencilSimple, Trash, Key } from "@phosphor-icons/react";
+import { CheckCircle, ClockCounterClockwise, PencilSimple, Trash, Key } from "@phosphor-icons/react";
 import { useDialog } from "@/components/ui/DialogProvider";
 
 const PARTNER_TYPE_LABELS: Record<string, string> = {
@@ -100,6 +100,16 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
   };
 
   useEffect(load, [id]);
+
+  // "View history" (admin monitoring): the Audit Trail is admins' only, so
+  // the link is too. A director or in-house supervisor sees no link.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : { data: null }))
+      .then((res) => setIsAdmin(res.data?.role === "admin"))
+      .catch(() => {});
+  }, []);
 
   const updateField = async (data: Record<string, string>) => {
     setSaving(true);
@@ -245,6 +255,14 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
           <Link href="/management/partners" className="text-sm font-medium text-midnight-900/50 hover:text-gold-600">
             ← Back to Partners
           </Link>
+          {isAdmin && (
+            <Link
+              href={`/admin/monitoring/audit?entity_type=Partner&entity_id=${partner.id}`}
+              className="text-sm font-medium text-midnight-900/50 hover:text-gold-600 flex items-center gap-1.5"
+            >
+              <ClockCounterClockwise size={14} weight="regular" /> View history
+            </Link>
+          )}
           <button
             onClick={deletePartner}
             disabled={deleting}

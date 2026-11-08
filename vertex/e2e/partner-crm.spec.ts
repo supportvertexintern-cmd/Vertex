@@ -82,6 +82,8 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await page.getByRole("link", { name: "E2E Test Partner" }).first().click();
       await expect(page).toHaveURL(/\/management\/partners\/.+/);
 
+      // Admins see the partner's audit history from here (admin monitoring, 2026-11-08).
+      await expect(page.getByRole("link", { name: "View history" })).toHaveAttribute("href", /\/admin\/monitoring\/audit\?entity_type=Partner&entity_id=/);
       await page.getByRole("button", { name: "Create Partner Login" }).click();
       // Invite-based account creation (2026-07-27) replaced the old
       // "temp password shown once" pattern — no password appears in the

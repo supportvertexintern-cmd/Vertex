@@ -160,7 +160,7 @@ The last two were added at the owner's invitation to "raise any concern": one me
 
 The email has the rule, environment, time, counts and the request ID, and never credentials.
 
-**Reviewing alerts (Suspicious Activity, admins only):** each alert is a row, newest first, filtered by status, severity, type, account and date. The sidebar's badge counts the open ones. An admin marks one **reviewing**, then **resolved** or **dismissed** (a false positive). Closing or reopening one needs a note, and it can't go back to open. Each change is an audited row change (who, when, the note). From an alert, the admin can open its account, end its sessions, or deactivate it (phase 1). An account's open and reviewing alerts are its **Flags** in User Accounts. The rows are never deleted and never exported (`backup.NEVER_EXPORTED`); like the trail, they stay whole in the database backups. Migration 0013 copied in the alerts already on the trail, as open.
+**Reviewing alerts (Suspicious Activity, admins only):** each alert is a row, newest first, filtered by status, severity, type, account and date. The sidebar's badge counts the open ones. An admin marks one **reviewing**, then **resolved** or **dismissed** (a false positive). Closing or reopening one needs a note, and it can't go back to open. Each change is an audited row change (who, when, the note). From an alert, the admin can open its account, end its sessions, or deactivate it (phase 1). An account's open and reviewing alerts are its **Flags** in User Accounts. No route deletes them, and they're never exported (`backup.NEVER_EXPORTED`); like the trail, they stay whole in the database backups. Migration 0013 copied in the alerts already on the trail, as open.
 
 **Partners & Logins (admin monitoring phase 3, admins only):** one row per agency, with who added it (`Partner.created_by`, migration 0014, backfilled from the trail's create rows) and its login: when and by whom it was created, its status and latest sign-in. Its CSV (`GET /monitoring/partners.csv`, the filtered list) records an `export` event, with the row count and the filters but never the search text, before it leaves. If the event can't be written, it's refused (503). Cells a spreadsheet would run as formulas are prefixed with an apostrophe.
 
@@ -184,6 +184,12 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - active sessions.
 - **The 10 latest alerts.**
 - Each card opens the page that lists it.
+
+**Retention (D3, interim pending legal, exceptions.md E11):** `SECURITY_RETENTION_MONTHS`, 12 by default, is how long security alerts and the monitoring pages' sign-in history are kept.
+
+- **The daily clean-up** (`security_monitor.run_retention`, on the schedule's thread) deletes older alerts, each delete on the trail.
+- **Sign-in history** older than the window isn't shown on User Accounts.
+- **The sign-in events stay on the audit trail**, which nothing may change or delete. The Audit Trail page still lists them.
 
 **Locked Accounts (admins only):** Admin → Monitoring → Locked Accounts lists the accounts the per-account sign-in limit holds now (10 failed sign-ins in 15 minutes; `ACCOUNT_MAX_FAILURES` in `sessions.py`), with how long each lock has left.
 
