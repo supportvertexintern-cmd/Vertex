@@ -11826,12 +11826,17 @@
       "title": "Recent Alerts",
       "type": "array"
      },
+     "retention_months": {
+      "title": "Retention Months",
+      "type": "integer"
+     },
      "sign_ins": {
       "$ref": "#/components/schemas/Window"
      }
     },
     "required": [
      "open_alerts",
+     "retention_months",
      "alerts_raised",
      "failed_sign_ins",
      "sign_ins",

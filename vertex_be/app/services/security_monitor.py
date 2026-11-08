@@ -216,18 +216,59 @@ def run_account_checks(conn: Any = None) -> int:
     return raised
 
 
+def retention_cutoff() -> datetime:
+    """The oldest time security alerts and sign-in history are kept from
+    (SECURITY_RETENTION_MONTHS, decision D3)."""
+    return utc_now_ms() - timedelta(days=round(settings.SECURITY_RETENTION_MONTHS * 365 / 12))
+
+
+def run_retention() -> int:
+    """The daily clean-up (D3, interim pending legal): deletes the security
+    alerts older than the retention window, through the ORM so each delete
+    is on the trail, in batches. Sign-in history is on the trail itself,
+    which no role may change or delete (Phase 10): the monitoring pages stop
+    showing it past the window, and the rows stay (exceptions.md E11).
+    Returns how many alerts were deleted."""
+    from sqlalchemy.orm import Session  # noqa: PLC0415
+
+    from app.core.audit import set_audit_actor  # noqa: PLC0415
+
+    cutoff = retention_cutoff()
+    deleted = 0
+    while True:
+        with Session(engine) as db:
+            set_audit_actor(db, None)  # the system's clean-up
+            batch = list(db.scalars(select(SecurityAlert).where(SecurityAlert.created_at < cutoff).limit(500)))
+            if not batch:
+                break
+            for alert in batch:
+                db.delete(alert)
+            db.commit()
+            deleted += len(batch)
+    log_event(logging.INFO, "monitor.retention", deleted=deleted, cutoff=cutoff.isoformat(), months=settings.SECURITY_RETENTION_MONTHS)
+    return deleted
+
+
 def start_schedule(interval_minutes: int) -> None:
     """Runs run_account_checks every interval, first a few minutes after
-    start, on a daemon thread. Each worker runs its own; the rules' windows
+    start, and run_retention once a day, on a daemon thread. Each worker runs its own; the rules' windows
     keep an account from being raised twice."""
 
     def loop() -> None:
         time.sleep(180)
+        last_retention: float | None = None
         while True:
             try:
                 run_account_checks()
             except Exception as err:  # noqa: BLE001
                 log_event(logging.ERROR, "monitor.account_checks_failed", error=type(err).__name__)
+            # The retention clean-up, once a day.
+            if last_retention is None or time.monotonic() - last_retention >= 24 * 60 * 60:
+                try:
+                    run_retention()
+                    last_retention = time.monotonic()
+                except Exception as err:  # noqa: BLE001
+                    log_event(logging.ERROR, "monitor.retention_failed", error=type(err).__name__)
             time.sleep(interval_minutes * 60)
 
     threading.Thread(target=loop, name="account-checks", daemon=True).start()

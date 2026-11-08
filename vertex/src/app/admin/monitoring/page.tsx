@@ -31,6 +31,7 @@ interface RecentAlert {
 
 interface Overview {
   open_alerts: Record<Severity, number>;
+  retention_months: number;
   alerts_raised: Window;
   failed_sign_ins: Window;
   sign_ins: Window;
@@ -217,6 +218,7 @@ export default function SecurityOverviewPage() {
             </div>
           )}
           <p className="mt-6 text-xs text-midnight-900/40">
+            Alerts and sign-in history are kept {data.retention_months} months.{" "}
             {data.geoip_month
               ? `Country database: ${data.geoip_month}. ${GEOIP_CREDIT}`
               : "No country database in this build: countries show as unknown and the new-country check is off."}
