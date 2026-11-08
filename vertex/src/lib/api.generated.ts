@@ -2160,6 +2160,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/locked": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Locked
+         * @description Accounts the per-account limit holds now: 10 failed sign-ins in 15
+         *     minutes lock them for the rest of that window (sessions.py).
+         */
+        get: operations["locked_api_v1_monitoring_locked_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/locked/{email_fp}/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlock
+         * @description Lifts the lock at once, so the next sign-in is checked as usual.
+         *     Recorded with who did it; the failures stay on the trail.
+         */
+        post: operations["unlock_api_v1_monitoring_locked__email_fp__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/overview": {
         parameters: {
             query?: never;
@@ -3731,14 +3773,20 @@ export interface components {
             deactivation_reason: string | null;
             /** Email */
             email: string;
+            /** Email Fp */
+            email_fp: string;
             /** Full Name */
             full_name: string;
             /** Id */
             id: string;
             /** Last Sign In At */
             last_sign_in_at: string | null;
+            /** Last Sign In Country */
+            last_sign_in_country: string | null;
             /** Last Sign In Ip */
             last_sign_in_ip: string | null;
+            /** Locked */
+            locked: boolean;
             /** Open Alerts */
             open_alerts: number;
             /** Password Set */
@@ -3753,6 +3801,8 @@ export interface components {
              * @enum {string}
              */
             status: "not_activated" | "active" | "deactivated";
+            /** Unlocks In Seconds */
+            unlocks_in_seconds: number | null;
         };
         /** AccountOut */
         AccountOut: {
@@ -3790,6 +3840,8 @@ export interface components {
             id: string;
             /** Last Sign In At */
             last_sign_in_at: string | null;
+            /** Last Sign In Country */
+            last_sign_in_country: string | null;
             /** Last Sign In Ip */
             last_sign_in_ip: string | null;
             /** Open Alerts */
@@ -4069,6 +4121,8 @@ export interface components {
         /** AlertRow */
         AlertRow: {
             account: components["schemas"]["AlertAccount"] | null;
+            /** Country */
+            country: string | null;
             /** Created At */
             created_at: string;
             /** Detail */
@@ -5479,6 +5533,10 @@ export interface components {
             /** Data */
             data: components["schemas"]["PartnerListRow"][] | components["schemas"]["PartnerName"][];
         };
+        /** Data[Unlocked] */
+        Data_Unlocked_: {
+            data: components["schemas"]["Unlocked"];
+        };
         /** Data[Updated] */
         Data_Updated_: {
             data: components["schemas"]["Updated"];
@@ -5550,6 +5608,11 @@ export interface components {
         Data_list_FeePolicyOut__: {
             /** Data */
             data: components["schemas"]["FeePolicyOut"][];
+        };
+        /** Data[list[LockedRow]] */
+        Data_list_LockedRow__: {
+            /** Data */
+            data: components["schemas"]["LockedRow"][];
         };
         /** Data[list[NoteOut]] */
         Data_list_NoteOut__: {
@@ -6233,6 +6296,16 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** LockedRow */
+        LockedRow: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** Email Fp */
+            email_fp: string;
+            /** Failures */
+            failures: number;
+            /** Unlocks In Seconds */
+            unlocks_in_seconds: number;
+        };
         /** LoginAddress */
         LoginAddress: {
             /** Email */
@@ -6596,6 +6669,10 @@ export interface components {
             active_sessions: number;
             alerts_raised: components["schemas"]["Window"];
             failed_sign_ins: components["schemas"]["Window"];
+            /** Geoip Month */
+            geoip_month: string | null;
+            /** Locked Accounts */
+            locked_accounts: number;
             new_partner_logins: components["schemas"]["Window"];
             new_partners: components["schemas"]["Window"];
             /** Open Alerts */
@@ -7002,6 +7079,8 @@ export interface components {
             id: string;
             /** Last Sign In At */
             last_sign_in_at: string | null;
+            /** Last Sign In Country */
+            last_sign_in_country: string | null;
             /** Last Sign In Ip */
             last_sign_in_ip: string | null;
             /** Password Set */
@@ -8125,6 +8204,8 @@ export interface components {
         "SignIn-Output": {
             /** At */
             at: string;
+            /** Country */
+            country: string | null;
             /** Device */
             device: string | null;
             /** Ip */
@@ -8547,6 +8628,13 @@ export interface components {
             data: components["schemas"]["app__api__v1__users__Removed"];
             /** Temporarypassword */
             temporaryPassword: string;
+        };
+        /** Unlocked */
+        Unlocked: {
+            /** Email Fp */
+            email_fp: string;
+            /** Unlocked */
+            unlocked: boolean;
         };
         /** Updated */
         Updated: {
@@ -13189,6 +13277,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_ChecksRun_"];
+                };
+            };
+        };
+    };
+    locked_api_v1_monitoring_locked_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_LockedRow__"];
+                };
+            };
+        };
+    };
+    unlock_api_v1_monitoring_locked__email_fp__unlock_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                email_fp: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Unlocked_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

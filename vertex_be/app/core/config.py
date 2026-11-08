@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     # Admin monitoring's scheduled account checks (security_monitor.
     # run_account_checks): every this many minutes; 0 = off (tests).
     MONITOR_CHECKS_INTERVAL_MINUTES: int = 360
+    # The bundled address-to-country database (app/services/geoip.py).
+    GEOIP_DIR: str = "/opt/geoip"
     # Shared rate-limit counters (auth hardening plan, workstream B):
     # redis://:<password>@redis:6379/0 on the stack. Unset = each process
     # keeps its own (tests, a bare uvicorn).

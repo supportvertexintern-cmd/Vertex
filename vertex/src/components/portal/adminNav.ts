@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, Handshake, ShieldCheck, UserList, Warning } from "@phosphor-icons/react";
+import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, Handshake, LockKey, ShieldCheck, UserList, Warning } from "@phosphor-icons/react";
 
 // System Administrator is restricted to system-level concerns — account
 // provisioning, reference-data taxonomy, technical settings — not
@@ -28,5 +28,6 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
     section: "Monitoring",
     badgeFrom: "/api/admin/monitoring/alerts/summary",
   },
+  { href: "/admin/monitoring/locked", label: "Locked Accounts", icon: LockKey, section: "Monitoring" },
   { href: "/admin/monitoring/audit", label: "Audit Trail", icon: ClockCounterClockwise, section: "Monitoring" },
 ];

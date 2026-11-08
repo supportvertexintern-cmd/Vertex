@@ -70,14 +70,19 @@ jobs:
         # Hourly (2026-11-07): with a daily key, a fix the distribution
         # published after that day's first build stayed out of every image
         # until the next day (zlib, CVE-2026-76844 and -85091).
-        run: echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
+        # The month, for the backend's country database (refetched monthly).
+        run: |
+          echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
+          echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           push: true
-          build-args: SECURITY_REFRESH=${{ steps.day.outputs.day }}
+          build-args: |
+            SECURITY_REFRESH=${{ steps.day.outputs.day }}
+            GEOIP_MONTH=${{ steps.day.outputs.month }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false

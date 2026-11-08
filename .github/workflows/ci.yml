@@ -370,14 +370,19 @@ jobs:
         # Hourly (2026-11-07): with a daily key, a fix the distribution
         # published after that day's first build stayed out of every image
         # until the next day (zlib, CVE-2026-76844 and -85091).
-        run: echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
+        # The month, for the backend's country database (refetched monthly).
+        run: |
+          echo "day=$(date -u +%FT%H)" >> "$GITHUB_OUTPUT"
+          echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           push: false
           load: true
           tags: ${{ matrix.image }}:ci
-          build-args: SECURITY_REFRESH=${{ steps.day.outputs.day }}
+          build-args: |
+            SECURITY_REFRESH=${{ steps.day.outputs.day }}
+            GEOIP_MONTH=${{ steps.day.outputs.month }}
           # Read-only: reuses the layers build.yml caches for dev, staging
           # and main. Writing here would store a PR's layers where only that
           # same PR can reuse them, filling the 10 GB Actions cache.

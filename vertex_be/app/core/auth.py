@@ -39,6 +39,7 @@ from app.core.tokens import InvalidToken, ServiceClaims, verify_service_token, v
 from app.db.session import get_db
 from app.models.enums import Role
 from app.models.identity import User
+from app.services import activity
 
 
 @dataclass(frozen=True)
@@ -102,6 +103,8 @@ def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> A
         raise _unauthenticated()
 
     auth = AuthUser(user_id=user.id, email=user.email, role=user.role, sid=claims.sid, ver=user.token_version)
+    # Script-like activity (admin monitoring): this account's request rate.
+    activity.note_request(user.id, request.method)
     # For the audit of a refusal the route decides later (app/core/api.py).
     request.state.auth_user = auth
     return auth

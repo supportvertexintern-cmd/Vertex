@@ -213,6 +213,11 @@ BEGIN
     REVOKE ALL ON FUNCTION public.vertex_new_address_after_reset(text, text, timestamp) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_new_address_after_reset(text, text, timestamp) TO vertex_api;
   END IF;
+  -- The new-country check (migration 0016).
+  IF to_regprocedure('public.vertex_sign_in_places(text, timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_sign_in_places(text, timestamp) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_sign_in_places(text, timestamp) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api;
   END IF;

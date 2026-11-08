@@ -297,6 +297,14 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(page.getByText("Latest alerts")).toBeVisible();
       await page.getByRole("button", { name: "Run account checks" }).click();
       await expect(page.getByText(/Nothing new found\.|new items? in Suspicious Activity\./)).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText("Locked accounts now")).toBeVisible();
+    });
+
+    await test.step("Locked Accounts lists what the sign-in limit holds", async () => {
+      await page.getByRole("link", { name: "Locked Accounts" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/locked$/);
+      await expect(page.getByRole("heading", { name: "Locked Accounts" })).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText(/No account is locked\.|Failed sign-ins/).first()).toBeVisible({ timeout: 25_000 });
     });
   });
 });

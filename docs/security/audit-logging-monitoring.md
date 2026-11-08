@@ -133,12 +133,21 @@ Rules agreed with the owner on 2026-10-11. Since reads handover R7a they run in 
 | `sign_in_after_reset_new_ip` | a sign-in within 24 h of a password reset, from an address the account never signed in from before the reset | high | once / account / day |
 | `partner_login_not_activated` | a partner login still unused 7 days after it was created (scheduled) | medium | once / account / 30 days |
 | `inactive_account` | an activated login, not deactivated, with no sign-in for 60 days (decision D5; scheduled) | medium | once / account / 30 days |
+| `sign_in_new_country` | a sign-in from a country none of the account's earlier sign-ins came from (the first known country is the baseline; flag only, D4) | high | once / account / country / day |
+| `rapid_sign_ins` | ≥ 10 successful sign-ins by one account in 10 min | medium | once / account / 10 min |
+| `unusual_read_rate` | ≥ 1,500 signed-in reads by one account in 5 min (about 5 a second: a script, not a person) | medium | once / account / 5 min |
+| `unusual_write_rate` | ≥ 150 signed-in changes by one account in 5 min | high | once / account / 5 min |
 
 The last four come from admin monitoring phase 5 (owner's requirements 2026-11-07, §4.4).
 
 - **Medium alerts are rows on Suspicious Activity, not emails.** A scheduled scan could otherwise mail every stale login at once. High and critical alerts are emailed as before.
 - **The two scheduled checks** run every `MONITOR_CHECKS_INTERVAL_MINUTES` (default 360; 0 turns them off) in each backend worker, and also from **Run account checks** on the Security Overview. Each rule's window, checked on the trail, stops an account being raised twice.
-- **Sign-in from a new country** waits for an address-to-country source (owner, 2026-11-07).
+- **The last four** are the owner's additions (2026-11-07):
+  - The rates are counted per account on each signed-in request (`app/services/activity.py`, from `current_user`): in Redis when `REDIS_URL` is set, otherwise in the process. Each window is fixed and starts at the account's first request.
+  - **Countries** come from DB-IP's free "IP to Country Lite" database (CC BY 4.0; the pages credit it).
+    - `scripts/fetch_geoip.py` bundles it into the backend image at `/opt/geoip`. It takes the build's month (`GEOIP_MONTH`, from `build.yml` and `ci.yml`), so the first build each month fetches the new file.
+    - If the download fails, the build still succeeds. The image then has no database: every country is "unknown", the new-country check is off, and the Security Overview says so.
+    - Each sign-in and refused sign-in records its country (`detail.country`).
 
 The last two were added at the owner's invitation to "raise any concern": one means the audit trail is silently failing, the other that the fail-open malware policy is in effect.
 
@@ -175,6 +184,12 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - active sessions.
 - **The 10 latest alerts.**
 - Each card opens the page that lists it.
+
+**Locked Accounts (admins only):** Admin → Monitoring → Locked Accounts lists the accounts the per-account sign-in limit holds now (10 failed sign-ins in 15 minutes; `ACCOUNT_MAX_FAILURES` in `sessions.py`), with how long each lock has left.
+
+- A lock is keyed by the email's fingerprint, so an address with no account can be held too.
+- **Unlock** (here, or in an account's view) lifts the lock at once and records `login_unlocked`: who did it, and whether the account was locked. The failed attempts stay on the trail.
+- The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**
 
