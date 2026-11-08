@@ -32,6 +32,7 @@ import { PATCH as reviewAlert } from "@/app/api/admin/monitoring/alerts/[id]/rou
 import { GET as listPartners } from "@/app/api/admin/monitoring/partners/route";
 import { GET as partnerOptions } from "@/app/api/admin/monitoring/partners/options/route";
 import { GET as exportPartners } from "@/app/api/admin/monitoring/partners/export/route";
+import { GET as partnerSummary } from "@/app/api/admin/monitoring/partners/summary/route";
 import { GET as overview } from "@/app/api/admin/monitoring/overview/route";
 import { POST as runChecks } from "@/app/api/admin/monitoring/checks/run/route";
 import { GET as auditTrail } from "@/app/api/admin/monitoring/audit/route";
@@ -165,8 +166,16 @@ describe("Partners & Logins routes (phase 3)", () => {
     expect((await listPartners(new NextRequest("http://localhost/x"))).status).toBe(403);
     expect((await partnerOptions(new NextRequest("http://localhost/x"))).status).toBe(403);
     expect((await exportPartners(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await partnerSummary(new NextRequest("http://localhost/x"))).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
     expect(passFile).not.toHaveBeenCalled();
+  });
+
+  it("the overview reaches its path", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: {} } });
+    expect((await partnerSummary(new NextRequest("http://localhost/x"))).status).toBe(200);
+    expect(callBackend.mock.calls[0][0]).toBe("/api/v1/monitoring/partners/summary");
   });
 
   it("the list and the CSV pass on the same filters; the CSV has no paging", async () => {
@@ -174,14 +183,14 @@ describe("Partners & Logins routes (phase 3)", () => {
     callBackend.mockResolvedValueOnce({ ok: true, status: 200, body: { data: [], total: 0, page: 1, pageSize: 25 } });
     const { NextResponse } = await import("next/server");
     passFile.mockResolvedValueOnce(new NextResponse("Agency,Type", { headers: { "Content-Type": "text/csv" } }));
-    const qs = "q=abc&country=Kenya&status=active&login_status=deactivated&created_by=u9&page=2&pageSize=25&evil=1";
+    const qs = "q=abc&country=Kenya&status=active&login_status=deactivated&attention=inactive&created_by=u9&page=2&pageSize=25&evil=1";
     await listPartners(new NextRequest(`http://localhost/x?${qs}`));
     const csv = await exportPartners(new NextRequest(`http://localhost/x?${qs}`));
     const defined = (q: Record<string, unknown>) => Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined));
     expect(callBackend.mock.calls[0][0]).toBe("/api/v1/monitoring/partners");
-    expect(defined(callBackend.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", created_by: "u9", page: "2", pageSize: "25" });
+    expect(defined(callBackend.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", attention: "inactive", created_by: "u9", page: "2", pageSize: "25" });
     expect(passFile.mock.calls[0][0]).toBe("/api/v1/monitoring/partners.csv");
-    expect(defined(passFile.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", created_by: "u9" });
+    expect(defined(passFile.mock.calls[0][1].query)).toEqual({ q: "abc", country: "Kenya", status: "active", login_status: "deactivated", attention: "inactive", created_by: "u9" });
     expect(await csv.text()).toBe("Agency,Type");
   });
 

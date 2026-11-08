@@ -7,6 +7,11 @@
 // records on the audit trail before it leaves. A login is deactivated or
 // reactivated here (with a reason); it is created or reset on the partner's
 // own page, as before.
+//
+// The overview at the top (owner's request 2026-11-08) counts agencies and
+// logins by status, and the logins needing follow-up as the scheduled checks
+// define them: a setup email unused for 7+ days, an active login not signed
+// in for 60+ days (D5). Each count filters the list below.
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -46,6 +51,22 @@ const TYPES: Record<string, string> = {
 
 const MOU: Record<string, string> = { none: "None", sent: "Sent", signed: "Signed" };
 
+type Attention = "setup_overdue" | "inactive";
+
+const ATTENTION: Record<Attention, { label: string; note: (days: number) => string }> = {
+  setup_overdue: { label: "Setup email unused 7+ days", note: (days) => `Setup email unused for ${days} days` },
+  inactive: { label: "Not signed in for 60+ days", note: (days) => `Not signed in for ${days} days` },
+};
+
+interface Summary {
+  agencies: number;
+  agencies_by_status: Record<string, number>;
+  logins_by_status: Record<LoginStatus, number>;
+  attention: Record<Attention, number>;
+  new_agencies: { last_24h: number; last_7d: number };
+  signed_in_last_30d: number;
+}
+
 interface Person {
   id: string;
   full_name: string;
@@ -76,6 +97,7 @@ interface Row {
   created_by: Person | null;
   login_status: LoginStatus;
   login: Login | null;
+  attention: { kind: Attention; days: number } | null;
 }
 
 function when(iso: string | null): string {
@@ -118,6 +140,8 @@ function PartnersAndLogins() {
   const [country, setCountry] = useState("");
   const [status, setStatus] = useState("");
   const [loginStatus, setLoginStatus] = useState(search.get("login_status") ?? "");
+  const [attention, setAttention] = useState(search.get("attention") ?? "");
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [createdBy, setCreatedBy] = useState("");
@@ -126,12 +150,12 @@ function PartnersAndLogins() {
   const filters = useCallback(() => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries({
-      q, country, status, login_status: loginStatus, created_from: createdFrom, created_to: createdTo, created_by: createdBy,
+      q, country, status, login_status: loginStatus, attention, created_from: createdFrom, created_to: createdTo, created_by: createdBy,
     })) {
       if (value) params.set(key, value);
     }
     return params;
-  }, [q, country, status, loginStatus, createdFrom, createdTo, createdBy]);
+  }, [q, country, status, loginStatus, attention, createdFrom, createdTo, createdBy]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -153,6 +177,14 @@ function PartnersAndLogins() {
     return () => clearTimeout(timeout);
   }, [load]);
 
+  const loadSummary = useCallback(() => {
+    call("/api/admin/monitoring/partners/summary")
+      .then((body) => setSummary(body.data as Summary))
+      .catch(() => {});
+  }, []);
+
+  useEffect(loadSummary, [loadSummary]);
+
   useEffect(() => {
     call("/api/admin/monitoring/partners/options")
       .then((body) => setOptions(body.data as { countries: string[]; creators: Person[] }))
@@ -161,6 +193,14 @@ function PartnersAndLogins() {
 
   const filter = (set: (value: string) => void) => (value: string) => {
     set(value);
+    setPage(1);
+  };
+
+  // An overview count shows just those rows: it replaces the status filters.
+  const show = (only: { status?: string; loginStatus?: string; attention?: string }) => {
+    setStatus(only.status ?? "");
+    setLoginStatus(only.loginStatus ?? "");
+    setAttention(only.attention ?? "");
     setPage(1);
   };
 
@@ -192,6 +232,7 @@ function PartnersAndLogins() {
       });
       setNotice(deactivating ? `${row.name}: login deactivated.` : `${row.name}: login reactivated.`);
       load();
+      loadSummary();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -230,6 +271,58 @@ function PartnersAndLogins() {
         </div>
       )}
 
+      {summary && (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+          <div className="card p-5">
+            <p className="text-xs uppercase tracking-wider text-midnight-900/40 font-semibold mb-2">Agencies</p>
+            <button type="button" onClick={() => show({})} className="text-3xl font-semibold text-midnight-900 hover:underline">
+              {summary.agencies}
+            </button>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {Object.entries(AGENCY_STATUS).map(([value, s]) => (
+                <button key={value} type="button" onClick={() => show({ status: value })} className="text-midnight-900/55 hover:underline">
+                  {s.label} {summary.agencies_by_status[value] ?? 0}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-midnight-900/40">
+              {summary.new_agencies.last_7d} added in the last 7 days
+            </p>
+          </div>
+          <div className="card p-5">
+            <p className="text-xs uppercase tracking-wider text-midnight-900/40 font-semibold mb-2">Logins</p>
+            <button type="button" onClick={() => show({ loginStatus: "active" })} className="text-3xl font-semibold text-midnight-900 hover:underline">
+              {summary.logins_by_status.active}
+            </button>
+            <span className="ml-2 text-xs text-midnight-900/45">active</span>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {(["setup_pending", "deactivated", "no_login"] as const).map((value) => (
+                <button key={value} type="button" onClick={() => show({ loginStatus: value })} className="text-midnight-900/55 hover:underline">
+                  {LOGIN_STATUS[value].label} {summary.logins_by_status[value]}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-midnight-900/40">{summary.signed_in_last_30d} signed in during the last 30 days</p>
+          </div>
+          {(Object.keys(ATTENTION) as Attention[]).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => show({ attention: kind })}
+              className={`card p-5 text-left hover:shadow-md transition-shadow ${attention === kind ? "ring-2 ring-gold-500" : ""}`}
+            >
+              <p className="text-xs uppercase tracking-wider text-midnight-900/40 font-semibold mb-2">{ATTENTION[kind].label}</p>
+              <p className={`text-3xl font-semibold ${summary.attention[kind] ? "text-amber-700" : "text-midnight-900"}`}>{summary.attention[kind]}</p>
+              <p className="mt-2 text-xs text-midnight-900/40">
+                {kind === "setup_overdue"
+                  ? "Partner logins never activated a week after their setup email."
+                  : "Active partner logins that haven't signed in for 60 days or more."}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
       <FilterBar searchValue={q} onSearchChange={filter(setQ)} searchPlaceholder="Search by agency name or login email…">
         <SearchableSelect
           value={country}
@@ -251,6 +344,13 @@ function PartnersAndLogins() {
           placeholder="Any login status"
           className="input-field w-48"
           options={[{ value: "", label: "Any login status" }, ...Object.entries(LOGIN_STATUS).map(([value, s]) => ({ value, label: s.label }))]}
+        />
+        <SearchableSelect
+          value={attention}
+          onChange={filter(setAttention)}
+          placeholder="Any follow-up"
+          className="input-field w-56"
+          options={[{ value: "", label: "Any follow-up" }, ...Object.entries(ATTENTION).map(([value, a]) => ({ value, label: a.label }))]}
         />
         <SearchableSelect
           value={createdBy}
@@ -329,6 +429,9 @@ function PartnersAndLogins() {
                       )}
                       {r.login_status === "deactivated" && r.login?.deactivated_at && (
                         <div className="text-xs text-midnight-900/40 mt-1">on {when(r.login.deactivated_at)}</div>
+                      )}
+                      {r.attention && (
+                        <div className="text-xs font-medium text-amber-700 mt-1">{ATTENTION[r.attention.kind].note(r.attention.days)}</div>
                       )}
                     </td>
                     <td className="px-5 py-4 text-midnight-900/70">

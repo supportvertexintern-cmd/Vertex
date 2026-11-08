@@ -37,6 +37,7 @@ interface Overview {
   sign_ins: Window;
   accounts_deactivated: Window;
   partner_logins_not_activated: number;
+  accounts_inactive: number;
   new_partners: Window;
   new_partner_logins: Window;
   active_sessions: number;
@@ -183,9 +184,15 @@ export default function SecurityOverviewPage() {
             <Card title="Accounts deactivated" href="/admin/monitoring/accounts?status=deactivated" window={data.accounts_deactivated} />
             <Card
               title="Partner logins not activated"
-              href="/admin/monitoring/partners?login_status=setup_pending"
+              href="/admin/monitoring/partners?attention=setup_overdue"
               value={data.partner_logins_not_activated}
               note="Setup email more than 7 days old, never used."
+            />
+            <Card
+              title="Inactive accounts"
+              href="/admin/monitoring/accounts?status=active&inactive_days=60"
+              value={data.accounts_inactive}
+              note="Active staff and partner logins not signed in for 60+ days."
             />
             <Card title="New partners" href="/admin/monitoring/partners" window={data.new_partners} />
             <Card title="New partner logins" href="/admin/monitoring/partners" window={data.new_partner_logins} />

@@ -181,38 +181,55 @@ def _new_country(user_id: str, ip: str, country: Any) -> None:
                     {"user_id": user_id, "ip": ip, "country": country, "known_countries": sorted(known)})
 
 
+def overdue_setups(conn: Any) -> dict[str, int]:
+    """Partner logins still not activated NOT_ACTIVATED_AFTER_DAYS after they
+    were created (their setup email): user id -> days since. One definition
+    for the scheduled check, the Security Overview and Partners & Logins."""
+    now = utc_now_ms()
+    rows = conn.execute(
+        select(User.id, User.created_at).where(
+            User.role == Role.partner, User.activated_at.is_(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
+            User.created_at < now - timedelta(days=NOT_ACTIVATED_AFTER_DAYS),
+        )
+    ).all()
+    return {r.id: (now - r.created_at).days for r in rows}
+
+
+def inactive_logins(conn: Any) -> dict[str, int]:
+    """Active staff and partner logins (not candidates) that haven't signed
+    in for INACTIVE_AFTER_DAYS (D5), counting from creation if never: user
+    id -> days since. One definition for the scheduled check, the Security
+    Overview and Partners & Logins."""
+    now = utc_now_ms()
+    logins = conn.execute(
+        select(User.id, User.created_at).where(
+            User.role != Role.candidate, User.activated_at.is_not(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
+        )
+    ).all()
+    if not logins:
+        return {}
+    last = dict(conn.execute(text("SELECT user_id, signed_in_at FROM public.vertex_last_sign_ins(:ids)"), {"ids": [u.id for u in logins]}).all())
+    days = {u.id: (now - (last.get(u.id) or u.created_at)).days for u in logins}
+    return {user_id: d for user_id, d in days.items() if d >= INACTIVE_AFTER_DAYS}
+
+
 def run_account_checks(conn: Any = None) -> int:
     """The scheduled checks: partner logins never activated a week after
     their setup email, and logins unused for 60 days that are still active.
     Each account is raised at most once a month (the rule's window, across
     processes through the trail). Returns how many alerts were raised.
     conn: a connection to read from (tests); a new one by default."""
-    now = utc_now_ms()
     raised = 0
     with (nullcontext(conn) if conn is not None else engine.connect()) as conn:
-        waiting = conn.execute(
-            select(User.id, User.created_at).where(
-                User.role == Role.partner, User.activated_at.is_(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
-                User.created_at < now - timedelta(days=NOT_ACTIVATED_AFTER_DAYS),
-            )
-        ).all()
-        logins = conn.execute(
-            select(User.id, User.created_at).where(
-                User.role != Role.candidate, User.activated_at.is_not(None), User.deactivated_at.is_(None), User.deleted_at.is_(None),
-            )
-        ).all()
-        last = dict(conn.execute(text("SELECT user_id, signed_in_at FROM public.vertex_last_sign_ins(:ids)"), {"ids": [u.id for u in logins]}).all()) if logins else {}
-    for u in waiting:
-        days = (now - u.created_at).days
-        raised += raise_alert(PARTNER_NOT_ACTIVATED, f"user:{u.id}", f"A partner login is still not activated {days} days after it was created",
-                              {"user_id": u.id, "days": days})
-    for u in logins:
-        seen = last.get(u.id) or u.created_at
-        days = (now - seen).days
-        if days >= INACTIVE_AFTER_DAYS:
-            raised += raise_alert(INACTIVE_ACCOUNT, f"user:{u.id}", f"An active login hasn't signed in for {days} days",
-                                  {"user_id": u.id, "days": days})
-    log_event(logging.INFO, "monitor.account_checks", waiting=len(waiting), logins=len(logins), raised=raised)
+        waiting = overdue_setups(conn)
+        inactive = inactive_logins(conn)
+    for user_id, days in waiting.items():
+        raised += raise_alert(PARTNER_NOT_ACTIVATED, f"user:{user_id}", f"A partner login is still not activated {days} days after it was created",
+                              {"user_id": user_id, "days": days})
+    for user_id, days in inactive.items():
+        raised += raise_alert(INACTIVE_ACCOUNT, f"user:{user_id}", f"An active login hasn't signed in for {days} days",
+                              {"user_id": user_id, "days": days})
+    log_event(logging.INFO, "monitor.account_checks", waiting=len(waiting), inactive=len(inactive), raised=raised)
     return raised
 
 

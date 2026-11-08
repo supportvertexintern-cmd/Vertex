@@ -45,7 +45,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import date, datetime, time, timedelta
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, StringConstraints
@@ -440,6 +440,22 @@ class PartnerLogin(BaseModel):
     last_sign_in_country: str | None
 
 
+# A login that needs following up (the scheduled checks' definitions):
+# setup_overdue, its setup email unused NOT_ACTIVATED_AFTER_DAYS (7) or more;
+# inactive, active but not signed in for INACTIVE_AFTER_DAYS (60, D5) or more.
+Attention = Literal["setup_overdue", "inactive"]
+
+
+class Window(BaseModel):
+    last_24h: int
+    last_7d: int
+
+
+class PartnerAttention(BaseModel):
+    kind: Attention
+    days: int
+
+
 class PartnerLoginRow(BaseModel):
     id: str
     name: str
@@ -451,6 +467,7 @@ class PartnerLoginRow(BaseModel):
     created_by: Person | None
     login_status: LoginStatus
     login: PartnerLogin | None
+    attention: PartnerAttention | None
 
 
 class PartnerOptions(BaseModel):
@@ -476,9 +493,17 @@ def _partner_rows(db, partners: list[Partner]) -> list[dict[str, Any]]:
     people_ids.discard(None)
     people = {r.id: {"id": r.id, "full_name": r.full_name} for r in db.execute(select(User.id, User.full_name).where(User.id.in_(people_ids)))} if people_ids else {}
 
+    overdue = security_monitor.overdue_setups(db) if login_ids else {}
+    inactive = security_monitor.inactive_logins(db) if login_ids else {}
+
     out = []
     for p in partners:
         login = logins.get(p.user_id) if p.user_id else None
+        attention = None
+        if login is not None and login.id in overdue:
+            attention = {"kind": "setup_overdue", "days": overdue[login.id]}
+        elif login is not None and login.id in inactive:
+            attention = {"kind": "inactive", "days": inactive[login.id]}
         status = _login_status(login)
         sign_in = last.get(login.id) if login else None
         out.append({
@@ -492,11 +517,12 @@ def _partner_rows(db, partners: list[Partner]) -> list[dict[str, Any]]:
                 "last_sign_in_at": sign_in.signed_in_at if sign_in else None, "last_sign_in_ip": sign_in.ip if sign_in else None,
                 "last_sign_in_country": geoip.country_of(sign_in.ip) if sign_in else None,
             },
+            "attention": attention,
         })
     return out
 
 
-def _filtered_partners(db, q, country, status, login_status, created_from, created_to, created_by) -> list[dict[str, Any]]:
+def _filtered_partners(db, q, country, status, login_status, attention, created_from, created_to, created_by) -> list[dict[str, Any]]:
     query = select(Partner)
     if q and q.strip():
         like = f"%{q.strip()}%"
@@ -515,6 +541,8 @@ def _filtered_partners(db, q, country, status, login_status, created_from, creat
     rows = _partner_rows(db, list(db.scalars(query.order_by(Partner.created_at.desc(), Partner.id))))
     if login_status is not None:
         rows = [r for r in rows if r["login_status"] == login_status]
+    if attention is not None:
+        rows = [r for r in rows if r["attention"] and r["attention"]["kind"] == attention]
     return rows
 
 
@@ -527,14 +555,15 @@ class PartnerFilters:
         country: Annotated[str | None, Query(max_length=200)] = None,
         status: PartnerStatus | None = None,
         login_status: LoginStatus | None = None,
+        attention: Attention | None = None,
         created_from: date | None = None,
         created_to: date | None = None,
         created_by: Annotated[str | None, Query(max_length=100)] = None,
     ):
-        self.args = (q, country, status, login_status, created_from, created_to, created_by)
+        self.args = (q, country, status, login_status, attention, created_from, created_to, created_by)
         self.audited = {
             k: (v.value if hasattr(v, "value") else str(v)) for k, v in {
-                "country": country, "status": status, "login_status": login_status,
+                "country": country, "status": status, "login_status": login_status, "attention": attention,
                 "created_from": created_from, "created_to": created_to, "created_by": created_by,
             }.items() if v is not None
         } | ({"search": True} if q else {})
@@ -547,6 +576,42 @@ def list_partner_logins(
     """Newest agency first."""
     rows = _filtered_partners(db, *filters.args)
     return {"data": rows[paging.offset : paging.offset + paging.page_size], "total": len(rows), "page": paging.page, "pageSize": paging.page_size}
+
+
+class PartnerSummary(BaseModel):
+    """The overview at the top of Partners & Logins."""
+
+    agencies: int
+    agencies_by_status: dict[PartnerStatus, int]
+    logins_by_status: dict[LoginStatus, int]
+    # Logins needing follow-up, as the scheduled checks define them.
+    attention: dict[Attention, int]
+    new_agencies: Window
+    # Agencies with an active login that signed in during the last 30 days.
+    signed_in_last_30d: int
+
+
+@router.get("/partners/summary", response_model=Data[PartnerSummary])
+def partner_summary(_admin: Admin, db: DbSession):
+    rows = _filtered_partners(db, *PartnerFilters().args)
+    since = utc_now_ms() - timedelta(days=30)
+    by_status = {s: 0 for s in PartnerStatus}
+    by_login = {s: 0 for s in get_args(LoginStatus)}
+    attention = {a: 0 for a in get_args(Attention)}
+    for r in rows:
+        by_status[r["status"]] += 1
+        by_login[r["login_status"]] += 1
+        if r["attention"]:
+            attention[r["attention"]["kind"]] += 1
+    signed_in = sum(1 for r in rows if r["login_status"] == "active" and r["login"]["last_sign_in_at"] and r["login"]["last_sign_in_at"] >= since)
+    return {"data": {
+        "agencies": len(rows),
+        "agencies_by_status": by_status,
+        "logins_by_status": by_login,
+        "attention": attention,
+        "new_agencies": _window(db, Partner.created_at),
+        "signed_in_last_30d": signed_in,
+    }}
 
 
 @router.get("/partners/options", response_model=Data[PartnerOptions])
@@ -716,11 +781,6 @@ def audit_trail(
 # --- Security Overview (phase 5) ------------------------------------------------------
 
 
-class Window(BaseModel):
-    last_24h: int
-    last_7d: int
-
-
 class Overview(BaseModel):
     open_alerts: dict[SecurityAlertSeverity, int]
     # How long alerts and sign-in history are kept (D3).
@@ -731,6 +791,8 @@ class Overview(BaseModel):
     accounts_deactivated: Window
     # Partner logins whose setup email is more than 7 days old, never used.
     partner_logins_not_activated: int
+    # Active staff and partner logins not signed in for 60+ days (D5).
+    accounts_inactive: int
     new_partners: Window
     new_partner_logins: Window
     active_sessions: int
@@ -763,10 +825,6 @@ def overview(_admin: Admin, db: DbSession):
         select(SecurityAlert.severity, func.count()).where(SecurityAlert.status == SecurityAlertStatus.open).group_by(SecurityAlert.severity)
     ).all():
         open_alerts[level] = n
-    waiting = db.scalar(select(func.count()).select_from(User).where(
-        User.role == Role.partner, User.activated_at.is_(None), User.deactivated_at.is_(None),
-        User.created_at < now - timedelta(days=security_monitor.NOT_ACTIVATED_AFTER_DAYS),
-    ))
     sessions = db.scalar(select(func.count(func.distinct(RefreshToken.family_id))).where(
         RefreshToken.revoked_at.is_(None), RefreshToken.used_at.is_(None), RefreshToken.expires_at > now,
     ))
@@ -779,7 +837,8 @@ def overview(_admin: Admin, db: DbSession):
         "failed_sign_ins": from_trail("login_failed"),
         "sign_ins": from_trail("login_succeeded"),
         "accounts_deactivated": _window(db, User.deactivated_at),
-        "partner_logins_not_activated": int(waiting or 0),
+        "partner_logins_not_activated": len(security_monitor.overdue_setups(db)),
+        "accounts_inactive": len(security_monitor.inactive_logins(db)),
         "new_partners": _window(db, Partner.created_at),
         "new_partner_logins": _window(db, User.created_at, User.role == Role.partner),
         "active_sessions": int(sessions or 0),
