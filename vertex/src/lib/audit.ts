@@ -46,7 +46,9 @@ export function auditFilters(params: URLSearchParams): Record<string, string> {
 // Security events (Phase 10) this app decides itself: a sign-in refused by
 // its own rate limit, a denial by its early role check, a download link
 // that didn't verify, a file served for one. FastAPI records every other.
-export type SecurityAction = "login_rate_limited" | "access_denied" | "document_link_rejected" | "document_downloaded";
+// reset_rate_limited: a forgot-password request refused by this site's
+// per-address limit (Reset Email Activity, login protection 4.4).
+export type SecurityAction = "login_rate_limited" | "access_denied" | "document_link_rejected" | "document_downloaded" | "reset_rate_limited";
 
 export interface SecurityEvent {
   // Who, for the log line; FastAPI records the session's user.

@@ -37,7 +37,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notice, Notifying
 from app.services.emails import deliver
-from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, security_event
+from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, record_account_email, security_event
 from app.api.v1.users import keep_an_admin
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -338,6 +338,7 @@ def update_partner(partner_id: str, body: UpdateIn, manager: Manager, request: R
         login.email = changes["contact_email"]
         login.password_hash = None
         notify.append(_setup_email(login))
+        record_account_email(request, login, "account_setup", actor_id=manager.user_id)
     if owner is not None:
         owner.deactivated_at = utc_now_ms()
         owner.deactivated_by = manager.user_id
@@ -374,7 +375,7 @@ def delete_partner(partner_id: str, user: Manager, db: AuditedDb):
 
 
 @router.post("/partners/{partner_id}/provision-account", status_code=status.HTTP_201_CREATED, response_model=Notifying[PartnerRow])
-def provision_account(partner_id: str, body: LoginIn, manager: Manager, db: AuditedDb):
+def provision_account(partner_id: str, body: LoginIn, manager: Manager, request: Request, db: AuditedDb):
     """The partner's own login (SRS FR-5.1), with no password: the setup
     email lets them set it."""
     partner = _locked(db, partner_id)
@@ -395,6 +396,7 @@ def provision_account(partner_id: str, body: LoginIn, manager: Manager, db: Audi
     partner.user_id = login.id
     _saved(db)
     db.refresh(partner)
+    record_account_email(request, login, "account_setup", actor_id=manager.user_id)
     return {"data": partner, "notify": deliver(db, [_setup_email(login)])}
 
 
@@ -414,6 +416,7 @@ def reset_password(partner_id: str, user: Manager, request: Request, db: Audited
         raise ApiError(429, "email_limited", EMAIL_LIMITED)
     login.password_hash = None
     db.commit()
+    record_account_email(request, login, "account_setup", actor_id=user.user_id)
     return {"data": {"email": login.email}, "notify": deliver(db, [_setup_email(login)])}
 
 

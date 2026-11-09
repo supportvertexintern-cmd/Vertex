@@ -37,7 +37,7 @@ from app.api.deps import DbSession
 from app.api.notices import Notice, Notifying, PasswordResetEmail, VerificationEmail
 from app.services.emails import deliver
 from app.api.v1.candidates import claimable_candidate, link_account
-from app.api.v1.sessions import account_email_allowed, security_event
+from app.api.v1.sessions import account_email_allowed, record_account_email, security_event
 from app.core.api import ApiError, Email
 from app.core.audit import set_audit_actor
 from app.core.auth import calling_service
@@ -152,7 +152,7 @@ def _email_taken(db, email: str) -> bool:
 
 
 @router.post("/accounts/register", status_code=status.HTTP_201_CREATED, response_model=Notifying[Registered])
-def register(body: RegisterIn, db: DbSession, _on: PipelineWrites):
+def register(body: RegisterIn, request: Request, db: DbSession, _on: PipelineWrites):
     """A screened candidate creates their account from the invite. Name,
     email, phone and country come from the candidate record, never the
     request."""
@@ -186,6 +186,7 @@ def register(body: RegisterIn, db: DbSession, _on: PipelineWrites):
     db.refresh(user)
 
     notify: list[Notice] = [VerificationEmail(email=user.email, full_name=user.full_name, token=sign_verification_token(user.id, user.email))]
+    record_account_email(request, user, "email_verification")
     message = "Account created successfully. Please check your email to verify your account."
     return {"data": {"message": message, "user": user}, "notify": deliver(db, notify)}
 

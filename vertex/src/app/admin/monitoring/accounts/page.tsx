@@ -120,7 +120,27 @@ interface AccountDetail extends Account {
   lockouts: LockoutRow[];
   next_lockout_step: number;
   steps_reset_at: string | null;
+  // Its latest reset, setup and verification emails, sent and refused.
+  account_emails: AccountEmail[];
 }
+
+interface AccountEmail {
+  id: string;
+  at: string;
+  kind: "password_reset" | "account_setup" | "email_verification";
+  result: "sent" | "refused_email_limit" | "refused_address_limit" | "not_sent";
+  ip: string | null;
+  country: string | null;
+  manual: boolean;
+}
+
+const EMAIL_KINDS: Record<string, string> = { password_reset: "Password reset", account_setup: "Setup", email_verification: "Verification" };
+const EMAIL_RESULTS: Record<string, string> = {
+  sent: "Sent",
+  refused_email_limit: "Refused (email limit)",
+  refused_address_limit: "Refused (address limit)",
+  not_sent: "Nothing sent",
+};
 
 const REFUSALS: Record<string, string> = {
   bad_password: "Wrong password",
@@ -693,6 +713,37 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                               {lk.ended_by === "admin" && lk.ended_by_person && <div className="text-midnight-900/45">by {lk.ended_by_person.full_name}</div>}
                               {lk.end_reason && <div className="text-midnight-900/45">&ldquo;{lk.end_reason}&rdquo;</div>}
                             </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-1 text-sm font-semibold text-midnight-900">Reset and setup emails</h3>
+                <p className="mb-3 text-xs text-midnight-900/45">
+                  The latest 20, sent and refused.{" "}
+                  <Link href={`/admin/monitoring/reset-emails?q=${encodeURIComponent(account.email)}`} className="underline">
+                    All in Reset Email Activity
+                  </Link>
+                </p>
+                {account.account_emails.length === 0 ? (
+                  <p className="text-sm text-midnight-900/45">None kept for this account.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-midnight-900/10">
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {account.account_emails.map((e) => (
+                          <tr key={e.id} className="border-b border-midnight-900/5 last:border-0">
+                            <td className="px-3 py-2 text-midnight-900/70 whitespace-nowrap">{when(e.at)}</td>
+                            <td className="px-3 py-2 text-midnight-900/70">
+                              {EMAIL_KINDS[e.kind] ?? e.kind}
+                              {e.manual ? " (by an admin)" : ""}
+                            </td>
+                            <td className={`px-3 py-2 ${e.result === "sent" ? "text-emerald-700" : "text-red-700"}`}>{EMAIL_RESULTS[e.result] ?? e.result}</td>
+                            <td className="px-3 py-2 text-midnight-900/60">{e.ip ? place(e.ip, e.country) : "—"}</td>
                           </tr>
                         ))}
                       </tbody>

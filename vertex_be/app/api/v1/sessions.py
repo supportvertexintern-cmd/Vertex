@@ -104,6 +104,15 @@ def security_event(request: Request, action: str, *, actor_id: str | None, entit
 EMAIL_LIMITED = "This address has already had its account emails for now (3 an hour, 6 a day). Try again later."
 
 
+def record_account_email(request: Request, user: User, kind: str, *, actor_id: str | None = None, reason: str | None = None) -> None:
+    """A password-reset, setup or verification email that went to this
+    account (Reset Email Activity, login protection 4.4). Forgot-password
+    records its own password_reset_requested instead. A reason marks an
+    admin's manual resend."""
+    security_event(request, "account_email_sent", actor_id=actor_id, entity_type="Auth", entity_id=f"user:{user.id}",
+                   detail={"email_fp": email_fingerprint(user.email), "kind": kind} | ({"manual": True, "reason": reason} if reason else {}))
+
+
 def account_email_allowed(request: Request, email: str, *, user_id: str | None, kind: str, actor_id: str | None = None) -> bool:
     """True, and counted, if one more password-reset or setup email may go
     to this address (app/services/email_limit.py); else records

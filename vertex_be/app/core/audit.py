@@ -235,7 +235,8 @@ def _refuse_bulk_writes(state: ORMExecuteState) -> None:
 
 
 SECURITY_INFO_ACTIONS = frozenset(
-    {"login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked", "audit_trail_viewed"}
+    {"login_succeeded", "logout", "document_link_issued", "document_downloaded", "sessions_revoked", "audit_trail_viewed",
+     "account_email_sent"}
 )
 
 

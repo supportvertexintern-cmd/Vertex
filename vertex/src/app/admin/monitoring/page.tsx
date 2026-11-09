@@ -191,11 +191,11 @@ export default function SecurityOverviewPage() {
             <Card title="Alerts raised" href="/admin/monitoring/suspicious" window={data.alerts_raised} />
             <Card
               title="Failed sign-ins"
-              href="/admin/monitoring/audit?action=login_failed"
+              href="/admin/monitoring/sign-ins?failures_only=true"
               window={data.failed_sign_ins}
               note={trend(data.failed_sign_ins.last_24h, data.failed_sign_ins_previous_24h)}
             />
-            <Card title="Sign-ins" href="/admin/monitoring/audit?action=login_succeeded" window={data.sign_ins} />
+            <Card title="Sign-ins" href="/admin/monitoring/sign-ins?result=success" window={data.sign_ins} />
             <Card title="Accounts deactivated" href="/admin/monitoring/accounts?status=deactivated" window={data.accounts_deactivated} />
             <Card
               title="Partner logins not activated"
@@ -230,7 +230,7 @@ export default function SecurityOverviewPage() {
             />
             <Card
               title="Refused reset emails"
-              href="/admin/monitoring/audit?action=reset_rate_limited"
+              href="/admin/monitoring/reset-emails?result=refused_email_limit"
               window={data.reset_emails_refused}
               note="Past the per-address limit of 3 an hour, 6 a day."
             />

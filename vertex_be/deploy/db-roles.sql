@@ -218,6 +218,23 @@ BEGIN
     REVOKE ALL ON FUNCTION public.vertex_sign_in_places(text, timestamp) FROM PUBLIC, vertex_readonly;
     GRANT EXECUTE ON FUNCTION public.vertex_sign_in_places(text, timestamp) TO vertex_api;
   END IF;
+  -- Sign-in Activity and Reset Email Activity (migration 0020).
+  IF to_regprocedure('public.vertex_sign_in_events(timestamp, timestamp, text[], text[], text[], text, text, integer, integer)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_sign_in_events(timestamp, timestamp, text[], text[], text[], text, text, integer, integer) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_sign_in_events(timestamp, timestamp, text[], text[], text[], text, text, integer, integer) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_sign_in_failure_stats(timestamp)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_sign_in_failure_stats(timestamp) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_sign_in_failure_stats(timestamp) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_account_email_events(timestamp, timestamp, text[], text[], text[], text[], integer, integer)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_account_email_events(timestamp, timestamp, text[], text[], text[], text[], integer, integer) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_account_email_events(timestamp, timestamp, text[], text[], text[], text[], integer, integer) TO vertex_api;
+  END IF;
+  IF to_regprocedure('public.vertex_account_email_refusals(timestamp, integer)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION public.vertex_account_email_refusals(timestamp, integer) FROM PUBLIC, vertex_readonly;
+    GRANT EXECUTE ON FUNCTION public.vertex_account_email_refusals(timestamp, integer) TO vertex_api;
+  END IF;
   IF to_regclass('public.alembic_version') IS NOT NULL THEN
     REVOKE ALL ON alembic_version FROM vertex_api;
   END IF;

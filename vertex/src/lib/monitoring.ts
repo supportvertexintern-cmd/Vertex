@@ -6,6 +6,12 @@ export const PARTNER_FILTERS = ["q", "country", "status", "login_status", "atten
 /** Locked Accounts → History's filters (login protection, 4.1). */
 export const LOCKOUT_FILTERS = ["q", "step", "ended_by", "needs_review", "date_from", "date_to"] as const;
 
+/** Sign-in Activity's filters (login protection, 4.2). */
+export const SIGN_IN_FILTERS = ["q", "result", "failures_only", "user_id", "ip", "country", "date_from", "date_to"] as const;
+
+/** Reset Email Activity's filters (login protection, 4.4). */
+export const RESET_EMAIL_FILTERS = ["q", "kind", "result", "date_from", "date_to"] as const;
+
 /** The cooldown of each lockout step (login protection, decision L1). */
 export const LOCKOUT_STEPS: Record<number, string> = { 1: "15 minutes", 2: "1 hour", 3: "4 hours", 4: "24 hours" };
 
