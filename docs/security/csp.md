@@ -87,6 +87,12 @@ Fix each real violation at its source. Ignore reports from browser extensions: t
 
 Rollback at any time: remove `CSP_MODE` (or set it to `report-only`) and redeploy.
 
+**Status, 2026-11-09:**
+- **The stacks never received `CSP_MODE`.** `docker-compose.deploy.yml` didn't pass it to Next.js, so setting it in an env file changed nothing. It does now, defaulting to `report-only`. `verify-stack.sh` checks that each stack's page policy matches its env file.
+- **One violation from the app itself.** All 31 journeys, run with the policy enforced, found it: Zod 4 probes `Function("")` the first time it validates, which `script-src` blocks (no `'unsafe-eval'`). Zod then falls back, so nothing broke, but every page that validates posted a report. `lib/validations.ts` now sets Zod to jitless, and `csp.test.ts` pins it. The rerun found no violations.
+- **The journeys now run under the enforced policy**, in CI and in `scripts/test-e2e.sh`.
+- **Enforced on dev and staging** (`CSP_MODE=enforce` in their env files). **Main** follows at the next promotion; that closes E3.
+
 ## 5. Regression check (step 9)
 
 `vertex/src/lib/csp.test.ts` runs in CI. It fails if:
@@ -103,6 +109,7 @@ Rollback at any time: remove `CSP_MODE` (or set it to `report-only`) and redeplo
 |---|---|---|
 | 2026-10-12 | Unit tests (`csp.test.ts`, `dast-fixes.test.ts`, route guards) | 26 passed |
 | 2026-10-12 | Local production build (`next build` + `next start`), real Chromium (Playwright), throwaway database, both modes | **31/31 checks in each mode** (details below) |
+| 2026-11-09 | The 31 journeys, production build, `CSP_MODE=enforce` | All passed. 3 reports, all Zod's `Function("")` probe on `/auth/login`. After the jitless fix: **all passed, 0 reports** |
 
 What the Chromium run checked, in both modes:
 - 8 public pages and the admin users page load with **no CSP violations**;

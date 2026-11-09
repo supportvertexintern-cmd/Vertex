@@ -67,6 +67,8 @@ export SMTP_HOST=localhost SMTP_PORT="$SMTP_PORT" SMTP_SECURE=false EMAIL_FROM=e
 export NEXT_PUBLIC_APP_URL="http://localhost:$E2E_PORT"
 # The journeys log in many times from one machine (default limit: 10/min).
 export LOGIN_RATE_LIMIT_MAX=1000
+# The journeys run under the enforced CSP, as the stacks do (E3).
+export CSP_MODE=enforce
 export E2E_WEB_SERVER="npx next start -p $E2E_PORT"
 # A fresh signing key per run, so no secret-looking value lives here.
 JWT_SECRET="$(node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))')"

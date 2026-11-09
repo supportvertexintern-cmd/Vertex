@@ -2,6 +2,13 @@ import { z } from "zod";
 import { MARITAL_STATUS_VALUES } from "@/lib/maritalStatus";
 import { GENDER_VALUES } from "@/lib/gender";
 
+// Zod 4 probes `Function("")` the first time it validates, to compile faster
+// validators. Under the enforced CSP (no 'unsafe-eval', E3) the browser blocks
+// that and posts a csp.violation report on every page that validates; Zod then
+// falls back anyway. Jitless skips the probe. Every client schema comes from
+// this module, so setting it here covers the browser (csp.test.ts pins it).
+z.config({ jitless: true });
+
 // The 11 CaseStage enum values, in order — advanceCaseStageSchema's (which
 // stage a Case is moving to). A job payment stage's trigger_stage takes the
 // same values (FastAPI's CaseStage, step 3.2).
