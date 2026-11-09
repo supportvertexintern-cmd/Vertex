@@ -65,7 +65,7 @@ from app.models.enums import AddressRuleKind, LockoutEnd, MouStatus, PartnerStat
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
 from app.models.security import AddressRule, LoginLockout, SecurityAlert
-from app.services import address_controls, geoip, login_lockout, security_monitor
+from app.services import address_controls, geoip, login_lockout, login_settings, security_monitor
 from app.services.sessions import email_fingerprint, list_sessions
 from app.core.tokens import sign_account_setup_token, sign_reset_token
 from app.services.emails import deliver
@@ -1542,3 +1542,80 @@ def clear_limit(key: str, body: ReasonOnly, admin: Admin, request: Request):
     security_event(request, "address_limit_cleared", actor_id=admin.user_id, entity_type="Auth", entity_id=f"limit:{key}"[:200],
                    detail={"scope": key.split(":")[0], "limited_ip": held.ip if held else None, "reason": body.reason, "was_limited": held is not None})
     return {"data": {"key": key, "cleared": held is not None}}
+
+
+# --- Login Protection settings (login protection, PR 6) ----------------------------------
+
+
+class LoginProtectionValues(BaseModel):
+    account_max_failures: int
+    account_window_minutes: int
+    cooldown_steps_minutes: list[int]
+    ip_login_max_per_minute: int
+    reset_per_email_hour: int
+    reset_per_email_day: int
+    lockout_notice_enabled: bool
+
+
+class SettingChange(BaseModel):
+    at: UtcDateTime
+    by: Person | None
+    reason: str | None
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
+
+
+class LoginProtectionPage(BaseModel):
+    values: LoginProtectionValues
+    defaults: LoginProtectionValues
+    # Allowed ranges: field -> [lowest, highest] (cooldown: each step).
+    bounds: dict[str, list[int]]
+    history: list[SettingChange]
+
+
+class LoginProtectionIn(LoginProtectionValues):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+def _setting_history(db) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text("SELECT * FROM public.vertex_audit_trail(NULL, 'login_protection_changed', 'SystemSetting', :k, NULL, NULL, 50, 0)"),
+        {"k": login_settings.KEY},
+    ).all()
+    people = {u.id: {"id": u.id, "full_name": u.full_name}
+              for u in db.scalars(select(User).where(User.id.in_({r.actor_id for r in rows if r.actor_id})))} if rows else {}
+    return [{"at": r.created_at, "by": people.get(r.actor_id), "reason": (r.after or {}).get("reason"),
+             "before": (r.after or {}).get("before"), "after": (r.after or {}).get("values")} for r in rows]
+
+
+def _settings_page(db, values: login_settings.LoginProtection) -> dict[str, Any]:
+    return {"values": values.as_dict(), "defaults": login_settings.DEFAULTS.as_dict(),
+            "bounds": {k: list(v) for k, v in login_settings.BOUNDS.items()}, "history": _setting_history(db)}
+
+
+@router.get("/settings/login-protection", response_model=Data[LoginProtectionPage])
+def login_protection_settings(_admin: Admin, db: DbSession):
+    """The thresholds in force, their defaults and allowed ranges, and the
+    latest 50 changes (who, when, why, before and after)."""
+    login_settings.forget()  # the page shows what's stored, not a cached copy
+    return {"data": _settings_page(db, login_settings.current(db))}
+
+
+@router.put("/settings/login-protection", response_model=Data[LoginProtectionPage])
+def save_login_protection(body: LoginProtectionIn, admin: Admin, request: Request, db: AuditedDb):
+    """Saves every threshold at once, with a reason. A value outside its
+    range is refused (422), never clamped. The SystemSetting change is on the
+    trail (before and after), and so is login_protection_changed with the
+    reason, which the page's history reads."""
+    values = body.model_dump(exclude={"reason"})
+    wrong = login_settings.problems(values)
+    if wrong:
+        raise ApiError(422, "validation_error", "Validation failed", wrong)
+    login_settings.forget()
+    before = login_settings.current(db).as_dict()
+    saved = login_settings.save(db, values)
+    db.commit()
+    security_event(request, "login_protection_changed", actor_id=admin.user_id, entity_type="SystemSetting", entity_id=login_settings.KEY,
+                   detail={"reason": body.reason, "before": before, "values": saved.as_dict(),
+                           "changed": sorted(k for k in values if before.get(k) != saved.as_dict().get(k))})
+    return {"data": _settings_page(db, saved)}

@@ -40,7 +40,7 @@ from app.core.logging import log_event
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
-from app.services import address_controls, email_limit, geoip, login_lockout
+from app.services import address_controls, email_limit, geoip, login_lockout, login_settings
 from app.services.google_signin import GoogleClient, GoogleFailed, google_client
 from app.services.sessions import (
     IssuedSession,
@@ -113,6 +113,17 @@ def address_controls_for_the_website(db: DbSession):
     return {"data": [{"network": str(rule.network), "kind": rule.kind.value} for rule in address_controls.active(db)]}
 
 
+class WebsiteLoginLimits(BaseModel):
+    ip_login_max_per_minute: int
+
+
+@router.get("/login-protection", response_model=Data[WebsiteLoginLimits], dependencies=[Service])
+def login_limits_for_the_website(db: DbSession):
+    """The website's own part of the admin's login protection settings: its
+    per-address sign-in limit. It keeps it for 60 seconds."""
+    return {"data": {"ip_login_max_per_minute": login_settings.current(db).ip_login_max_per_minute}}
+
+
 # --- the per-email limit on account emails (login protection G3) ---------------
 
 # What an admin is told when the limit refuses a resend they asked for. A
@@ -148,7 +159,7 @@ def _failed(db, fp: str, user: User | None, request: Request) -> None:
     """Counts a failed sign-in; the one that reaches the limit locks the
     address (the next attempt is refused, whatever the password)."""
     count = login_lockout.note_failure(fp)
-    if count >= login_lockout.ACCOUNT_MAX_FAILURES:
+    if count >= login_lockout.max_failures():
         ip = _client_ip(request)
         login_lockout.lock(db, fp, user=user, failures_seen=count, ip=ip, country=geoip.country_of(ip))
 
@@ -233,6 +244,7 @@ def login(body: LoginIn, request: Request, db: DbSession):
     and status codes. The website records and answers a per-address
     refusal itself; this one is per account."""
     fp = email_fingerprint(body.email)
+    login_settings.current(db)  # the admin's thresholds, for this sign-in (cached)
     held = login_lockout.open_lockout(db, fp)
     if held is not None:
         # The same answer whether or not the address has an account.

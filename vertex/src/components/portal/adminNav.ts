@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, EnvelopeSimple, Handshake, LockKey, Prohibit, ShieldCheck, SignIn, UserList, Warning } from "@phosphor-icons/react";
+import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, EnvelopeSimple, Handshake, LockKey, Prohibit, ShieldCheck, SignIn, SlidersHorizontal, UserList, Warning } from "@phosphor-icons/react";
 
 // System Administrator is restricted to system-level concerns — account
 // provisioning, reference-data taxonomy, technical settings — not
@@ -41,5 +41,7 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
   { href: "/admin/monitoring/reset-emails", label: "Reset Email Activity", icon: EnvelopeSimple, section: "Monitoring" },
   // Blocks, allows and the addresses the per-address limits refuse now (login protection PR 5).
   { href: "/admin/monitoring/addresses", label: "Address Controls", icon: Prohibit, section: "Monitoring" },
+  // The thresholds behind all of it (login protection PR 6).
+  { href: "/admin/monitoring/login-protection", label: "Login Protection", icon: SlidersHorizontal, section: "Monitoring" },
   { href: "/admin/monitoring/audit", label: "Audit Trail", icon: ClockCounterClockwise, section: "Monitoring" },
 ];

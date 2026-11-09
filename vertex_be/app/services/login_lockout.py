@@ -44,11 +44,21 @@ from app.db.session import engine  # the sweep's own session
 from app.models.enums import LockoutEnd
 from app.models.identity import User
 from app.models.security import LoginLockout
+from app.services import login_settings
 
+# The defaults; an admin may change them within bounds (login_settings, PR 6).
 ACCOUNT_WINDOW_SECONDS = 15 * 60
 ACCOUNT_MAX_FAILURES = 10
 # The cooldown for the 1st, 2nd, 3rd and 4th-or-later lockout in a row (L1).
 COOLDOWN_MINUTES = (15, 60, 240, 1440)
+
+
+def _window() -> int:
+    return login_settings.current().account_window_minutes * 60
+
+
+def max_failures() -> int:
+    return login_settings.current().account_max_failures
 # How long after a lockout ends the next one still counts as "in a row".
 IN_A_ROW = timedelta(hours=24)
 # The owner is emailed at most once in this long (L2).
@@ -64,7 +74,7 @@ _failures_lock = threading.Lock()
 
 def _recent(fp: str, now: float) -> deque[float]:
     times = _failures.setdefault(fp, deque())
-    while times and now - times[0] > ACCOUNT_WINDOW_SECONDS:
+    while times and now - times[0] > _window():
         times.popleft()
     return times
 
@@ -81,7 +91,7 @@ def note_failure(fp: str) -> int:
         def note(r) -> int:
             pipe = r.pipeline()
             pipe.incr(_key(fp))
-            pipe.expire(_key(fp), ACCOUNT_WINDOW_SECONDS, nx=True)
+            pipe.expire(_key(fp), _window(), nx=True)
             return int(pipe.execute()[0])
 
         try:
@@ -182,9 +192,11 @@ def lock(db: Session, fp: str, *, user: User | None, failures_seen: int, ip: str
         stale.ended_at, stale.ended_by = stale.locked_until, LockoutEnd.expired
     db.flush()
     step = next_step(db, fp, now)
-    minutes = COOLDOWN_MINUTES[step - 1]
+    rules = login_settings.current(db)
+    minutes = rules.cooldown_steps_minutes[step - 1]
     notify = None
-    if user is not None and user.email_verified and user.deactivated_at is None and settings.LOCKOUT_NOTICE_ENABLED:
+    if (user is not None and user.email_verified and user.deactivated_at is None
+            and settings.LOCKOUT_NOTICE_ENABLED and rules.lockout_notice_enabled):
         noticed = db.scalar(select(LoginLockout.id).where(
             LoginLockout.user_id == user.id, LoginLockout.notice_sent_at > now - NOTICE_EVERY,
         ).limit(1))

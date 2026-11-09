@@ -51,6 +51,7 @@ import { GET as listRules, POST as addRule } from "@/app/api/admin/monitoring/ad
 import { DELETE as removeRule } from "@/app/api/admin/monitoring/addresses/controls/[id]/route";
 import { GET as limitedNow } from "@/app/api/admin/monitoring/addresses/limited/route";
 import { POST as clearLimit } from "@/app/api/admin/monitoring/addresses/limited/[key]/clear/route";
+import { GET as getLoginProtection, PUT as putLoginProtection } from "@/app/api/admin/monitoring/settings/login-protection/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -373,5 +374,25 @@ describe("Address Controls routes (PR 5)", () => {
     expect([c2.method, c2.body, Boolean(c2.forward)]).toEqual(["POST", { network: "198.51.100.7", kind: "block", reason: "Seen brute-forcing", days: 7 }, true]);
     expect([c3.method, c3.body]).toEqual(["DELETE", { reason: "Their office" }]);
     expect([c5.method, c5.body]).toEqual(["POST", { reason: "Verified" }]);
+  });
+});
+
+describe("Login Protection settings routes (PR 6)", () => {
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    expect((await getLoginProtection(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await putLoginProtection(new NextRequest("http://localhost/x", { method: "PUT", body: "{}" }))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("read and save through FastAPI, the save with its body and the browser's address", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok({}));
+    await getLoginProtection(new NextRequest("http://localhost/x"));
+    const body = { account_max_failures: 8, reason: "Tuning" };
+    await putLoginProtection(new NextRequest("http://localhost/x", { method: "PUT", body: JSON.stringify(body), headers: { "x-real-ip": "203.0.113.9" } }));
+    const [[getPath], [putPath, put]] = callBackend.mock.calls;
+    expect([getPath, putPath]).toEqual(["/api/v1/monitoring/settings/login-protection", "/api/v1/monitoring/settings/login-protection"]);
+    expect([put.method, put.body, Boolean(put.forward)]).toEqual(["PUT", body, true]);
   });
 });

@@ -1979,6 +1979,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/login-protection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Login Limits For The Website
+         * @description The website's own part of the admin's login protection settings: its
+         *     per-address sign-in limit. It keeps it for 60 seconds.
+         */
+        get: operations["login_limits_for_the_website_api_v1_login_protection_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/management/report-metrics": {
         parameters: {
             query?: never;
@@ -2550,6 +2571,34 @@ export interface paths {
          *     limit counts it (4.4); it is recorded as a manual account_email_sent.
          */
         post: operations["resend_account_email_api_v1_monitoring_reset_emails_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/settings/login-protection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Login Protection Settings
+         * @description The thresholds in force, their defaults and allowed ranges, and the
+         *     latest 50 changes (who, when, why, before and after).
+         */
+        get: operations["login_protection_settings_api_v1_monitoring_settings_login_protection_get"];
+        /**
+         * Save Login Protection
+         * @description Saves every threshold at once, with a reason. A value outside its
+         *     range is refused (422), never clamped. The SystemSetting change is on the
+         *     trail (before and after), and so is login_protection_changed with the
+         *     reason, which the page's history reads.
+         */
+        put: operations["save_login_protection_api_v1_monitoring_settings_login_protection_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5854,6 +5903,10 @@ export interface components {
         Data_LockoutRow_: {
             data: components["schemas"]["LockoutRow"];
         };
+        /** Data[LoginProtectionPage] */
+        Data_LoginProtectionPage_: {
+            data: components["schemas"]["LoginProtectionPage"];
+        };
         /** Data[Me] */
         Data_Me_: {
             data: components["schemas"]["Me"];
@@ -6014,6 +6067,10 @@ export interface components {
         /** Data[Updated] */
         Data_Updated_: {
             data: components["schemas"]["Updated"];
+        };
+        /** Data[WebsiteLoginLimits] */
+        Data_WebsiteLoginLimits_: {
+            data: components["schemas"]["WebsiteLoginLimits"];
         };
         /** Data[Welcome] */
         Data_Welcome_: {
@@ -6924,6 +6981,53 @@ export interface components {
         LoginAddress: {
             /** Email */
             email: string;
+        };
+        /** LoginProtectionIn */
+        LoginProtectionIn: {
+            /** Account Max Failures */
+            account_max_failures: number;
+            /** Account Window Minutes */
+            account_window_minutes: number;
+            /** Cooldown Steps Minutes */
+            cooldown_steps_minutes: number[];
+            /** Ip Login Max Per Minute */
+            ip_login_max_per_minute: number;
+            /** Lockout Notice Enabled */
+            lockout_notice_enabled: boolean;
+            /** Reason */
+            reason: string;
+            /** Reset Per Email Day */
+            reset_per_email_day: number;
+            /** Reset Per Email Hour */
+            reset_per_email_hour: number;
+        };
+        /** LoginProtectionPage */
+        LoginProtectionPage: {
+            /** Bounds */
+            bounds: {
+                [key: string]: number[];
+            };
+            defaults: components["schemas"]["LoginProtectionValues"];
+            /** History */
+            history: components["schemas"]["SettingChange"][];
+            values: components["schemas"]["LoginProtectionValues"];
+        };
+        /** LoginProtectionValues */
+        LoginProtectionValues: {
+            /** Account Max Failures */
+            account_max_failures: number;
+            /** Account Window Minutes */
+            account_window_minutes: number;
+            /** Cooldown Steps Minutes */
+            cooldown_steps_minutes: number[];
+            /** Ip Login Max Per Minute */
+            ip_login_max_per_minute: number;
+            /** Lockout Notice Enabled */
+            lockout_notice_enabled: boolean;
+            /** Reset Per Email Day */
+            reset_per_email_day: number;
+            /** Reset Per Email Hour */
+            reset_per_email_hour: number;
         };
         /** LogoutIn */
         LogoutIn: {
@@ -8907,6 +9011,22 @@ export interface components {
             /** Started At */
             started_at: string;
         };
+        /** SettingChange */
+        SettingChange: {
+            /** After */
+            after: {
+                [key: string]: unknown;
+            } | null;
+            /** At */
+            at: string;
+            /** Before */
+            before: {
+                [key: string]: unknown;
+            } | null;
+            by: components["schemas"]["Person"] | null;
+            /** Reason */
+            reason: string | null;
+        };
         /**
          * SettingsIn
          * @description The keys the admin may set; any other key is ignored, as in Next.js.
@@ -9472,6 +9592,11 @@ export interface components {
          * @enum {string}
          */
         VerificationStatus: "pending" | "verified" | "rejected";
+        /** WebsiteLoginLimits */
+        WebsiteLoginLimits: {
+            /** Ip Login Max Per Minute */
+            ip_login_max_per_minute: number;
+        };
         /** Welcome */
         Welcome: {
             /** Activated At */
@@ -13796,6 +13921,26 @@ export interface operations {
             };
         };
     };
+    login_limits_for_the_website_api_v1_login_protection_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_WebsiteLoginLimits_"];
+                };
+            };
+        };
+    };
     report_metrics_api_v1_management_report_metrics_get: {
         parameters: {
             query?: {
@@ -14644,6 +14789,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_Resent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_protection_settings_api_v1_monitoring_settings_login_protection_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LoginProtectionPage_"];
+                };
+            };
+        };
+    };
+    save_login_protection_api_v1_monitoring_settings_login_protection_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginProtectionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LoginProtectionPage_"];
                 };
             };
             /** @description Validation Error */
