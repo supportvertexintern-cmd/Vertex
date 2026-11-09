@@ -53,6 +53,14 @@ from app.core.config import BASE_DIR  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.services import emails  # noqa: E402
+from app.services import email_limit  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fresh_email_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts with no account emails counted (the per-email limit
+    counts in this process when there is no Redis)."""
+    monkeypatch.setattr(email_limit, "_sent", {})
 
 
 @pytest.fixture(scope="session", autouse=True)

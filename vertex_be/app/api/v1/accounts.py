@@ -37,7 +37,7 @@ from app.api.deps import DbSession
 from app.api.notices import Notice, Notifying, PasswordResetEmail, VerificationEmail
 from app.services.emails import deliver
 from app.api.v1.candidates import claimable_candidate, link_account
-from app.api.v1.sessions import security_event
+from app.api.v1.sessions import account_email_allowed, security_event
 from app.core.api import ApiError, Email
 from app.core.audit import set_audit_actor
 from app.core.auth import calling_service
@@ -291,10 +291,14 @@ def forgot_password(body: ForgotIn, request: Request, db: DbSession):
     deactivated."""
     user = db.scalar(select(User).where(User.email == body.email))
     can_reset = bool(user and user.password_hash and user.deactivated_at is None)
+    # G3: at most 3 an hour and 6 a day to one address, from anywhere. The
+    # answer is the usual one either way.
+    limited = can_reset and not account_email_allowed(request, body.email, user_id=user.id, kind="password_reset")
+    can_reset = can_reset and not limited
     security_event(
         request, "password_reset_requested", actor_id=None, entity_type="Auth",
         entity_id=f"user:{user.id}" if user else "unknown_account",
-        detail={"email_fp": email_fingerprint(body.email), "email_sent": can_reset},
+        detail={"email_fp": email_fingerprint(body.email), "email_sent": can_reset} | ({"refused": "email_limit"} if limited else {}),
     )
     notify: list[Notice] = []
     if user and can_reset:

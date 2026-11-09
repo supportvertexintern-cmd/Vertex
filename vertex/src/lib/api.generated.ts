@@ -2629,6 +2629,8 @@ export interface paths {
          * Reset Password
          * @description Clears the login's password, so it stops working at once (and its
          *     sessions end: the token_version trigger), and sends the setup email.
+         *     Refused before anything changes if the address has had its account
+         *     emails for now (login protection G3).
          */
         post: operations["reset_password_api_v1_partners__partner_id__reset_password_post"];
         delete?: never;

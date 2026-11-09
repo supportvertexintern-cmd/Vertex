@@ -30278,7 +30278,7 @@
   },
   "/api/v1/partners/{partner_id}/reset-password": {
    "post": {
-    "description": "Clears the login's password, so it stops working at once (and its\nsessions end: the token_version trigger), and sends the setup email.",
+    "description": "Clears the login's password, so it stops working at once (and its\nsessions end: the token_version trigger), and sends the setup email.\nRefused before anything changes if the address has had its account\nemails for now (login protection G3).",
     "operationId": "reset_password_api_v1_partners__partner_id__reset_password_post",
     "parameters": [
      {

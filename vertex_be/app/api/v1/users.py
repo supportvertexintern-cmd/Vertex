@@ -39,7 +39,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.notices import AccountSetupEmail, Notice, Notifying
-from app.api.v1.sessions import security_event
+from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, security_event
 from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -392,7 +392,7 @@ def reactivate_user(user_id: str, body: ReasonIn, admin: Admin, request: Request
 
 
 @router.post("/users/{user_id}/setup-email", response_model=Notifying[SetupSent])
-def resend_setup_email(user_id: str, _admin: Admin, db: AuditedDb):
+def resend_setup_email(user_id: str, admin: Admin, request: Request, db: AuditedDb):
     """The setup email again, for a staff or partner login that hasn't set
     its password: the link works until one is set (7 days)."""
     user = db.get(User, user_id)
@@ -404,5 +404,7 @@ def resend_setup_email(user_id: str, _admin: Admin, db: AuditedDb):
         raise _deactivated()
     if user.password_hash:
         raise ApiError(409, "password_set", "This account has set its password already — reset it instead.")
+    if not account_email_allowed(request, user.email, user_id=user.id, kind="account_setup", actor_id=admin.user_id):
+        raise ApiError(429, "email_limited", EMAIL_LIMITED)
     notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
     return {"data": {"email": user.email}, "notify": deliver(db, notify)}
