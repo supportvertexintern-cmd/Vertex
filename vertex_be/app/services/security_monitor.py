@@ -38,7 +38,7 @@ from app.db.session import engine
 from app.models.audit import AuditLog
 from app.models.enums import Role
 from app.models.identity import User
-from app.models.security import SecurityAlert
+from app.models.security import LoginLockout, SecurityAlert
 
 
 @dataclass(frozen=True)
@@ -245,23 +245,28 @@ def run_retention() -> int:
     is on the trail, in batches. Sign-in history is on the trail itself,
     which no role may change or delete (Phase 10): the monitoring pages stop
     showing it past the window, and the rows stay (exceptions.md E11).
-    Returns how many alerts were deleted."""
+    Ended sign-in lockouts (login protection) older than the window go the
+    same way. Returns how many rows were deleted."""
     from sqlalchemy.orm import Session  # noqa: PLC0415
 
     from app.core.audit import set_audit_actor  # noqa: PLC0415
 
     cutoff = retention_cutoff()
     deleted = 0
-    while True:
-        with Session(engine) as db:
-            set_audit_actor(db, None)  # the system's clean-up
-            batch = list(db.scalars(select(SecurityAlert).where(SecurityAlert.created_at < cutoff).limit(500)))
-            if not batch:
-                break
-            for alert in batch:
-                db.delete(alert)
-            db.commit()
-            deleted += len(batch)
+    for old in (
+        select(SecurityAlert).where(SecurityAlert.created_at < cutoff),
+        select(LoginLockout).where(LoginLockout.locked_at < cutoff, LoginLockout.ended_at.is_not(None)),
+    ):
+        while True:
+            with Session(engine) as db:
+                set_audit_actor(db, None)  # the system's clean-up
+                batch = list(db.scalars(old.limit(500)))
+                if not batch:
+                    break
+                for row in batch:
+                    db.delete(row)
+                db.commit()
+                deleted += len(batch)
     log_event(logging.INFO, "monitor.retention", deleted=deleted, cutoff=cutoff.isoformat(), months=settings.SECURITY_RETENTION_MONTHS)
     return deleted
 
@@ -279,6 +284,12 @@ def start_schedule(interval_minutes: int) -> None:
                 run_account_checks()
             except Exception as err:  # noqa: BLE001
                 log_event(logging.ERROR, "monitor.account_checks_failed", error=type(err).__name__)
+            try:
+                from app.services import login_lockout  # noqa: PLC0415
+
+                login_lockout.expire_ended()  # closes lockouts past their time
+            except Exception as err:  # noqa: BLE001
+                log_event(logging.ERROR, "monitor.lockout_sweep_failed", error=type(err).__name__)
             # The retention clean-up, once a day.
             if last_retention is None or time.monotonic() - last_retention >= 24 * 60 * 60:
                 try:

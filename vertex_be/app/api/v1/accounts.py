@@ -51,8 +51,9 @@ from app.core.tokens import (
     verify_email_token,
 )
 from app.models.candidate import Application, Candidate
-from app.models.enums import Role
+from app.models.enums import LockoutEnd, Role
 from app.models.identity import Country, User
+from app.services import login_lockout
 from app.services.sessions import email_fingerprint, hash_password
 
 router = APIRouter(dependencies=[Depends(calling_service)])
@@ -328,6 +329,9 @@ def reset_password(body: ResetIn, request: Request, db: DbSession):
         raise ApiError(403, "account_deactivated", DEACTIVATED)
     set_audit_actor(db, user.id)
     user.password_hash = password_hash
+    # They proved they hold the email: any lockout ends, and the next one
+    # starts at the shortest cooldown again (login protection 2.1).
+    login_lockout.end(db, email_fingerprint(user.email), LockoutEnd.password_reset, by=user.id)
     db.commit()
     security_event(request, "password_reset_completed", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
                    detail={"outcome": "password_changed"})

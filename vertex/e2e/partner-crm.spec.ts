@@ -307,11 +307,27 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(page.getByText("Locked accounts now")).toBeVisible();
     });
 
-    await test.step("Locked Accounts lists what the sign-in limit holds", async () => {
+    // Login protection (2026-11-09): 10 bad sign-ins lock an address, with
+    // or without an account; an admin unlocks it with a reason.
+    await test.step("Locked Accounts lists a lockout, its step, and unlocks it with a reason", async () => {
+      const guessed = `nobody-${Date.now()}@test.invalid`;
+      for (let i = 0; i < 10; i++) {
+        const res = await page.request.post("/api/auth/login", { data: { email: guessed, password: "Wrong-Password-1" } });
+        expect(res.status()).toBe(401);
+      }
+      const held = await page.request.post("/api/auth/login", { data: { email: guessed, password: "Wrong-Password-1" } });
+      expect(held.status()).toBe(429);
+      expect((await held.json()).error).toContain("Too many sign-in attempts. Try again in 15 minutes");
+
       await page.getByRole("link", { name: "Locked Accounts" }).first().click();
       await expect(page).toHaveURL(/\/admin\/monitoring\/locked$/);
       await expect(page.getByRole("heading", { name: "Locked Accounts" })).toBeVisible({ timeout: 25_000 });
-      await expect(page.getByText(/No account is locked\.|Failed sign-ins/).first()).toBeVisible({ timeout: 25_000 });
+      const row = page.locator("tr", { hasText: "No account with this address" }).filter({ hasText: "Step 1" }).first();
+      await expect(row).toBeVisible({ timeout: 25_000 });
+      await row.getByRole("button", { name: "Unlock" }).click();
+      await page.getByPlaceholder("Reason (kept on the audit trail)").fill("E2E: checked with the owner");
+      await page.getByRole("alertdialog").getByRole("button", { name: "Unlock" }).click();
+      await expect(page.getByText("Unlocked this address.")).toBeVisible({ timeout: 25_000 });
     });
   });
 });

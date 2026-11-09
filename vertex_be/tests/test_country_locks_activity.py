@@ -120,25 +120,26 @@ def test_a_locked_account_is_listed_and_an_admin_unlocks_it(api, db, admin):
     detail = api.get(f"{ACCOUNTS}/{user.id}", headers=headers).json()["data"]
     assert detail["locked"] is True and detail["email_fp"] == fp
 
-    res = api.post(f"{LOCKED}/{fp}/unlock", headers={**headers, **svc()})
+    res = api.post(f"{LOCKED}/{fp}/unlock", headers={**headers, **svc()}, json={"reason": "Called the partner; it was them"})
     assert res.json()["data"] == {"email_fp": fp, "unlocked": True}
     assert sign_in_from(api, user, "198.51.100.40").status_code == 200
     assert fp not in {r["email_fp"] for r in api.get(LOCKED, headers=headers).json()["data"]}
     [event] = trail("action = 'login_unlocked' AND entity_id = :e", e=f"user:{user.id}")
     assert event["actor_id"] == me.id and event["after"]["was_locked"] is True
+    assert event["after"]["reason"] == "Called the partner; it was them"
     # unlocking what isn't locked says so
-    assert api.post(f"{LOCKED}/{fp}/unlock", headers=headers).json()["data"]["unlocked"] is False
+    assert api.post(f"{LOCKED}/{fp}/unlock", headers=headers, json={"reason": "again"}).json()["data"]["unlocked"] is False
 
 
 def test_locked_accounts_are_for_admins_only(api, db):
     headers = bearer(signed_in(api, account(db, role=Role.director))[0])
     assert api.get(LOCKED, headers=headers).status_code == 403
-    assert api.post(f"{LOCKED}/{'a' * 16}/unlock", headers=headers).status_code == 403
+    assert api.post(f"{LOCKED}/{'a' * 16}/unlock", headers=headers, json={"reason": "why not"}).status_code == 403
 
 
 def test_an_unlock_needs_a_fingerprint(api, db, admin):
     _, headers = admin
-    assert api.post(f"{LOCKED}/not-a-fingerprint/unlock", headers=headers).status_code == 422
+    assert api.post(f"{LOCKED}/not-a-fingerprint/unlock", headers=headers, json={"reason": "a reason"}).status_code == 422
 
 
 def test_the_overview_counts_locked_accounts(api, db, admin):

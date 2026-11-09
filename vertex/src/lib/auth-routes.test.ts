@@ -109,9 +109,9 @@ describe("app sign-in (lib/app-auth.ts)", () => {
     callBackend.mockResolvedValueOnce(refused(403, "email_unverified", "Please verify your email before logging in."));
     const res = await appLogin(post("/api/auth/app/login", { email: "a@test.invalid", password: "pw" }));
     expect([res.status, await res.json()]).toEqual([403, { error: "Please verify your email before logging in." }]);
-    callBackend.mockResolvedValueOnce(refused(429, "rate_limited", "Too many login attempts. Please try again later."));
+    callBackend.mockResolvedValueOnce(refused(429, "rate_limited", "Too many sign-in attempts. Try again in 15 minutes, or reset your password."));
     const locked = await appLogin(post("/api/auth/app/login", { email: "a@test.invalid", password: "pw" }));
-    expect(await locked.json()).toEqual({ error: { code: "rate_limited", message: "Too many login attempts. Please try again later." } });
+    expect(await locked.json()).toEqual({ error: { code: "rate_limited", message: "Too many sign-in attempts. Try again in 15 minutes, or reset your password." } });
   });
 
   it("CORS: a configured origin only, without credentials", async () => {

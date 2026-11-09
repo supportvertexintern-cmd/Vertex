@@ -59,12 +59,11 @@ from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.config import settings
 from app.core.rbac import require_role
-from app.models.enums import MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
+from app.models.enums import LockoutEnd, MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
 from app.models.security import SecurityAlert
-from app.api.v1 import sessions as api_sessions
-from app.services import geoip, security_monitor
+from app.services import geoip, login_lockout, security_monitor
 from app.services.sessions import email_fingerprint, list_sessions
 
 router = APIRouter(prefix="/monitoring")
@@ -270,8 +269,9 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
     sessions = [asdict(s) for s in list_sessions(db, user_id, None)]
     (row,) = _rows(db, [user])
     fp = email_fingerprint(user.email)
-    held = {f: left for f, _n, left in api_sessions.locked_accounts()}
-    return {"data": row | {"sessions": sessions, "sign_ins": sign_ins, "locked": fp in held, "unlocks_in_seconds": held.get(fp), "email_fp": fp}}
+    holding = login_lockout.open_lockout(db, fp)
+    return {"data": row | {"sessions": sessions, "sign_ins": sign_ins, "locked": holding is not None,
+                           "unlocks_in_seconds": login_lockout.seconds_left(holding) if holding else None, "email_fp": fp}}
 
 
 # --- Suspicious Activity (phase 2) ------------------------------------------------
@@ -842,7 +842,7 @@ def overview(_admin: Admin, db: DbSession):
         "new_partners": _window(db, Partner.created_at),
         "new_partner_logins": _window(db, User.created_at, User.role == Role.partner),
         "active_sessions": int(sessions or 0),
-        "locked_accounts": len(api_sessions.locked_accounts()),
+        "locked_accounts": len(login_lockout.held(db)),
         "geoip_month": geoip.database_month(),
         "recent_alerts": _alert_rows(db, recent),
     }}
@@ -862,8 +862,16 @@ class LockedRow(BaseModel):
     # The account is known by its email's fingerprint, as the limit counts
     # it (an address typed at sign-in, which may have no account).
     email_fp: str
+    lockout_id: str
     failures: int
+    # 1 to 4: 15 minutes, 1 hour, 4 hours, 24 hours (login protection L1).
+    step: int
+    locked_at: UtcDateTime
     unlocks_in_seconds: int
+    last_ip: str | None
+    last_country: str | None
+    # Step 4: an admin should look at it (L6).
+    needs_review: bool
     account: AlertAccount | None
 
 
@@ -872,39 +880,45 @@ class Unlocked(BaseModel):
     unlocked: bool
 
 
-def _accounts_by_fingerprint(db, fingerprints: set[str]) -> dict[str, dict[str, Any]]:
-    if not fingerprints:
+class UnlockIn(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+def _accounts_by_id(db, ids: set[str]) -> dict[str, dict[str, Any]]:
+    if not ids:
         return {}
-    found = {}
-    for u in db.scalars(select(User)):
-        fp = email_fingerprint(u.email)
-        if fp in fingerprints:
-            found[fp] = {"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role, "deactivated": u.deactivated_at is not None}
-    return found
+    return {
+        u.id: {"id": u.id, "full_name": u.full_name, "email": u.email, "role": u.role, "deactivated": u.deactivated_at is not None}
+        for u in db.scalars(select(User).where(User.id.in_(ids)))
+    }
 
 
 @router.get("/locked", response_model=Data[list[LockedRow]])
 def locked(_admin: Admin, db: DbSession):
-    """Accounts the per-account limit holds now: 10 failed sign-ins in 15
-    minutes lock them for the rest of that window (sessions.py)."""
-    held = api_sessions.locked_accounts()
-    accounts = _accounts_by_fingerprint(db, {fp for fp, _n, _left in held})
-    rows = [{"email_fp": fp, "failures": n, "unlocks_in_seconds": left, "account": accounts.get(fp)} for fp, n, left in held]
-    return {"data": sorted(rows, key=lambda r: -r["unlocks_in_seconds"])}
+    """Addresses held now after too many failed sign-ins, longest to go
+    first (app/services/login_lockout.py)."""
+    held = login_lockout.held(db)
+    accounts = _accounts_by_id(db, {row.user_id for row in held if row.user_id})
+    return {"data": [
+        {"email_fp": row.email_fp, "lockout_id": row.id, "failures": row.failures, "step": row.step, "locked_at": row.locked_at,
+         "unlocks_in_seconds": login_lockout.seconds_left(row), "last_ip": row.last_ip, "last_country": row.last_country,
+         "needs_review": row.needs_review, "account": accounts.get(row.user_id) if row.user_id else None}
+        for row in held
+    ]}
 
 
 @router.post("/locked/{email_fp}/unlock", response_model=Data[Unlocked])
-def unlock(email_fp: str, admin: Admin, request: Request, db: DbSession):
-    """Lifts the lock at once, so the next sign-in is checked as usual.
-    Recorded with who did it; the failures stay on the trail."""
+def unlock(email_fp: str, body: UnlockIn, admin: Admin, request: Request, db: AuditedDb):
+    """Lifts the lock at once, with a reason, and starts the escalation
+    again (the next lockout is 15 minutes). Recorded on the lockout (who,
+    why) and as login_unlocked; the failures stay on the trail."""
     if not (8 <= len(email_fp) <= 64 and all(c in "0123456789abcdef" for c in email_fp)):
         raise ApiError(422, "validation_error", "Validation failed", {"email_fp": ["Not an email fingerprint."]})
-    try:
-        was = api_sessions.unlock_account(email_fp)
-    except Exception:  # noqa: BLE001 (the store is down)
-        raise ApiError(503, "store_unavailable", "The sign-in limit's store can't be reached; try again shortly.") from None
-    account = _accounts_by_fingerprint(db, {email_fp}).get(email_fp)
+    lifted = login_lockout.end(db, email_fp, LockoutEnd.admin, by=admin.user_id, reason=body.reason)
+    user_id = lifted.user_id if lifted else None
+    db.commit()
     security_event(request, "login_unlocked", actor_id=admin.user_id, entity_type="Auth",
-                   entity_id=f"user:{account['id']}" if account else f"email_fp:{email_fp}",
-                   detail={"email_fp": email_fp, "was_locked": was})
-    return {"data": {"email_fp": email_fp, "unlocked": was}}
+                   entity_id=f"user:{user_id}" if user_id else f"email_fp:{email_fp}",
+                   detail={"email_fp": email_fp, "was_locked": lifted is not None, "reason": body.reason,
+                           "step": lifted.step if lifted else None})
+    return {"data": {"email_fp": email_fp, "unlocked": lifted is not None}}

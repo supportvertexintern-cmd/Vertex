@@ -239,9 +239,13 @@ describe("Locked Accounts routes", () => {
     state.user = admin;
     callBackend.mockResolvedValue(ok([]));
     await lockedAccounts(new NextRequest("http://localhost/x"));
-    await unlockAccount(new NextRequest("http://localhost/x", { method: "POST", headers: { "x-real-ip": "203.0.113.9" } }), fp);
+    await unlockAccount(
+      new NextRequest("http://localhost/x", { method: "POST", headers: { "x-real-ip": "203.0.113.9" }, body: JSON.stringify({ reason: "Verified by phone" }) }),
+      fp,
+    );
     const [[listPath], [unlockPath, unlock]] = callBackend.mock.calls;
     expect([listPath, unlockPath, unlock.method]).toEqual(["/api/v1/monitoring/locked", "/api/v1/monitoring/locked/a1b2c3d4e5f60718/unlock", "POST"]);
     expect(unlock.forward).toBeTruthy();
+    expect(unlock.body).toEqual({ reason: "Verified by phone" });
   });
 });

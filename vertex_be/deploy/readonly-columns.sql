@@ -627,6 +627,26 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('SecurityAlert', 'reviewed_at',                          'grant'),   -- business timestamp
   ('SecurityAlert', 'note',                                 'exclude'), -- free text/JSON: may hold personal data
   ('SecurityAlert', 'created_at',                           'grant'),   -- business timestamp
+  -- Sign-in lockouts (0017, login protection): for the admin's review, never for browsing.
+  ('LoginLockout', 'id',                                    'grant'),   -- identifier/link
+  ('LoginLockout', 'email_fp',                              'exclude'), -- email fingerprint (correlates an address)
+  ('LoginLockout', 'user_id',                               'grant'),   -- identifier/link
+  ('LoginLockout', 'step',                                  'grant'),   -- status/type value
+  ('LoginLockout', 'locked_at',                             'grant'),   -- business timestamp
+  ('LoginLockout', 'locked_until',                          'grant'),   -- business timestamp
+  ('LoginLockout', 'failures',                              'grant'),   -- count
+  ('LoginLockout', 'last_ip',                               'exclude'), -- personal data (address)
+  ('LoginLockout', 'last_country',                          'exclude'), -- personal data (location)
+  ('LoginLockout', 'notice_sent_at',                        'grant'),   -- business timestamp
+  ('LoginLockout', 'ended_at',                              'grant'),   -- business timestamp
+  ('LoginLockout', 'ended_by',                              'grant'),   -- status/type value
+  ('LoginLockout', 'ended_by_user_id',                      'grant'),   -- identifier/link
+  ('LoginLockout', 'end_reason',                            'exclude'), -- free text/JSON: may hold personal data
+  ('LoginLockout', 'steps_reset_at',                        'grant'),   -- business timestamp
+  ('LoginLockout', 'needs_review',                          'grant'),   -- flag
+  ('LoginLockout', 'reviewed_at',                           'grant'),   -- business timestamp
+  ('LoginLockout', 'reviewed_by',                           'grant'),   -- identifier/link
+  ('LoginLockout', 'review_note',                           'exclude'), -- free text/JSON: may hold personal data
   -- Sessions (0005, G19): token hashes and devices, never for browsing.
   ('RefreshToken', 'id',                                    'exclude'), -- session security state
   ('RefreshToken', 'user_id',                               'exclude'), -- session security state
