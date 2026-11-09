@@ -6,7 +6,7 @@
 |-----------|-------------------|-------------------------------------------------------------------------|
 | `dev`     | `vertex-dev`      | build & push all images to GHCR → auto-deploy to this PC → **Promote**  |
 | `staging` | `vertex-staging`  | moved by **Promote** only; dev's tested images copied → auto-deploy      |
-| `main`    | `vertex-main`     | build & push only. Deploys **by hand**: Actions → Deploy local stacks → Run workflow → `main` |
+| `main`    | `vertex-main`     | moved by **Promote** from `staging` only (by hand); staging's tested images copied → auto-deploy |
 
 Work flows `feature/*` → PR into `dev` → **Promote** `dev` → `staging` → **Promote** `staging` → `main`
 (Actions → Promote: full CI, then a fast-forward, so the three branches stay identical; never merge back).
@@ -37,9 +37,11 @@ Each environment is one Docker Compose project built from
 | mailpit (mail catcher) | `axllent/mailpit` | http://localhost:8026 | http://localhost:8027 | http://localhost:8028 |
 | env file     |                          | `vertex_be/.env.dev`     | `vertex_be/.env.staging` | `vertex_be/.env.main`    |
 
-vertex-main holds the main data (restored 2026-10-10 from the old
-`vertex_postgres_data` volume, which is kept untouched as a backup). It runs
-with `APP_ENV=production`.
+vertex-main runs with `APP_ENV=production`. **Owner's decision, 2026-11-09:** it was
+rebuilt as a new stack with an empty database (the one removed on 2026-11-06 is
+gone), seeded with the reference data and one admin like staging, and it follows
+`main` automatically: each Promote from `staging` deploys it and runs
+`verify-stack.sh main`. It isn't backed up.
 
 - The **backend** applies Alembic migrations on start; **Next.js** waits for it
   and has no database access at all (reads handover R8), so the schema and the
@@ -147,11 +149,13 @@ docker login ghcr.io -u <your GitHub username>     # once; PAT with read:package
 ENV_FILE=.env.staging sh deploy/deploy.sh vertex-staging staging-<full commit sha>
 ```
 
-A new staging stack starts with an empty database. Load the reference data and
-one admin, whose generated password stays in the env file:
+A new staging or main stack starts with an empty database. Load the reference
+data and one admin, whose generated password stays in the env file
+(`SEED_ADMIN_PASSWORD`; change it at first sign-in):
 
 ```sh
 ENV_FILE=.env.staging bash deploy/seed-staging.sh vertex-staging
+ENV_FILE=.env.main    bash deploy/seed-staging.sh vertex-main
 ```
 
 The test accounts stay on development stacks (`deploy/seed-dev.sh`): their

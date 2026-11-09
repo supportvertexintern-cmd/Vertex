@@ -6,9 +6,11 @@ name: Deploy local stacks
 #                                 dev's tested images and dispatches this)
 #   build finished on `staging` → vertex-staging  (automatic, when Promote
 #                                 had to build instead)
-#   `main`                      → vertex-main only by hand: Actions → Deploy
-#                                 local stacks → Run workflow → branch `main`
-#                                 (merging to main never deploys by itself).
+#   Promote moved `main`        → vertex-main     (automatic, the same way;
+#                                 owner's decision 2026-11-09. main moves only
+#                                 when Promote is run by hand from staging)
+#   build finished on `main`    → vertex-main     (automatic, when Promote
+#                                 had to build instead)
 # The self-hosted runner on the Docker host (label `vertex-host`) pulls that
 # exact build and restarts the stack (deploy/deploy.sh). Production on the
 # servers is production.yml, not this.
@@ -21,7 +23,7 @@ on:
   workflow_run:
     workflows: ["Build images"]
     types: [completed]
-    branches: [dev, staging]
+    branches: [dev, staging, main]
   workflow_dispatch:
 
 concurrency:

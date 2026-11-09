@@ -34,6 +34,8 @@ Each stack is separate: its own Compose project, networks, database volume and o
 
 Staging came back on 2026-11-07, as a new stack with an empty database and no backups: `deploy/seed-staging.sh` can rebuild what it starts with. Anything added to it later is lost if its volume is. If staging starts holding data worth keeping, add it to `install-schedule.ps1` and to the 26 h row in `verify-stack.sh`.
 
+**Owner's decision, 2026-11-09:** main came back the same way: a new `vertex-main` stack with an empty database, the reference data and one admin (`deploy/seed-staging.sh`), deployed by each Promote to `main` and not backed up. The old main's backups in `D:\VertexData\backups\vertex-main` (newest 2026-11-06) stay untouched; nothing restores them. The same trigger applies: main gets backups before it holds data that can't be rebuilt from its seed.
+
 `install-schedule.ps1` registers these Windows scheduled tasks under `\Vertex\`, and removes the old main and staging ones:
 
 | Task | When | What |
