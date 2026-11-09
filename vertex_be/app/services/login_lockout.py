@@ -152,6 +152,17 @@ def next_step(db: Session, fp: str, now: datetime) -> int:
     return min(last.step + 1, REVIEW_STEP)
 
 
+def escalation(db: Session, fp: str) -> tuple[int, datetime | None]:
+    """The step the next lockout on this address would be, and when that
+    falls back to 1 (None if it is 1 already)."""
+    now = utc_now_ms()
+    step = next_step(db, fp, now)
+    if step == 1:
+        return 1, None
+    last = db.scalar(select(LoginLockout).where(LoginLockout.email_fp == fp).order_by(LoginLockout.locked_at.desc()).limit(1))
+    return step, (last.ended_at or last.locked_until) + IN_A_ROW
+
+
 @dataclass(frozen=True)
 class Locked:
     lockout_id: str

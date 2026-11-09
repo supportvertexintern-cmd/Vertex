@@ -38,6 +38,10 @@ import { POST as runChecks } from "@/app/api/admin/monitoring/checks/run/route";
 import { GET as auditTrail } from "@/app/api/admin/monitoring/audit/route";
 import { GET as lockedAccounts } from "@/app/api/admin/monitoring/locked/route";
 import { POST as unlockAccount } from "@/app/api/admin/monitoring/locked/[fp]/unlock/route";
+import { GET as lockedSummary } from "@/app/api/admin/monitoring/locked/summary/route";
+import { GET as lockoutHistory } from "@/app/api/admin/monitoring/lockouts/route";
+import { POST as reviewLockout } from "@/app/api/admin/monitoring/lockouts/[id]/review/route";
+import { POST as forceReset } from "@/app/api/admin/monitoring/accounts/[id]/force-reset/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -247,5 +251,42 @@ describe("Locked Accounts routes", () => {
     expect([listPath, unlockPath, unlock.method]).toEqual(["/api/v1/monitoring/locked", "/api/v1/monitoring/locked/a1b2c3d4e5f60718/unlock", "POST"]);
     expect(unlock.forward).toBeTruthy();
     expect(unlock.body).toEqual({ reason: "Verified by phone" });
+  });
+});
+
+describe("Login protection routes (PR 3)", () => {
+  const id = { params: Promise.resolve({ id: "x1" }) };
+  const req = (body?: unknown, url = "http://localhost/x") =>
+    new NextRequest(url, { method: body === undefined ? "GET" : "POST", ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    expect((await lockedSummary(req())).status).toBe(403);
+    expect((await lockoutHistory(req())).status).toBe(403);
+    expect((await reviewLockout(req({ note: "n" }), id)).status).toBe(403);
+    expect((await forceReset(req({ reason: "r" }), id)).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("reach their paths: the history with its filters, the review and the reset with their bodies", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok([]));
+    await lockedSummary(req());
+    await lockoutHistory(req(undefined, "http://localhost/x?q=ann&step=4&ended_by=admin&needs_review=true&date_from=2026-11-01&page=2&pageSize=25&evil=1"));
+    await reviewLockout(req({ note: "Owner travelling" }), id);
+    await forceReset(req({ reason: "Possible compromise" }), id);
+    const [[summaryPath], [historyPath, history], [reviewPath, review], [resetPath, reset]] = callBackend.mock.calls;
+    expect([summaryPath, historyPath, reviewPath, resetPath]).toEqual([
+      "/api/v1/monitoring/locked/summary",
+      "/api/v1/monitoring/lockouts",
+      "/api/v1/monitoring/lockouts/x1/review",
+      "/api/v1/monitoring/accounts/x1/force-reset",
+    ]);
+    expect(Object.fromEntries(Object.entries(history.query).filter(([, v]) => v !== undefined))).toEqual({
+      q: "ann", step: "4", ended_by: "admin", needs_review: "true", date_from: "2026-11-01", page: "2", pageSize: "25",
+    });
+    expect([review.method, review.body]).toEqual(["POST", { note: "Owner travelling" }]);
+    expect([reset.method, reset.body]).toEqual(["POST", { reason: "Possible compromise" }]);
+    expect(reset.forward).toBeTruthy();
   });
 });

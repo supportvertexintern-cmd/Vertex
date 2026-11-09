@@ -12,7 +12,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, Copy, EnvelopeSimple, Flag, Key, LockOpen, Prohibit, SignOut, UserCheck, X } from "@phosphor-icons/react";
-import { GEOIP_CREDIT, place } from "@/lib/monitoring";
+import { GEOIP_CREDIT, LOCKOUT_STEPS, place } from "@/lib/monitoring";
 import PortalShell from "@/components/portal/PortalShell";
 import { ADMIN_NAV_ITEMS } from "@/components/portal/adminNav";
 import FilterBar from "@/components/portal/FilterBar";
@@ -91,12 +91,35 @@ interface SignIn {
   device: string | null;
 }
 
+interface LockoutRow {
+  id: string;
+  step: number;
+  locked_at: string;
+  failures: number;
+  last_ip: string | null;
+  last_country: string | null;
+  holding: boolean;
+  ended_at: string | null;
+  ended_by: "expired" | "admin" | "password_reset" | null;
+  ended_by_person: { id: string; full_name: string } | null;
+  end_reason: string | null;
+  needs_review: boolean;
+  reviewed_at: string | null;
+}
+
+const LOCKOUT_ENDED: Record<string, string> = { expired: "Expired", admin: "Unlocked by an admin", password_reset: "Password reset" };
+
 interface AccountDetail extends Account {
   sessions: SessionRow[];
   sign_ins: SignIn[];
   locked: boolean;
   unlocks_in_seconds: number | null;
   email_fp: string;
+  // Login protection (2026-11-09): its lockouts, and the step the next
+  // one would be, falling back to 1 at steps_reset_at.
+  lockouts: LockoutRow[];
+  next_lockout_step: number;
+  steps_reset_at: string | null;
 }
 
 const REFUSALS: Record<string, string> = {
@@ -434,9 +457,17 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
   };
 
   const unlock = async (a: AccountDetail) => {
-    if (!(await dialog.confirm(`Unlock ${a.full_name} now? Their next sign-in is checked as usual.`, { confirmLabel: "Unlock" }))) return;
+    const reason = await dialog.prompt(
+      `Unlock ${a.full_name} now? Their next sign-in is checked as usual, and a later lockout starts again at 15 minutes. Why?`,
+      { title: "Unlock sign-in", confirmLabel: "Unlock", required: true, multiline: true, placeholder: "Reason (kept on the audit trail)" },
+    );
+    if (reason === null) return;
     await act(async () => {
-      await call(`/api/admin/monitoring/locked/${a.email_fp}/unlock`, { method: "POST" });
+      await call(`/api/admin/monitoring/locked/${a.email_fp}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
       return "Unlocked. The account can try signing in again.";
     });
   };
@@ -625,6 +656,48 @@ function AccountDrawer({ id, onClose, onChanged }: { id: string; onClose: () => 
                       </li>
                     ))}
                   </ul>
+                )}
+              </section>
+
+              <section>
+                <h3 className="mb-1 text-sm font-semibold text-midnight-900">Lockouts</h3>
+                <p className="mb-3 text-xs text-midnight-900/45">
+                  {account.next_lockout_step > 1 && account.steps_reset_at
+                    ? `A next lockout would be step ${account.next_lockout_step} (${LOCKOUT_STEPS[account.next_lockout_step]}); back to 15 minutes from ${when(account.steps_reset_at)}.`
+                    : "A next lockout would be step 1 (15 minutes)."}
+                </p>
+                {account.lockouts.length === 0 ? (
+                  <p className="text-sm text-midnight-900/45">No lockouts kept for this account.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-midnight-900/10">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-midnight-900/10 text-left uppercase tracking-wider text-midnight-900/40">
+                          <th className="px-3 py-2 font-semibold">Locked</th>
+                          <th className="px-3 py-2 font-semibold">Step</th>
+                          <th className="px-3 py-2 font-semibold">Last address</th>
+                          <th className="px-3 py-2 font-semibold">Ended</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {account.lockouts.map((lk) => (
+                          <tr key={lk.id} className="border-b border-midnight-900/5 last:border-0 align-top">
+                            <td className="px-3 py-2 text-midnight-900/70">{when(lk.locked_at)}</td>
+                            <td className="px-3 py-2 text-midnight-900/70">
+                              {lk.step} · {LOCKOUT_STEPS[lk.step]}
+                              {lk.needs_review && !lk.reviewed_at && <div className="text-red-700 font-medium">Needs review</div>}
+                            </td>
+                            <td className="px-3 py-2 text-midnight-900/70">{place(lk.last_ip, lk.last_country)}</td>
+                            <td className="px-3 py-2 text-midnight-900/70">
+                              {lk.holding ? "Still locked" : LOCKOUT_ENDED[lk.ended_by ?? "expired"]}
+                              {lk.ended_by === "admin" && lk.ended_by_person && <div className="text-midnight-900/45">by {lk.ended_by_person.full_name}</div>}
+                              {lk.end_reason && <div className="text-midnight-900/45">&ldquo;{lk.end_reason}&rdquo;</div>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </section>
 

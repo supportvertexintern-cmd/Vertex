@@ -52,7 +52,8 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import func, or_, select, text
 
 from app.api.deps import DbSession
-from app.api.v1.sessions import SessionRow, security_event
+from app.api.notices import AccountSetupEmail, Notifying, PasswordResetEmail
+from app.api.v1.sessions import EMAIL_LIMITED, SessionRow, account_email_allowed, security_event
 from app.core.api import ApiError, Data, Page, PageParams, UtcDateTime, page_params
 from app.core.audit import AuditedDb, append_event
 from app.core.auth import AuthUser
@@ -62,9 +63,11 @@ from app.core.rbac import require_role
 from app.models.enums import LockoutEnd, MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
-from app.models.security import SecurityAlert
+from app.models.security import LoginLockout, SecurityAlert
 from app.services import geoip, login_lockout, security_monitor
 from app.services.sessions import email_fingerprint, list_sessions
+from app.core.tokens import sign_account_setup_token, sign_reset_token
+from app.services.emails import deliver
 
 router = APIRouter(prefix="/monitoring")
 
@@ -119,6 +122,38 @@ class SignIn(BaseModel):
     device: str | None
 
 
+class AlertAccount(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: Role
+    deactivated: bool
+
+
+class LockoutRow(BaseModel):
+    """One sign-in lockout (login protection), as history."""
+
+    id: str
+    email_fp: str
+    account: AlertAccount | None
+    step: int
+    locked_at: UtcDateTime
+    locked_until: UtcDateTime
+    failures: int
+    last_ip: str | None
+    last_country: str | None
+    # Still holding the address.
+    holding: bool
+    ended_at: UtcDateTime | None
+    ended_by: LockoutEnd | None
+    ended_by_person: Person | None
+    end_reason: str | None
+    needs_review: bool
+    reviewed_at: UtcDateTime | None
+    reviewed_by: Person | None
+    review_note: str | None
+
+
 class AccountDetail(AccountRow):
     sessions: list[SessionRow]
     sign_ins: list[SignIn]
@@ -126,6 +161,11 @@ class AccountDetail(AccountRow):
     locked: bool
     unlocks_in_seconds: int | None
     email_fp: str
+    # Login protection: its lockouts (newest first, within the retention
+    # window), the step the next one would be, and when that falls back to 1.
+    lockouts: list[LockoutRow]
+    next_lockout_step: int
+    steps_reset_at: UtcDateTime | None
 
 
 # --- helpers ------------------------------------------------------------------
@@ -270,19 +310,17 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
     (row,) = _rows(db, [user])
     fp = email_fingerprint(user.email)
     holding = login_lockout.open_lockout(db, fp)
+    lockouts = list(db.scalars(
+        select(LoginLockout).where(or_(LoginLockout.user_id == user.id, LoginLockout.email_fp == fp), LoginLockout.locked_at >= cutoff)
+        .order_by(LoginLockout.locked_at.desc()).limit(20)
+    ))
+    step, resets_at = login_lockout.escalation(db, fp)
     return {"data": row | {"sessions": sessions, "sign_ins": sign_ins, "locked": holding is not None,
-                           "unlocks_in_seconds": login_lockout.seconds_left(holding) if holding else None, "email_fp": fp}}
+                           "unlocks_in_seconds": login_lockout.seconds_left(holding) if holding else None, "email_fp": fp,
+                           "lockouts": _lockout_rows(db, lockouts), "next_lockout_step": step, "steps_reset_at": resets_at}}
 
 
 # --- Suspicious Activity (phase 2) ------------------------------------------------
-
-
-class AlertAccount(BaseModel):
-    id: str
-    full_name: str
-    email: str
-    role: Role
-    deactivated: bool
 
 
 class AlertRow(BaseModel):
@@ -798,6 +836,11 @@ class Overview(BaseModel):
     active_sessions: int
     # Held by the per-account sign-in limit now.
     locked_accounts: int
+    # Login protection: lockouts at step 4 not yet reviewed; failed sign-ins
+    # in the 24 hours before the last 24 (the trend); refused reset emails.
+    lockouts_needing_review: int
+    failed_sign_ins_previous_24h: int
+    reset_emails_refused: Window
     # The bundled country database's month, or null if the image has none.
     geoip_month: str | None
     recent_alerts: list[AlertRow]
@@ -818,7 +861,7 @@ def overview(_admin: Admin, db: DbSession):
     now = utc_now_ms()
     trail = {
         label: dict(db.execute(text("SELECT action, n FROM public.vertex_monitoring_counts(:s)"), {"s": now - delta}).all())
-        for label, delta in (("last_24h", timedelta(days=1)), ("last_7d", timedelta(days=7)))
+        for label, delta in (("last_24h", timedelta(days=1)), ("last_48h", timedelta(days=2)), ("last_7d", timedelta(days=7)))
     }
     open_alerts = {s: 0 for s in SecurityAlertSeverity}
     for level, n in db.execute(
@@ -829,7 +872,7 @@ def overview(_admin: Admin, db: DbSession):
         RefreshToken.revoked_at.is_(None), RefreshToken.used_at.is_(None), RefreshToken.expires_at > now,
     ))
     recent = list(db.scalars(select(SecurityAlert).order_by(SecurityAlert.created_at.desc(), SecurityAlert.id.desc()).limit(10)))
-    from_trail = lambda action: {k: int(trail[k].get(action, 0)) for k in trail}  # noqa: E731
+    from_trail = lambda action: {k: int(trail[k].get(action, 0)) for k in ("last_24h", "last_7d")}  # noqa: E731
     return {"data": {
         "open_alerts": open_alerts,
         "retention_months": settings.SECURITY_RETENTION_MONTHS,
@@ -843,6 +886,9 @@ def overview(_admin: Admin, db: DbSession):
         "new_partner_logins": _window(db, User.created_at, User.role == Role.partner),
         "active_sessions": int(sessions or 0),
         "locked_accounts": len(login_lockout.held(db)),
+        "lockouts_needing_review": _needing_review(db),
+        "failed_sign_ins_previous_24h": int(trail["last_48h"].get("login_failed", 0)) - int(trail["last_24h"].get("login_failed", 0)),
+        "reset_emails_refused": from_trail("reset_rate_limited"),
         "geoip_month": geoip.database_month(),
         "recent_alerts": _alert_rows(db, recent),
     }}
@@ -878,10 +924,36 @@ class LockedRow(BaseModel):
 class Unlocked(BaseModel):
     email_fp: str
     unlocked: bool
+    # "Unlock and send reset link": whether the reset email went, and if
+    # not, why (no_account, no_password, deactivated, email_limited).
+    reset_sent: bool = False
+    reset_refused: str | None = None
 
 
 class UnlockIn(BaseModel):
     reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+    send_reset: bool = False
+
+
+class LockedSummary(BaseModel):
+    # Lockouts at step 4 not yet reviewed (the sidebar badge reads "open").
+    open: int
+    held: int
+
+
+class LockoutReviewIn(BaseModel):
+    note: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=1000)]
+
+
+class ForceResetIn(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+class ForceReset(BaseModel):
+    id: str
+    email: str
+    # The lockout it lifted, if one was holding the account.
+    unlocked: bool
 
 
 def _accounts_by_id(db, ids: set[str]) -> dict[str, dict[str, Any]]:
@@ -893,6 +965,32 @@ def _accounts_by_id(db, ids: set[str]) -> dict[str, dict[str, Any]]:
     }
 
 
+def _lockout_rows(db, rows: list[LoginLockout]) -> list[dict[str, Any]]:
+    ids = {r.user_id for r in rows} | {r.ended_by_user_id for r in rows} | {r.reviewed_by for r in rows}
+    ids.discard(None)
+    accounts = _accounts_by_id(db, ids)
+    person = lambda i: {"id": i, "full_name": accounts[i]["full_name"]} if i in accounts else None  # noqa: E731
+    now = utc_now_ms()
+    return [{
+        "id": r.id, "email_fp": r.email_fp, "account": accounts.get(r.user_id) if r.user_id else None, "step": r.step,
+        "locked_at": r.locked_at, "locked_until": r.locked_until, "failures": r.failures, "last_ip": r.last_ip,
+        "last_country": r.last_country, "holding": r.ended_at is None and r.locked_until > now, "ended_at": r.ended_at,
+        "ended_by": r.ended_by, "ended_by_person": person(r.ended_by_user_id), "end_reason": r.end_reason,
+        "needs_review": r.needs_review, "reviewed_at": r.reviewed_at, "reviewed_by": person(r.reviewed_by), "review_note": r.review_note,
+    } for r in rows]
+
+
+def _needing_review(db) -> int:
+    return int(db.scalar(select(func.count()).select_from(LoginLockout).where(
+        LoginLockout.needs_review.is_(True), LoginLockout.reviewed_at.is_(None),
+    )) or 0)
+
+
+def _check_fp(email_fp: str) -> None:
+    if not (8 <= len(email_fp) <= 64 and all(c in "0123456789abcdef" for c in email_fp)):
+        raise ApiError(422, "validation_error", "Validation failed", {"email_fp": ["Not an email fingerprint."]})
+
+
 @router.get("/locked", response_model=Data[list[LockedRow]])
 def locked(_admin: Admin, db: DbSession):
     """Addresses held now after too many failed sign-ins, longest to go
@@ -902,23 +1000,131 @@ def locked(_admin: Admin, db: DbSession):
     return {"data": [
         {"email_fp": row.email_fp, "lockout_id": row.id, "failures": row.failures, "step": row.step, "locked_at": row.locked_at,
          "unlocks_in_seconds": login_lockout.seconds_left(row), "last_ip": row.last_ip, "last_country": row.last_country,
-         "needs_review": row.needs_review, "account": accounts.get(row.user_id) if row.user_id else None}
+         "needs_review": row.needs_review and row.reviewed_at is None,
+         "account": accounts.get(row.user_id) if row.user_id else None}
         for row in held
     ]}
+
+
+@router.get("/locked/summary", response_model=Data[LockedSummary])
+def locked_summary(_admin: Admin, db: DbSession):
+    """For the sidebar badge: lockouts needing review, and how many hold now."""
+    return {"data": {"open": _needing_review(db), "held": len(login_lockout.held(db))}}
 
 
 @router.post("/locked/{email_fp}/unlock", response_model=Data[Unlocked])
 def unlock(email_fp: str, body: UnlockIn, admin: Admin, request: Request, db: AuditedDb):
     """Lifts the lock at once, with a reason, and starts the escalation
     again (the next lockout is 15 minutes). Recorded on the lockout (who,
-    why) and as login_unlocked; the failures stay on the trail."""
-    if not (8 <= len(email_fp) <= 64 and all(c in "0123456789abcdef" for c in email_fp)):
-        raise ApiError(422, "validation_error", "Validation failed", {"email_fp": ["Not an email fingerprint."]})
+    why) and as login_unlocked; the failures stay on the trail. With
+    send_reset, the account's owner also gets a password reset email (the
+    per-email limit applies)."""
+    _check_fp(email_fp)
     lifted = login_lockout.end(db, email_fp, LockoutEnd.admin, by=admin.user_id, reason=body.reason)
     user_id = lifted.user_id if lifted else None
     db.commit()
+    reset_sent, refused = False, None
+    notify: list = []
+    if body.send_reset:
+        user = db.get(User, user_id) if user_id else None
+        if user is None:
+            refused = "no_account"
+        elif not user.password_hash:
+            refused = "no_password"
+        elif user.deactivated_at is not None:
+            refused = "deactivated"
+        elif not account_email_allowed(request, user.email, user_id=user.id, kind="password_reset", actor_id=admin.user_id):
+            refused = "email_limited"
+        else:
+            notify.append(PasswordResetEmail(email=user.email, full_name=user.full_name, token=sign_reset_token(user.id, user.email, user.password_hash)))
+            reset_sent = True
     security_event(request, "login_unlocked", actor_id=admin.user_id, entity_type="Auth",
                    entity_id=f"user:{user_id}" if user_id else f"email_fp:{email_fp}",
                    detail={"email_fp": email_fp, "was_locked": lifted is not None, "reason": body.reason,
-                           "step": lifted.step if lifted else None})
-    return {"data": {"email_fp": email_fp, "unlocked": lifted is not None}}
+                           "step": lifted.step if lifted else None, "reset_sent": reset_sent} | ({"reset_refused": refused} if refused else {}))
+    deliver(db, notify)
+    return {"data": {"email_fp": email_fp, "unlocked": lifted is not None, "reset_sent": reset_sent, "reset_refused": refused}}
+
+
+@router.get("/lockouts", response_model=Page[LockoutRow])
+def lockout_history(
+    _admin: Admin,
+    db: DbSession,
+    paging: Annotated[PageParams, Depends(page_params)],
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    step: Annotated[int | None, Query(ge=1, le=4)] = None,
+    # How it ended; "holding" for one still holding the address.
+    ended_by: Literal["expired", "admin", "password_reset", "holding"] | None = None,
+    needs_review: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    """Every lockout within the retention window (D3), newest first."""
+    now = utc_now_ms()
+    query = select(LoginLockout).where(LoginLockout.locked_at >= security_monitor.retention_cutoff())
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        query = query.where(LoginLockout.user_id.in_(select(User.id).where(or_(User.full_name.ilike(like), User.email.ilike(like)))))
+    if step is not None:
+        query = query.where(LoginLockout.step == step)
+    if ended_by == "holding":
+        query = query.where(LoginLockout.ended_at.is_(None), LoginLockout.locked_until > now)
+    elif ended_by == "expired":
+        # Closed as expired, or past its time and not yet swept.
+        query = query.where(or_(LoginLockout.ended_by == LockoutEnd.expired,
+                                (LoginLockout.ended_at.is_(None)) & (LoginLockout.locked_until <= now)))
+    elif ended_by is not None:
+        query = query.where(LoginLockout.ended_by == LockoutEnd(ended_by))
+    if needs_review is True:
+        query = query.where(LoginLockout.needs_review.is_(True), LoginLockout.reviewed_at.is_(None))
+    elif needs_review is False:
+        query = query.where(or_(LoginLockout.needs_review.is_(False), LoginLockout.reviewed_at.is_not(None)))
+    if date_from is not None:
+        query = query.where(LoginLockout.locked_at >= _start(date_from))
+    if date_to is not None:
+        query = query.where(LoginLockout.locked_at < _start(date_to + timedelta(days=1)))
+    total = int(db.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    rows = list(db.scalars(query.order_by(LoginLockout.locked_at.desc(), LoginLockout.id).offset(paging.offset).limit(paging.page_size)))
+    return {"data": _lockout_rows(db, rows), "total": total, "page": paging.page, "pageSize": paging.page_size}
+
+
+@router.post("/lockouts/{lockout_id}/review", response_model=Data[LockoutRow])
+def review_lockout(lockout_id: str, body: LockoutReviewIn, admin: Admin, db: AuditedDb):
+    """Closes "Needs review" on a step-4 lockout, with a note (audited)."""
+    row = db.scalar(select(LoginLockout).where(LoginLockout.id == lockout_id).with_for_update())
+    if row is None:
+        raise ApiError(404, "not_found", "Lockout not found.")
+    if not row.needs_review:
+        raise ApiError(409, "not_flagged", "This lockout isn't flagged for review.")
+    if row.reviewed_at is not None:
+        raise ApiError(409, "already_reviewed", "This lockout has been reviewed already.")
+    row.reviewed_at, row.reviewed_by, row.review_note = utc_now_ms(), admin.user_id, body.note
+    db.commit()
+    return {"data": _lockout_rows(db, [row])[0]}
+
+
+@router.post("/accounts/{user_id}/force-reset", response_model=Notifying[ForceReset])
+def force_password_reset(user_id: str, body: ForceResetIn, admin: Admin, request: Request, db: AuditedDb):
+    """Clears a staff or partner login's password, so it stops working at
+    once and every session ends (the token_version trigger), lifts any
+    lockout, and sends the setup email. Refused before anything changes if
+    the address has had its account emails for now. Candidates reset with
+    the reset link instead ("Unlock and send reset link")."""
+    user = db.scalar(select(User).where(User.id == user_id).with_for_update())
+    if user is None:
+        raise ApiError(404, "not_found", "Account not found.")
+    if user.role is Role.candidate:
+        raise ApiError(422, "candidate", "Candidates reset their password with the reset link: use Unlock and send reset link.")
+    if user.id == admin.user_id:
+        raise ApiError(422, "own_account", "You can't force a reset of your own account.")
+    if user.deactivated_at is not None:
+        raise ApiError(409, "account_deactivated", "This account is deactivated; reactivate it first.")
+    if not account_email_allowed(request, user.email, user_id=user.id, kind="account_setup", actor_id=admin.user_id):
+        raise ApiError(429, "email_limited", EMAIL_LIMITED)
+    user.password_hash = None
+    lifted = login_lockout.end(db, email_fingerprint(user.email), LockoutEnd.admin, by=admin.user_id, reason=body.reason)
+    db.commit()
+    security_event(request, "password_force_reset", actor_id=admin.user_id, entity_type="User", entity_id=user.id,
+                   detail={"reason": body.reason, "role": user.role.value, "unlocked": lifted is not None})
+    notify = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
+    return {"data": {"id": user.id, "email": user.email, "unlocked": lifted is not None}, "notify": deliver(db, notify)}

@@ -139,6 +139,17 @@
       "title": "Locked",
       "type": "boolean"
      },
+     "lockouts": {
+      "items": {
+       "$ref": "#/components/schemas/LockoutRow"
+      },
+      "title": "Lockouts",
+      "type": "array"
+     },
+     "next_lockout_step": {
+      "title": "Next Lockout Step",
+      "type": "integer"
+     },
      "open_alerts": {
       "title": "Open Alerts",
       "type": "integer"
@@ -172,6 +183,17 @@
       ],
       "title": "Status",
       "type": "string"
+     },
+     "steps_reset_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Steps Reset At"
      },
      "unlocks_in_seconds": {
       "anyOf": [
@@ -209,7 +231,10 @@
      "sign_ins",
      "locked",
      "unlocks_in_seconds",
-     "email_fp"
+     "email_fp",
+     "lockouts",
+     "next_lockout_step",
+     "steps_reset_at"
     ],
     "title": "AccountDetail",
     "type": "object"
@@ -5689,6 +5714,30 @@
     "title": "Data[JobOut]",
     "type": "object"
    },
+   "Data_LockedSummary_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LockedSummary"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[LockedSummary]",
+    "type": "object"
+   },
+   "Data_LockoutRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LockoutRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[LockoutRow]",
+    "type": "object"
+   },
    "Data_Me_": {
     "properties": {
      "data": {
@@ -7694,6 +7743,44 @@
     "title": "FinalizedOut",
     "type": "object"
    },
+   "ForceReset": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "unlocked": {
+      "title": "Unlocked",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "email",
+     "unlocked"
+    ],
+    "title": "ForceReset",
+    "type": "object"
+   },
+   "ForceResetIn": {
+    "properties": {
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "ForceResetIn",
+    "type": "object"
+   },
    "ForgotIn": {
     "properties": {
      "email": {
@@ -8609,6 +8696,214 @@
      "account"
     ],
     "title": "LockedRow",
+    "type": "object"
+   },
+   "LockedSummary": {
+    "properties": {
+     "held": {
+      "title": "Held",
+      "type": "integer"
+     },
+     "open": {
+      "title": "Open",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "open",
+     "held"
+    ],
+    "title": "LockedSummary",
+    "type": "object"
+   },
+   "LockoutEnd": {
+    "description": "How a sign-in lockout ended (login protection, migration 0017).",
+    "enum": [
+     "expired",
+     "admin",
+     "password_reset"
+    ],
+    "title": "LockoutEnd",
+    "type": "string"
+   },
+   "LockoutReviewIn": {
+    "properties": {
+     "note": {
+      "maxLength": 1000,
+      "minLength": 3,
+      "title": "Note",
+      "type": "string"
+     }
+    },
+    "required": [
+     "note"
+    ],
+    "title": "LockoutReviewIn",
+    "type": "object"
+   },
+   "LockoutRow": {
+    "description": "One sign-in lockout (login protection), as history.",
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
+     "end_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End Reason"
+     },
+     "ended_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ended At"
+     },
+     "ended_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LockoutEnd"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "ended_by_person": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "failures": {
+      "title": "Failures",
+      "type": "integer"
+     },
+     "holding": {
+      "title": "Holding",
+      "type": "boolean"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "last_country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Country"
+     },
+     "last_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Ip"
+     },
+     "locked_at": {
+      "title": "Locked At",
+      "type": "string"
+     },
+     "locked_until": {
+      "title": "Locked Until",
+      "type": "string"
+     },
+     "needs_review": {
+      "title": "Needs Review",
+      "type": "boolean"
+     },
+     "review_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review Note"
+     },
+     "reviewed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed At"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "email_fp",
+     "account",
+     "step",
+     "locked_at",
+     "locked_until",
+     "failures",
+     "last_ip",
+     "last_country",
+     "holding",
+     "ended_at",
+     "ended_by",
+     "ended_by_person",
+     "end_reason",
+     "needs_review",
+     "reviewed_at",
+     "reviewed_by",
+     "review_note"
+    ],
+    "title": "LockoutRow",
     "type": "object"
    },
    "LoginAddress": {
@@ -10006,6 +10301,144 @@
      "data"
     ],
     "title": "Notifying[Done]",
+    "type": "object"
+   },
+   "Notifying_ForceReset_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/ForceReset"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[ForceReset]",
     "type": "object"
    },
    "Notifying_LinkOut_": {
@@ -11958,6 +12391,10 @@
      "failed_sign_ins": {
       "$ref": "#/components/schemas/Window"
      },
+     "failed_sign_ins_previous_24h": {
+      "title": "Failed Sign Ins Previous 24H",
+      "type": "integer"
+     },
      "geoip_month": {
       "anyOf": [
        {
@@ -11971,6 +12408,10 @@
      },
      "locked_accounts": {
       "title": "Locked Accounts",
+      "type": "integer"
+     },
+     "lockouts_needing_review": {
+      "title": "Lockouts Needing Review",
       "type": "integer"
      },
      "new_partner_logins": {
@@ -12000,6 +12441,9 @@
       "title": "Recent Alerts",
       "type": "array"
      },
+     "reset_emails_refused": {
+      "$ref": "#/components/schemas/Window"
+     },
      "retention_months": {
       "title": "Retention Months",
       "type": "integer"
@@ -12021,6 +12465,9 @@
      "new_partner_logins",
      "active_sessions",
      "locked_accounts",
+     "lockouts_needing_review",
+     "failed_sign_ins_previous_24h",
+     "reset_emails_refused",
      "geoip_month",
      "recent_alerts"
     ],
@@ -12367,6 +12814,37 @@
      "pageSize"
     ],
     "title": "Page[AuditRow]",
+    "type": "object"
+   },
+   "Page_LockoutRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/LockoutRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[LockoutRow]",
     "type": "object"
    },
    "Page_PartnerLoginRow_": {
@@ -18500,6 +18978,11 @@
       "minLength": 3,
       "title": "Reason",
       "type": "string"
+     },
+     "send_reset": {
+      "default": false,
+      "title": "Send Reset",
+      "type": "boolean"
      }
     },
     "required": [
@@ -18513,6 +18996,22 @@
      "email_fp": {
       "title": "Email Fp",
       "type": "string"
+     },
+     "reset_refused": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reset Refused"
+     },
+     "reset_sent": {
+      "default": false,
+      "title": "Reset Sent",
+      "type": "boolean"
      },
      "unlocked": {
       "title": "Unlocked",
@@ -28192,6 +28691,64 @@
     ]
    }
   },
+  "/api/v1/monitoring/accounts/{user_id}/force-reset": {
+   "post": {
+    "description": "Clears a staff or partner login's password, so it stops working at\nonce and every session ends (the token_version trigger), lifts any\nlockout, and sends the setup email. Refused before anything changes if\nthe address has had its account emails for now. Candidates reset with\nthe reset link instead (\"Unlock and send reset link\").",
+    "operationId": "force_password_reset_api_v1_monitoring_accounts__user_id__force_reset_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "user_id",
+      "required": true,
+      "schema": {
+       "title": "User Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ForceResetIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_ForceReset_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Force Password Reset",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
   "/api/v1/monitoring/alerts": {
    "get": {
     "description": "Newest first. status may repeat (?status=open&status=reviewing).",
@@ -28680,9 +29237,36 @@
     ]
    }
   },
+  "/api/v1/monitoring/locked/summary": {
+   "get": {
+    "description": "For the sidebar badge: lockouts needing review, and how many hold now.",
+    "operationId": "locked_summary_api_v1_monitoring_locked_summary_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LockedSummary_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Locked Summary",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
   "/api/v1/monitoring/locked/{email_fp}/unlock": {
    "post": {
-    "description": "Lifts the lock at once, with a reason, and starts the escalation\nagain (the next lockout is 15 minutes). Recorded on the lockout (who,\nwhy) and as login_unlocked; the failures stay on the trail.",
+    "description": "Lifts the lock at once, with a reason, and starts the escalation\nagain (the next lockout is 15 minutes). Recorded on the lockout (who,\nwhy) and as login_unlocked; the failures stay on the trail. With\nsend_reset, the account's owner also gets a password reset email (the\nper-email limit applies).",
     "operationId": "unlock_api_v1_monitoring_locked__email_fp__unlock_post",
     "parameters": [
      {
@@ -28733,6 +29317,230 @@
      }
     ],
     "summary": "Unlock",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/lockouts": {
+   "get": {
+    "description": "Every lockout within the retention window (D3), newest first.",
+    "operationId": "lockout_history_api_v1_monitoring_lockouts_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "step",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maximum": 4,
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Step"
+      }
+     },
+     {
+      "in": "query",
+      "name": "ended_by",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "expired",
+          "admin",
+          "password_reset",
+          "holding"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Ended By"
+      }
+     },
+     {
+      "in": "query",
+      "name": "needs_review",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "boolean"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Needs Review"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_LockoutRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Lockout History",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/lockouts/{lockout_id}/review": {
+   "post": {
+    "description": "Closes \"Needs review\" on a step-4 lockout, with a note (audited).",
+    "operationId": "review_lockout_api_v1_monitoring_lockouts__lockout_id__review_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "lockout_id",
+      "required": true,
+      "schema": {
+       "title": "Lockout Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LockoutReviewIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LockoutRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Review Lockout",
     "tags": [
      "admin monitoring"
     ]
