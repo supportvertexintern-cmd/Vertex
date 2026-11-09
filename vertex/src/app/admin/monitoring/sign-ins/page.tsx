@@ -332,11 +332,18 @@ function SignInActivity() {
                     <td className="px-5 py-3 text-midnight-900/70">{r.device ?? "—"}</td>
                     <td className="px-5 py-3 text-midnight-900/70 whitespace-nowrap">{how(r)}</td>
                     <td className="px-5 py-3 text-xs whitespace-nowrap">
-                      {r.account && (
-                        <Link href={`/admin/monitoring/suspicious?user=${r.account.id}`} className="text-midnight-900/50 hover:underline">
-                          Related alerts
-                        </Link>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {r.account && (
+                          <Link href={`/admin/monitoring/suspicious?user=${r.account.id}`} className="text-midnight-900/50 hover:underline">
+                            Related alerts
+                          </Link>
+                        )}
+                        {r.ip && r.result !== "success" && (
+                          <Link href={`/admin/monitoring/addresses?block=${encodeURIComponent(r.ip)}`} className="text-red-600 hover:underline">
+                            Block address
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

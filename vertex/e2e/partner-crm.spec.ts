@@ -351,5 +351,23 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(setup).toBeVisible({ timeout: 25_000 });
       await expect(setup.getByText("Sent", { exact: true })).toBeVisible();
     });
+
+    // Address Controls (login protection, PR 5): block an address with a reason, then remove it.
+    await test.step("Address Controls adds a block and removes it, each with a reason", async () => {
+      await page.getByRole("link", { name: "Address Controls" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/addresses/);
+      await expect(page.getByRole("heading", { name: "Limited now" })).toBeVisible({ timeout: 25_000 });
+      await page.getByPlaceholder("203.0.113.7 or 203.0.113.0/24").fill("198.51.100.250");
+      await page.getByPlaceholder("Kept on the audit trail").fill("E2E: brute-forcing the login");
+      await page.getByRole("button", { name: "Block", exact: true }).click();
+      await page.getByRole("alertdialog").getByRole("button", { name: "Block" }).click();
+      await expect(page.getByText("Blocked 198.51.100.250.")).toBeVisible({ timeout: 25_000 });
+      const rule = page.locator("tr", { hasText: "198.51.100.250/32" }).first();
+      await expect(rule.getByText("E2E: brute-forcing the login")).toBeVisible();
+      await rule.getByRole("button", { name: "Remove" }).click();
+      await page.getByPlaceholder("Reason (kept on the audit trail)").fill("E2E: their office after all");
+      await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
+      await expect(page.getByText("Removed the block on 198.51.100.250/32.")).toBeVisible({ timeout: 25_000 });
+    });
   });
 });

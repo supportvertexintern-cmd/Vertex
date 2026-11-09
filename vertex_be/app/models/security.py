@@ -4,10 +4,11 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Index, text
+from sqlalchemy.dialects.postgresql import CIDR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, created_at_col, enum_col, flag, fk, pk
-from app.models.enums import LockoutEnd, SecurityAlertSeverity, SecurityAlertStatus
+from app.models.enums import AddressRuleKind, LockoutEnd, SecurityAlertSeverity, SecurityAlertStatus
 
 
 class SecurityAlert(Base):
@@ -88,3 +89,30 @@ class LoginLockout(Base):
     reviewed_at: Mapped[datetime | None]
     reviewed_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
     review_note: Mapped[str | None]
+
+
+class AddressRule(Base):
+    """An admin's control on a network address or range (login protection
+    PR 5, migration 0021). A block refuses sign-in, registration and
+    password-reset requests from it (403) until it expires (at most 30
+    days); an allow exempts it from the website's per-address limits (an
+    office or agency sharing one connection), never from the per-account
+    lockout. Where both match, the block wins. Never deleted: removing one
+    sets removed_at, by whom and why. Audited."""
+
+    __tablename__ = "AddressRule"
+    __table_args__ = (
+        Index("AddressRule_active_idx", "kind", postgresql_where=text("removed_at IS NULL")),
+    )
+
+    id: Mapped[str] = pk()
+    network: Mapped[str] = mapped_column(CIDR)
+    kind: Mapped[AddressRuleKind] = enum_col(AddressRuleKind)
+    reason: Mapped[str]
+    created_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
+    created_at: Mapped[datetime] = created_at_col()
+    # Required for a block; an allow may have none.
+    expires_at: Mapped[datetime | None]
+    removed_at: Mapped[datetime | None]
+    removed_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"))
+    removed_reason: Mapped[str | None]

@@ -284,6 +284,13 @@ class SecurityAlertStatus(str, enum.Enum):
     dismissed = "dismissed"
 
 
+class AddressRuleKind(str, enum.Enum):
+    """An address control (login protection, migration 0021)."""
+
+    block = "block"
+    allow = "allow"
+
+
 class LockoutEnd(str, enum.Enum):
     """How a sign-in lockout ended (login protection, migration 0017)."""
 

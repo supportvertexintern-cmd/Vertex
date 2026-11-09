@@ -45,6 +45,8 @@ interface Overview {
   lockouts_needing_review: number;
   failed_sign_ins_previous_24h: number;
   reset_emails_refused: Window;
+  addresses_limited_now: number | null;
+  addresses_blocked: number;
   geoip_month: string | null;
   recent_alerts: RecentAlert[];
 }
@@ -228,6 +230,13 @@ export default function SecurityOverviewPage() {
               value={data.lockouts_needing_review}
               note="Locked 4 times in a row: the 24-hour step."
             />
+            <Card
+              title="Addresses limited now"
+              href="/admin/monitoring/addresses"
+              value={data.addresses_limited_now ?? 0}
+              note={data.addresses_limited_now === null ? "Not countable on this stack (no shared store)." : "Refused by a per-address limit right now."}
+            />
+            <Card title="Addresses blocked" href="/admin/monitoring/addresses" value={data.addresses_blocked} note="Blocks in force now." />
             <Card
               title="Refused reset emails"
               href="/admin/monitoring/reset-emails?result=refused_email_limit"

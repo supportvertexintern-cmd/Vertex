@@ -47,6 +47,10 @@ import { GET as signInStats } from "@/app/api/admin/monitoring/sign-ins/stats/ro
 import { GET as resetEmails } from "@/app/api/admin/monitoring/reset-emails/route";
 import { GET as resetFlags } from "@/app/api/admin/monitoring/reset-emails/flagged/route";
 import { POST as resendEmail } from "@/app/api/admin/monitoring/reset-emails/resend/route";
+import { GET as listRules, POST as addRule } from "@/app/api/admin/monitoring/addresses/controls/route";
+import { DELETE as removeRule } from "@/app/api/admin/monitoring/addresses/controls/[id]/route";
+import { GET as limitedNow } from "@/app/api/admin/monitoring/addresses/limited/route";
+import { POST as clearLimit } from "@/app/api/admin/monitoring/addresses/limited/[key]/clear/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -330,5 +334,44 @@ describe("Sign-in and Reset Email Activity routes (PR 4)", () => {
     expect(c1.forward).toBeTruthy();
     expect(defined(c3.query)).toEqual({ q: "ann", kind: "account_setup", result: "sent", date_to: "2026-11-09" });
     expect([c5.method, c5.body]).toEqual(["POST", { user_id: "u1", kind: "account_setup", reason: "Asked by phone" }]);
+  });
+});
+
+describe("Address Controls routes (PR 5)", () => {
+  const rid = { params: Promise.resolve({ id: "r1" }) };
+  const lkey = { params: Promise.resolve({ key: "login:abc:12" }) };
+  const send = (method: string, body: unknown) =>
+    new NextRequest("http://localhost/x", { method, body: JSON.stringify(body), headers: { "x-real-ip": "203.0.113.9" } });
+
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    expect((await listRules(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await addRule(send("POST", { network: "1.2.3.4", kind: "block", reason: "r", days: 1 }))).status).toBe(403);
+    expect((await removeRule(send("DELETE", { reason: "r" }), rid)).status).toBe(403);
+    expect((await limitedNow(new NextRequest("http://localhost/x"))).status).toBe(403);
+    expect((await clearLimit(send("POST", { reason: "r" }), lkey)).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("reach their paths with their bodies and the browser's address (for the own-address guard)", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok([]));
+    await listRules(new NextRequest("http://localhost/x?include_ended=true&evil=1"));
+    await addRule(send("POST", { network: "198.51.100.7", kind: "block", reason: "Seen brute-forcing", days: 7 }));
+    await removeRule(send("DELETE", { reason: "Their office" }), rid);
+    await limitedNow(new NextRequest("http://localhost/x"));
+    await clearLimit(send("POST", { reason: "Verified" }), lkey);
+    const [[p1, c1], [p2, c2], [p3, c3], [p4], [p5, c5]] = callBackend.mock.calls;
+    expect([p1, p2, p3, p4, p5]).toEqual([
+      "/api/v1/monitoring/addresses/controls",
+      "/api/v1/monitoring/addresses/controls",
+      "/api/v1/monitoring/addresses/controls/r1",
+      "/api/v1/monitoring/addresses/limited",
+      "/api/v1/monitoring/addresses/limited/login%3Aabc%3A12/clear",
+    ]);
+    expect(Object.fromEntries(Object.entries(c1.query).filter(([, v]) => v !== undefined))).toEqual({ include_ended: "true" });
+    expect([c2.method, c2.body, Boolean(c2.forward)]).toEqual(["POST", { network: "198.51.100.7", kind: "block", reason: "Seen brute-forcing", days: 7 }, true]);
+    expect([c3.method, c3.body]).toEqual(["DELETE", { reason: "Their office" }]);
+    expect([c5.method, c5.body]).toEqual(["POST", { reason: "Verified" }]);
   });
 });

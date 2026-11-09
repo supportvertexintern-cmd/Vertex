@@ -742,6 +742,24 @@
     "title": "ActivityRow",
     "type": "object"
    },
+   "AddressControl": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "network": {
+      "title": "Network",
+      "type": "string"
+     }
+    },
+    "required": [
+     "network",
+     "kind"
+    ],
+    "title": "AddressControl",
+    "type": "object"
+   },
    "AddressCount": {
     "properties": {
      "country": {
@@ -770,6 +788,149 @@
      "n"
     ],
     "title": "AddressCount",
+    "type": "object"
+   },
+   "AddressRuleIn": {
+    "properties": {
+     "days": {
+      "anyOf": [
+       {
+        "maximum": 365.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Days"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/AddressRuleKind"
+     },
+     "network": {
+      "maxLength": 64,
+      "minLength": 2,
+      "title": "Network",
+      "type": "string"
+     },
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "network",
+     "kind",
+     "reason"
+    ],
+    "title": "AddressRuleIn",
+    "type": "object"
+   },
+   "AddressRuleKind": {
+    "description": "An address control (login protection, migration 0021).",
+    "enum": [
+     "block",
+     "allow"
+    ],
+    "title": "AddressRuleKind",
+    "type": "string"
+   },
+   "AddressRuleRow": {
+    "properties": {
+     "active": {
+      "title": "Active",
+      "type": "boolean"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "expires_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Expires At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "kind": {
+      "$ref": "#/components/schemas/AddressRuleKind"
+     },
+     "network": {
+      "title": "Network",
+      "type": "string"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     },
+     "removed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Removed At"
+     },
+     "removed_by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "removed_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Removed Reason"
+     }
+    },
+    "required": [
+     "id",
+     "network",
+     "kind",
+     "reason",
+     "created_by",
+     "created_at",
+     "expires_at",
+     "active",
+     "removed_at",
+     "removed_by",
+     "removed_reason"
+    ],
+    "title": "AddressRuleRow",
     "type": "object"
    },
    "AgentCommission": {
@@ -4438,6 +4599,24 @@
     "title": "Claimed",
     "type": "object"
    },
+   "Cleared": {
+    "properties": {
+     "cleared": {
+      "title": "Cleared",
+      "type": "boolean"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "cleared"
+    ],
+    "title": "Cleared",
+    "type": "object"
+   },
    "CommissionAgent": {
     "properties": {
      "email": {
@@ -5514,6 +5693,18 @@
     "title": "Data[AccountState]",
     "type": "object"
    },
+   "Data_AddressRuleRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/AddressRuleRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[AddressRuleRow]",
+    "type": "object"
+   },
    "Data_AgentDetail_": {
     "properties": {
      "data": {
@@ -5694,6 +5885,18 @@
     "title": "Data[Claimed]",
     "type": "object"
    },
+   "Data_Cleared_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Cleared"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Cleared]",
+    "type": "object"
+   },
    "Data_ContractRow_": {
     "properties": {
      "data": {
@@ -5872,6 +6075,18 @@
      "data"
     ],
     "title": "Data[JobOut]",
+    "type": "object"
+   },
+   "Data_LimitedList_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LimitedList"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[LimitedList]",
     "type": "object"
    },
    "Data_LockedSummary_": {
@@ -6432,6 +6647,38 @@
      "data"
     ],
     "title": "Data[dict[str, str]]",
+    "type": "object"
+   },
+   "Data_list_AddressControl__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AddressControl"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[AddressControl]]",
+    "type": "object"
+   },
+   "Data_list_AddressRuleRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AddressRuleRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[AddressRuleRow]]",
     "type": "object"
    },
    "Data_list_AgentListRow__": {
@@ -8777,6 +9024,77 @@
      "label"
     ],
     "title": "KpiRow",
+    "type": "object"
+   },
+   "LimitedList": {
+    "properties": {
+     "available": {
+      "title": "Available",
+      "type": "boolean"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/LimitedRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "available",
+     "rows"
+    ],
+    "title": "LimitedList",
+    "type": "object"
+   },
+   "LimitedRow": {
+    "properties": {
+     "blocked": {
+      "title": "Blocked",
+      "type": "boolean"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "hits": {
+      "title": "Hits",
+      "type": "integer"
+     },
+     "ip": {
+      "title": "Ip",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "resets_in_seconds": {
+      "title": "Resets In Seconds",
+      "type": "integer"
+     },
+     "scope": {
+      "title": "Scope",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "scope",
+     "ip",
+     "country",
+     "hits",
+     "resets_in_seconds",
+     "blocked"
+    ],
+    "title": "LimitedRow",
     "type": "object"
    },
    "LinkIn": {
@@ -12759,6 +13077,21 @@
       "title": "Active Sessions",
       "type": "integer"
      },
+     "addresses_blocked": {
+      "title": "Addresses Blocked",
+      "type": "integer"
+     },
+     "addresses_limited_now": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Addresses Limited Now"
+     },
      "alerts_raised": {
       "$ref": "#/components/schemas/Window"
      },
@@ -12842,6 +13175,8 @@
      "lockouts_needing_review",
      "failed_sign_ins_previous_24h",
      "reset_emails_refused",
+     "addresses_limited_now",
+     "addresses_blocked",
      "geoip_month",
      "recent_alerts"
     ],
@@ -16102,6 +16437,21 @@
      "reason"
     ],
     "title": "ReasonIn",
+    "type": "object"
+   },
+   "ReasonOnly": {
+    "properties": {
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "ReasonOnly",
     "type": "object"
    },
    "ReceiptIn": {
@@ -22701,6 +23051,33 @@
      }
     ],
     "summary": "Verify Email",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/address-controls": {
+   "get": {
+    "description": "The blocks and allows in force now (app/services/address_controls.py).\nThe website keeps them for 60 seconds and applies them before its\nper-address limits.",
+    "operationId": "address_controls_for_the_website_api_v1_address_controls_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_AddressControl__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Address Controls For The Website",
     "tags": [
      "users and sessions"
     ]
@@ -29387,6 +29764,243 @@
      }
     ],
     "summary": "Force Password Reset",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/addresses/controls": {
+   "get": {
+    "description": "The blocks and allows in force, newest first; with include_ended,\nthe removed and expired ones too.",
+    "operationId": "address_rules_api_v1_monitoring_addresses_controls_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "include_ended",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Include Ended",
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_AddressRuleRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Address Rules",
+    "tags": [
+     "admin monitoring"
+    ]
+   },
+   "post": {
+    "description": "Blocks or allows an address or range (4.3). A block needs 1 to 30\ndays and may not cover your own address; ranges are capped (a /24 for\nan allow, a /16 for a block, IPv4).",
+    "operationId": "add_address_rule_api_v1_monitoring_addresses_controls_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AddressRuleIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AddressRuleRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Add Address Rule",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/addresses/controls/{rule_id}": {
+   "delete": {
+    "description": "Ends a block or allow now, with a reason. The row stays as history.",
+    "operationId": "remove_address_rule_api_v1_monitoring_addresses_controls__rule_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rule_id",
+      "required": true,
+      "schema": {
+       "title": "Rule Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonOnly"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_AddressRuleRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Remove Address Rule",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/addresses/limited": {
+   "get": {
+    "description": "The addresses the website's per-address limits refuse now: which\nlimit, how many requests, when it resets.",
+    "operationId": "limited_addresses_api_v1_monitoring_addresses_limited_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LimitedList_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Limited Addresses",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/addresses/limited/{key}/clear": {
+   "post": {
+    "description": "Lifts one per-address limit at once, with a reason (recorded).",
+    "operationId": "clear_limit_api_v1_monitoring_addresses_limited__key__clear_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReasonOnly"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Cleared_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Clear Limit",
     "tags": [
      "admin monitoring"
     ]

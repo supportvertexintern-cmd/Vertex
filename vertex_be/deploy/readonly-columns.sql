@@ -647,6 +647,17 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('LoginLockout', 'reviewed_at',                           'grant'),   -- business timestamp
   ('LoginLockout', 'reviewed_by',                           'grant'),   -- identifier/link
   ('LoginLockout', 'review_note',                           'exclude'), -- free text/JSON: may hold personal data
+  -- Address controls (0021, login protection): for the admin's management, never for browsing.
+  ('AddressRule', 'id',                                     'grant'),   -- identifier/link
+  ('AddressRule', 'network',                                'exclude'), -- personal data (address)
+  ('AddressRule', 'kind',                                   'grant'),   -- status/type value
+  ('AddressRule', 'reason',                                 'exclude'), -- free text/JSON: may hold personal data
+  ('AddressRule', 'created_by',                             'grant'),   -- identifier/link
+  ('AddressRule', 'created_at',                             'grant'),   -- business timestamp
+  ('AddressRule', 'expires_at',                             'grant'),   -- business timestamp
+  ('AddressRule', 'removed_at',                             'grant'),   -- business timestamp
+  ('AddressRule', 'removed_by',                             'grant'),   -- identifier/link
+  ('AddressRule', 'removed_reason',                         'exclude'), -- free text/JSON: may hold personal data
   -- Sessions (0005, G19): token hashes and devices, never for browsing.
   ('RefreshToken', 'id',                                    'exclude'), -- session security state
   ('RefreshToken', 'user_id',                               'exclude'), -- session security state

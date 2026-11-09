@@ -50,7 +50,7 @@ def test_the_audited_models_are_pinned():
         "Job", "JobMilestonePrice", "JobPaymentStage", "JobPosition", "JobSector", "KnowledgeArticle",
         "Partner", "PartnerCandidate", "Payment", "RecruiterNote", "RecruiterTarget", "ReferralAgent",
         "ReferralAgentTarget", "ReferralCommission", "ReferralCommissionRule", "Region", "Report",
-        "RetentionFollowUp", "SecurityAlert", "LoginLockout", "Sector", "StaffKpiTarget", "StaffScorecard", "StaffScorecardArea",
+        "RetentionFollowUp", "SecurityAlert", "LoginLockout", "AddressRule", "Sector", "StaffKpiTarget", "StaffScorecard", "StaffScorecardArea",
         "SystemSetting", "User"
     }
 

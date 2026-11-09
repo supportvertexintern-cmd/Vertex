@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { refuseBlocked } from "@/lib/address-controls";
 import { limitByIp } from "@/lib/rate-limit";
 import { recordSecurityEvent } from "@/lib/audit";
 import { clientHeaders } from "@/lib/auth-backend";
@@ -11,6 +12,9 @@ import { passOn, readJson } from "@/lib/pipeline";
 // link since users step 8.3 (vertex_be/app/api/v1/accounts.py); the email
 // goes from here after the answer, which is the same either way.
 export async function POST(req: NextRequest) {
+  // An admin's address block (login protection PR 5): 403 before anything else.
+  const blocked = await refuseBlocked(req);
+  if (blocked) return blocked;
   const limited = await limitByIp(req, "forgot-password", { windowMs: 15 * 60_000, max: 5, failClosed: true });
   if (limited) {
     // Reset Email Activity shows it (login protection 4.4); not a 503 from a store outage.

@@ -117,6 +117,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/address-controls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Address Controls For The Website
+         * @description The blocks and allows in force now (app/services/address_controls.py).
+         *     The website keeps them for 60 seconds and applies them before its
+         *     per-address limits.
+         */
+        get: operations["address_controls_for_the_website_api_v1_address_controls_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/applications": {
         parameters: {
             query?: never;
@@ -2055,6 +2077,94 @@ export interface paths {
          *     the reset link instead ("Unlock and send reset link").
          */
         post: operations["force_password_reset_api_v1_monitoring_accounts__user_id__force_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/addresses/controls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Address Rules
+         * @description The blocks and allows in force, newest first; with include_ended,
+         *     the removed and expired ones too.
+         */
+        get: operations["address_rules_api_v1_monitoring_addresses_controls_get"];
+        put?: never;
+        /**
+         * Add Address Rule
+         * @description Blocks or allows an address or range (4.3). A block needs 1 to 30
+         *     days and may not cover your own address; ranges are capped (a /24 for
+         *     an allow, a /16 for a block, IPv4).
+         */
+        post: operations["add_address_rule_api_v1_monitoring_addresses_controls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/addresses/controls/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Address Rule
+         * @description Ends a block or allow now, with a reason. The row stays as history.
+         */
+        delete: operations["remove_address_rule_api_v1_monitoring_addresses_controls__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/addresses/limited": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Limited Addresses
+         * @description The addresses the website's per-address limits refuse now: which
+         *     limit, how many requests, when it resets.
+         */
+        get: operations["limited_addresses_api_v1_monitoring_addresses_limited_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/addresses/limited/{key}/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Limit
+         * @description Lifts one per-address limit at once, with a reason (recorded).
+         */
+        post: operations["clear_limit_api_v1_monitoring_addresses_limited__key__clear_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4185,6 +4295,13 @@ export interface components {
             /** Role */
             role?: string;
         };
+        /** AddressControl */
+        AddressControl: {
+            /** Kind */
+            kind: string;
+            /** Network */
+            network: string;
+        };
         /** AddressCount */
         AddressCount: {
             /** Country */
@@ -4193,6 +4310,44 @@ export interface components {
             ip: string;
             /** N */
             n: number;
+        };
+        /** AddressRuleIn */
+        AddressRuleIn: {
+            /** Days */
+            days?: number | null;
+            kind: components["schemas"]["AddressRuleKind"];
+            /** Network */
+            network: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * AddressRuleKind
+         * @description An address control (login protection, migration 0021).
+         * @enum {string}
+         */
+        AddressRuleKind: "block" | "allow";
+        /** AddressRuleRow */
+        AddressRuleRow: {
+            /** Active */
+            active: boolean;
+            /** Created At */
+            created_at: string;
+            created_by: components["schemas"]["Person"] | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Id */
+            id: string;
+            kind: components["schemas"]["AddressRuleKind"];
+            /** Network */
+            network: string;
+            /** Reason */
+            reason: string;
+            /** Removed At */
+            removed_at: string | null;
+            removed_by: components["schemas"]["Person"] | null;
+            /** Removed Reason */
+            removed_reason: string | null;
         };
         /** AgentCommission */
         AgentCommission: {
@@ -5196,6 +5351,13 @@ export interface components {
             id: string;
             lifecycle_status: components["schemas"]["CandidateLifecycleStatus"];
         };
+        /** Cleared */
+        Cleared: {
+            /** Cleared */
+            cleared: boolean;
+            /** Key */
+            key: string;
+        };
         /** CommissionAgent */
         CommissionAgent: {
             /** Email */
@@ -5552,6 +5714,10 @@ export interface components {
         Data_AccountState_: {
             data: components["schemas"]["AccountState"];
         };
+        /** Data[AddressRuleRow] */
+        Data_AddressRuleRow_: {
+            data: components["schemas"]["AddressRuleRow"];
+        };
         /** Data[AgentDetail] */
         Data_AgentDetail_: {
             data: components["schemas"]["AgentDetail"];
@@ -5612,6 +5778,10 @@ export interface components {
         Data_Claimed_: {
             data: components["schemas"]["Claimed"];
         };
+        /** Data[Cleared] */
+        Data_Cleared_: {
+            data: components["schemas"]["Cleared"];
+        };
         /** Data[ContractRow] */
         Data_ContractRow_: {
             data: components["schemas"]["ContractRow"];
@@ -5671,6 +5841,10 @@ export interface components {
         /** Data[JobOut] */
         Data_JobOut_: {
             data: components["schemas"]["JobOut"];
+        };
+        /** Data[LimitedList] */
+        Data_LimitedList_: {
+            data: components["schemas"]["LimitedList"];
         };
         /** Data[LockedSummary] */
         Data_LockedSummary_: {
@@ -5858,6 +6032,16 @@ export interface components {
             data: {
                 [key: string]: string;
             };
+        };
+        /** Data[list[AddressControl]] */
+        Data_list_AddressControl__: {
+            /** Data */
+            data: components["schemas"]["AddressControl"][];
+        };
+        /** Data[list[AddressRuleRow]] */
+        Data_list_AddressRuleRow__: {
+            /** Data */
+            data: components["schemas"]["AddressRuleRow"][];
         };
         /** Data[list[AgentListRow]] */
         Data_list_AgentListRow__: {
@@ -6604,6 +6788,30 @@ export interface components {
             /** Target */
             target?: number;
         };
+        /** LimitedList */
+        LimitedList: {
+            /** Available */
+            available: boolean;
+            /** Rows */
+            rows: components["schemas"]["LimitedRow"][];
+        };
+        /** LimitedRow */
+        LimitedRow: {
+            /** Blocked */
+            blocked: boolean;
+            /** Country */
+            country: string | null;
+            /** Hits */
+            hits: number;
+            /** Ip */
+            ip: string;
+            /** Key */
+            key: string;
+            /** Resets In Seconds */
+            resets_in_seconds: number;
+            /** Scope */
+            scope: string;
+        };
         /** LinkIn */
         LinkIn: {
             /** Job Payment Stage Id */
@@ -7093,6 +7301,10 @@ export interface components {
             accounts_inactive: number;
             /** Active Sessions */
             active_sessions: number;
+            /** Addresses Blocked */
+            addresses_blocked: number;
+            /** Addresses Limited Now */
+            addresses_limited_now: number | null;
             alerts_raised: components["schemas"]["Window"];
             failed_sign_ins: components["schemas"]["Window"];
             /** Failed Sign Ins Previous 24H */
@@ -8117,6 +8329,11 @@ export interface components {
         };
         /** ReasonIn */
         ReasonIn: {
+            /** Reason */
+            reason: string;
+        };
+        /** ReasonOnly */
+        ReasonOnly: {
             /** Reason */
             reason: string;
         };
@@ -10113,6 +10330,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    address_controls_for_the_website_api_v1_address_controls_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_AddressControl__"];
                 };
             };
         };
@@ -13708,6 +13945,160 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_ForceReset_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    address_rules_api_v1_monitoring_addresses_controls_get: {
+        parameters: {
+            query?: {
+                include_ended?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_AddressRuleRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_address_rule_api_v1_monitoring_addresses_controls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AddressRuleRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_address_rule_api_v1_monitoring_addresses_controls__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonOnly"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_AddressRuleRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    limited_addresses_api_v1_monitoring_addresses_limited_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LimitedList_"];
+                };
+            };
+        };
+    };
+    clear_limit_api_v1_monitoring_addresses_limited__key__clear_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonOnly"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Cleared_"];
                 };
             };
             /** @description Validation Error */
