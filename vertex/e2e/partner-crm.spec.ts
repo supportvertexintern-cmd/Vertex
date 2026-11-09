@@ -268,6 +268,11 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
     await test.step("Partners & Logins shows who added the agency and its active login, and exports it", async () => {
       await page.getByRole("link", { name: "Partners & Logins" }).first().click();
       await expect(page).toHaveURL(/\/admin\/monitoring\/partners/);
+      // The overview at the top (2026-11-08): each count filters the list.
+      await expect(page.getByText("Setup email unused 7+ days").first()).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText("Not signed in for 60+ days").first()).toBeVisible();
+      await page.getByRole("button", { name: /^\d+$/ }).nth(1).click(); // the active logins count
+      await expect(page.locator("tr", { hasText: "E2E Test Partner" }).first()).toBeVisible({ timeout: 25_000 });
       await page.getByPlaceholder("Search by agency name or login email…").fill("E2E Test Partner");
       const row = page.locator("tr", { hasText: "E2E Test Partner" }).filter({ hasText: PARTNER_CONTACT_EMAIL });
       await expect(row).toBeVisible({ timeout: 25_000 });

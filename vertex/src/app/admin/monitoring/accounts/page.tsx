@@ -152,7 +152,7 @@ function UserAccounts() {
   const [q, setQ] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState(search.get("status") ?? "");
-  const [inactive, setInactive] = useState("");
+  const [inactive, setInactive] = useState(search.get("inactive_days") ?? "");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
   const [flagged, setFlagged] = useState("");

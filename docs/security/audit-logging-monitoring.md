@@ -164,6 +164,13 @@ The email has the rule, environment, time, counts and the request ID, and never 
 
 **Partners & Logins (admin monitoring phase 3, admins only):** one row per agency, with who added it (`Partner.created_by`, migration 0014, backfilled from the trail's create rows) and its login: when and by whom it was created, its status and latest sign-in. Its CSV (`GET /monitoring/partners.csv`, the filtered list) records an `export` event, with the row count and the filters but never the search text, before it leaves. If the event can't be written, it's refused (503). Cells a spreadsheet would run as formulas are prefixed with an apostrophe.
 
+**Partner overview and follow-up (2026-11-08):** the top of Partners & Logins (`GET /monitoring/partners/summary`) counts agencies by status, logins by status, agencies added in the last 7 days, and active logins that signed in during the last 30. Each count filters the list. It also has two follow-up counts, with an `attention` filter for each and a note on each row:
+
+- **`setup_overdue`:** a partner login whose setup email is 7 or more days old and never used.
+- **`inactive`:** an active login that hasn't signed in for 60 or more days (D5), counted from its creation if it never has.
+
+`security_monitor.overdue_setups` and `inactive_logins` are the one definition of both. The scheduled checks use them, as do the Security Overview's "Partner logins not activated" and "Inactive accounts" counts and this page, so all of them count the same accounts.
+
 **Audit Trail (phase 4, admins only):** Admin → Monitoring → Audit Trail lists the trail newest first.
 
 - **How it's read:** through `vertex_audit_trail` (migration 0015). `vertex_api` still can't read `AuditLog`. A call returns at most 200 rows.

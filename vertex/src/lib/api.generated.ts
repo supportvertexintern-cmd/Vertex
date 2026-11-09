@@ -2280,6 +2280,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/partners/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Partner Summary */
+        get: operations["partner_summary_api_v1_monitoring_partners_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-candidates": {
         parameters: {
             query?: never;
@@ -5440,6 +5457,10 @@ export interface components {
         Data_PartnerRow_: {
             data: components["schemas"]["PartnerRow"];
         };
+        /** Data[PartnerSummary] */
+        Data_PartnerSummary_: {
+            data: components["schemas"]["PartnerSummary"];
+        };
         /** Data[PositionOut] */
         Data_PositionOut_: {
             data: components["schemas"]["PositionOut"];
@@ -6665,6 +6686,8 @@ export interface components {
         /** Overview */
         Overview: {
             accounts_deactivated: components["schemas"]["Window"];
+            /** Accounts Inactive */
+            accounts_inactive: number;
             /** Active Sessions */
             active_sessions: number;
             alerts_raised: components["schemas"]["Window"];
@@ -6834,6 +6857,16 @@ export interface components {
             payment_method?: string | null;
             /** Payment Reference */
             payment_reference?: string | null;
+        };
+        /** PartnerAttention */
+        PartnerAttention: {
+            /** Days */
+            days: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "setup_overdue" | "inactive";
         };
         /** PartnerCandidateRef */
         PartnerCandidateRef: {
@@ -7095,6 +7128,7 @@ export interface components {
         };
         /** PartnerLoginRow */
         PartnerLoginRow: {
+            attention: components["schemas"]["PartnerAttention"] | null;
             /** Country Of Operation */
             country_of_operation: string;
             /** Created At */
@@ -7203,6 +7237,29 @@ export interface components {
             kind: "partner_candidate_submitted";
             /** Partner Name */
             partner_name: string;
+        };
+        /**
+         * PartnerSummary
+         * @description The overview at the top of Partners & Logins.
+         */
+        PartnerSummary: {
+            /** Agencies */
+            agencies: number;
+            /** Agencies By Status */
+            agencies_by_status: {
+                [key: string]: number;
+            };
+            /** Attention */
+            attention: {
+                [key: string]: number;
+            };
+            /** Logins By Status */
+            logins_by_status: {
+                [key: string]: number;
+            };
+            new_agencies: components["schemas"]["Window"];
+            /** Signed In Last 30D */
+            signed_in_last_30d: number;
         };
         /**
          * PartnerType
@@ -13363,6 +13420,7 @@ export interface operations {
                 country?: string | null;
                 status?: components["schemas"]["PartnerStatus"] | null;
                 login_status?: ("no_login" | "setup_pending" | "active" | "deactivated") | null;
+                attention?: ("setup_overdue" | "inactive") | null;
                 created_from?: string | null;
                 created_to?: string | null;
                 created_by?: string | null;
@@ -13400,6 +13458,7 @@ export interface operations {
                 country?: string | null;
                 status?: components["schemas"]["PartnerStatus"] | null;
                 login_status?: ("no_login" | "setup_pending" | "active" | "deactivated") | null;
+                attention?: ("setup_overdue" | "inactive") | null;
                 created_from?: string | null;
                 created_to?: string | null;
                 created_by?: string | null;
@@ -13444,6 +13503,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_PartnerOptions_"];
+                };
+            };
+        };
+    };
+    partner_summary_api_v1_monitoring_partners_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_PartnerSummary_"];
                 };
             };
         };

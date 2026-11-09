@@ -5815,6 +5815,18 @@
     "title": "Data[PartnerRow]",
     "type": "object"
    },
+   "Data_PartnerSummary_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/PartnerSummary"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[PartnerSummary]",
+    "type": "object"
+   },
    "Data_PositionOut_": {
     "properties": {
      "data": {
@@ -11774,6 +11786,10 @@
      "accounts_deactivated": {
       "$ref": "#/components/schemas/Window"
      },
+     "accounts_inactive": {
+      "title": "Accounts Inactive",
+      "type": "integer"
+     },
      "active_sessions": {
       "title": "Active Sessions",
       "type": "integer"
@@ -11842,6 +11858,7 @@
      "sign_ins",
      "accounts_deactivated",
      "partner_logins_not_activated",
+     "accounts_inactive",
      "new_partners",
      "new_partner_logins",
      "active_sessions",
@@ -12316,6 +12333,28 @@
      }
     },
     "title": "PaidIn",
+    "type": "object"
+   },
+   "PartnerAttention": {
+    "properties": {
+     "days": {
+      "title": "Days",
+      "type": "integer"
+     },
+     "kind": {
+      "enum": [
+       "setup_overdue",
+       "inactive"
+      ],
+      "title": "Kind",
+      "type": "string"
+     }
+    },
+    "required": [
+     "kind",
+     "days"
+    ],
+    "title": "PartnerAttention",
     "type": "object"
    },
    "PartnerCandidateRef": {
@@ -13315,6 +13354,16 @@
    },
    "PartnerLoginRow": {
     "properties": {
+     "attention": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PartnerAttention"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "country_of_operation": {
       "title": "Country Of Operation",
       "type": "string"
@@ -13381,7 +13430,8 @@
      "created_at",
      "created_by",
      "login_status",
-     "login"
+     "login",
+     "attention"
     ],
     "title": "PartnerLoginRow",
     "type": "object"
@@ -13619,6 +13669,70 @@
      "candidate_name"
     ],
     "title": "PartnerSubmittedEmail",
+    "type": "object"
+   },
+   "PartnerSummary": {
+    "description": "The overview at the top of Partners & Logins.",
+    "properties": {
+     "agencies": {
+      "title": "Agencies",
+      "type": "integer"
+     },
+     "agencies_by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "$ref": "#/components/schemas/PartnerStatus"
+      },
+      "title": "Agencies By Status",
+      "type": "object"
+     },
+     "attention": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "enum": [
+        "setup_overdue",
+        "inactive"
+       ]
+      },
+      "title": "Attention",
+      "type": "object"
+     },
+     "logins_by_status": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "propertyNames": {
+       "enum": [
+        "no_login",
+        "setup_pending",
+        "active",
+        "deactivated"
+       ]
+      },
+      "title": "Logins By Status",
+      "type": "object"
+     },
+     "new_agencies": {
+      "$ref": "#/components/schemas/Window"
+     },
+     "signed_in_last_30d": {
+      "title": "Signed In Last 30D",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "agencies",
+     "agencies_by_status",
+     "logins_by_status",
+     "attention",
+     "new_agencies",
+     "signed_in_last_30d"
+    ],
+    "title": "PartnerSummary",
     "type": "object"
    },
    "PartnerType": {
@@ -28558,6 +28672,26 @@
      },
      {
       "in": "query",
+      "name": "attention",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "setup_overdue",
+          "inactive"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Attention"
+      }
+     },
+     {
+      "in": "query",
       "name": "created_from",
       "required": false,
       "schema": {
@@ -28720,6 +28854,26 @@
      },
      {
       "in": "query",
+      "name": "attention",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "setup_overdue",
+          "inactive"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Attention"
+      }
+     },
+     {
+      "in": "query",
       "name": "created_from",
       "required": false,
       "schema": {
@@ -28818,6 +28972,32 @@
      }
     ],
     "summary": "Partner Options",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/partners/summary": {
+   "get": {
+    "operationId": "partner_summary_api_v1_monitoring_partners_summary_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_PartnerSummary_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Summary",
     "tags": [
      "admin monitoring"
     ]
