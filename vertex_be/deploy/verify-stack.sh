@@ -56,6 +56,11 @@ ok "Backend connects as" "$(docker exec ${P}-backend-1 printenv DATABASE_URL | s
 # Workstream B: Next.js only behind the edge proxy; Redis internal and locked.
 ok "Next.js published to host (edge proxy only)" "$(docker port ${P}-nextjs-1 2>/dev/null | wc -l | tr -d ' ')" 0
 ok "Next.js trusts the proxy's address" "$(docker exec ${P}-nextjs-1 printenv TRUST_PROXY_HEADERS)" true
+# E3: the page policy the env file asks for. Enforced means the nonce
+# policy is the Content-Security-Policy header itself, not report-only.
+CSP_WANT=$( [ "$(v CSP_MODE)" = enforce ] && echo enforced || echo report-only )
+CSP_GOT=$(curl -s -D - -o /dev/null -m 5 http://127.0.0.1:$NP/auth/login | tr -d '\r' | grep -i '^content-security-policy:' | grep -q "'nonce-" && echo enforced || echo report-only)
+ok "Page CSP (E3)" "$CSP_GOT" "$CSP_WANT"
 ok "Redis published to host" "$(docker port ${P}-redis-1 2>/dev/null | wc -l | tr -d ' ')" 0
 ok "Redis without its password" "$(docker exec ${P}-redis-1 redis-cli ping 2>&1 | grep -oE '^NOAUTH')" NOAUTH
 ok "Next.js → Redis" "$(docker exec ${P}-nextjs-1 nc -z -w 3 redis 6379 >/dev/null 2>&1 && echo yes || echo no)" yes

@@ -268,6 +268,8 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3100
       # The journeys log in many times from one machine (default limit: 10/min).
       LOGIN_RATE_LIMIT_MAX: "1000"
+      # The journeys run under the enforced CSP, as the stacks do (E3).
+      CSP_MODE: enforce
       E2E_PORT: "3100"
       E2E_WEB_SERVER: npx next start -p 3100
       BACKEND_URL: http://127.0.0.1:8000

@@ -237,6 +237,9 @@ services:
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-}
       INTAKE_MODE: ${INTAKE_MODE:-}
+      # The page CSP (docs/security/csp.md, E3): `enforce` sends the nonce
+      # policy; unset or `report-only` only reports it. Read per request.
+      CSP_MODE: ${CSP_MODE:-report-only}
 
     # No published port: the edge proxy below is the only way in, so nobody
     # can reach Next.js with an X-Real-IP of their own.

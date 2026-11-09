@@ -11,6 +11,8 @@ import nextConfig from "../../next.config";
 import { legacyPolicy, noncePolicy, scriptSrc } from "@/lib/csp";
 import { setLogSink } from "@/lib/log";
 import { POST as cspReport } from "@/app/api/csp-report/route";
+import { z } from "zod";
+import "@/lib/validations";
 
 function page(url = "http://localhost/jobs", init?: ConstructorParameters<typeof NextRequest>[1]) {
   return proxy(new NextRequest(url, init));
@@ -159,5 +161,11 @@ describe("report endpoint", () => {
     expect((await post("not json")).status).toBe(204);
     expect((await post("x".repeat(20_000))).status).toBe(204);
     expect((await post(JSON.stringify({ hello: 1 }))).status).toBe(204);
+  });
+});
+
+describe("enforce mode stays quiet (2026-11-09)", () => {
+  it("Zod runs jitless, so it never probes eval (a csp.violation on every page that validates)", () => {
+    expect(z.config().jitless).toBe(true);
   });
 });
