@@ -1,8 +1,44 @@
 {
  "components": {
   "schemas": {
+   "AccountCount": {
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
+     "n": {
+      "title": "N",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "email_fp",
+     "account",
+     "n"
+    ],
+    "title": "AccountCount",
+    "type": "object"
+   },
    "AccountDetail": {
     "properties": {
+     "account_emails": {
+      "items": {
+       "$ref": "#/components/schemas/AccountEmailRow"
+      },
+      "title": "Account Emails",
+      "type": "array"
+     },
      "activated_at": {
       "anyOf": [
        {
@@ -234,9 +270,102 @@
      "email_fp",
      "lockouts",
      "next_lockout_step",
-     "steps_reset_at"
+     "steps_reset_at",
+     "account_emails"
     ],
     "title": "AccountDetail",
+    "type": "object"
+   },
+   "AccountEmailRow": {
+    "description": "One password-reset, setup or verification email, sent or refused\n(Reset Email Activity, login protection 4.4).",
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "email_fp": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email Fp"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ip"
+     },
+     "kind": {
+      "enum": [
+       "password_reset",
+       "account_setup",
+       "email_verification"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "manual": {
+      "title": "Manual",
+      "type": "boolean"
+     },
+     "result": {
+      "enum": [
+       "sent",
+       "refused_email_limit",
+       "refused_address_limit",
+       "not_sent"
+      ],
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "at",
+     "kind",
+     "result",
+     "account",
+     "email_fp",
+     "ip",
+     "country",
+     "manual"
+    ],
+    "title": "AccountEmailRow",
     "type": "object"
    },
    "AccountLockedEmail": {
@@ -611,6 +740,36 @@
      "candidate_ref"
     ],
     "title": "ActivityRow",
+    "type": "object"
+   },
+   "AddressCount": {
+    "properties": {
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "ip": {
+      "title": "Ip",
+      "type": "string"
+     },
+     "n": {
+      "title": "N",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ip",
+     "country",
+     "n"
+    ],
+    "title": "AddressCount",
     "type": "object"
    },
    "AgentCommission": {
@@ -2565,7 +2724,8 @@
          "login_rate_limited",
          "access_denied",
          "document_link_rejected",
-         "document_downloaded"
+         "document_downloaded",
+         "reset_rate_limited"
         ],
         "type": "string"
        },
@@ -6074,6 +6234,18 @@
     "title": "Data[Sent]",
     "type": "object"
    },
+   "Data_SignInStats_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/SignInStats"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[SignInStats]",
+    "type": "object"
+   },
    "Data_SignedIn_": {
     "properties": {
      "data": {
@@ -6388,6 +6560,22 @@
      "data"
     ],
     "title": "Data[list[DocumentTypeOut]]",
+    "type": "object"
+   },
+   "Data_list_EmailFlag__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/EmailFlag"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[EmailFlag]]",
     "type": "object"
    },
    "Data_list_EmployerClientListItem__": {
@@ -7039,6 +7227,36 @@
      "areas"
     ],
     "title": "DraftOut",
+    "type": "object"
+   },
+   "EmailFlag": {
+    "description": "An address refused 3 or more reset or setup emails in 24 hours:\nsomeone may be trying to flood its inbox.",
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "email_fp": {
+      "title": "Email Fp",
+      "type": "string"
+     },
+     "refused": {
+      "title": "Refused",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "email_fp",
+     "account",
+     "refused"
+    ],
+    "title": "EmailFlag",
     "type": "object"
    },
    "EmployerClientCreate": {
@@ -7855,6 +8073,24 @@
      }
     },
     "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "HourCount": {
+    "properties": {
+     "hour": {
+      "title": "Hour",
+      "type": "string"
+     },
+     "n": {
+      "title": "N",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "hour",
+     "n"
+    ],
+    "title": "HourCount",
     "type": "object"
    },
    "IntakeIn": {
@@ -11821,6 +12057,144 @@
     "title": "Notifying[ReminderRow]",
     "type": "object"
    },
+   "Notifying_Resent_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Resent"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[Resent]",
+    "type": "object"
+   },
    "Notifying_SetupSent_": {
     "properties": {
      "data": {
@@ -12723,6 +13097,37 @@
     "title": "OwnProfile",
     "type": "object"
    },
+   "Page_AccountEmailRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/AccountEmailRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[AccountEmailRow]",
+    "type": "object"
+   },
    "Page_AccountRow_": {
     "properties": {
      "data": {
@@ -12907,6 +13312,37 @@
      "pageSize"
     ],
     "title": "Page[ReportRow]",
+    "type": "object"
+   },
+   "Page_SignInRow_": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/SignInRow"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "page": {
+      "title": "Page",
+      "type": "integer"
+     },
+     "pageSize": {
+      "title": "Pagesize",
+      "type": "integer"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "data",
+     "total",
+     "page",
+     "pageSize"
+    ],
+    "title": "Page[SignInRow]",
     "type": "object"
    },
    "Page_dict_str__Any__": {
@@ -16562,6 +16998,53 @@
     "title": "RequirementsIn",
     "type": "object"
    },
+   "ResendIn": {
+    "properties": {
+     "kind": {
+      "enum": [
+       "password_reset",
+       "account_setup"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     },
+     "user_id": {
+      "title": "User Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "user_id",
+     "kind",
+     "reason"
+    ],
+    "title": "ResendIn",
+    "type": "object"
+   },
+   "Resent": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "kind"
+    ],
+    "title": "Resent",
+    "type": "object"
+   },
    "ResetIn": {
     "properties": {
      "password": {
@@ -17277,6 +17760,166 @@
      "device"
     ],
     "title": "SignIn",
+    "type": "object"
+   },
+   "SignInRow": {
+    "properties": {
+     "account": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AlertAccount"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "client": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Client"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "device": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Device"
+     },
+     "email_fp": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Email Fp"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ip"
+     },
+     "method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Method"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "result": {
+      "enum": [
+       "success",
+       "wrong_password",
+       "locked",
+       "address_limited",
+       "deactivated",
+       "not_activated",
+       "refused"
+      ],
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "at",
+     "result",
+     "account",
+     "email_fp",
+     "reason",
+     "method",
+     "client",
+     "ip",
+     "country",
+     "device"
+    ],
+    "title": "SignInRow",
+    "type": "object"
+   },
+   "SignInStats": {
+    "description": "Failed sign-ins in the last 7 days: per hour, and the 10 addresses\nand 10 accounts with the most.",
+    "properties": {
+     "hours": {
+      "items": {
+       "$ref": "#/components/schemas/HourCount"
+      },
+      "title": "Hours",
+      "type": "array"
+     },
+     "top_accounts": {
+      "items": {
+       "$ref": "#/components/schemas/AccountCount"
+      },
+      "title": "Top Accounts",
+      "type": "array"
+     },
+     "top_addresses": {
+      "items": {
+       "$ref": "#/components/schemas/AddressCount"
+      },
+      "title": "Top Addresses",
+      "type": "array"
+     }
+    },
+    "required": [
+     "hours",
+     "top_addresses",
+     "top_accounts"
+    ],
+    "title": "SignInStats",
     "type": "object"
    },
    "SignedIn": {
@@ -29997,6 +30640,457 @@
      }
     ],
     "summary": "Partner Summary",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/reset-emails": {
+   "get": {
+    "description": "Every reset, setup and verification email sent or refused in the\nretention window, newest first. Reading it is recorded on the trail.",
+    "operationId": "reset_email_activity_api_v1_monitoring_reset_emails_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "kind",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "password_reset",
+          "account_setup",
+          "email_verification"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Kind"
+      }
+     },
+     {
+      "in": "query",
+      "name": "result",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "sent",
+          "refused_email_limit",
+          "refused_address_limit",
+          "not_sent"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Result"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_AccountEmailRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Reset Email Activity",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/reset-emails/flagged": {
+   "get": {
+    "description": "Addresses refused 3 or more reset or setup emails in 24 hours.",
+    "operationId": "reset_email_flags_api_v1_monitoring_reset_emails_flagged_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_EmailFlag__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Reset Email Flags",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/reset-emails/resend": {
+   "post": {
+    "description": "An admin sends a reset or setup email by hand, with a reason. No\nlimit counts it (4.4); it is recorded as a manual account_email_sent.",
+    "operationId": "resend_account_email_api_v1_monitoring_reset_emails_resend_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ResendIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_Resent_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Resend Account Email",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/sign-ins": {
+   "get": {
+    "description": "Every sign-in attempt in the retention window, newest first: who,\nthe result, the address, country, device and method. Reading it is\nrecorded on the trail first, with its filters.",
+    "operationId": "sign_in_activity_api_v1_monitoring_sign_ins_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 200,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Q"
+      }
+     },
+     {
+      "in": "query",
+      "name": "result",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "success",
+          "wrong_password",
+          "locked",
+          "address_limited",
+          "deactivated",
+          "not_activated",
+          "refused"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Result"
+      }
+     },
+     {
+      "in": "query",
+      "name": "failures_only",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Failures Only",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "user_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "User Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "ip",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 100,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Ip"
+      }
+     },
+     {
+      "in": "query",
+      "name": "country",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 2,
+         "minLength": 2,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Country"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_from",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date From"
+      }
+     },
+     {
+      "in": "query",
+      "name": "date_to",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date To"
+      }
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "required": false,
+      "schema": {
+       "default": 1,
+       "title": "Page",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "pageSize",
+      "required": false,
+      "schema": {
+       "default": 15,
+       "title": "Pagesize",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Page_SignInRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Sign In Activity",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/sign-ins/stats": {
+   "get": {
+    "description": "Failed sign-ins in the last 7 days, for the page's charts.",
+    "operationId": "sign_in_stats_api_v1_monitoring_sign_ins_stats_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_SignInStats_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Sign In Stats",
     "tags": [
      "admin monitoring"
     ]

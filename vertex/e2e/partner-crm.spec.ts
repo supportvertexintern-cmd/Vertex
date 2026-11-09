@@ -335,5 +335,21 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await expect(past).toBeVisible({ timeout: 25_000 });
       await expect(past.getByText("Step 1 · 15 minutes")).toBeVisible();
     });
+
+    // Sign-in Activity and Reset Email Activity (login protection, PR 4).
+    await test.step("Sign-in Activity shows the failed attempts; Reset Email Activity the partner's setup email", async () => {
+      await page.getByRole("link", { name: "Sign-in Activity" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/sign-ins/);
+      await expect(page.getByText("Failed sign-ins per hour, last 7 days")).toBeVisible({ timeout: 25_000 });
+      await page.getByLabel("Failures only").check();
+      await expect(page.locator("tr", { hasText: "Wrong password" }).first()).toBeVisible({ timeout: 25_000 });
+
+      await page.getByRole("link", { name: "Reset Email Activity" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/reset-emails/);
+      await page.getByPlaceholder("Search by account name or email…").fill(PARTNER_CONTACT_EMAIL);
+      const setup = page.locator("tr", { hasText: PARTNER_CONTACT_EMAIL }).filter({ hasText: "Setup" }).first();
+      await expect(setup).toBeVisible({ timeout: 25_000 });
+      await expect(setup.getByText("Sent", { exact: true })).toBeVisible();
+    });
   });
 });

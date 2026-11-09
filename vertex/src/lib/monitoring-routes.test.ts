@@ -42,6 +42,11 @@ import { GET as lockedSummary } from "@/app/api/admin/monitoring/locked/summary/
 import { GET as lockoutHistory } from "@/app/api/admin/monitoring/lockouts/route";
 import { POST as reviewLockout } from "@/app/api/admin/monitoring/lockouts/[id]/review/route";
 import { POST as forceReset } from "@/app/api/admin/monitoring/accounts/[id]/force-reset/route";
+import { GET as signIns } from "@/app/api/admin/monitoring/sign-ins/route";
+import { GET as signInStats } from "@/app/api/admin/monitoring/sign-ins/stats/route";
+import { GET as resetEmails } from "@/app/api/admin/monitoring/reset-emails/route";
+import { GET as resetFlags } from "@/app/api/admin/monitoring/reset-emails/flagged/route";
+import { POST as resendEmail } from "@/app/api/admin/monitoring/reset-emails/resend/route";
 
 process.env.TRUST_PROXY_HEADERS = "true";
 
@@ -288,5 +293,42 @@ describe("Login protection routes (PR 3)", () => {
     expect([review.method, review.body]).toEqual(["POST", { note: "Owner travelling" }]);
     expect([reset.method, reset.body]).toEqual(["POST", { reason: "Possible compromise" }]);
     expect(reset.forward).toBeTruthy();
+  });
+});
+
+describe("Sign-in and Reset Email Activity routes (PR 4)", () => {
+  const req = (url = "http://localhost/x", body?: unknown) =>
+    new NextRequest(url, body === undefined ? {} : { method: "POST", body: JSON.stringify(body), headers: { "x-real-ip": "203.0.113.9" } });
+  const defined = (q: Record<string, unknown>) => Object.fromEntries(Object.entries(q).filter(([, v]) => v !== undefined));
+
+  it("are for admins only", async () => {
+    state.user = { ...admin, role: "director" };
+    for (const route of [signIns, signInStats, resetEmails, resetFlags]) expect((await route(req())).status).toBe(403);
+    expect((await resendEmail(req(undefined, { user_id: "u", kind: "password_reset", reason: "r" }))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("pass on their filters and the browser's address; the resend its body", async () => {
+    state.user = admin;
+    callBackend.mockResolvedValue(ok([]));
+    await signIns(req("http://localhost/x?q=ann&result=locked&failures_only=true&ip=1.2.3.4&country=KE&user_id=u1&date_from=2026-11-01&page=2&pageSize=50&evil=1"));
+    await signInStats(req());
+    await resetEmails(req("http://localhost/x?q=ann&kind=account_setup&result=sent&date_to=2026-11-09&evil=1"));
+    await resetFlags(req());
+    await resendEmail(req(undefined, { user_id: "u1", kind: "account_setup", reason: "Asked by phone" }));
+    const [[p1, c1], [p2], [p3, c3], [p4], [p5, c5]] = callBackend.mock.calls;
+    expect([p1, p2, p3, p4, p5]).toEqual([
+      "/api/v1/monitoring/sign-ins",
+      "/api/v1/monitoring/sign-ins/stats",
+      "/api/v1/monitoring/reset-emails",
+      "/api/v1/monitoring/reset-emails/flagged",
+      "/api/v1/monitoring/reset-emails/resend",
+    ]);
+    expect(defined(c1.query)).toEqual({
+      q: "ann", result: "locked", failures_only: "true", ip: "1.2.3.4", country: "KE", user_id: "u1", date_from: "2026-11-01", page: "2", pageSize: "50",
+    });
+    expect(c1.forward).toBeTruthy();
+    expect(defined(c3.query)).toEqual({ q: "ann", kind: "account_setup", result: "sent", date_to: "2026-11-09" });
+    expect([c5.method, c5.body]).toEqual(["POST", { user_id: "u1", kind: "account_setup", reason: "Asked by phone" }]);
   });
 });

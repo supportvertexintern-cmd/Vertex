@@ -25,7 +25,9 @@ from app.core.auth import OptionalUser, calling_service
 
 router = APIRouter()
 
-WebsiteSecurityAction = Literal["login_rate_limited", "access_denied", "document_link_rejected", "document_downloaded"]
+# reset_rate_limited: a forgot-password request refused by the website's
+# per-address limit (login protection 4.4; FastAPI records the per-email one).
+WebsiteSecurityAction = Literal["login_rate_limited", "access_denied", "document_link_rejected", "document_downloaded", "reset_rate_limited"]
 
 
 class AuditEventIn(BaseModel):

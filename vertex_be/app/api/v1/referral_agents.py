@@ -34,13 +34,14 @@ import secrets
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from pydantic_core import PydanticCustomError
 from sqlalchemy import exists, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
+from app.api.v1.sessions import record_account_email
 from app.api.notices import (
     AccountSetupEmail,
     Notice,
@@ -308,7 +309,7 @@ def _locked(db, agent_id: str) -> ReferralAgent:
 
 
 @router.post("/referral-agents/{agent_id}/approve", status_code=status.HTTP_201_CREATED, response_model=Notifying[AgentRow])
-def approve(agent_id: str, body: ApproveIn, user: Manager, db: AuditedDb):
+def approve(agent_id: str, body: ApproveIn, user: Manager, request: Request, db: AuditedDb):
     """Activates a verified, pending application and creates the agent's
     login, without a password: the approval email carries their code and
     link, the setup email lets them set a password."""
@@ -344,6 +345,7 @@ def approve(agent_id: str, body: ApproveIn, user: Manager, db: AuditedDb):
         ReferralAgentApprovedEmail(email=agent.email, full_name=agent.full_name, referral_code=agent.referral_code),
         AccountSetupEmail(email=login.email, full_name=login.full_name, token=sign_account_setup_token(login.id)),
     ]
+    record_account_email(request, login, "account_setup", actor_id=user.user_id)
     return {"data": agent, "notify": deliver(db, notify)}
 
 

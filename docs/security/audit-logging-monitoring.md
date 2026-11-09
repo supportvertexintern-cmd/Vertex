@@ -267,6 +267,26 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - the failed sign-ins trend against the 24 hours before;
   - a review count on Locked accounts now.
   - The address cards (rate-limited, blocked) come with PR 5's address controls.
+
+**Login protection, PR 4: Sign-in Activity and Reset Email Activity** (sections 4.2, 4.4 and 4.6; migration 0020). Both pages are admin only and read-only, apart from the manual resend. Opening either is recorded as `audit_trail_viewed`, with its filters.
+
+- **Sign-in Activity** (`GET /monitoring/sign-ins`) lists every sign-in attempt in the retention window:
+  - **The result:** success, wrong password, locked, address limited, deactivated, not activated, or refused for another reason.
+  - **The details:** the account, IP address, country, device, and method (password or Google; web or app).
+  - **Filters:** account, result, failures only, IP address, country, and date.
+  - **Above the list** (`/sign-ins/stats`): failed sign-ins per hour for the last 7 days, and the 10 addresses and 10 accounts with the most. Clicking one filters the list.
+- **Reset Email Activity** (`GET /monitoring/reset-emails`) lists every password-reset, setup and verification email, sent or refused:
+  - **The result:** sent; refused by the email limit; refused by the address limit; or nothing sent (no account, or no password).
+  - It also shows the IP address and country each was asked from.
+  - **Flooding:** addresses refused 3 or more in 24 hours are flagged at the top (`/reset-emails/flagged`).
+  - **Resend by hand** (`POST /reset-emails/resend`, with a reason): no limit counts it, and it's recorded as a manual `account_email_sent`.
+- **Where the rows come from:**
+  - Every setup, verification and admin-sent reset email is now recorded as `account_email_sent`: staff creation and resend, partner provision, update and reset, referral agent approval, force reset, unlock and send reset, and registration.
+  - A visitor's reset is `password_reset_requested`.
+  - The website records a forgot-password request refused by its per-address limit as `reset_rate_limited` (`scope: address`).
+- **How they're read:** the trail through four functions with the owner's rights: `vertex_sign_in_events`, `vertex_sign_in_failure_stats`, `vertex_account_email_events` and `vertex_account_email_refusals`. Each answers only its page's fields and is executable by `vertex_api` alone. Pages are capped at 200 rows.
+- **The account drawer** shows its latest 20 reset and setup emails.
+- **Not yet:** "Block address" from a row comes with PR 5.
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**

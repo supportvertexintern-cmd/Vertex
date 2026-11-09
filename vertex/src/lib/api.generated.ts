@@ -2384,6 +2384,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/reset-emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reset Email Activity
+         * @description Every reset, setup and verification email sent or refused in the
+         *     retention window, newest first. Reading it is recorded on the trail.
+         */
+        get: operations["reset_email_activity_api_v1_monitoring_reset_emails_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/reset-emails/flagged": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reset Email Flags
+         * @description Addresses refused 3 or more reset or setup emails in 24 hours.
+         */
+        get: operations["reset_email_flags_api_v1_monitoring_reset_emails_flagged_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/reset-emails/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Account Email
+         * @description An admin sends a reset or setup email by hand, with a reason. No
+         *     limit counts it (4.4); it is recorded as a manual account_email_sent.
+         */
+        post: operations["resend_account_email_api_v1_monitoring_reset_emails_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/sign-ins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sign In Activity
+         * @description Every sign-in attempt in the retention window, newest first: who,
+         *     the result, the address, country, device and method. Reading it is
+         *     recorded on the trail first, with its filters.
+         */
+        get: operations["sign_in_activity_api_v1_monitoring_sign_ins_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/sign-ins/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sign In Stats
+         * @description Failed sign-ins in the last 7 days, for the page's charts.
+         */
+        get: operations["sign_in_stats_api_v1_monitoring_sign_ins_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-candidates": {
         parameters: {
             query?: never;
@@ -3859,8 +3963,18 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountCount */
+        AccountCount: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** Email Fp */
+            email_fp: string;
+            /** N */
+            n: number;
+        };
         /** AccountDetail */
         AccountDetail: {
+            /** Account Emails */
+            account_emails: components["schemas"]["AccountEmailRow"][];
             /** Activated At */
             activated_at: string | null;
             /** Active Sessions */
@@ -3915,6 +4029,36 @@ export interface components {
             steps_reset_at: string | null;
             /** Unlocks In Seconds */
             unlocks_in_seconds: number | null;
+        };
+        /**
+         * AccountEmailRow
+         * @description One password-reset, setup or verification email, sent or refused
+         *     (Reset Email Activity, login protection 4.4).
+         */
+        AccountEmailRow: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** At */
+            at: string;
+            /** Country */
+            country: string | null;
+            /** Email Fp */
+            email_fp: string | null;
+            /** Id */
+            id: string;
+            /** Ip */
+            ip: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "password_reset" | "account_setup" | "email_verification";
+            /** Manual */
+            manual: boolean;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "sent" | "refused_email_limit" | "refused_address_limit" | "not_sent";
         };
         /**
          * AccountLockedEmail
@@ -4040,6 +4184,15 @@ export interface components {
             next_action?: string;
             /** Role */
             role?: string;
+        };
+        /** AddressCount */
+        AddressCount: {
+            /** Country */
+            country: string | null;
+            /** Ip */
+            ip: string;
+            /** N */
+            n: number;
         };
         /** AgentCommission */
         AgentCommission: {
@@ -4536,7 +4689,7 @@ export interface components {
         /** AuditEventIn */
         AuditEventIn: {
             /** Action */
-            action: ("login_rate_limited" | "access_denied" | "document_link_rejected" | "document_downloaded") | "export";
+            action: ("login_rate_limited" | "access_denied" | "document_link_rejected" | "document_downloaded" | "reset_rate_limited") | "export";
             /** Detail */
             detail?: {
                 [key: string]: unknown;
@@ -5639,6 +5792,10 @@ export interface components {
         Data_Sent_: {
             data: components["schemas"]["Sent"];
         };
+        /** Data[SignInStats] */
+        Data_SignInStats_: {
+            data: components["schemas"]["SignInStats"];
+        };
         /** Data[SignedIn] */
         Data_SignedIn_: {
             data: components["schemas"]["SignedIn"];
@@ -5741,6 +5898,11 @@ export interface components {
         Data_list_DocumentTypeOut__: {
             /** Data */
             data: components["schemas"]["DocumentTypeOut"][];
+        };
+        /** Data[list[EmailFlag]] */
+        Data_list_EmailFlag__: {
+            /** Data */
+            data: components["schemas"]["EmailFlag"][];
         };
         /** Data[list[EmployerClientListItem]] */
         Data_list_EmployerClientListItem__: {
@@ -5947,6 +6109,18 @@ export interface components {
             /** Id */
             id: string;
             status: components["schemas"]["ScorecardStatus"];
+        };
+        /**
+         * EmailFlag
+         * @description An address refused 3 or more reset or setup emails in 24 hours:
+         *     someone may be trying to flood its inbox.
+         */
+        EmailFlag: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** Email Fp */
+            email_fp: string;
+            /** Refused */
+            refused: number;
         };
         /** EmployerClientCreate */
         EmployerClientCreate: {
@@ -6211,6 +6385,13 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HourCount */
+        HourCount: {
+            /** Hour */
+            hour: string;
+            /** N */
+            n: number;
         };
         /**
          * IntakeIn
@@ -6830,6 +7011,15 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
+        /** Notifying[Resent] */
+        Notifying_Resent_: {
+            data: components["schemas"]["Resent"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+        };
         /** Notifying[SetupSent] */
         Notifying_SetupSent_: {
             data: components["schemas"]["SetupSent"];
@@ -7001,6 +7191,17 @@ export interface components {
             /** Total Referrals */
             total_referrals: number;
         };
+        /** Page[AccountEmailRow] */
+        Page_AccountEmailRow_: {
+            /** Data */
+            data: components["schemas"]["AccountEmailRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
         /** Page[AccountRow] */
         Page_AccountRow_: {
             /** Data */
@@ -7060,6 +7261,17 @@ export interface components {
         Page_ReportRow_: {
             /** Data */
             data: components["schemas"]["ReportRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[SignInRow] */
+        Page_SignInRow_: {
+            /** Data */
+            data: components["schemas"]["SignInRow"][];
             /** Page */
             page: number;
             /** Pagesize */
@@ -8264,6 +8476,25 @@ export interface components {
             /** Document Types */
             document_types: string[];
         };
+        /** ResendIn */
+        ResendIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "password_reset" | "account_setup";
+            /** Reason */
+            reason: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** Resent */
+        Resent: {
+            /** Email */
+            email: string;
+            /** Kind */
+            kind: string;
+        };
         /** ResetIn */
         ResetIn: {
             /** Password */
@@ -8504,6 +8735,46 @@ export interface components {
             reason: string | null;
             /** Succeeded */
             succeeded: boolean;
+        };
+        /** SignInRow */
+        SignInRow: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** At */
+            at: string;
+            /** Client */
+            client: string | null;
+            /** Country */
+            country: string | null;
+            /** Device */
+            device: string | null;
+            /** Email Fp */
+            email_fp: string | null;
+            /** Id */
+            id: string;
+            /** Ip */
+            ip: string | null;
+            /** Method */
+            method: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "success" | "wrong_password" | "locked" | "address_limited" | "deactivated" | "not_activated" | "refused";
+        };
+        /**
+         * SignInStats
+         * @description Failed sign-ins in the last 7 days: per hour, and the 10 addresses
+         *     and 10 accounts with the most.
+         */
+        SignInStats: {
+            /** Hours */
+            hours: components["schemas"]["HourCount"][];
+            /** Top Accounts */
+            top_accounts: components["schemas"]["AccountCount"][];
+            /** Top Addresses */
+            top_addresses: components["schemas"]["AddressCount"][];
         };
         /** SignedIn */
         SignedIn: {
@@ -13901,6 +14172,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_PartnerSummary_"];
+                };
+            };
+        };
+    };
+    reset_email_activity_api_v1_monitoring_reset_emails_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                kind?: ("password_reset" | "account_setup" | "email_verification") | null;
+                result?: ("sent" | "refused_email_limit" | "refused_address_limit" | "not_sent") | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AccountEmailRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_email_flags_api_v1_monitoring_reset_emails_flagged_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_EmailFlag__"];
+                };
+            };
+        };
+    };
+    resend_account_email_api_v1_monitoring_reset_emails_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_Resent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_activity_api_v1_monitoring_sign_ins_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                result?: ("success" | "wrong_password" | "locked" | "address_limited" | "deactivated" | "not_activated" | "refused") | null;
+                failures_only?: boolean;
+                user_id?: string | null;
+                ip?: string | null;
+                country?: string | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_SignInRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_in_stats_api_v1_monitoring_sign_ins_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_SignInStats_"];
                 };
             };
         };

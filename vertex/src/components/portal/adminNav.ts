@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, Handshake, LockKey, ShieldCheck, UserList, Warning } from "@phosphor-icons/react";
+import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, EnvelopeSimple, Handshake, LockKey, ShieldCheck, SignIn, UserList, Warning } from "@phosphor-icons/react";
 
 // System Administrator is restricted to system-level concerns — account
 // provisioning, reference-data taxonomy, technical settings — not
@@ -36,5 +36,8 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
     // Lockouts at the 24-hour step not yet reviewed (login protection, 4.1).
     badgeFrom: "/api/admin/monitoring/locked/summary",
   },
+  // Login protection (2026-11-09): every sign-in attempt, and every reset or setup email sent or refused.
+  { href: "/admin/monitoring/sign-ins", label: "Sign-in Activity", icon: SignIn, section: "Monitoring" },
+  { href: "/admin/monitoring/reset-emails", label: "Reset Email Activity", icon: EnvelopeSimple, section: "Monitoring" },
   { href: "/admin/monitoring/audit", label: "Audit Trail", icon: ClockCounterClockwise, section: "Monitoring" },
 ];

@@ -22,7 +22,8 @@ vi.mock("next/server", async (importOriginal) => ({
   after: (fn: () => unknown) => fn(),
 }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-real-ip": "203.0.113.7" }) }));
-vi.mock("@/lib/audit", () => ({ recordSecurityEvent: async () => undefined }));
+const recorded = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined));
+vi.mock("@/lib/audit", () => ({ recordSecurityEvent: (...args: unknown[]) => recorded(...args) }));
 vi.mock("@/lib/api-auth", () => ({
   getAuthUser: async () => state.user,
   requireAdmin: (user: { role: string } | null) => (!user ? Response.json({}, { status: 401 }) : user.role === "admin" ? null : Response.json({}, { status: 403 })),
@@ -137,6 +138,8 @@ describe("forgot and reset password", () => {
     for (let i = 0; i < 6; i++) statuses.push((await same()).status);
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
     expect(callBackend).toHaveBeenCalledTimes(5);
+    // The refusal is on the trail for Reset Email Activity (login protection 4.4).
+    expect(recorded).toHaveBeenCalledWith("reset_rate_limited", expect.objectContaining({ detail: { scope: "address", kind: "password_reset" } }));
   });
 });
 

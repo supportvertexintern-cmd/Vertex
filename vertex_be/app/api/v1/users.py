@@ -39,7 +39,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.api.notices import AccountSetupEmail, Notice, Notifying
-from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, security_event
+from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, record_account_email, security_event
 from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -228,7 +228,7 @@ def _load(db, user_id: str) -> User:
 
 
 @router.post("/users", status_code=status.HTTP_201_CREATED, response_model=Written)
-def create_user(body: CreateIn, admin: Admin, db: AuditedDb):
+def create_user(body: CreateIn, admin: Admin, request: Request, db: AuditedDb):
     """A new staff account with no password: the setup email lets them set
     their own."""
     if db.scalar(select(exists().where(User.email == body.email))):
@@ -251,6 +251,7 @@ def create_user(body: CreateIn, admin: Admin, db: AuditedDb):
 
     user = _load(db, user.id)
     notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
+    record_account_email(request, user, "account_setup", actor_id=admin.user_id)
     return {"data": _row(db, user), "notify": deliver(db, notify), "privilege_granted": _granted(admin, user.id, None, user.role)}
 
 
@@ -407,4 +408,5 @@ def resend_setup_email(user_id: str, admin: Admin, request: Request, db: Audited
     if not account_email_allowed(request, user.email, user_id=user.id, kind="account_setup", actor_id=admin.user_id):
         raise ApiError(429, "email_limited", EMAIL_LIMITED)
     notify: list[Notice] = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
+    record_account_email(request, user, "account_setup", actor_id=admin.user_id)
     return {"data": {"email": user.email}, "notify": deliver(db, notify)}

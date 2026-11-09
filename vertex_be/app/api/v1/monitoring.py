@@ -53,7 +53,7 @@ from sqlalchemy import func, or_, select, text
 
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notifying, PasswordResetEmail
-from app.api.v1.sessions import EMAIL_LIMITED, SessionRow, account_email_allowed, security_event
+from app.api.v1.sessions import EMAIL_LIMITED, SessionRow, account_email_allowed, record_account_email, security_event
 from app.core.api import ApiError, Data, Page, PageParams, UtcDateTime, page_params
 from app.core.audit import AuditedDb, append_event
 from app.core.auth import AuthUser
@@ -154,6 +154,27 @@ class LockoutRow(BaseModel):
     review_note: str | None
 
 
+SignInResult = Literal["success", "wrong_password", "locked", "address_limited", "deactivated", "not_activated", "refused"]
+AccountEmailKind = Literal["password_reset", "account_setup", "email_verification"]
+AccountEmailResult = Literal["sent", "refused_email_limit", "refused_address_limit", "not_sent"]
+
+
+class AccountEmailRow(BaseModel):
+    """One password-reset, setup or verification email, sent or refused
+    (Reset Email Activity, login protection 4.4)."""
+
+    id: str
+    at: UtcDateTime
+    kind: AccountEmailKind
+    result: AccountEmailResult
+    account: AlertAccount | None
+    email_fp: str | None
+    ip: str | None
+    country: str | None
+    # An admin's resend, which no limit counts.
+    manual: bool
+
+
 class AccountDetail(AccountRow):
     sessions: list[SessionRow]
     sign_ins: list[SignIn]
@@ -166,6 +187,8 @@ class AccountDetail(AccountRow):
     lockouts: list[LockoutRow]
     next_lockout_step: int
     steps_reset_at: UtcDateTime | None
+    # Its latest reset, setup and verification emails, sent and refused (4.6).
+    account_emails: list[AccountEmailRow]
 
 
 # --- helpers ------------------------------------------------------------------
@@ -315,9 +338,11 @@ def get_account(user_id: str, admin: Admin, request: Request, db: DbSession):
         .order_by(LoginLockout.locked_at.desc()).limit(20)
     ))
     step, resets_at = login_lockout.escalation(db, fp)
+    emails, _total = _account_emails(db, since=cutoff, user_ids=[user.id], email_fps=[fp], limit=20)
     return {"data": row | {"sessions": sessions, "sign_ins": sign_ins, "locked": holding is not None,
                            "unlocks_in_seconds": login_lockout.seconds_left(holding) if holding else None, "email_fp": fp,
-                           "lockouts": _lockout_rows(db, lockouts), "next_lockout_step": step, "steps_reset_at": resets_at}}
+                           "lockouts": _lockout_rows(db, lockouts), "next_lockout_step": step, "steps_reset_at": resets_at,
+                           "account_emails": emails}}
 
 
 # --- Suspicious Activity (phase 2) ------------------------------------------------
@@ -1037,6 +1062,7 @@ def unlock(email_fp: str, body: UnlockIn, admin: Admin, request: Request, db: Au
             refused = "email_limited"
         else:
             notify.append(PasswordResetEmail(email=user.email, full_name=user.full_name, token=sign_reset_token(user.id, user.email, user.password_hash)))
+            record_account_email(request, user, "password_reset", actor_id=admin.user_id)
             reset_sent = True
     security_event(request, "login_unlocked", actor_id=admin.user_id, entity_type="Auth",
                    entity_id=f"user:{user_id}" if user_id else f"email_fp:{email_fp}",
@@ -1127,4 +1153,219 @@ def force_password_reset(user_id: str, body: ForceResetIn, admin: Admin, request
     security_event(request, "password_force_reset", actor_id=admin.user_id, entity_type="User", entity_id=user.id,
                    detail={"reason": body.reason, "role": user.role.value, "unlocked": lifted is not None})
     notify = [AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))]
+    record_account_email(request, user, "account_setup", actor_id=admin.user_id)
     return {"data": {"id": user.id, "email": user.email, "unlocked": lifted is not None}, "notify": deliver(db, notify)}
+
+
+# --- Sign-in Activity and Reset Email Activity (login protection, PR 4) -----------------
+
+
+class SignInRow(BaseModel):
+    id: str
+    at: UtcDateTime
+    result: SignInResult
+    account: AlertAccount | None
+    email_fp: str | None
+    # Why a sign-in was refused (bad_password, unknown_account, ...).
+    reason: str | None
+    method: str | None
+    # web or app.
+    client: str | None
+    ip: str | None
+    country: str | None
+    device: str | None
+
+
+class HourCount(BaseModel):
+    hour: str
+    n: int
+
+
+class AddressCount(BaseModel):
+    ip: str
+    country: str | None
+    n: int
+
+
+class AccountCount(BaseModel):
+    email_fp: str
+    account: AlertAccount | None
+    n: int
+
+
+class SignInStats(BaseModel):
+    """Failed sign-ins in the last 7 days: per hour, and the 10 addresses
+    and 10 accounts with the most."""
+
+    hours: list[HourCount]
+    top_addresses: list[AddressCount]
+    top_accounts: list[AccountCount]
+
+
+class EmailFlag(BaseModel):
+    """An address refused 3 or more reset or setup emails in 24 hours:
+    someone may be trying to flood its inbox."""
+
+    email_fp: str
+    account: AlertAccount | None
+    refused: int
+
+
+class ResendIn(BaseModel):
+    user_id: str
+    kind: Literal["password_reset", "account_setup"]
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+class Resent(BaseModel):
+    email: str
+    kind: str
+
+
+def _matching(db, q: str | None) -> tuple[list[str], list[str]] | None:
+    """The accounts a search names: their ids and email fingerprints. None
+    without a search."""
+    if not (q and q.strip()):
+        return None
+    like = f"%{q.strip()}%"
+    found = db.execute(select(User.id, User.email).where(or_(User.full_name.ilike(like), User.email.ilike(like))).limit(200)).all()
+    return [u.id for u in found], [email_fingerprint(u.email) for u in found]
+
+
+def _since(date_from: date | None) -> datetime:
+    """The earliest a page shows: the retention window's start (D3), or a
+    later date asked for."""
+    cutoff = security_monitor.retention_cutoff()
+    return max(cutoff, _start(date_from)) if date_from else cutoff
+
+
+def _account_emails(db, *, since: datetime, until: datetime | None = None, kinds: list[str] | None = None,
+                    results: list[str] | None = None, user_ids: list[str] | None = None, email_fps: list[str] | None = None,
+                    limit: int = 25, offset: int = 0) -> tuple[list[dict[str, Any]], int]:
+    rows = db.execute(
+        text("SELECT * FROM public.vertex_account_email_events(:s, :u, :k, :r, :ids, :fps, :l, :o)"),
+        {"s": since, "u": until, "k": kinds, "r": results, "ids": user_ids, "fps": email_fps, "l": limit, "o": offset},
+    ).all()
+    accounts = _accounts_by_id(db, {r.user_id for r in rows if r.user_id})
+    return [{
+        "id": r.id, "at": r.created_at, "kind": r.kind, "result": r.result, "account": accounts.get(r.user_id) if r.user_id else None,
+        "email_fp": r.email_fp, "ip": r.ip, "country": geoip.country_of(r.ip), "manual": r.manual,
+    } for r in rows], (rows[0].total if rows else 0)
+
+
+@router.get("/sign-ins", response_model=Page[SignInRow])
+def sign_in_activity(
+    admin: Admin,
+    request: Request,
+    db: DbSession,
+    paging: Annotated[PageParams, Depends(page_params)],
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    result: SignInResult | None = None,
+    failures_only: bool = False,
+    user_id: Annotated[str | None, Query(max_length=100)] = None,
+    ip: Annotated[str | None, Query(max_length=100)] = None,
+    country: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    """Every sign-in attempt in the retention window, newest first: who,
+    the result, the address, country, device and method. Reading it is
+    recorded on the trail first, with its filters."""
+    filters = {k: v for k, v in {"result": result, "failures_only": failures_only or None, "user_id": user_id, "ip": ip,
+                                 "country": country, "date_from": date_from and str(date_from), "date_to": date_to and str(date_to)}.items() if v}
+    security_event(request, "audit_trail_viewed", actor_id=admin.user_id, entity_type="AuditLog", entity_id="sign_ins",
+                   detail={"view": "sign_in_activity", "filters": filters | ({"search": True} if q else {}), "page": paging.page})
+    named = _matching(db, q)
+    ids, fps = (named if named else (None, None))
+    if named is not None and not named[0]:
+        return {"data": [], "total": 0, "page": paging.page, "pageSize": paging.page_size}
+    if user_id:
+        target = db.get(User, user_id)
+        ids, fps = [user_id], ([email_fingerprint(target.email)] if target else None)
+    results = [result] if result else (["wrong_password", "locked", "address_limited", "deactivated", "not_activated", "refused"]
+                                       if failures_only else None)
+    rows = db.execute(
+        text("SELECT * FROM public.vertex_sign_in_events(:s, :u, :r, :ids, :fps, :ip, :c, :l, :o)"),
+        {"s": _since(date_from), "u": _start(date_to + timedelta(days=1)) if date_to else None, "r": results, "ids": ids, "fps": fps,
+         "ip": ip, "c": country.upper() if country else None, "l": paging.page_size, "o": paging.offset},
+    ).all()
+    accounts = _accounts_by_id(db, {r.user_id for r in rows if r.user_id})
+    return {"data": [{
+        "id": r.id, "at": r.created_at, "result": r.result, "account": accounts.get(r.user_id) if r.user_id else None,
+        "email_fp": r.email_fp, "reason": r.reason, "method": r.method, "client": r.client, "ip": r.ip,
+        "country": r.country or geoip.country_of(r.ip), "device": r.device,
+    } for r in rows], "total": rows[0].total if rows else 0, "page": paging.page, "pageSize": paging.page_size}
+
+
+@router.get("/sign-ins/stats", response_model=Data[SignInStats])
+def sign_in_stats(_admin: Admin, db: DbSession):
+    """Failed sign-ins in the last 7 days, for the page's charts."""
+    rows = db.execute(text("SELECT kind, key, user_id, n FROM public.vertex_sign_in_failure_stats(:s)"),
+                      {"s": utc_now_ms() - timedelta(days=7)}).all()
+    accounts = _accounts_by_id(db, {r.user_id for r in rows if r.kind == "account" and r.user_id})
+    return {"data": {
+        "hours": sorted(({"hour": r.key, "n": r.n} for r in rows if r.kind == "hour"), key=lambda h: h["hour"]),
+        "top_addresses": [{"ip": r.key, "country": geoip.country_of(r.key), "n": r.n} for r in rows if r.kind == "ip"],
+        "top_accounts": [{"email_fp": r.key, "account": accounts.get(r.user_id) if r.user_id else None, "n": r.n}
+                         for r in rows if r.kind == "account"],
+    }}
+
+
+@router.get("/reset-emails", response_model=Page[AccountEmailRow])
+def reset_email_activity(
+    admin: Admin,
+    request: Request,
+    db: DbSession,
+    paging: Annotated[PageParams, Depends(page_params)],
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    kind: AccountEmailKind | None = None,
+    result: AccountEmailResult | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    """Every reset, setup and verification email sent or refused in the
+    retention window, newest first. Reading it is recorded on the trail."""
+    security_event(request, "audit_trail_viewed", actor_id=admin.user_id, entity_type="AuditLog", entity_id="reset_emails",
+                   detail={"view": "reset_email_activity", "page": paging.page,
+                           "filters": {k: v for k, v in {"kind": kind, "result": result, "search": bool(q) or None}.items() if v}})
+    named = _matching(db, q)
+    if named is not None and not named[0]:
+        return {"data": [], "total": 0, "page": paging.page, "pageSize": paging.page_size}
+    rows, total = _account_emails(
+        db, since=_since(date_from), until=_start(date_to + timedelta(days=1)) if date_to else None,
+        kinds=[kind] if kind else None, results=[result] if result else None,
+        user_ids=named[0] if named else None, email_fps=named[1] if named else None, limit=paging.page_size, offset=paging.offset,
+    )
+    return {"data": rows, "total": total, "page": paging.page, "pageSize": paging.page_size}
+
+
+@router.get("/reset-emails/flagged", response_model=Data[list[EmailFlag]])
+def reset_email_flags(_admin: Admin, db: DbSession):
+    """Addresses refused 3 or more reset or setup emails in 24 hours."""
+    rows = db.execute(text("SELECT email_fp, user_id, n FROM public.vertex_account_email_refusals(:s, 3)"),
+                      {"s": utc_now_ms() - timedelta(days=1)}).all()
+    accounts = _accounts_by_id(db, {r.user_id for r in rows if r.user_id})
+    return {"data": [{"email_fp": r.email_fp, "account": accounts.get(r.user_id) if r.user_id else None, "refused": r.n} for r in rows]}
+
+
+@router.post("/reset-emails/resend", response_model=Notifying[Resent])
+def resend_account_email(body: ResendIn, admin: Admin, request: Request, db: DbSession):
+    """An admin sends a reset or setup email by hand, with a reason. No
+    limit counts it (4.4); it is recorded as a manual account_email_sent."""
+    user = db.get(User, body.user_id)
+    if user is None:
+        raise ApiError(404, "not_found", "Account not found.")
+    if user.deactivated_at is not None:
+        raise ApiError(409, "account_deactivated", "This account is deactivated; reactivate it first.")
+    if body.kind == "password_reset":
+        if not user.password_hash:
+            raise ApiError(409, "no_password", "This account has no password yet: send a setup email instead.")
+        notice: Any = PasswordResetEmail(email=user.email, full_name=user.full_name, token=sign_reset_token(user.id, user.email, user.password_hash))
+    else:
+        if user.role is Role.candidate:
+            raise ApiError(422, "candidate", "Candidates set their password from their invite or a reset link.")
+        if user.password_hash:
+            raise ApiError(409, "password_set", "This account has set its password already: send a reset link instead.")
+        notice = AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))
+    record_account_email(request, user, body.kind, actor_id=admin.user_id, reason=body.reason)
+    return {"data": {"email": user.email, "kind": body.kind}, "notify": deliver(db, [notice])}
