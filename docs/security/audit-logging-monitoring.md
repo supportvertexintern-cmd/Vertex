@@ -308,6 +308,31 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - **Clear** (with a reason, `address_limit_cleared`) deletes the counter and the sibling key.
   - Without a shared store (development without Redis), the page says the limits can't be listed.
 - **The Security Overview** adds "Addresses limited now" and "Addresses blocked".
+
+**Login protection, PR 6: Login Protection settings** (G7, sections 3.3 and 4.5; `app/services/login_settings.py`).
+
+- **The thresholds:** one `SystemSetting`, `login_protection`, holds them as JSON. Each has a default and an allowed range:
+
+  | Setting | Default | Range |
+  |---|---|---|
+  | `account_max_failures` | 10 | 5–20 |
+  | `account_window_minutes` | 15 | 5–60 |
+  | `cooldown_steps_minutes` | 15, 60, 240, 1440 | each 5–1440, each longer than the last |
+  | `ip_login_max_per_minute` | 10 | 5–60 |
+  | `reset_per_email_hour` | 3 | 1–10 |
+  | `reset_per_email_day` | 6 | 2–20, at least the hourly limit |
+  | `lockout_notice_enabled` | on | |
+
+- **Refused, never clamped:** a value outside its range gets a 422 with the reason per field. A stored value that's unreadable or out of range means the defaults, and is logged.
+- **Saving** (Monitoring → Login Protection):
+  - needs a reason, and a confirmed summary of what changes;
+  - "Reset to defaults" is a save like any other.
+  - The `SystemSetting` change is audited (before and after), and `login_protection_changed` records who, why, before and after. The page's history reads those through `vertex_audit_trail`.
+- **Who reads what:**
+  - FastAPI reads the settings through a 60-second cache. A save updates it in that process at once; the others pick it up within a minute.
+  - The lockout uses the failures, window, cooldowns and notice. `LOCKOUT_NOTICE_ENABLED` in the environment can still turn the notice off.
+  - The per-email limit uses the hourly and daily counts.
+  - The website reads its per-address sign-in limit from `GET /api/v1/login-protection` (service credential) at most once a minute. `LOGIN_RATE_LIMIT_MAX` still overrides it, for the end-to-end suite only.
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**

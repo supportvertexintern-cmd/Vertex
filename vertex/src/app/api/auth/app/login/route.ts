@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { BLOCKED_MESSAGE, isBlocked } from "@/lib/address-controls";
+import { loginAttemptsPerMinute } from "@/lib/login-limits";
 import { appJson, appPreflight, appSession } from "@/lib/app-auth";
 import { recordSecurityEvent } from "@/lib/audit";
 import { callBackend } from "@/lib/backend";
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
   // An admin's address block (login protection PR 5): 403 before anything else.
   if (await isBlocked(ip)) return appJson(req, { error: { code: "address_blocked", message: BLOCKED_MESSAGE } }, 403);
   // The browser's bucket: signing in through the app doesn't buy more guesses.
-  const rl = await rateLimit(`login:${ip}`, { max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10 });
+  const rl = await rateLimit(`login:${ip}`, { max: await loginAttemptsPerMinute() });
   if (!rl.success) {
     await recordSecurityEvent("login_rate_limited", { actorId: null, entityType: "Auth", entityId: "login", detail: { client: "app" } });
     const wait = retryAfter(rl);

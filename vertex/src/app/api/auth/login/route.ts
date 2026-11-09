@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { setSessionCookies } from "@/lib/session";
 import { rateLimit, retryAfter } from "@/lib/rate-limit";
 import { refuseBlocked } from "@/lib/address-controls";
+import { loginAttemptsPerMinute } from "@/lib/login-limits";
 import { clientKey } from "@/lib/client-ip";
 import { recordSecurityEvent } from "@/lib/audit";
 import { callBackend } from "@/lib/backend";
@@ -17,10 +18,11 @@ export async function POST(req: NextRequest) {
   const blocked = await refuseBlocked(req);
   if (blocked) return blocked;
   const ip = clientKey(req.headers);
-  // 10 attempts a minute per client. LOGIN_RATE_LIMIT_MAX exists only so the
-  // end-to-end suite (many logins from one machine) can raise it; never set
-  // it in a real environment.
-  const rl = await rateLimit(`login:${ip}`, { max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10 });
+  // Attempts a minute per client: the admin's setting (Login Protection,
+  // default 10). LOGIN_RATE_LIMIT_MAX exists only so the end-to-end suite
+  // (many logins from one machine) can raise it; never set it in a real
+  // environment.
+  const rl = await rateLimit(`login:${ip}`, { max: await loginAttemptsPerMinute() });
   if (!rl.success) {
     await recordSecurityEvent("login_rate_limited", { actorId: null, entityType: "Auth", entityId: "login", detail: {} });
     const wait = retryAfter(rl);

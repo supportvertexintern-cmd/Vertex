@@ -369,5 +369,26 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
       await expect(page.getByText("Removed the block on 198.51.100.250/32.")).toBeVisible({ timeout: 25_000 });
     });
+
+    // Login Protection settings (PR 6): a change needs a reason, shows in the history, and the defaults come back.
+    await test.step("Login Protection saves a change with a reason and resets to the defaults", async () => {
+      await page.getByRole("link", { name: "Login Protection" }).first().click();
+      await expect(page).toHaveURL(/\/admin\/monitoring\/login-protection/);
+      const failures = page.getByLabel("Failed sign-ins before a lockout");
+      await expect(failures).toHaveValue("10", { timeout: 25_000 });
+      await failures.fill("12");
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      const ask = page.getByRole("alertdialog");
+      await expect(ask.getByText("Failed sign-ins before a lockout: 10 → 12")).toBeVisible();
+      await page.getByPlaceholder("Reason (kept on the audit trail)").fill("E2E: one more attempt");
+      await ask.getByRole("button", { name: "Save" }).click();
+      await expect(page.getByText("Saved. Every process uses the new values within a minute.")).toBeVisible({ timeout: 25_000 });
+      await expect(page.locator("tr", { hasText: "E2E: one more attempt" }).first()).toBeVisible();
+
+      await page.getByRole("button", { name: "Reset to defaults" }).click();
+      await page.getByPlaceholder("Reason (kept on the audit trail)").fill("E2E: back to the defaults");
+      await page.getByRole("alertdialog").getByRole("button", { name: "Save" }).click();
+      await expect(failures).toHaveValue("10", { timeout: 25_000 });
+    });
   });
 });

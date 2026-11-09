@@ -6113,6 +6113,18 @@
     "title": "Data[LockoutRow]",
     "type": "object"
    },
+   "Data_LoginProtectionPage_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LoginProtectionPage"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[LoginProtectionPage]",
+    "type": "object"
+   },
    "Data_Me_": {
     "properties": {
      "data": {
@@ -6605,6 +6617,18 @@
      "data"
     ],
     "title": "Data[Updated]",
+    "type": "object"
+   },
+   "Data_WebsiteLoginLimits_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/WebsiteLoginLimits"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[WebsiteLoginLimits]",
     "type": "object"
    },
    "Data_Welcome_": {
@@ -9471,6 +9495,140 @@
      "email"
     ],
     "title": "LoginAddress",
+    "type": "object"
+   },
+   "LoginProtectionIn": {
+    "properties": {
+     "account_max_failures": {
+      "title": "Account Max Failures",
+      "type": "integer"
+     },
+     "account_window_minutes": {
+      "title": "Account Window Minutes",
+      "type": "integer"
+     },
+     "cooldown_steps_minutes": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Cooldown Steps Minutes",
+      "type": "array"
+     },
+     "ip_login_max_per_minute": {
+      "title": "Ip Login Max Per Minute",
+      "type": "integer"
+     },
+     "lockout_notice_enabled": {
+      "title": "Lockout Notice Enabled",
+      "type": "boolean"
+     },
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     },
+     "reset_per_email_day": {
+      "title": "Reset Per Email Day",
+      "type": "integer"
+     },
+     "reset_per_email_hour": {
+      "title": "Reset Per Email Hour",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "account_max_failures",
+     "account_window_minutes",
+     "cooldown_steps_minutes",
+     "ip_login_max_per_minute",
+     "reset_per_email_hour",
+     "reset_per_email_day",
+     "lockout_notice_enabled",
+     "reason"
+    ],
+    "title": "LoginProtectionIn",
+    "type": "object"
+   },
+   "LoginProtectionPage": {
+    "properties": {
+     "bounds": {
+      "additionalProperties": {
+       "items": {
+        "type": "integer"
+       },
+       "type": "array"
+      },
+      "title": "Bounds",
+      "type": "object"
+     },
+     "defaults": {
+      "$ref": "#/components/schemas/LoginProtectionValues"
+     },
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/SettingChange"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "values": {
+      "$ref": "#/components/schemas/LoginProtectionValues"
+     }
+    },
+    "required": [
+     "values",
+     "defaults",
+     "bounds",
+     "history"
+    ],
+    "title": "LoginProtectionPage",
+    "type": "object"
+   },
+   "LoginProtectionValues": {
+    "properties": {
+     "account_max_failures": {
+      "title": "Account Max Failures",
+      "type": "integer"
+     },
+     "account_window_minutes": {
+      "title": "Account Window Minutes",
+      "type": "integer"
+     },
+     "cooldown_steps_minutes": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Cooldown Steps Minutes",
+      "type": "array"
+     },
+     "ip_login_max_per_minute": {
+      "title": "Ip Login Max Per Minute",
+      "type": "integer"
+     },
+     "lockout_notice_enabled": {
+      "title": "Lockout Notice Enabled",
+      "type": "boolean"
+     },
+     "reset_per_email_day": {
+      "title": "Reset Per Email Day",
+      "type": "integer"
+     },
+     "reset_per_email_hour": {
+      "title": "Reset Per Email Hour",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "account_max_failures",
+     "account_window_minutes",
+     "cooldown_steps_minutes",
+     "ip_login_max_per_minute",
+     "reset_per_email_hour",
+     "reset_per_email_day",
+     "lockout_notice_enabled"
+    ],
+    "title": "LoginProtectionValues",
     "type": "object"
    },
    "LogoutIn": {
@@ -17940,6 +18098,68 @@
     "title": "SessionRow",
     "type": "object"
    },
+   "SettingChange": {
+    "properties": {
+     "after": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "After"
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "before": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Before"
+     },
+     "by": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     }
+    },
+    "required": [
+     "at",
+     "by",
+     "reason",
+     "before",
+     "after"
+    ],
+    "title": "SettingChange",
+    "type": "object"
+   },
    "SettingsIn": {
     "description": "The keys the admin may set; any other key is ignored, as in Next.js.",
     "properties": {
@@ -20127,6 +20347,19 @@
     ],
     "title": "VerificationStatus",
     "type": "string"
+   },
+   "WebsiteLoginLimits": {
+    "properties": {
+     "ip_login_max_per_minute": {
+      "title": "Ip Login Max Per Minute",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "ip_login_max_per_minute"
+    ],
+    "title": "WebsiteLoginLimits",
+    "type": "object"
    },
    "Welcome": {
     "properties": {
@@ -29321,6 +29554,33 @@
     ]
    }
   },
+  "/api/v1/login-protection": {
+   "get": {
+    "description": "The website's own part of the admin's login protection settings: its\nper-address sign-in limit. It keeps it for 60 seconds.",
+    "operationId": "login_limits_for_the_website_api_v1_login_protection_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_WebsiteLoginLimits_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Login Limits For The Website",
+    "tags": [
+     "users and sessions"
+    ]
+   }
+  },
   "/api/v1/management/report-metrics": {
    "get": {
     "description": "Recruiters' and country supervisors' reporting as counts only (never\nthe content, which stays in-house's): submitted, verified, returned,\nand the latest period, for one cadence.",
@@ -31481,6 +31741,78 @@
      }
     ],
     "summary": "Resend Account Email",
+    "tags": [
+     "admin monitoring"
+    ]
+   }
+  },
+  "/api/v1/monitoring/settings/login-protection": {
+   "get": {
+    "description": "The thresholds in force, their defaults and allowed ranges, and the\nlatest 50 changes (who, when, why, before and after).",
+    "operationId": "login_protection_settings_api_v1_monitoring_settings_login_protection_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LoginProtectionPage_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Login Protection Settings",
+    "tags": [
+     "admin monitoring"
+    ]
+   },
+   "put": {
+    "description": "Saves every threshold at once, with a reason. A value outside its\nrange is refused (422), never clamped. The SystemSetting change is on the\ntrail (before and after), and so is login_protection_changed with the\nreason, which the page's history reads.",
+    "operationId": "save_login_protection_api_v1_monitoring_settings_login_protection_put",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LoginProtectionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LoginProtectionPage_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Save Login Protection",
     "tags": [
      "admin monitoring"
     ]

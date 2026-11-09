@@ -22,7 +22,9 @@ from collections import deque
 from app.core.config import settings
 from app.core.logging import log_event
 from app.core.redis_store import StoreUnavailable, call, counter_store
+from app.services import login_settings
 
+# The defaults; an admin may change them within bounds (login_settings, PR 6).
 PER_HOUR = 3
 PER_DAY = 6
 HOUR, DAY = 3600, 24 * 3600
@@ -38,12 +40,14 @@ def _keys(fp: str) -> tuple[str, str]:
 def allow(fp: str) -> bool:
     """True, and counted, if one more account email may go to this address
     now; False if it has had its share (nothing is counted then)."""
+    rules = login_settings.current()
+    per_hour, per_day = rules.reset_per_email_hour, rules.reset_per_email_day
     store = counter_store()
     if store is not None:
         hour, day = _keys(fp)
 
         def take(r) -> bool:
-            if int(r.get(hour) or 0) >= PER_HOUR or int(r.get(day) or 0) >= PER_DAY:
+            if int(r.get(hour) or 0) >= per_hour or int(r.get(day) or 0) >= per_day:
                 return False
             pipe = r.pipeline()
             pipe.incr(hour)
@@ -63,7 +67,7 @@ def allow(fp: str) -> bool:
         times = _sent.setdefault(fp, deque())
         while times and now - times[0] > DAY:
             times.popleft()
-        if len(times) >= PER_DAY or sum(1 for t in times if now - t <= HOUR) >= PER_HOUR:
+        if len(times) >= per_day or sum(1 for t in times if now - t <= HOUR) >= per_hour:
             return False
         times.append(now)
         return True
