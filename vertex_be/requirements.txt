@@ -11,7 +11,7 @@ python-dotenv==1.2.4
 loguru==0.7.3
 stripe==16.1.0
 # Document storage (S3, MinIO, R2) and the multipart uploads it takes.
-boto3==1.43.125
+boto3==1.43.126
 python-multipart==0.0.33
 # PayPal's API (app/services/paypal.py); also the test client's transport.
 httpx==0.28.1
