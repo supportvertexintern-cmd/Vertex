@@ -19,9 +19,11 @@ name: Promote
 #    (<target>-<sha>, <target>), not rebuilt, so staging runs exactly what dev
 #    ran. If the source has none for this commit (a docs-only push, which
 #    build.yml skips), build.yml runs on the target instead.
-# 4. Staging only: deploy-local.yml deploys it on this PC and runs the stack
-#    check. main is never deployed from here: vertex-main is by hand, and
-#    production is a separate, manual production.yml run with its own guards.
+# 4. deploy-local.yml deploys the target's stack on this PC (vertex-staging
+#    or vertex-main) and runs the stack check. Owner's decision, 2026-11-09:
+#    main's local stack follows main like staging's follows staging; main
+#    itself still only moves when Promote is run by hand from staging.
+#    Production is a separate, manual production.yml run with its own guards.
 
 on:
   push:
@@ -141,6 +143,6 @@ jobs:
         if: env.IMAGES == 'build'
         run: gh workflow run build.yml --ref "$TARGET"
 
-      - name: Deploy staging
-        if: env.IMAGES == 'copy' && env.TARGET == 'staging'
+      - name: Deploy vertex-${{ needs.target.outputs.branch }}
+        if: env.IMAGES == 'copy'
         run: gh workflow run deploy-local.yml --ref "$TARGET"

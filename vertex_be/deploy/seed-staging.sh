@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Loads a staging stack's empty database with what it needs to be used: the
-# reference data (scripts/seed/reference.py) and one admin. No test accounts:
-# their password is public, so deploy/seed-dev.sh keeps them on development
-# stacks. Safe to re-run: reference data upserts, and an existing admin is left
-# as it is. Refuses any stack whose env file isn't APP_ENV=staging.
+# Loads a staging or main stack's empty database with what it needs to be
+# used: the reference data (scripts/seed/reference.py) and one admin. No test
+# accounts: their password is public, so deploy/seed-dev.sh keeps them on
+# development stacks. Safe to re-run: reference data upserts, and an existing
+# admin is left as it is. Refuses any stack whose env file isn't
+# APP_ENV=staging or APP_ENV=production.
 #
 #   ENV_FILE=.env.staging bash deploy/seed-staging.sh vertex-staging
+#   ENV_FILE=.env.main    bash deploy/seed-staging.sh vertex-main
 #
 # The admin's address and generated password are SEED_ADMIN_EMAIL and
 # SEED_ADMIN_PASSWORD in the env file, and are never printed. Everything runs
@@ -17,7 +19,10 @@ PROJECT="${1:?usage: ENV_FILE=.env.staging $0 <project-name>}"
 ENV_FILE="${ENV_FILE:-.env}"
 env_value() { grep -E "^$1=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- | tr -d '\r'; }
 
-[ "$(env_value APP_ENV)" = "staging" ] || { echo "seed-staging.sh: $ENV_FILE is not a staging stack" >&2; exit 1; }
+case "$(env_value APP_ENV)" in
+  staging|production) ;;
+  *) echo "seed-staging.sh: $ENV_FILE is not a staging or main stack" >&2; exit 1 ;;
+esac
 
 if [ -z "$(env_value SEED_ADMIN_PASSWORD)" ]; then
   umask 077
