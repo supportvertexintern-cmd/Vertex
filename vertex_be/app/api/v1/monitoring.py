@@ -43,28 +43,29 @@ activity rules, raised by app/services/activity.py.
 
 from __future__ import annotations
 
+import ipaddress
 from dataclasses import asdict
 from datetime import date, datetime, time, timedelta
 from typing import Annotated, Any, Literal, get_args
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import func, or_, select, text
 
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notifying, PasswordResetEmail
-from app.api.v1.sessions import EMAIL_LIMITED, SessionRow, account_email_allowed, record_account_email, security_event
+from app.api.v1.sessions import EMAIL_LIMITED, SessionRow, _client_ip, account_email_allowed, record_account_email, security_event
 from app.core.api import ApiError, Data, Page, PageParams, UtcDateTime, page_params
 from app.core.audit import AuditedDb, append_event
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.config import settings
 from app.core.rbac import require_role
-from app.models.enums import LockoutEnd, MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
+from app.models.enums import AddressRuleKind, LockoutEnd, MouStatus, PartnerStatus, PartnerType, Role, SecurityAlertSeverity, SecurityAlertStatus
 from app.models.identity import RefreshToken, User
 from app.models.partners import Partner
-from app.models.security import LoginLockout, SecurityAlert
-from app.services import geoip, login_lockout, security_monitor
+from app.models.security import AddressRule, LoginLockout, SecurityAlert
+from app.services import address_controls, geoip, login_lockout, security_monitor
 from app.services.sessions import email_fingerprint, list_sessions
 from app.core.tokens import sign_account_setup_token, sign_reset_token
 from app.services.emails import deliver
@@ -866,6 +867,10 @@ class Overview(BaseModel):
     lockouts_needing_review: int
     failed_sign_ins_previous_24h: int
     reset_emails_refused: Window
+    # Addresses a website limit refuses now (null: no shared store to ask),
+    # and the blocks in force.
+    addresses_limited_now: int | None
+    addresses_blocked: int
     # The bundled country database's month, or null if the image has none.
     geoip_month: str | None
     recent_alerts: list[AlertRow]
@@ -914,6 +919,8 @@ def overview(_admin: Admin, db: DbSession):
         "lockouts_needing_review": _needing_review(db),
         "failed_sign_ins_previous_24h": int(trail["last_48h"].get("login_failed", 0)) - int(trail["last_24h"].get("login_failed", 0)),
         "reset_emails_refused": from_trail("reset_rate_limited"),
+        "addresses_limited_now": _limited_count(),
+        "addresses_blocked": sum(1 for r in address_controls.active(db) if r.kind is AddressRuleKind.block),
         "geoip_month": geoip.database_month(),
         "recent_alerts": _alert_rows(db, recent),
     }}
@@ -1369,3 +1376,169 @@ def resend_account_email(body: ResendIn, admin: Admin, request: Request, db: DbS
         notice = AccountSetupEmail(email=user.email, full_name=user.full_name, token=sign_account_setup_token(user.id))
     record_account_email(request, user, body.kind, actor_id=admin.user_id, reason=body.reason)
     return {"data": {"email": user.email, "kind": body.kind}, "notify": deliver(db, [notice])}
+
+
+# --- Address Controls (login protection, PR 5) ------------------------------------------
+
+
+class AddressRuleRow(BaseModel):
+    id: str
+    network: str
+    kind: AddressRuleKind
+    reason: str
+    created_by: Person | None
+    created_at: UtcDateTime
+    expires_at: UtcDateTime | None
+    # In force now: not removed, not expired.
+    active: bool
+    removed_at: UtcDateTime | None
+    removed_by: Person | None
+    removed_reason: str | None
+
+
+class AddressRuleIn(BaseModel):
+    network: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=64)]
+    kind: AddressRuleKind
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+    # A block lasts this many days (1 to 30, required); an allow may last
+    # this long, or until removed.
+    days: Annotated[int | None, Field(ge=1, le=365)] = None
+
+
+class ReasonOnly(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
+
+
+class LimitedRow(BaseModel):
+    key: str
+    # Which limit: login, forgot-password, register, ...
+    scope: str
+    ip: str
+    country: str | None
+    hits: int
+    resets_in_seconds: int
+    # An active block covers this address too.
+    blocked: bool
+
+
+class LimitedList(BaseModel):
+    # False when there is no shared store to ask (development without Redis).
+    available: bool
+    rows: list[LimitedRow]
+
+
+class Cleared(BaseModel):
+    key: str
+    cleared: bool
+
+
+def _limited_count() -> int | None:
+    try:
+        found = address_controls.limited_now()
+    except Exception:  # noqa: BLE001 (the store is down)
+        return None
+    return None if found is None else len(found)
+
+
+def _rule_rows(db, rules: list[AddressRule]) -> list[dict[str, Any]]:
+    ids = {r.created_by for r in rules} | {r.removed_by for r in rules}
+    ids.discard(None)
+    people = {u.id: {"id": u.id, "full_name": u.full_name} for u in db.scalars(select(User).where(User.id.in_(ids)))} if ids else {}
+    now = utc_now_ms()
+    return [{
+        "id": r.id, "network": str(r.network), "kind": r.kind, "reason": r.reason, "created_by": people.get(r.created_by),
+        "created_at": r.created_at, "expires_at": r.expires_at,
+        "active": r.removed_at is None and (r.expires_at is None or r.expires_at > now),
+        "removed_at": r.removed_at, "removed_by": people.get(r.removed_by), "removed_reason": r.removed_reason,
+    } for r in rules]
+
+
+@router.get("/addresses/controls", response_model=Data[list[AddressRuleRow]])
+def address_rules(_admin: Admin, db: DbSession, include_ended: bool = False):
+    """The blocks and allows in force, newest first; with include_ended,
+    the removed and expired ones too."""
+    rules = address_controls.active(db) if not include_ended else list(db.scalars(select(AddressRule).order_by(AddressRule.created_at.desc()).limit(500)))
+    return {"data": _rule_rows(db, rules)}
+
+
+@router.post("/addresses/controls", status_code=201, response_model=Data[AddressRuleRow])
+def add_address_rule(body: AddressRuleIn, admin: Admin, request: Request, db: AuditedDb):
+    """Blocks or allows an address or range (4.3). A block needs 1 to 30
+    days and may not cover your own address; ranges are capped (a /24 for
+    an allow, a /16 for a block, IPv4)."""
+    try:
+        net = address_controls.network_for(body.network, body.kind)
+    except address_controls.RangeRefused as err:
+        raise ApiError(422, "validation_error", "Validation failed", {"network": [str(err)]}) from None
+    if body.kind is AddressRuleKind.block:
+        if body.days is None or body.days > address_controls.MAX_BLOCK_DAYS:
+            raise ApiError(422, "validation_error", "Validation failed",
+                           {"days": [f"A block needs an expiry of 1 to {address_controls.MAX_BLOCK_DAYS} days."]})
+        own = _client_ip(request)
+        try:
+            covers_own = own is not None and ipaddress.ip_address(own) in net
+        except ValueError:
+            covers_own = False
+        if covers_own:
+            raise ApiError(422, "own_address", "This would block your own current address.")
+    rule = AddressRule(network=str(net), kind=body.kind, reason=body.reason, created_by=admin.user_id,
+                       expires_at=address_controls.block_until(body.days) if body.days else None)
+    db.add(rule)
+    db.commit()
+    security_event(request, "address_rule_added", actor_id=admin.user_id, entity_type="AddressRule", entity_id=rule.id,
+                   detail={"network": str(net), "kind": body.kind.value, "reason": body.reason, "days": body.days})
+    return {"data": _rule_rows(db, [rule])[0]}
+
+
+@router.delete("/addresses/controls/{rule_id}", response_model=Data[AddressRuleRow])
+def remove_address_rule(rule_id: str, body: ReasonOnly, admin: Admin, request: Request, db: AuditedDb):
+    """Ends a block or allow now, with a reason. The row stays as history."""
+    rule = db.scalar(select(AddressRule).where(AddressRule.id == rule_id).with_for_update())
+    if rule is None:
+        raise ApiError(404, "not_found", "Address control not found.")
+    if rule.removed_at is not None:
+        raise ApiError(409, "already_removed", "This address control has been removed already.")
+    rule.removed_at, rule.removed_by, rule.removed_reason = utc_now_ms(), admin.user_id, body.reason
+    db.commit()
+    security_event(request, "address_rule_removed", actor_id=admin.user_id, entity_type="AddressRule", entity_id=rule.id,
+                   detail={"network": str(rule.network), "kind": rule.kind.value, "reason": body.reason})
+    return {"data": _rule_rows(db, [rule])[0]}
+
+
+@router.get("/addresses/limited", response_model=Data[LimitedList])
+def limited_addresses(_admin: Admin, db: DbSession):
+    """The addresses the website's per-address limits refuse now: which
+    limit, how many requests, when it resets."""
+    try:
+        found = address_controls.limited_now()
+    except Exception:  # noqa: BLE001
+        raise ApiError(503, "store_unavailable", "The limits' store can't be reached; try again shortly.") from None
+    if found is None:
+        return {"data": {"available": False, "rows": []}}
+    blocks = [ipaddress.ip_network(str(r.network)) for r in address_controls.active(db) if r.kind is AddressRuleKind.block]
+
+    def blocked(ip: str) -> bool:
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        return any(addr.version == n.version and addr in n for n in blocks)
+
+    return {"data": {"available": True, "rows": [
+        {"key": x.key, "scope": x.scope, "ip": x.ip, "country": geoip.country_of(x.ip), "hits": x.hits,
+         "resets_in_seconds": x.resets_in_seconds, "blocked": blocked(x.ip)} for x in found
+    ]}}
+
+
+@router.post("/addresses/limited/{key}/clear", response_model=Data[Cleared])
+def clear_limit(key: str, body: ReasonOnly, admin: Admin, request: Request):
+    """Lifts one per-address limit at once, with a reason (recorded)."""
+    try:
+        held = address_controls.clear(key)
+    except address_controls.RangeRefused:
+        raise ApiError(422, "validation_error", "Validation failed", {"key": ["Not a limit key."]}) from None
+    except Exception:  # noqa: BLE001
+        raise ApiError(503, "store_unavailable", "The limits' store can't be reached; try again shortly.") from None
+    security_event(request, "address_limit_cleared", actor_id=admin.user_id, entity_type="Auth", entity_id=f"limit:{key}"[:200],
+                   detail={"scope": key.split(":")[0], "limited_ip": held.ip if held else None, "reason": body.reason, "was_limited": held is not None})
+    return {"data": {"key": key, "cleared": held is not None}}

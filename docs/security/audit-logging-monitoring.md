@@ -286,7 +286,28 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - The website records a forgot-password request refused by its per-address limit as `reset_rate_limited` (`scope: address`).
 - **How they're read:** the trail through four functions with the owner's rights: `vertex_sign_in_events`, `vertex_sign_in_failure_stats`, `vertex_account_email_events` and `vertex_account_email_refusals`. Each answers only its page's fields and is executable by `vertex_api` alone. Pages are capped at 200 rows.
 - **The account drawer** shows its latest 20 reset and setup emails.
-- **Not yet:** "Block address" from a row comes with PR 5.
+- **Block address:** Sign-in Activity and Reset Email Activity rows link to Address Controls with the address filled in (PR 5).
+
+**Login protection, PR 5: Address Controls** (section 4.3; migration 0021; `app/services/address_controls.py`, `vertex/src/lib/address-controls.ts`).
+
+- **A block** (`AddressRule`, kind `block`):
+  - The website answers **403** to sign-in (web, app and Google), registration and password-reset requests from it, before anything else happens. Google goes back to the login page.
+  - It needs a reason and an expiry of 1 to 30 days.
+  - It may not cover the admin's own current address.
+  - It covers at most a /16 (IPv4) or /48 (IPv6), so one typo can't shut out a region. The /16 cap is a safety limit added beyond the document.
+- **An allow:**
+  - exempts an address from the website's **per-address** limits, for an office or agency on one connection;
+  - never exempts it from the per-account lockout;
+  - covers at most a /24 or /64, and may have an expiry or last until removed.
+- **Where both match, the block wins.**
+- **Removing a rule** needs a reason and sets `removed_at`, `removed_by` and `removed_reason`. Rules are never deleted; adding and removing are recorded as `address_rule_added` and `address_rule_removed`, and the row changes are audited.
+- **How the website reads the rules:** `GET /api/v1/address-controls`, on its service credential, at most once a minute. If FastAPI can't be asked, the last list stands. If there never was one, nothing is blocked or allowed (the limits and the lockout still apply), and the failure is logged.
+- **Limited now:**
+  - When a per-address limit refuses a request, the website writes the address to a sibling key (`{env}:rl-ip:{scope}:{digest}:{window}`) that expires with the window. Writing it never fails the request.
+  - FastAPI lists those keys from the shared Redis: the limit, request count and time left, and whether a block covers the address too.
+  - **Clear** (with a reason, `address_limit_cleared`) deletes the counter and the sibling key.
+  - Without a shared store (development without Redis), the page says the limits can't be listed.
+- **The Security Overview** adds "Addresses limited now" and "Addresses blocked".
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**

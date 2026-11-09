@@ -40,7 +40,7 @@ from app.core.logging import log_event
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
-from app.services import email_limit, geoip, login_lockout
+from app.services import address_controls, email_limit, geoip, login_lockout
 from app.services.google_signin import GoogleClient, GoogleFailed, google_client
 from app.services.sessions import (
     IssuedSession,
@@ -95,6 +95,22 @@ def security_event(request: Request, action: str, *, actor_id: str | None, entit
         # check compares sign-ins by it, and the pages show it.
         detail["country"] = geoip.country_of(ip)
     record_security_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
+
+
+# --- address controls, for the website (login protection PR 5) ----------------
+
+
+class AddressControl(BaseModel):
+    network: str
+    kind: str
+
+
+@router.get("/address-controls", response_model=Data[list[AddressControl]], dependencies=[Service])
+def address_controls_for_the_website(db: DbSession):
+    """The blocks and allows in force now (app/services/address_controls.py).
+    The website keeps them for 60 seconds and applies them before its
+    per-address limits."""
+    return {"data": [{"network": str(rule.network), "kind": rule.kind.value} for rule in address_controls.active(db)]}
 
 
 # --- the per-email limit on account emails (login protection G3) ---------------

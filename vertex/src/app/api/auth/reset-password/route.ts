@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { refuseBlocked } from "@/lib/address-controls";
 import { limitByIp } from "@/lib/rate-limit";
 import { clientHeaders } from "@/lib/auth-backend";
 import { passOn, readJson } from "@/lib/pipeline";
@@ -8,6 +9,9 @@ import { passOn, readJson } from "@/lib/pipeline";
 // access grant. FastAPI checks it and sets the password since users step
 // 8.3 (vertex_be/app/api/v1/accounts.py); a link works once.
 export async function POST(req: NextRequest) {
+  // An admin's address block (login protection PR 5): 403 before anything else.
+  const blocked = await refuseBlocked(req);
+  if (blocked) return blocked;
   const limited = await limitByIp(req, "reset-password", { windowMs: 15 * 60_000, max: 10 });
   if (limited) return limited;
   const read = await readJson(req, true);

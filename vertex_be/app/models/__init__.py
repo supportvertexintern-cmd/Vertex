@@ -25,7 +25,7 @@ from app.models.reference import (
     Sector,
     SystemSetting,
 )
-from app.models.security import LoginLockout, SecurityAlert
+from app.models.security import AddressRule, LoginLockout, SecurityAlert
 from app.models.referral import (
     ReferralAgent,
     ReferralAgentTarget,
@@ -84,6 +84,7 @@ __all__ = [
     "ReferralAgentTarget",
     "SecurityAlert",
     "LoginLockout",
+    "AddressRule",
     "ReferralCommission",
     "ReferralCommissionRule",
     "RefreshToken",

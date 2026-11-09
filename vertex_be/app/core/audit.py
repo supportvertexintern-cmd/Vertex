@@ -81,6 +81,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "SecurityAlert",
         # Login protection: a lockout, its end (who unlocked it and why) and its review.
         "LoginLockout",
+        # Login protection: an address block or allow, and its removal (who, why).
+        "AddressRule",
         # FastAPI-owned reference data, content, jobs, campaign targets and scorecards (steps 2.1-5.3): every
         # write FastAPI makes is on the trail.
         "Region",

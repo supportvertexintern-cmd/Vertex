@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const redis = vi.hoisted(() => ({
   counts: new Map<string, number>(),
+  sets: new Map<string, { value: string; px: number }>(),
+  allowed: new Set<string>(),
   keys: [] as string[],
   down: false,
   hang: false,
@@ -20,6 +22,10 @@ vi.mock("redis", () => ({
       redis.connects += 1;
       if (redis.hang) await new Promise(() => undefined); // never resolves, as a reconnect loop
       if (redis.down) throw new Error("ECONNREFUSED");
+    },
+    set: async (key: string, value: string, options: { PX: number }) => {
+      redis.sets.set(key, { value, px: options.PX });
+      return "OK";
     },
     multi: () => {
       const ops: (() => unknown)[] = [];
@@ -48,6 +54,8 @@ vi.mock("redis", () => ({
 }));
 
 vi.mock("./log", () => ({ log: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
+// Address controls (login protection PR 5): which addresses an admin allowed.
+vi.mock("./address-controls", () => ({ isAllowed: async (ip: string) => redis.allowed.has(ip) }));
 
 const fresh = async () => {
   vi.resetModules(); // a new process: its own memory and its own connection
@@ -57,6 +65,8 @@ const req = (headers: Record<string, string>) => new Request("http://localhost/a
 
 beforeEach(() => {
   redis.counts.clear();
+  redis.sets.clear();
+  redis.allowed.clear();
   redis.keys = [];
   redis.down = false;
   redis.connects = 0;
@@ -130,6 +140,31 @@ describe("in Redis", () => {
     await rateLimit("login:198.51.100.9");
     expect(redis.keys.every((k) => !k.includes("someone@") && !k.includes("198.51.100.9"))).toBe(true);
     expect(redis.keys[0]).toMatch(/^dev:rl:forgot-email:[0-9a-f]{32}:\d+$/);
+  });
+
+  it("a refusal keeps which address, under its own key that expires with the window", async () => {
+    vi.stubEnv("APP_ENV", "dev");
+    const { rateLimit } = await fresh();
+    await rateLimit("probe:198.51.100.21", { max: 1 });
+    expect(redis.sets.size).toBe(0); // allowed: nothing kept
+    await rateLimit("probe:198.51.100.21", { max: 1 });
+    const [[key, kept]] = [...redis.sets];
+    expect(key).toMatch(/^dev:rl-ip:probe:[0-9a-f]{32}:\d+$/);
+    expect(kept.value).toBe("198.51.100.21");
+    expect(kept.px).toBeGreaterThan(0);
+    // The same digest and window as the counter it belongs to.
+    expect(key.replace(":rl-ip:", ":rl:")).toBe(redis.keys[1]);
+    // Not an address (an email's limit): nothing kept.
+    await rateLimit("forgot-email:someone@test.invalid", { max: 0 });
+    expect(redis.sets.size).toBe(1);
+  });
+
+  it("an address an admin allowed isn't counted", async () => {
+    redis.allowed.add("198.51.100.22");
+    const { limitByIp } = await fresh();
+    for (let i = 0; i < 5; i++) expect(await limitByIp(req({ "x-real-ip": "198.51.100.22" }), "probe", { max: 1 })).toBeNull();
+    expect(redis.keys).toEqual([]);
+    expect((await limitByIp(req({ "x-real-ip": "198.51.100.23" }), "probe", { max: 0 }))?.status).toBe(429); // others still are
   });
 
   it("down: an ordinary limit lets the request through", async () => {

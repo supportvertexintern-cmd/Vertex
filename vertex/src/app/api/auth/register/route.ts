@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { refuseBlocked } from "@/lib/address-controls";
 import { limitByIp, limitedResponse, rateLimit, retryAfter } from "@/lib/rate-limit";
 import { clientKey } from "@/lib/client-ip";
 import { passOn, readJson } from "@/lib/pipeline";
@@ -19,6 +20,9 @@ import { passOn, readJson } from "@/lib/pipeline";
 // same prefill-then-set-password shape, but resolving a User directly
 // instead of a not-yet-existing Candidate.
 export async function GET(req: NextRequest) {
+  // An admin's address block (login protection PR 5): 403 before anything else.
+  const blocked = await refuseBlocked(req);
+  if (blocked) return blocked;
   // Invite-link lookup: limit guessing of setup tokens.
   const limited = await limitByIp(req, "register-invite", { windowMs: 15 * 60_000, max: 20, failClosed: true });
   if (limited) return limited;
@@ -37,6 +41,9 @@ export async function GET(req: NextRequest) {
 // body. A body with `setup` is a staff or partner account setting its
 // first password instead.
 export async function POST(req: NextRequest) {
+  // An admin's address block (login protection PR 5): 403 before anything else.
+  const blocked = await refuseBlocked(req);
+  if (blocked) return blocked;
   // Rate limit: 5 registrations per minute per IP
   const ip = clientKey(req.headers);
   const rl = await rateLimit(`register:${ip}`, { max: 5, failClosed: true });

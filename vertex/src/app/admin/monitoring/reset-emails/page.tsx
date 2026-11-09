@@ -259,7 +259,16 @@ function ResetEmailActivity() {
                     <td className="px-5 py-3">
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${res.badge}`}>{res.label}</span>
                     </td>
-                    <td className="px-5 py-3 text-midnight-900/70">{r.ip ? place(r.ip, r.country) : "—"}</td>
+                    <td className="px-5 py-3 text-midnight-900/70">
+                      {r.ip ? place(r.ip, r.country) : "—"}
+                      {r.ip && r.result !== "sent" && (
+                        <div>
+                          <Link href={`/admin/monitoring/addresses?block=${encodeURIComponent(r.ip)}`} className="text-xs text-red-600 hover:underline">
+                            Block address
+                          </Link>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-xs whitespace-nowrap">
                       {a && !a.deactivated && (r.kind === "password_reset" || r.kind === "account_setup") && (
                         <button

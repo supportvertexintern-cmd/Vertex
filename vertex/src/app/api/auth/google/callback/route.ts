@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBlocked } from "@/lib/address-controls";
+import { clientKey } from "@/lib/client-ip";
 import { limitByIp } from "@/lib/rate-limit";
 import { setSessionCookies } from "@/lib/session";
 import { callBackend } from "@/lib/backend";
@@ -26,6 +28,10 @@ const KNOWN_ERRORS = new Set([
 ]);
 
 export async function GET(req: NextRequest) {
+  // An admin's address block (login protection PR 5): back to the login page.
+  if (await isBlocked(clientKey(req.headers))) {
+    return NextResponse.redirect(new URL("/auth/login?error=address_blocked", process.env.NEXT_PUBLIC_APP_URL || req.url));
+  }
   const limited = await limitByIp(req, "google-callback", { windowMs: 15 * 60_000, max: 20 });
   if (limited) return limited;
   const { searchParams } = req.nextUrl;

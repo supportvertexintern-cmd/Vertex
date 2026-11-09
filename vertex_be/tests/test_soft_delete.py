@@ -51,12 +51,13 @@ def raw(db, table: str, row_id: str):
     return db.execute(text(f'SELECT * FROM "{table}" WHERE id = :i'), {"i": row_id}).mappings().first()
 
 
-def test_every_table_but_the_exempt_four_is_soft_deleted():
+def test_every_table_but_the_exempt_five_is_soft_deleted():
     # SecurityAlert (admin monitoring, phase 2) is a security record like the
     # trail: no route deletes one; only the retention clean-up does (D3).
-    # LoginLockout (login protection) is the same kind of record.
+    # LoginLockout and AddressRule (login protection) are the same kind of
+    # record; an AddressRule is ended with removed_at, never deleted.
     plain = {m.local_table.name for m in Base.registry.mappers if not issubclass(m.class_, SoftDeletable)}
-    assert plain == {"AuditLog", "RefreshToken", "SecurityAlert", "LoginLockout"}
+    assert plain == {"AuditLog", "RefreshToken", "SecurityAlert", "LoginLockout", "AddressRule"}
 
 
 def test_a_deleted_row_stays_and_no_query_finds_it(db, world):

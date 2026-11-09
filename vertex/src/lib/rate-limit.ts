@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
 import { createClient } from "redis";
+import { isAllowed } from "./address-controls";
 import { clientKey } from "./client-ip";
 import { log } from "./log";
 
@@ -56,9 +58,11 @@ setInterval(() => {
   });
 }, 5 * 60 * 1000).unref?.();
 
-// Only what the limiter uses: one INCR and PEXPIRE in a MULTI.
+// Only what the limiter uses: one INCR and PEXPIRE in a MULTI, and SET for
+// the address a refusal held (below).
 interface CounterStore {
   multi(): { incr(key: string): unknown; pExpire(key: string, ms: number): unknown; exec(): Promise<unknown[]> };
+  set?(key: string, value: string, options: { PX: number }): Promise<unknown>;
 }
 let store: Promise<CounterStore> | null = null;
 
@@ -82,12 +86,19 @@ function connect(url: string): Promise<CounterStore> {
   return connecting;
 }
 
-/** `scope:key` with the key hashed, prefixed with the environment. */
-function storeKey(identifier: string, window: number): string {
+/** `scope:key` with the key hashed, prefixed with the environment ("rl"), or
+ * the sibling key ("rl-ip") that holds the address a refusal held. */
+function storeKey(identifier: string, window: number, kind: "rl" | "rl-ip" = "rl"): string {
   const at = identifier.indexOf(":");
   const scope = at < 0 ? "default" : identifier.slice(0, at);
   const digest = createHash("sha256").update(at < 0 ? identifier : identifier.slice(at + 1)).digest("hex").slice(0, 32);
-  return `${process.env.APP_ENV || "local"}:rl:${scope}:${digest}:${window}`;
+  return `${process.env.APP_ENV || "local"}:${kind}:${scope}:${digest}:${window}`;
+}
+
+/** The address an identifier ("scope:address") limits, if it is one. */
+function addressOf(identifier: string): string | null {
+  const key = identifier.slice(identifier.indexOf(":") + 1);
+  return isIP(key) ? key : null;
 }
 
 /** Counts one request against `identifier` ("scope:key"). */
@@ -96,6 +107,11 @@ export async function rateLimit(identifier: string, options: RateLimitOptions = 
   const max = options.max ?? (Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 10);
   const now = Date.now();
   const url = process.env.REDIS_URL;
+
+  // An address an admin allowed (an office on one connection) isn't counted
+  // here; the per-account lockout (FastAPI) still applies (login protection PR 5).
+  const address = addressOf(identifier);
+  if (address && (await isAllowed(address))) return { success: true, remaining: max, resetAt: now + windowMs };
 
   if (url) {
     const window = Math.floor(now / windowMs);
@@ -110,6 +126,11 @@ export async function rateLimit(identifier: string, options: RateLimitOptions = 
           tx.incr(key);
           tx.pExpire(key, windowMs);
           const [n] = (await tx.exec()) as [number, unknown];
+          // Refused: keep which address, for Monitoring → Address Controls,
+          // under a sibling key that expires with the window. Never fatal.
+          if (n > max && address && client.set) {
+            await client.set(storeKey(identifier, window, "rl-ip"), address, { PX: Math.max(1, resetAt - Date.now()) }).catch(() => undefined);
+          }
           return n;
         })(),
       );
