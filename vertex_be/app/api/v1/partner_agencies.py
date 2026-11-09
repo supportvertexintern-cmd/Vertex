@@ -37,7 +37,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import DbSession
 from app.api.notices import AccountSetupEmail, Notice, Notifying
 from app.services.emails import deliver
-from app.api.v1.sessions import security_event
+from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, security_event
 from app.api.v1.users import keep_an_admin
 from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
@@ -399,15 +399,19 @@ def provision_account(partner_id: str, body: LoginIn, manager: Manager, db: Audi
 
 
 @router.post("/partners/{partner_id}/reset-password", response_model=Notifying[LoginAddress])
-def reset_password(partner_id: str, _user: Manager, db: AuditedDb):
+def reset_password(partner_id: str, user: Manager, request: Request, db: AuditedDb):
     """Clears the login's password, so it stops working at once (and its
-    sessions end: the token_version trigger), and sends the setup email."""
+    sessions end: the token_version trigger), and sends the setup email.
+    Refused before anything changes if the address has had its account
+    emails for now (login protection G3)."""
     partner = _locked(db, partner_id)
     if not partner.user_id:
         raise ApiError(422, "no_account", "This partner has no login yet — use Create Partner Login instead.")
     login = db.get(User, partner.user_id)
     if login.deactivated_at is not None:
         raise ApiError(409, "account_deactivated", "This partner's login is deactivated — an admin must reactivate it first.")
+    if not account_email_allowed(request, login.email, user_id=login.id, kind="account_setup", actor_id=user.user_id):
+        raise ApiError(429, "email_limited", EMAIL_LIMITED)
     login.password_hash = None
     db.commit()
     return {"data": {"email": login.email}, "notify": deliver(db, [_setup_email(login)])}

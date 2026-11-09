@@ -74,11 +74,14 @@ SIGN_IN_NEW_COUNTRY = Rule("sign_in_new_country", "high", 24 * 60, 1)
 RAPID_SIGN_INS = Rule("rapid_sign_ins", "medium", 10, 10)
 UNUSUAL_READS = Rule("unusual_read_rate", "medium", 5, 1500)
 UNUSUAL_WRITES = Rule("unusual_write_rate", "high", 5, 150)
+# Login protection G3: someone asking for an inbox to be flooded with reset
+# or setup emails past the per-email limit.
+RESET_EMAIL_FLOOD = Rule("reset_email_flood", "medium", 60, 10)
 NOT_ACTIVATED_AFTER_DAYS = 7
 INACTIVE_AFTER_DAYS = 60  # decision D5
 RULES = (BRUTE_FORCE_ACCOUNT, BRUTE_FORCE_IP, AUTHORIZATION_PROBING, MALWARE, PRIVILEGE_GRANTED, AUDIT_WRITE_FAILED,
          SCANNER_UNAVAILABLE, REFRESH_TOKEN_REUSED, SHARED_ADDRESS, RESET_NEW_ADDRESS, PARTNER_NOT_ACTIVATED, INACTIVE_ACCOUNT,
-         SIGN_IN_NEW_COUNTRY, RAPID_SIGN_INS, UNUSUAL_READS, UNUSUAL_WRITES)
+         SIGN_IN_NEW_COUNTRY, RAPID_SIGN_INS, UNUSUAL_READS, UNUSUAL_WRITES, RESET_EMAIL_FLOOD)
 
 def _in_background(send: Callable[[], None]) -> None:
     threading.Thread(target=send, daemon=True).start()
@@ -125,6 +128,15 @@ def on_security_event(action: str, actor_id: str | None, entity_id: str, detail:
                     raise_alert(r, f"ip:{ip}", f"{n} failed sign-ins from one address in {r.window_minutes} minutes", {"ip": ip, "failures": n})
         elif action == "login_succeeded":
             _on_sign_in(entity_id, detail)
+        elif action == "reset_rate_limited":
+            fp = detail.get("email_fp")
+            r = RESET_EMAIL_FLOOD
+            if isinstance(fp, str) and fp:
+                n = _count(action, "email_fp", fp, r.window_minutes)
+                if n >= r.threshold:
+                    user_id = entity_id[5:] if entity_id.startswith("user:") else None
+                    raise_alert(r, f"email:{fp}", f"{n} refused reset emails for one address in {r.window_minutes} minutes",
+                                {"email_fp": fp, "refused": n, "last_ip": detail.get("ip"), "user_id": user_id})
         elif action == "access_denied" and actor_id:
             r = AUTHORIZATION_PROBING
             n = _count(action, "actor_id", actor_id, r.window_minutes)

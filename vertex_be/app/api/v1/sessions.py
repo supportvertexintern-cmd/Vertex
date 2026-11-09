@@ -40,7 +40,7 @@ from app.core.logging import log_event
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
-from app.services import geoip, login_lockout
+from app.services import email_limit, geoip, login_lockout
 from app.services.google_signin import GoogleClient, GoogleFailed, google_client
 from app.services.sessions import (
     IssuedSession,
@@ -95,6 +95,25 @@ def security_event(request: Request, action: str, *, actor_id: str | None, entit
         # check compares sign-ins by it, and the pages show it.
         detail["country"] = geoip.country_of(ip)
     record_security_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
+
+
+# --- the per-email limit on account emails (login protection G3) ---------------
+
+# What an admin is told when the limit refuses a resend they asked for. A
+# visitor asking for a reset is told nothing new (the usual answer).
+EMAIL_LIMITED = "This address has already had its account emails for now (3 an hour, 6 a day). Try again later."
+
+
+def account_email_allowed(request: Request, email: str, *, user_id: str | None, kind: str, actor_id: str | None = None) -> bool:
+    """True, and counted, if one more password-reset or setup email may go
+    to this address (app/services/email_limit.py); else records
+    reset_rate_limited (the reset_email_flood alert counts them)."""
+    fp = email_fingerprint(email)
+    if email_limit.allow(fp):
+        return True
+    security_event(request, "reset_rate_limited", actor_id=actor_id, entity_type="Auth",
+                   entity_id=f"user:{user_id}" if user_id else "unknown_account", detail={"email_fp": fp, "kind": kind})
+    return False
 
 
 # --- the per-account limit (D2; login protection, app/services/login_lockout.py) ---

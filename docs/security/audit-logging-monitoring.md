@@ -137,6 +137,7 @@ Rules agreed with the owner on 2026-10-11. Since reads handover R7a they run in 
 | `rapid_sign_ins` | ≥ 10 successful sign-ins by one account in 10 min | medium | once / account / 10 min |
 | `unusual_read_rate` | ≥ 1,500 signed-in reads by one account in 5 min (about 5 a second: a script, not a person) | medium | once / account / 5 min |
 | `unusual_write_rate` | ≥ 150 signed-in changes by one account in 5 min | high | once / account / 5 min |
+| `reset_email_flood` | ≥ 10 refused reset or setup emails for one address in 60 min (login protection G3) | medium | once / address / 60 min |
 
 The last four come from admin monitoring phase 5 (owner's requirements 2026-11-07, §4.4).
 
@@ -223,6 +224,21 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - `LOCKOUT_NOTICE_ENABLED` turns it off.
 - **The schedule** closes lockouts past their time as `expired`. The retention clean-up deletes ended lockouts older than `SECURITY_RETENTION_MONTHS`.
 - **Every lockout is kept** with how it ended: `expired`, `admin` or `password_reset`. The failed attempts stay on the trail.
+
+**Login protection, PR 2 (G3): a per-email limit on account emails** (`app/services/email_limit.py`).
+
+- **The limit:** one email address gets at most **3 password-reset or setup emails an hour and 6 a day**, counted together, from any network address. The website's per-address limit still applies first.
+- **Forgot-password over the limit:**
+  - the visitor gets the usual answer, and no email is sent;
+  - it's recorded as `reset_rate_limited`, and on `password_reset_requested` as `refused: email_limit`.
+  - An address with no account sends nothing, so it isn't counted.
+- **An admin resending a setup email (staff or partner) over the limit** gets a 429, `email_limited`, which says why. A partner reset is refused before the password is cleared.
+- **The alert:** 10 refusals in an hour for one address raise `reset_email_flood`, medium. Migration 0018 adds that pair to `vertex_security_count`.
+- **Counting:**
+  - in Redis, shared by every worker; keys hold only the fingerprint;
+  - in the process when there's no Redis.
+  - If Redis is set but unreachable, the email isn't sent (fail closed), and the outage is logged.
+- **There is no "resend verification" route:** a verification email goes once, at registration, so there's nothing to limit there.
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**
