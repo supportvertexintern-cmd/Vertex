@@ -2037,6 +2037,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/accounts/{user_id}/force-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force Password Reset
+         * @description Clears a staff or partner login's password, so it stops working at
+         *     once and every session ends (the token_version trigger), lifts any
+         *     lockout, and sends the setup email. Refused before anything changes if
+         *     the address has had its account emails for now. Candidates reset with
+         *     the reset link instead ("Unlock and send reset link").
+         */
+        post: operations["force_password_reset_api_v1_monitoring_accounts__user_id__force_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/alerts": {
         parameters: {
             query?: never;
@@ -2181,6 +2205,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/monitoring/locked/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Locked Summary
+         * @description For the sidebar badge: lockouts needing review, and how many hold now.
+         */
+        get: operations["locked_summary_api_v1_monitoring_locked_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/monitoring/locked/{email_fp}/unlock": {
         parameters: {
             query?: never;
@@ -2194,9 +2238,51 @@ export interface paths {
          * Unlock
          * @description Lifts the lock at once, with a reason, and starts the escalation
          *     again (the next lockout is 15 minutes). Recorded on the lockout (who,
-         *     why) and as login_unlocked; the failures stay on the trail.
+         *     why) and as login_unlocked; the failures stay on the trail. With
+         *     send_reset, the account's owner also gets a password reset email (the
+         *     per-email limit applies).
          */
         post: operations["unlock_api_v1_monitoring_locked__email_fp__unlock_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/lockouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lockout History
+         * @description Every lockout within the retention window (D3), newest first.
+         */
+        get: operations["lockout_history_api_v1_monitoring_lockouts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/monitoring/lockouts/{lockout_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Review Lockout
+         * @description Closes "Needs review" on a step-4 lockout, with a note (audited).
+         */
+        post: operations["review_lockout_api_v1_monitoring_lockouts__lockout_id__review_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3807,6 +3893,10 @@ export interface components {
             last_sign_in_ip: string | null;
             /** Locked */
             locked: boolean;
+            /** Lockouts */
+            lockouts: components["schemas"]["LockoutRow"][];
+            /** Next Lockout Step */
+            next_lockout_step: number;
             /** Open Alerts */
             open_alerts: number;
             /** Password Set */
@@ -3821,6 +3911,8 @@ export interface components {
              * @enum {string}
              */
             status: "not_activated" | "active" | "deactivated";
+            /** Steps Reset At */
+            steps_reset_at: string | null;
             /** Unlocks In Seconds */
             unlocks_in_seconds: number | null;
         };
@@ -5427,6 +5519,14 @@ export interface components {
         Data_JobOut_: {
             data: components["schemas"]["JobOut"];
         };
+        /** Data[LockedSummary] */
+        Data_LockedSummary_: {
+            data: components["schemas"]["LockedSummary"];
+        };
+        /** Data[LockoutRow] */
+        Data_LockoutRow_: {
+            data: components["schemas"]["LockoutRow"];
+        };
         /** Data[Me] */
         Data_Me_: {
             data: components["schemas"]["Me"];
@@ -6068,6 +6168,20 @@ export interface components {
             review_date: string | null;
             status: components["schemas"]["ScorecardStatus"];
         };
+        /** ForceReset */
+        ForceReset: {
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+            /** Unlocked */
+            unlocked: boolean;
+        };
+        /** ForceResetIn */
+        ForceResetIn: {
+            /** Reason */
+            reason: string;
+        };
         /** ForgotIn */
         ForgotIn: {
             /** Email */
@@ -6361,6 +6475,62 @@ export interface components {
             /** Unlocks In Seconds */
             unlocks_in_seconds: number;
         };
+        /** LockedSummary */
+        LockedSummary: {
+            /** Held */
+            held: number;
+            /** Open */
+            open: number;
+        };
+        /**
+         * LockoutEnd
+         * @description How a sign-in lockout ended (login protection, migration 0017).
+         * @enum {string}
+         */
+        LockoutEnd: "expired" | "admin" | "password_reset";
+        /** LockoutReviewIn */
+        LockoutReviewIn: {
+            /** Note */
+            note: string;
+        };
+        /**
+         * LockoutRow
+         * @description One sign-in lockout (login protection), as history.
+         */
+        LockoutRow: {
+            account: components["schemas"]["AlertAccount"] | null;
+            /** Email Fp */
+            email_fp: string;
+            /** End Reason */
+            end_reason: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            ended_by: components["schemas"]["LockoutEnd"] | null;
+            ended_by_person: components["schemas"]["Person"] | null;
+            /** Failures */
+            failures: number;
+            /** Holding */
+            holding: boolean;
+            /** Id */
+            id: string;
+            /** Last Country */
+            last_country: string | null;
+            /** Last Ip */
+            last_ip: string | null;
+            /** Locked At */
+            locked_at: string;
+            /** Locked Until */
+            locked_until: string;
+            /** Needs Review */
+            needs_review: boolean;
+            /** Review Note */
+            review_note: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            reviewed_by: components["schemas"]["Person"] | null;
+            /** Step */
+            step: number;
+        };
         /** LoginAddress */
         LoginAddress: {
             /** Email */
@@ -6561,6 +6731,15 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
+        /** Notifying[ForceReset] */
+        Notifying_ForceReset_: {
+            data: components["schemas"]["ForceReset"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+        };
         /** Notifying[LinkOut] */
         Notifying_LinkOut_: {
             data: components["schemas"]["LinkOut"];
@@ -6726,10 +6905,14 @@ export interface components {
             active_sessions: number;
             alerts_raised: components["schemas"]["Window"];
             failed_sign_ins: components["schemas"]["Window"];
+            /** Failed Sign Ins Previous 24H */
+            failed_sign_ins_previous_24h: number;
             /** Geoip Month */
             geoip_month: string | null;
             /** Locked Accounts */
             locked_accounts: number;
+            /** Lockouts Needing Review */
+            lockouts_needing_review: number;
             new_partner_logins: components["schemas"]["Window"];
             new_partners: components["schemas"]["Window"];
             /** Open Alerts */
@@ -6740,6 +6923,7 @@ export interface components {
             partner_logins_not_activated: number;
             /** Recent Alerts */
             recent_alerts: components["schemas"]["AlertRow"][];
+            reset_emails_refused: components["schemas"]["Window"];
             /** Retention Months */
             retention_months: number;
             sign_ins: components["schemas"]["Window"];
@@ -6843,6 +7027,17 @@ export interface components {
         Page_AuditRow_: {
             /** Data */
             data: components["schemas"]["AuditRow"][];
+            /** Page */
+            page: number;
+            /** Pagesize */
+            pageSize: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[LockoutRow] */
+        Page_LockoutRow_: {
+            /** Data */
+            data: components["schemas"]["LockoutRow"][];
             /** Page */
             page: number;
             /** Pagesize */
@@ -8726,11 +8921,23 @@ export interface components {
         UnlockIn: {
             /** Reason */
             reason: string;
+            /**
+             * Send Reset
+             * @default false
+             */
+            send_reset: boolean;
         };
         /** Unlocked */
         Unlocked: {
             /** Email Fp */
             email_fp: string;
+            /** Reset Refused */
+            reset_refused?: string | null;
+            /**
+             * Reset Sent
+             * @default false
+             */
+            reset_sent: boolean;
             /** Unlocked */
             unlocked: boolean;
         };
@@ -13208,6 +13415,41 @@ export interface operations {
             };
         };
     };
+    force_password_reset_api_v1_monitoring_accounts__user_id__force_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForceResetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_ForceReset_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_alerts_api_v1_monitoring_alerts_get: {
         parameters: {
             query?: {
@@ -13399,6 +13641,26 @@ export interface operations {
             };
         };
     };
+    locked_summary_api_v1_monitoring_locked_summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LockedSummary_"];
+                };
+            };
+        };
+    };
     unlock_api_v1_monitoring_locked__email_fp__unlock_post: {
         parameters: {
             query?: never;
@@ -13421,6 +13683,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_Unlocked_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lockout_history_api_v1_monitoring_lockouts_get: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                step?: number | null;
+                ended_by?: ("expired" | "admin" | "password_reset" | "holding") | null;
+                needs_review?: boolean | null;
+                date_from?: string | null;
+                date_to?: string | null;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_LockoutRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_lockout_api_v1_monitoring_lockouts__lockout_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lockout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LockoutReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LockoutRow_"];
                 };
             };
             /** @description Validation Error */

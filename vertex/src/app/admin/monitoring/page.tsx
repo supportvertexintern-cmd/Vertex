@@ -42,6 +42,9 @@ interface Overview {
   new_partner_logins: Window;
   active_sessions: number;
   locked_accounts: number;
+  lockouts_needing_review: number;
+  failed_sign_ins_previous_24h: number;
+  reset_emails_refused: Window;
   geoip_month: string | null;
   recent_alerts: RecentAlert[];
 }
@@ -69,7 +72,14 @@ const RULES: Record<string, string> = {
   rapid_sign_ins: "Signing in again and again",
   unusual_read_rate: "Reading data faster than a person",
   unusual_write_rate: "Changing data faster than a person",
+  reset_email_flood: "Reset emails flooding one inbox",
 };
+
+/** The last 24 hours against the 24 before. */
+function trend(now: number, before: number): string {
+  if (now === before) return `Same as the 24 hours before (${before}).`;
+  return `${now > before ? "Up" : "Down"} from ${before} the 24 hours before.`;
+}
 
 function when(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -179,7 +189,12 @@ export default function SecurityOverviewPage() {
               </div>
             </Link>
             <Card title="Alerts raised" href="/admin/monitoring/suspicious" window={data.alerts_raised} />
-            <Card title="Failed sign-ins" href="/admin/monitoring/audit?action=login_failed" window={data.failed_sign_ins} />
+            <Card
+              title="Failed sign-ins"
+              href="/admin/monitoring/audit?action=login_failed"
+              window={data.failed_sign_ins}
+              note={trend(data.failed_sign_ins.last_24h, data.failed_sign_ins_previous_24h)}
+            />
             <Card title="Sign-ins" href="/admin/monitoring/audit?action=login_succeeded" window={data.sign_ins} />
             <Card title="Accounts deactivated" href="/admin/monitoring/accounts?status=deactivated" window={data.accounts_deactivated} />
             <Card
@@ -197,7 +212,28 @@ export default function SecurityOverviewPage() {
             <Card title="New partners" href="/admin/monitoring/partners" window={data.new_partners} />
             <Card title="New partner logins" href="/admin/monitoring/partners" window={data.new_partner_logins} />
             <Card title="Active sessions now" href="/admin/monitoring/accounts" value={data.active_sessions} />
-            <Card title="Locked accounts now" href="/admin/monitoring/locked" value={data.locked_accounts} note="10 failed sign-ins in 15 minutes." />
+            <Card
+              title="Locked accounts now"
+              href="/admin/monitoring/locked"
+              value={data.locked_accounts}
+              note={
+                data.lockouts_needing_review > 0
+                  ? `${data.lockouts_needing_review} at the 24-hour step need review.`
+                  : "10 failed sign-ins in 15 minutes; repeats hold longer."
+              }
+            />
+            <Card
+              title="Lockouts needing review"
+              href="/admin/monitoring/locked?tab=history&needs_review=true"
+              value={data.lockouts_needing_review}
+              note="Locked 4 times in a row: the 24-hour step."
+            />
+            <Card
+              title="Refused reset emails"
+              href="/admin/monitoring/audit?action=reset_rate_limited"
+              window={data.reset_emails_refused}
+              note="Past the per-address limit of 3 an hour, 6 a day."
+            />
           </div>
 
           <h2 className="text-lg font-semibold text-midnight-900 mb-3">Latest alerts</h2>

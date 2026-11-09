@@ -54,6 +54,7 @@ const RULES: Record<string, string> = {
   rapid_sign_ins: "Signing in again and again",
   unusual_read_rate: "Reading data faster than a person",
   unusual_write_rate: "Changing data faster than a person",
+  reset_email_flood: "Reset emails flooding one inbox",
 };
 
 const VIEWS = {

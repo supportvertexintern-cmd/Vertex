@@ -20,11 +20,13 @@ const ACTIONS = [
   "create", "update", "delete", "restore", "login_succeeded", "login_failed", "logout", "sessions_revoked",
   "account_deactivated", "account_reactivated", "password_reset_requested", "password_reset_completed",
   "access_denied", "export", "alert_raised", "audit_trail_viewed", "document_downloaded", "malware_rejected",
+  // Login protection (2026-11-09).
+  "login_rate_limited", "login_unlocked", "reset_rate_limited", "password_force_reset",
 ];
 
 const RECORD_TYPES = [
   "Auth", "User", "Partner", "PartnerCandidate", "Candidate", "Application", "Document", "Case", "CasePayment",
-  "Payment", "Job", "SecurityAlert", "Session", "SystemSetting", "ReferralAgent", "AuditLog",
+  "Payment", "Job", "SecurityAlert", "LoginLockout", "Session", "SystemSetting", "ReferralAgent", "AuditLog",
 ];
 
 interface Change {

@@ -328,6 +328,12 @@ test.describe("Partner CRM (Phase 5, self-service intake)", () => {
       await page.getByPlaceholder("Reason (kept on the audit trail)").fill("E2E: checked with the owner");
       await page.getByRole("alertdialog").getByRole("button", { name: "Unlock" }).click();
       await expect(page.getByText("Unlocked this address.")).toBeVisible({ timeout: 25_000 });
+
+      // History keeps it, with how it ended and why (login protection, PR 3).
+      await page.getByRole("tab", { name: "History" }).click();
+      const past = page.locator("tr", { hasText: "Unlocked by an admin" }).filter({ hasText: "E2E: checked with the owner" }).first();
+      await expect(past).toBeVisible({ timeout: 25_000 });
+      await expect(past.getByText("Step 1 · 15 minutes")).toBeVisible();
     });
   });
 });

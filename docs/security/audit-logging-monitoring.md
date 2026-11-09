@@ -239,6 +239,34 @@ The email has the rule, environment, time, counts and the request ID, and never 
   - in the process when there's no Redis.
   - If Redis is set but unreachable, the email isn't sent (fail closed), and the outage is logged.
 - **There is no "resend verification" route:** a verification email goes once, at registration, so there's nothing to limit there.
+
+**Login protection, PR 3: the admin's follow-up** (sections 4.1, 4.6 and 4.7).
+
+- **Locked Accounts has two tabs.** The sidebar item's badge counts lockouts needing review (`GET /monitoring/locked/summary`).
+- **Now locked** shows each hold's step, failures, last address and time left, with these actions. Each needs a reason or note and is audited:
+  - **Unlock.**
+  - **Unlock and send reset link:** the per-email limit applies. If no email goes, the answer says why: no account, no password yet, deactivated, or the limit.
+  - **Force password reset** (`POST /monitoring/accounts/{id}/force-reset`), for staff and partner logins:
+    - clears the password, so every session ends;
+    - lifts any lockout, and sends the setup email;
+    - is refused for candidates (they use the reset link), the admin's own account, a deactivated one, or when the per-email limit is reached;
+    - is recorded as `password_force_reset`.
+  - **Deactivate account**, the existing deactivation.
+  - **Mark reviewed** (`POST /monitoring/lockouts/{id}/review`, with a note): closes "Needs review" once; a second review is refused.
+- **History** (`GET /monitoring/lockouts`) lists every lockout in the retention window, newest first.
+  - Filters: account, step, how it ended (still locked, expired, admin, password reset), review state and date.
+  - It shows who unlocked each one and why, and who reviewed it and their note.
+- **The account drawer** (User Accounts):
+  - shows the account's lockouts;
+  - shows the step a next lockout would be, and when that falls back to 15 minutes;
+  - its Unlock asks for a reason, as the API requires since PR 1.
+  - The reset emails sent and refused come with PR 4's Reset Email Activity, which needs the same trail reader.
+- **The Security Overview** adds four things:
+  - Lockouts needing review;
+  - Refused reset emails, for the last 24 hours and the last 7 days (migration 0019 adds `reset_rate_limited` to `vertex_monitoring_counts`);
+  - the failed sign-ins trend against the 24 hours before;
+  - a review count on Locked accounts now.
+  - The address cards (rate-limited, blocked) come with PR 5's address controls.
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**

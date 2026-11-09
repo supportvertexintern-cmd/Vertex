@@ -28,6 +28,13 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
     section: "Monitoring",
     badgeFrom: "/api/admin/monitoring/alerts/summary",
   },
-  { href: "/admin/monitoring/locked", label: "Locked Accounts", icon: LockKey, section: "Monitoring" },
+  {
+    href: "/admin/monitoring/locked",
+    label: "Locked Accounts",
+    icon: LockKey,
+    section: "Monitoring",
+    // Lockouts at the 24-hour step not yet reviewed (login protection, 4.1).
+    badgeFrom: "/api/admin/monitoring/locked/summary",
+  },
   { href: "/admin/monitoring/audit", label: "Audit Trail", icon: ClockCounterClockwise, section: "Monitoring" },
 ];

@@ -121,7 +121,7 @@ def test_a_locked_account_is_listed_and_an_admin_unlocks_it(api, db, admin):
     assert detail["locked"] is True and detail["email_fp"] == fp
 
     res = api.post(f"{LOCKED}/{fp}/unlock", headers={**headers, **svc()}, json={"reason": "Called the partner; it was them"})
-    assert res.json()["data"] == {"email_fp": fp, "unlocked": True}
+    assert res.json()["data"] == {"email_fp": fp, "unlocked": True, "reset_sent": False, "reset_refused": None}
     assert sign_in_from(api, user, "198.51.100.40").status_code == 200
     assert fp not in {r["email_fp"] for r in api.get(LOCKED, headers=headers).json()["data"]}
     [event] = trail("action = 'login_unlocked' AND entity_id = :e", e=f"user:{user.id}")
