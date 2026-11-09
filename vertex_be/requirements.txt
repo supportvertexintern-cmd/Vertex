@@ -1,9 +1,9 @@
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
-sqlalchemy==2.1.6
+sqlalchemy==2.1.8
 alembic==1.20.1
 psycopg2-binary>=2.9.9
-pydantic==2.14.2
+pydantic==2.14.3
 pydantic-settings==2.16.2
 email-validator==2.3.0
 PyJWT==2.15.1
@@ -11,8 +11,8 @@ python-dotenv==1.2.4
 loguru==0.7.3
 stripe==16.1.0
 # Document storage (S3, MinIO, R2) and the multipart uploads it takes.
-boto3==1.43.123
-python-multipart==0.0.32
+boto3==1.43.125
+python-multipart==0.0.33
 # PayPal's API (app/services/paypal.py); also the test client's transport.
 httpx==0.28.1
 # Passwords (users step 8.2): the hashes bcryptjs wrote, read as they are.
@@ -21,7 +21,7 @@ redis==8.1.0
 # Address to country from the bundled DB-IP database (app/services/geoip.py).
 maxminddb==3.2.0
 # The payment receipt's PDF (app/services/receipt.py, reads handover R7b).
-fpdf2==2.8.9
+fpdf2==2.9.0
 
 # tests
 pytest==9.2.0
