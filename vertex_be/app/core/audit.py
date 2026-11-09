@@ -79,6 +79,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "ReferralAgentTarget",
         # Admin monitoring, phase 2: an alert's review (status, note, who).
         "SecurityAlert",
+        # Login protection: a lockout, its end (who unlocked it and why) and its review.
+        "LoginLockout",
         # FastAPI-owned reference data, content, jobs, campaign targets and scorecards (steps 2.1-5.3): every
         # write FastAPI makes is on the trail.
         "Region",

@@ -300,6 +300,17 @@ class ReferralAgentSuspendedEmail(BaseModel):
     reason: str
 
 
+class AccountLockedEmail(BaseModel):
+    """Login protection (2.4): sign-in to the account was blocked after
+    failed attempts. Sent at most once a day per account, only to a verified
+    address; never carries the address or place of the attempts."""
+
+    kind: Literal["account_locked"] = "account_locked"
+    email: str
+    full_name: str
+    duration: str
+
+
 Notice = Annotated[
     InviteEmail
     | CommissionEmail
@@ -327,7 +338,8 @@ Notice = Annotated[
     | ReferralAgentAdminEmail
     | ReferralAgentApprovedEmail
     | ReferralAgentRejectedEmail
-    | ReferralAgentSuspendedEmail,
+    | ReferralAgentSuspendedEmail
+    | AccountLockedEmail,
     Field(discriminator="kind"),
 ]
 

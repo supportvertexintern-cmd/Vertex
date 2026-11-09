@@ -102,6 +102,9 @@ class Settings(BaseSettings):
     # kept, in months (decision D3: 12, interim pending legal, 2026-11-08;
     # exceptions.md E11). The daily clean-up is security_monitor.run_retention.
     SECURITY_RETENTION_MONTHS: int = 12
+    # Email an account's owner when it is locked after failed sign-ins, at
+    # most once a day (login protection, decision L2).
+    LOCKOUT_NOTICE_ENABLED: bool = True
     # The bundled address-to-country database (app/services/geoip.py).
     GEOIP_DIR: str = "/opt/geoip"
     # Shared rate-limit counters (auth hardening plan, workstream B):

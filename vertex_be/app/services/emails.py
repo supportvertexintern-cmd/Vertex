@@ -170,6 +170,7 @@ VALUES: dict[str, Callable[[BaseModel], Filled]] = {
     "email_verification": lambda n: Filled(n.email, {"fullName": n.full_name, "verifyUrl": _url(f"/auth/verify-email?token={n.token}")}),
     "password_reset": lambda n: Filled(n.email, {"fullName": n.full_name, "resetUrl": _url(f"/auth/reset-password?token={n.token}")}),
     "account_setup": lambda n: Filled(n.email, {"name": n.full_name, "setupUrl": _url(f"/auth/register?setup={n.token}")}),
+    "account_locked": lambda n: Filled(n.email, {"fullName": n.full_name, "duration": n.duration, "resetUrl": _url("/auth/forgot-password")}),
     "candidate_invite": lambda n: Filled(
         n.email, {"name": n.full_name, "registerUrl": _url(f"/auth/register?invite={sign_candidate_invite_token(n.candidate_id)}")},
     ),

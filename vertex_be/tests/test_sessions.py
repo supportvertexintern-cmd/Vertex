@@ -16,6 +16,7 @@ import pytest
 from sqlalchemy import select
 
 from app.api.v1 import sessions as api_sessions
+from app.services import login_lockout
 from app.core import session_keys
 from app.core.config import settings
 from app.core.tokens import sign_session_token, verify_session_token
@@ -55,7 +56,7 @@ def google():
 def api(db, client, monkeypatch, google):
     monkeypatch.setattr(settings, "SERVICE_AUTH_SECRET", SERVICE_SECRET)
     monkeypatch.setattr(settings, "SERVICE_AUTH_SECRET_PREVIOUS", None)
-    monkeypatch.setattr(api_sessions, "_failures", {})
+    monkeypatch.setattr(login_lockout, "_failures", {})
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[google_client] = lambda: google
     yield client
@@ -164,7 +165,7 @@ def test_an_existing_bcryptjs_hash_verifies(api, db):
 
 def test_ten_failures_lock_the_account_for_a_while(api, db, caplog):
     user = account(db)
-    for _ in range(api_sessions.ACCOUNT_MAX_FAILURES):
+    for _ in range(login_lockout.ACCOUNT_MAX_FAILURES):
         assert sign_in(api, user, "Wrong-Password-1").status_code == 401
     with caplog.at_level(logging.INFO, logger="vertex"):
         locked = sign_in(api, user)  # even the right password

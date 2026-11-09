@@ -214,6 +214,36 @@
     "title": "AccountDetail",
     "type": "object"
    },
+   "AccountLockedEmail": {
+    "description": "Login protection (2.4): sign-in to the account was blocked after\nfailed attempts. Sent at most once a day per account, only to a verified\naddress; never carries the address or place of the attempts.",
+    "properties": {
+     "duration": {
+      "title": "Duration",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "account_locked",
+      "default": "account_locked",
+      "title": "Kind",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "duration"
+    ],
+    "title": "AccountLockedEmail",
+    "type": "object"
+   },
    "AccountOut": {
     "properties": {
      "email": {
@@ -8523,6 +8553,44 @@
       "title": "Failures",
       "type": "integer"
      },
+     "last_country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Country"
+     },
+     "last_ip": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Ip"
+     },
+     "locked_at": {
+      "title": "Locked At",
+      "type": "string"
+     },
+     "lockout_id": {
+      "title": "Lockout Id",
+      "type": "string"
+     },
+     "needs_review": {
+      "title": "Needs Review",
+      "type": "boolean"
+     },
+     "step": {
+      "title": "Step",
+      "type": "integer"
+     },
      "unlocks_in_seconds": {
       "title": "Unlocks In Seconds",
       "type": "integer"
@@ -8530,8 +8598,14 @@
     },
     "required": [
      "email_fp",
+     "lockout_id",
      "failures",
+     "step",
+     "locked_at",
      "unlocks_in_seconds",
+     "last_ip",
+     "last_country",
+     "needs_review",
      "account"
     ],
     "title": "LockedRow",
@@ -8840,6 +8914,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -8951,6 +9026,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -8974,6 +9052,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9085,6 +9164,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9108,6 +9190,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9219,6 +9302,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9242,6 +9328,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9353,6 +9440,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9376,6 +9466,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9487,6 +9578,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9510,6 +9604,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9621,6 +9716,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9644,6 +9742,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9755,6 +9854,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9778,6 +9880,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -9889,6 +9992,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -9912,6 +10018,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10023,6 +10130,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10046,6 +10156,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10157,6 +10268,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10180,6 +10294,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10291,6 +10406,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10314,6 +10432,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10425,6 +10544,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10448,6 +10570,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10559,6 +10682,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10582,6 +10708,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10693,6 +10820,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10716,6 +10846,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10827,6 +10958,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10850,6 +10984,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -10961,6 +11096,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -10984,6 +11122,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -11095,6 +11234,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -11118,6 +11260,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -11229,6 +11372,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -11252,6 +11398,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -11363,6 +11510,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -11386,6 +11536,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -11497,6 +11648,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -11520,6 +11674,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -11631,6 +11786,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -17872,6 +18030,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -17983,6 +18142,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -18331,6 +18493,21 @@
     "title": "TemporaryPassword",
     "type": "object"
    },
+   "UnlockIn": {
+    "properties": {
+     "reason": {
+      "maxLength": 500,
+      "minLength": 3,
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "UnlockIn",
+    "type": "object"
+   },
    "Unlocked": {
     "properties": {
      "email_fp": {
@@ -18524,6 +18701,7 @@
       "items": {
        "discriminator": {
         "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
          "account_setup": "#/components/schemas/AccountSetupEmail",
          "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
          "application_status": "#/components/schemas/ApplicationStatusEmail",
@@ -18635,6 +18813,9 @@
         },
         {
          "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
         }
        ]
       },
@@ -28474,7 +28655,7 @@
   },
   "/api/v1/monitoring/locked": {
    "get": {
-    "description": "Accounts the per-account limit holds now: 10 failed sign-ins in 15\nminutes lock them for the rest of that window (sessions.py).",
+    "description": "Addresses held now after too many failed sign-ins, longest to go\nfirst (app/services/login_lockout.py).",
     "operationId": "locked_api_v1_monitoring_locked_get",
     "responses": {
      "200": {
@@ -28501,7 +28682,7 @@
   },
   "/api/v1/monitoring/locked/{email_fp}/unlock": {
    "post": {
-    "description": "Lifts the lock at once, so the next sign-in is checked as usual.\nRecorded with who did it; the failures stay on the trail.",
+    "description": "Lifts the lock at once, with a reason, and starts the escalation\nagain (the next lockout is 15 minutes). Recorded on the lockout (who,\nwhy) and as login_unlocked; the failures stay on the trail.",
     "operationId": "unlock_api_v1_monitoring_locked__email_fp__unlock_post",
     "parameters": [
      {
@@ -28514,6 +28695,16 @@
       }
      }
     ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnlockIn"
+       }
+      }
+     },
+     "required": true
+    },
     "responses": {
      "200": {
       "content": {

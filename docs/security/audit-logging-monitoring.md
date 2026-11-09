@@ -198,10 +198,31 @@ The email has the rule, environment, time, counts and the request ID, and never 
 - **Sign-in history** older than the window isn't shown on User Accounts.
 - **The sign-in events stay on the audit trail**, which nothing may change or delete. The Audit Trail page still lists them.
 
-**Locked Accounts (admins only):** Admin → Monitoring → Locked Accounts lists the accounts the per-account sign-in limit holds now (10 failed sign-ins in 15 minutes; `ACCOUNT_MAX_FAILURES` in `sessions.py`), with how long each lock has left.
+**Locked Accounts (admins only):** Admin → Monitoring → Locked Accounts lists the addresses the per-account sign-in limit holds now, with each lockout's step, failures, last address and how long it has left.
 
-- A lock is keyed by the email's fingerprint, so an address with no account can be held too.
-- **Unlock** (here, or in an account's view) lifts the lock at once and records `login_unlocked`: who did it, and whether the account was locked. The failed attempts stay on the trail.
+**Login protection, PR 1 (2026-11-09; decisions L1, L2 and L6 as recommended):** `app/services/login_lockout.py`, migration 0017.
+
+- **The lock:** 10 failed sign-ins in 15 minutes (`ACCOUNT_MAX_FAILURES`, `ACCOUNT_WINDOW_SECONDS`) lock the address. Each lockout is a `LoginLockout` row, and sign-in is refused while one is open and ahead of its `locked_until`.
+  - The lock lives in the database, so every worker sees it, even while Redis is down. The failures are counted in Redis, or per process during an outage.
+  - It is keyed by the email's fingerprint, so an address with no account can be held too.
+  - The refusal is the same for every address: "Too many sign-in attempts. Try again in N minutes, or reset your password."
+- **Escalation (L1):**
+  - Lockouts in a row hold for 15 minutes, then 1 hour, 4 hours, then 24 hours.
+  - The 24-hour one flags **Needs review**. It never deactivates the account (L6).
+  - "In a row" means the previous lockout ended less than 24 hours before.
+- **A successful sign-in** clears the failures, never the lockout history (G2).
+- **Unlock** (here, or in an account's view):
+  - needs a reason, and lifts the lock at once;
+  - starts the escalation again;
+  - is recorded on the lockout (who, why, audited) and as `login_unlocked`.
+- **A password reset** ends any lockout and starts the escalation again (`ended_by = password_reset`).
+  - If the lockout had already expired, the row keeps `expired` and gains `steps_reset_at`, so its history stays true.
+- **The notice email (`account_locked`, L2)** goes to the owner once a day at most:
+  - only to a verified, active account;
+  - never with the address or place;
+  - `LOCKOUT_NOTICE_ENABLED` turns it off.
+- **The schedule** closes lockouts past their time as `expired`. The retention clean-up deletes ended lockouts older than `SECURITY_RETENTION_MONTHS`.
+- **Every lockout is kept** with how it ended: `expired`, `admin` or `password_reset`. The failed attempts stay on the trail.
 - The website's per-address limits are separate and expire on their own. Refused sign-ins are recorded as `login_rate_limited` and found on the Audit Trail.
 
 **Delivery per environment:**

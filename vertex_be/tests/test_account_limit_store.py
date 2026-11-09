@@ -8,7 +8,10 @@ import logging
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app.api.v1 import sessions as api_sessions
+from sqlalchemy import select
+
+from app.models.security import LoginLockout
+from app.services import login_lockout
 from app.core import redis_store
 from tests.test_sessions import account, api, google, sign_in  # noqa: F401  (fixtures)
 from tests.test_db_roles import roles_provisioned  # noqa: F401
@@ -20,22 +23,31 @@ def unbroken(monkeypatch):
 
 
 class FakeRedis:
-    """What _account_locked and _note_failure use: GET, and INCR plus EXPIRE NX in a pipeline."""
+    """What login_lockout uses: GET, DEL, and INCR plus EXPIRE NX in a pipeline."""
 
     def __init__(self, shared: dict, down: bool = False):
-        self.data, self.down, self.expiries = shared, down, {}
+        self.data, self.down, self.expiries, self.deleted = shared, down, {}, []
 
     def get(self, key):
         if self.down:
             raise RedisConnectionError("refused")
         return self.data.get(key)
 
+    def delete(self, key):
+        if self.down:
+            raise RedisConnectionError("refused")
+        self.deleted.append(key)
+        return int(self.data.pop(key, None) is not None)
+
     def pipeline(self):
         store, ops = self, []
 
         class Pipe:
             def incr(self, key):
-                ops.append(lambda: store.data.__setitem__(key, store.data.get(key, 0) + 1))
+                def op():
+                    store.data[key] = store.data.get(key, 0) + 1
+                    return store.data[key]
+                ops.append(op)
 
             def expire(self, key, seconds, nx=False):
                 ops.append(lambda: store.expiries.setdefault(key, seconds) if nx else store.expiries.__setitem__(key, seconds))
@@ -43,8 +55,7 @@ class FakeRedis:
             def execute(self):
                 if store.down:
                     raise RedisConnectionError("refused")
-                for op in ops:
-                    op()
+                return [op() for op in ops]
 
         return Pipe()
 
@@ -55,17 +66,20 @@ def test_workers_share_one_count(api, db, monkeypatch):
     workers = [FakeRedis(shared), FakeRedis(shared)]
     statuses = []
     for i in range(11):
-        monkeypatch.setattr(api_sessions, "counter_store", lambda w=workers[i % 2]: w)  # alternate workers
+        monkeypatch.setattr(login_lockout, "counter_store", lambda w=workers[i % 2]: w)  # alternate workers
         statuses.append(sign_in(api, user, password="Wrong-Pass-1").status_code)
     assert statuses == [401] * 10 + [429]
-    [(key, count)] = shared.items()
-    assert count == 10 and user.email not in key and key.startswith("development:rl:login-account:")
-    assert workers[0].expiries[key] == api_sessions.ACCOUNT_WINDOW_SECONDS
+    [key] = workers[0].expiries
+    assert user.email not in key and key.startswith("development:rl:login-account:")
+    assert workers[0].expiries[key] == login_lockout.ACCOUNT_WINDOW_SECONDS
+    # The 10th failure locked the account and cleared the count.
+    [lockout] = db.scalars(select(LoginLockout).where(LoginLockout.user_id == user.id))
+    assert lockout.failures == 10 and key not in shared and key in workers[1].deleted + workers[0].deleted
 
 
 def test_redis_down_never_stops_sign_in(api, db, monkeypatch, caplog):
     user = account(db)
-    monkeypatch.setattr(api_sessions, "counter_store", lambda: FakeRedis({}, down=True))
+    monkeypatch.setattr(login_lockout, "counter_store", lambda: FakeRedis({}, down=True))
     with caplog.at_level(logging.ERROR, logger="vertex"):
         assert sign_in(api, user, password="Wrong-Pass-1").status_code == 401
         assert sign_in(api, user).status_code == 200

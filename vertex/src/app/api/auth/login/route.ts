@@ -19,9 +19,10 @@ export async function POST(req: NextRequest) {
   const rl = await rateLimit(`login:${ip}`, { max: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10 });
   if (!rl.success) {
     await recordSecurityEvent("login_rate_limited", { actorId: null, entityType: "Auth", entityId: "login", detail: {} });
+    const wait = retryAfter(rl);
     return NextResponse.json(
-      { error: "Too many login attempts. Please try again later." },
-      { status: 429, headers: { "Retry-After": retryAfter(rl) } }
+      { error: `Too many attempts from this network. Try again in ${wait} seconds.` },
+      { status: 429, headers: { "Retry-After": wait } }
     );
   }
 

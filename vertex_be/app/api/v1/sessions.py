@@ -23,9 +23,6 @@ failed sign-ins backs up the website's per-address one (D2).
 from __future__ import annotations
 
 import logging
-import threading
-import time
-from collections import deque
 from dataclasses import asdict
 from typing import Annotated, Any, Literal
 
@@ -40,11 +37,10 @@ from app.core.audit import record_security_event, set_audit_actor
 from app.core.auth import AuthUser, CurrentUser, OptionalUser, calling_service, check_service_header
 from app.core.config import settings
 from app.core.logging import log_event
-from app.core.redis_store import StoreUnavailable, call, counter_store
 from app.core.rbac import require_role
 from app.models.enums import Role
 from app.models.identity import User
-from app.services import geoip
+from app.services import geoip, login_lockout
 from app.services.google_signin import GoogleClient, GoogleFailed, google_client
 from app.services.sessions import (
     IssuedSession,
@@ -101,106 +97,16 @@ def security_event(request: Request, action: str, *, actor_id: str | None, entit
     record_security_event(action, actor_id=actor_id, entity_type=entity_type, entity_id=entity_id, detail=detail)
 
 
-# --- the per-account limit (D2) -----------------------------------------------
-
-# Failed sign-ins per account (the email's fingerprint), in Redis when
-# REDIS_URL is set so every worker shares the count, as lib/rate-limit.ts
-# keeps the website's per-address ones; otherwise in this process. The
-# security monitor's brute-force alert fires at the same count over the same
-# window. If Redis is down, sign-in carries on (B.4): bcrypt and the
-# website's limit still stand, and the outage is logged.
-ACCOUNT_WINDOW_SECONDS = 15 * 60
-ACCOUNT_MAX_FAILURES = 10
-_failures: dict[str, deque[float]] = {}
-_failures_lock = threading.Lock()
+# --- the per-account limit (D2; login protection, app/services/login_lockout.py) ---
 
 
-def _recent_failures(fp: str, now: float) -> deque[float]:
-    times = _failures.setdefault(fp, deque())
-    while times and now - times[0] > ACCOUNT_WINDOW_SECONDS:
-        times.popleft()
-    return times
-
-
-def _account_key(fp: str) -> str:
-    return f"{settings.APP_ENV}:rl:login-account:{fp}"
-
-
-def _account_locked(fp: str) -> bool:
-    store = counter_store()
-    if store is not None:
-        try:
-            return int(call(store, lambda r: r.get(_account_key(fp))) or 0) >= ACCOUNT_MAX_FAILURES
-        except StoreUnavailable as err:
-            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
-            return False
-    with _failures_lock:
-        return len(_recent_failures(fp, time.monotonic())) >= ACCOUNT_MAX_FAILURES
-
-
-def locked_accounts() -> list[tuple[str, int, int]]:
-    """(email fingerprint, failures, seconds until it unlocks) for every
-    account the per-account limit is holding now (admin monitoring)."""
-    store = counter_store()
-    out: list[tuple[str, int, int]] = []
-    if store is not None:
-        prefix = _account_key("")
-
-        def scan(r):
-            found = []
-            for key in r.scan_iter(match=prefix + "*", count=500):
-                key = key.decode() if isinstance(key, bytes) else key
-                found.append((key[len(prefix):], int(r.get(key) or 0), int(r.ttl(key) or 0)))
-            return found
-
-        try:
-            return [row for row in call(store, scan) if row[1] >= ACCOUNT_MAX_FAILURES]
-        except StoreUnavailable as err:
-            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
-            return []
-    now = time.monotonic()
-    with _failures_lock:
-        for fp in list(_failures):
-            times = _recent_failures(fp, now)
-            if len(times) >= ACCOUNT_MAX_FAILURES:
-                out.append((fp, len(times), max(0, int(ACCOUNT_WINDOW_SECONDS - (now - times[0])))))
-    return out
-
-
-def unlock_account(fp: str) -> bool:
-    """Lifts the per-account limit at once. True if it was holding it."""
-    was = _account_locked(fp)
-    store = counter_store()
-    if store is not None:
-        try:
-            call(store, lambda r: r.delete(_account_key(fp)))
-        except StoreUnavailable as err:
-            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
-            raise
-        return was
-    with _failures_lock:
-        _failures.pop(fp, None)
-    return was
-
-
-def _note_failure(fp: str) -> None:
-    store = counter_store()
-    if store is not None:
-        def note(r):
-            # The window starts at the first failure.
-            pipe = r.pipeline()
-            pipe.incr(_account_key(fp))
-            pipe.expire(_account_key(fp), ACCOUNT_WINDOW_SECONDS, nx=True)
-            pipe.execute()
-
-        try:
-            call(store, note)
-        except StoreUnavailable as err:
-            log_event(logging.ERROR, "ratelimit.store_unavailable", scope="login-account", error=str(err))
-        return
-    with _failures_lock:
-        now = time.monotonic()
-        _recent_failures(fp, now).append(now)
+def _failed(db, fp: str, user: User | None, request: Request) -> None:
+    """Counts a failed sign-in; the one that reaches the limit locks the
+    address (the next attempt is refused, whatever the password)."""
+    count = login_lockout.note_failure(fp)
+    if count >= login_lockout.ACCOUNT_MAX_FAILURES:
+        ip = _client_ip(request)
+        login_lockout.lock(db, fp, user=user, failures_seen=count, ip=ip, country=geoip.country_of(ip))
 
 
 # --- shapes -------------------------------------------------------------------
@@ -283,10 +189,13 @@ def login(body: LoginIn, request: Request, db: DbSession):
     and status codes. The website records and answers a per-address
     refusal itself; this one is per account."""
     fp = email_fingerprint(body.email)
-    if _account_locked(fp):
+    held = login_lockout.open_lockout(db, fp)
+    if held is not None:
+        # The same answer whether or not the address has an account.
+        left = login_lockout.seconds_left(held)
         security_event(request, "login_rate_limited", actor_id=None, entity_type="Auth", entity_id="login",
-               detail={"scope": "account", "client": body.client, "email_fp": fp})
-        raise ApiError(429, "rate_limited", "Too many login attempts. Please try again later.")
+               detail={"scope": "account", "client": body.client, "email_fp": fp, "step": held.step})
+        raise ApiError(429, "rate_limited", login_lockout.locked_message(left), {"retry_after_seconds": left})
 
     user = db.scalar(select(User).where(User.email == body.email))
 
@@ -298,10 +207,10 @@ def login(body: LoginIn, request: Request, db: DbSession):
 
     if user is None or not user.password_hash:
         check_password(body.password, None)  # as long as a wrong password takes
-        _note_failure(fp)
+        _failed(db, fp, user, request)
         raise refuse("no_password_set" if user else "unknown_account", 401, "invalid_credentials", INVALID_LOGIN)
     if not check_password(body.password, user.password_hash):
-        _note_failure(fp)
+        _failed(db, fp, user, request)
         raise refuse("bad_password", 401, "invalid_credentials", INVALID_LOGIN)
     if not user.email_verified:
         raise refuse("email_unverified", 403, "email_unverified", "Please verify your email before logging in.")
@@ -309,6 +218,8 @@ def login(body: LoginIn, request: Request, db: DbSession):
     if user.deactivated_at is not None:
         raise refuse("deactivated", 403, "account_deactivated", DEACTIVATED)
 
+    # G2: the failures go; the lockout history stays.
+    login_lockout.clear_failures(fp)
     security_event(request, "login_succeeded", actor_id=user.id, entity_type="Auth", entity_id=f"user:{user.id}",
            detail={"method": "password", "client": body.client, "role": user.role.value, "device": _device(request)})
     return _signed_in(user, start_session(db, user, _user_agent(request)))

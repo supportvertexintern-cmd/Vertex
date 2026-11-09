@@ -282,3 +282,11 @@ class SecurityAlertStatus(str, enum.Enum):
     reviewing = "reviewing"
     resolved = "resolved"
     dismissed = "dismissed"
+
+
+class LockoutEnd(str, enum.Enum):
+    """How a sign-in lockout ended (login protection, migration 0017)."""
+
+    expired = "expired"
+    admin = "admin"
+    password_reset = "password_reset"
