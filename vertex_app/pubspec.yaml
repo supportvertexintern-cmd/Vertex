@@ -44,7 +44,7 @@ dependencies:
   # ─── Device Features ────────────────────────────────────────
   image_picker: ^1.1.2
   camera: ^0.12.2
-  geolocator: ^14.0.3                  # GPS
+  geolocator: ^14.1.2                  # GPS
   permission_handler: ^13.0.2
 
   # ─── UI Helpers ─────────────────────────────────────────────
