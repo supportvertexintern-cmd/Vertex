@@ -100,9 +100,18 @@ jobs:
       - name: Find ${{ github.ref_name }}'s images for this commit
         if: env.SKIP != '1'
         run: |
+          # staging never builds on a push: Promote copied dev's images to its
+          # tags (or dispatched build.yml on it, for a docs-only commit). Its
+          # images are there by the time it can be promoted; the copy below
+          # fails loudly if they aren't.
+          if [ "$SOURCE" = staging ]; then
+            echo "IMAGES=copy" >> "$GITHUB_ENV"
+            exit 0
+          fi
           for i in $(seq 1 60); do
+            # "// empty": no run yet is "", not "null null".
             run=$(gh run list --workflow build.yml --branch "$SOURCE" --commit "$GITHUB_SHA" --event push --limit 1 \
-              --json status,conclusion -q '.[0] | "\(.status) \(.conclusion)"')
+              --json status,conclusion -q '.[0] // empty | "\(.status) \(.conclusion)"')
             case "$run" in
               "completed success") echo "IMAGES=copy" >> "$GITHUB_ENV"; exit 0 ;;
               "completed "*) echo "build.yml failed on $SOURCE for ${GITHUB_SHA::7}: $run" >&2; exit 1 ;;
