@@ -13,19 +13,19 @@
     "api:types": "openapi-typescript ../vertex_be/openapi.json -o src/lib/api.generated.ts"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.109",
-    "@ai-sdk/openai": "^4.0.106",
-    "@aws-sdk/client-s3": "^3.1161.0",
+    "@ai-sdk/google": "^4.0.113",
+    "@ai-sdk/openai": "^4.0.110",
+    "@aws-sdk/client-s3": "^3.1164.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@paypal/react-paypal-js": "^10.6.1",
     "@phosphor-icons/react": "^2.1.10",
     "@stripe/stripe-js": "^8.11.0",
-    "ai": "^7.0.159",
-    "framer-motion": "^14.9.0",
+    "ai": "^7.0.164",
+    "framer-motion": "^14.10.1",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.0",
     "multer": "^2.5.0",
-    "next": "^16.4.3",
+    "next": "^16.4.5",
     "qrcode": "^1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -36,7 +36,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "^4",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.3.0",
@@ -45,14 +45,14 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
-    "@vitejs/plugin-react": "^6.1.2",
+    "@vitejs/plugin-react": "^6.2.1",
     "dotenv": "^18.0.9",
     "eslint": "^9",
-    "eslint-config-next": "^16.4.3",
+    "eslint-config-next": "^16.4.5",
     "openapi-typescript": "7.13.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "sharp": "^0.35.5",
