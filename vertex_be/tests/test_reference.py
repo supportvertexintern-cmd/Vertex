@@ -8,7 +8,7 @@ import secrets
 import pytest
 from sqlalchemy import select, text
 
-from app.api.v1.reference import REQUIREMENT_READERS, SECTOR_READERS
+from app.api.v1.reference import REFERENCE_EDITORS, REQUIREMENT_READERS, SECTOR_READERS
 from app.core.config import BASE_DIR
 from app.db.session import get_db
 from app.main import app
@@ -261,3 +261,42 @@ def test_only_admin_writes_document_types(api, db, doc_types):
     assert api.post("/api/v1/document-types", headers=director, json={"label": unique("Nope")}).status_code == 403
     doc_type = db.scalars(select(DocumentRequirementType).where(DocumentRequirementType.key == doc_types[0])).one()
     assert api.delete(f"/api/v1/document-types/{doc_type.id}", headers=director).status_code == 403
+
+
+# --- who edits (marketing since 2026-11-06) ----------------------------------
+
+
+def next_editors(route: str, method: str) -> set[str]:
+    src = (NEXT_API / route / "route.ts").read_text(encoding="utf-8")
+    handler = src[src.index(f"export async function {method}"):]
+    return set(re.findall(r'"(\w+)"', re.search(r"requireRole\(user, \[(.*?)\]\)", handler, re.S).group(1)))
+
+
+def test_the_editor_roles_match_next_js():
+    editors = {r.value for r in REFERENCE_EDITORS}
+    assert editors == {"admin", "marketing"}
+    for route, method in (("sectors", "POST"), ("sectors/[id]", "DELETE"), ("document-types", "POST"),
+                          ("document-types/[id]", "DELETE"), ("countries/[id]/document-requirements", "PUT")):
+        assert next_editors(route, method) == editors, (route, method)
+
+
+@pytest.mark.parametrize("role", list(Role))
+def test_admin_and_marketing_edit_the_reference_data(api, db, role, doc_types):
+    headers = as_role(db, role)
+    allowed = role in REFERENCE_EDITORS
+    created = api.post("/api/v1/sectors", headers=headers, json={"name": unique("Edit")})
+    assert created.status_code == (201 if allowed else 403)
+    doc_type = api.post("/api/v1/document-types", headers=headers, json={"label": unique("Edit doc")})
+    assert doc_type.status_code == (201 if allowed else 403)
+    region = Region(name=unique("Edit region"))
+    db.add(region)
+    db.flush()
+    country = Country(name=unique("Edit country"), region_id=region.id)
+    db.add(country)
+    db.flush()
+    put = api.put(f"/api/v1/countries/{country.id}/document-requirements", headers=headers, json={"document_types": doc_types})
+    assert put.status_code == (200 if allowed else 403)
+    if allowed:
+        assert api.delete(f"/api/v1/sectors/{created.json()['data']['id']}", headers=headers).status_code == 200
+        assert api.delete(f"/api/v1/document-types/{doc_type.json()['data']['id']}", headers=headers).status_code == 200
+

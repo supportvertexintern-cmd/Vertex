@@ -69,6 +69,7 @@ def setup(db: Session) -> None:
     account("e2e-operations@test.local", "E2E Operations", Role.operations_team)
     account("e2e-operations-director@test.local", "E2E Operations Director", Role.operations_director)
     account("e2e-finance@test.local", "E2E Finance", Role.finance)
+    account("e2e-marketing@test.local", "E2E Marketing", Role.marketing)
 
     job = first(db, Job, title=JOB)
     if job is None:

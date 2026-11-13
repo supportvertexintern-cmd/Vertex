@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // FastAPI owns sectors and country document requirements since backend
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // country's whole list (the admin ticks a checklist). Admin only.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireAdmin(user);
+  const guardRes = requireRole(user, ["admin", "marketing"]);
   if (guardRes) return guardRes;
 
   const { id } = await params;
