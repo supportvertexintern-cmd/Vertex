@@ -74,11 +74,18 @@ describe("passes each request on to FastAPI", () => {
 });
 
 describe("refuses early, without calling FastAPI", () => {
-  it.each([["candidate"], ["marketing"], ["partner"]])("lists for %s", async (role) => {
+  it.each([["candidate"], ["partner"]])("lists for %s", async (role) => {
     state.role = role;
     expect((await regions.GET(req())).status).toBe(403);
     expect((await countries.GET(req())).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("marketing reads countries (its requirements editor, 2026-11-06) but not regions", async () => {
+    state.role = "marketing";
+    expect((await regions.GET(req())).status).toBe(403);
+    await countries.GET(req());
+    expect(callBackend).toHaveBeenCalledTimes(1);
   });
 
   it("hr reads countries but not regions", async () => {
