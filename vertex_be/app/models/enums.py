@@ -27,6 +27,9 @@ class Role(str, enum.Enum):
     finance = "finance"
     # Self-registered, admin-approved external referrer.
     referral_agent = "referral_agent"
+    # Looks after partner agencies: onboarding, reports, follow-ups (Phase 6).
+    # Outside the three-tier hierarchy, like marketing and partner.
+    virtual_assistant = "virtual_assistant"
 
 
 class ApplicationStatus(str, enum.Enum):
@@ -231,6 +234,44 @@ class MouStatus(str, enum.Enum):
     none = "none"
     sent = "sent"
     signed = "signed"
+
+
+# --- partner tracking and commissions (Phase 6) ---
+
+
+class SlaStatus(str, enum.Enum):
+    none = "none"
+    sent = "sent"
+    signed = "signed"
+
+
+class CommissionStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    paid = "paid"
+    rejected = "rejected"
+
+
+class PartnerCommissionRuleType(str, enum.Enum):
+    registration = "registration"
+    monthly_deployment = "monthly_deployment"
+
+
+class AdminFeeType(str, enum.Enum):
+    application = "application"
+    deployment_monthly = "deployment_monthly"
+
+
+class PartnerReportStatus(str, enum.Enum):
+    pending = "pending"
+    submitted = "submitted"
+    returned = "returned"
+    closed = "closed"
+
+
+class PartnerFollowUpStatus(str, enum.Enum):
+    open = "open"
+    done = "done"
 
 
 class PartnerCandidateStatus(str, enum.Enum):

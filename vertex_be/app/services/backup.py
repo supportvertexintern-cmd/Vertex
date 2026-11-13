@@ -44,7 +44,8 @@ BACKUP_ROLES = (Role.admin, Role.director, Role.operations_team, Role.operations
 
 CATEGORIES: list[tuple[str, str, list[str]]] = [
     ("candidates", "Candidates & Applications", ["Candidate", "Application", "CandidateMessage"]),
-    ("partners", "Partners & Partner Submissions", ["Partner", "PartnerCandidate"]),
+    ("partners", "Partners & Partner Submissions", ["Partner", "PartnerCandidate", "PartnerReport", "PartnerFollowUp"]),
+    ("partner_commissions", "Partner Commissions & Admin Fees", ["PartnerCommission", "PartnerCommissionRule", "AdminFee"]),
     ("cases", "Cases", ["Case", "CaseStageEvent", "Contract", "CaseReminder", "RetentionFollowUp"]),
     ("payments", "Payments & Finance", ["CasePayment", "Payment", "ConsultationBooking", "FeePolicy"]),
     ("documents", "Documents", ["Document", "DocumentRequirementType", "CountryDocumentRequirement"]),

@@ -48,7 +48,7 @@ from app.core.scope import candidate_scope
 from app.core.tokens import sign_account_setup_token
 from app.services.sessions import revoke_all_for_user
 from app.models.candidate import Candidate
-from app.models.enums import CandidateLifecycleStatus, MouStatus, PartnerStatus, PartnerType, Role
+from app.models.enums import CandidateLifecycleStatus, MouStatus, PartnerStatus, PartnerType, Role, SlaStatus
 from app.models.identity import User
 from app.models.partners import Partner, PartnerCandidate
 
@@ -156,6 +156,12 @@ class PartnerRow(BaseModel):
     status: PartnerStatus
     mou_status: MouStatus
     mou_signed_at: UtcDateTime | None
+    # Partner tracking (Phase 6, migration 0023).
+    sla_status: SlaStatus = SlaStatus.none
+    sla_signed_at: UtcDateTime | None = None
+    onboarding_documents: list[str] = []
+    documents_submitted_at: UtcDateTime | None = None
+    assigned_team_member_id: str | None = None
     notes: str | None
     created_at: UtcDateTime
     updated_at: UtcDateTime

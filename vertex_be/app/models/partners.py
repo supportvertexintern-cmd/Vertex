@@ -13,6 +13,7 @@ from app.models.enums import (
     Gender,
     MouStatus,
     PartnerCandidateStatus,
+    SlaStatus,
     PartnerStatus,
     PartnerType,
 )
@@ -37,6 +38,13 @@ class Partner(SoftDeletable, Base):
     status: Mapped[PartnerStatus] = enum_col(PartnerStatus, default=PartnerStatus.pending, index=True)
     mou_status: Mapped[MouStatus] = enum_col(MouStatus, default=MouStatus.none)
     mou_signed_at: Mapped[datetime | None]
+    # Phase 6: the Service Level Agreement, the onboarding documents checklist
+    # (business registration, director IDs...) and who looks after the partner.
+    sla_status: Mapped[SlaStatus] = enum_col(SlaStatus, default=SlaStatus.none)
+    sla_signed_at: Mapped[datetime | None]
+    onboarding_documents: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default=text("'{}'::text[]"))
+    documents_submitted_at: Mapped[datetime | None]
+    assigned_team_member_id: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"), index=True)
     notes: Mapped[str | None]
     created_at: Mapped[datetime] = created_at_col()
     updated_at: Mapped[datetime] = updated_at_col()
@@ -46,6 +54,7 @@ class Partner(SoftDeletable, Base):
     created_by: Mapped[str | None] = mapped_column(fk("User.id", "SET NULL"), index=True)
 
     user: Mapped[User | None] = relationship(back_populates="partner", foreign_keys=[user_id])
+    assigned_team_member: Mapped[User | None] = relationship(foreign_keys=[assigned_team_member_id])
     partner_candidates: Mapped[list[PartnerCandidate]] = relationship(
         back_populates="partner", cascade="all, delete-orphan"
     )

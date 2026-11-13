@@ -4118,6 +4118,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/va/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Va Overview
+         * @description GET /api/va/overview: the dashboard, worked out on this read.
+         */
+        get: operations["va_overview_api_v1_va_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/va/partners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Va Partners
+         * @description GET /api/va/partners: the working list, by name.
+         */
+        get: operations["va_partners_api_v1_va_partners_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6068,6 +6108,10 @@ export interface components {
         Data_Updated_: {
             data: components["schemas"]["Updated"];
         };
+        /** Data[VaOverview] */
+        Data_VaOverview_: {
+            data: components["schemas"]["VaOverview"];
+        };
         /** Data[WebsiteLoginLimits] */
         Data_WebsiteLoginLimits_: {
             data: components["schemas"]["WebsiteLoginLimits"];
@@ -6224,6 +6268,11 @@ export interface components {
         Data_list_TemplateOut__: {
             /** Data */
             data: components["schemas"]["TemplateOut"][];
+        };
+        /** Data[list[VaPartnerRow]] */
+        Data_list_VaPartnerRow__: {
+            /** Data */
+            data: components["schemas"]["VaPartnerRow"][];
         };
         /** Data[list[dict[str, Any]]] */
         Data_list_dict_str__Any___: {
@@ -6582,6 +6631,19 @@ export interface components {
             /** Review Date */
             review_date: string | null;
             status: components["schemas"]["ScorecardStatus"];
+        };
+        /** FlaggedPartner */
+        FlaggedPartner: {
+            /** Assigned To */
+            assigned_to: string | null;
+            /** Commissions Due */
+            commissions_due: number;
+            /** Flags */
+            flags: string[];
+            /** Partner Id */
+            partner_id: string;
+            /** Partner Name */
+            partner_name: string;
         };
         /** ForceReset */
         ForceReset: {
@@ -7434,6 +7496,31 @@ export interface components {
             retention_months: number;
             sign_ins: components["schemas"]["Window"];
         };
+        /** OverviewSummary */
+        OverviewSummary: {
+            /** Agreements Signed */
+            agreements_signed: number;
+            /** Agreements Unsigned */
+            agreements_unsigned: number;
+            /** Applications Not Started */
+            applications_not_started: number;
+            /** Applications Started */
+            applications_started: number;
+            /** Commissions Due */
+            commissions_due: number;
+            /** No Recent Activity */
+            no_recent_activity: number;
+            /** Partners Flagged */
+            partners_flagged: number;
+            /** Reports Outstanding */
+            reports_outstanding: number;
+            /** Reports Submitted */
+            reports_submitted: number;
+            /** Total Candidates */
+            total_candidates: number;
+            /** Total Partners */
+            total_partners: number;
+        };
         /** OwnCandidate */
         OwnCandidate: {
             /** Created At */
@@ -7784,6 +7871,8 @@ export interface components {
         };
         /** PartnerDetail */
         PartnerDetail: {
+            /** Assigned Team Member Id */
+            assigned_team_member_id?: string | null;
             /** Business Registration Number */
             business_registration_number: string | null;
             /** Candidates */
@@ -7800,6 +7889,8 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by?: string | null;
+            /** Documents Submitted At */
+            documents_submitted_at?: string | null;
             /** Id */
             id: string;
             /** Login Activated At */
@@ -7813,7 +7904,16 @@ export interface components {
             name: string;
             /** Notes */
             notes: string | null;
+            /**
+             * Onboarding Documents
+             * @default []
+             */
+            onboarding_documents: string[];
             partner_type: components["schemas"]["PartnerType"];
+            /** Sla Signed At */
+            sla_signed_at?: string | null;
+            /** @default none */
+            sla_status: components["schemas"]["SlaStatus"];
             status: components["schemas"]["PartnerStatus"];
             /** Updated At */
             updated_at: string;
@@ -7826,6 +7926,8 @@ export interface components {
          */
         PartnerListRow: {
             _count: components["schemas"]["CandidateCount"];
+            /** Assigned Team Member Id */
+            assigned_team_member_id?: string | null;
             /** Business Registration Number */
             business_registration_number: string | null;
             /** Contact Email */
@@ -7840,6 +7942,8 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by?: string | null;
+            /** Documents Submitted At */
+            documents_submitted_at?: string | null;
             /** Id */
             id: string;
             /** Mou Signed At */
@@ -7849,7 +7953,16 @@ export interface components {
             name: string;
             /** Notes */
             notes: string | null;
+            /**
+             * Onboarding Documents
+             * @default []
+             */
+            onboarding_documents: string[];
             partner_type: components["schemas"]["PartnerType"];
+            /** Sla Signed At */
+            sla_signed_at?: string | null;
+            /** @default none */
+            sla_status: components["schemas"]["SlaStatus"];
             status: components["schemas"]["PartnerStatus"];
             /** Updated At */
             updated_at: string;
@@ -7957,6 +8070,8 @@ export interface components {
         };
         /** PartnerRow */
         PartnerRow: {
+            /** Assigned Team Member Id */
+            assigned_team_member_id?: string | null;
             /** Business Registration Number */
             business_registration_number: string | null;
             /** Contact Email */
@@ -7971,6 +8086,8 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by?: string | null;
+            /** Documents Submitted At */
+            documents_submitted_at?: string | null;
             /** Id */
             id: string;
             /** Mou Signed At */
@@ -7980,7 +8097,16 @@ export interface components {
             name: string;
             /** Notes */
             notes: string | null;
+            /**
+             * Onboarding Documents
+             * @default []
+             */
+            onboarding_documents: string[];
             partner_type: components["schemas"]["PartnerType"];
+            /** Sla Signed At */
+            sla_signed_at?: string | null;
+            /** @default none */
+            sla_status: components["schemas"]["SlaStatus"];
             status: components["schemas"]["PartnerStatus"];
             /** Updated At */
             updated_at: string;
@@ -8486,6 +8612,19 @@ export interface components {
              */
             received: boolean;
         };
+        /** RecentPartner */
+        RecentPartner: {
+            /** Assigned To */
+            assigned_to: string | null;
+            /** Candidates */
+            candidates: number;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Status */
+            status: string;
+        };
         /** RecordIn */
         RecordIn: {
             /** Amount */
@@ -8906,7 +9045,7 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "candidate" | "regional_recruiter" | "country_supervisor" | "inhouse_supervisor" | "director" | "admin" | "marketing" | "partner" | "hr" | "operations_team" | "operations_director" | "finance" | "referral_agent";
+        Role: "candidate" | "regional_recruiter" | "country_supervisor" | "inhouse_supervisor" | "director" | "admin" | "marketing" | "partner" | "hr" | "operations_team" | "operations_director" | "finance" | "referral_agent" | "virtual_assistant";
         /**
          * RuleIn
          * @description upsertReferralCommissionRuleSchema. Zero is a real amount: some
@@ -9165,6 +9304,11 @@ export interface components {
             /** Signed Out */
             signed_out: boolean;
         };
+        /**
+         * SlaStatus
+         * @enum {string}
+         */
+        SlaStatus: "none" | "sent" | "signed";
         /** StaffBrief */
         StaffBrief: {
             /** Full Name */
@@ -9531,6 +9675,13 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** TeamMember */
+        TeamMember: {
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+        };
         /** TemplateIn */
         TemplateIn: {
             /** Body Html */
@@ -9588,6 +9739,30 @@ export interface components {
             /** Id */
             id: string;
             status: components["schemas"]["ExceptionStatus"];
+        };
+        /** VaOverview */
+        VaOverview: {
+            /** Flags */
+            flags: components["schemas"]["FlaggedPartner"][];
+            /** Recent Partners */
+            recent_partners: components["schemas"]["RecentPartner"][];
+            summary: components["schemas"]["OverviewSummary"];
+        };
+        /** VaPartnerRow */
+        VaPartnerRow: {
+            assigned_team_member: components["schemas"]["TeamMember"] | null;
+            /** Id */
+            id: string;
+            /** Mou Status */
+            mou_status: string;
+            /** Name */
+            name: string;
+            /** Sla Status */
+            sla_status: string;
+            /** Status */
+            status: string;
+            /** Submissions */
+            submissions: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -17636,6 +17811,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    va_overview_api_v1_va_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_VaOverview_"];
+                };
+            };
+        };
+    };
+    va_partners_api_v1_va_partners_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_VaPartnerRow__"];
                 };
             };
         };

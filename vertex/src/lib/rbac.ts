@@ -20,6 +20,7 @@ export const PORTAL_ACCESS: Record<string, Role[]> = {
   "/finance": ["finance", "admin"],
   "/admin": ["admin"],
   "/referral-agent": ["referral_agent", "admin"],
+  "/va": ["virtual_assistant", "director", "admin"],
 };
 
 // Where each role lands after login / when redirected away from a portal it can't access.
@@ -37,6 +38,7 @@ export const ROLE_HOME: Record<Role, string> = {
   finance: "/finance",
   admin: "/admin",
   referral_agent: "/referral-agent",
+  virtual_assistant: "/va",
 };
 
 // Roles that manage other staff (used for supervisor-assignment validation,
@@ -93,7 +95,7 @@ export function homeFor(role: Role): string {
 // rebuilt on PortalShell 2026-07-13 to match the others) renders its own
 // chrome and should NOT also get the public marketing Navbar/Footer/chat
 // widgets.
-const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard", "/referral-agent"];
+const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard", "/referral-agent", "/va"];
 
 export function isInternalPortalPath(pathname: string): boolean {
   return INTERNAL_PORTAL_PREFIXES.some((p) => pathname.startsWith(p));

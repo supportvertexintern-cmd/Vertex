@@ -24,7 +24,7 @@ from scripts.seed.common import database_url, first, hash_password, purge, run, 
 from app.models.campaign import RecruiterTarget  # noqa: E402  (after common sets the path)
 from app.models.candidate import Application, Candidate  # noqa: E402
 from app.models.cases import Case  # noqa: E402
-from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, CandidateSource, JobStatus, Role  # noqa: E402
+from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, CandidateSource, JobStatus, PartnerStatus, PartnerType, Role  # noqa: E402
 from app.models.identity import Country, InhouseCountryAssignment, Region, User  # noqa: E402
 from app.models.jobs import Job  # noqa: E402
 from app.models.partners import Partner, PartnerCandidate  # noqa: E402
@@ -35,6 +35,8 @@ from app.models.reporting import StaffKpiTarget  # noqa: E402
 
 PASSWORD = "E2ETestPassword123!"  # gitleaks:allow  (a throwaway test database)
 PARTNER = "E2E Test Partner"
+# The virtual assistant's own agency, and one it doesn't look after (va-portal.spec.ts).
+VA_AGENCIES = ("E2E VA Agency", "E2E Other VA Agency")
 JOB = "E2E Test Job"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "postgres", "db"}
 
@@ -69,6 +71,12 @@ def setup(db: Session) -> None:
     account("e2e-operations@test.local", "E2E Operations", Role.operations_team)
     account("e2e-operations-director@test.local", "E2E Operations Director", Role.operations_director)
     account("e2e-finance@test.local", "E2E Finance", Role.finance)
+    va = account("e2e-va@test.local", "E2E Virtual Assistant", Role.virtual_assistant)
+    for name, keeper in zip(VA_AGENCIES, (va.id, None), strict=True):
+        upsert(db, Partner, {"name": name}, {"assigned_team_member_id": keeper, "status": PartnerStatus.active}, {
+            "partner_type": PartnerType.manpower_supplier, "country_of_operation": "Kenya", "contact_name": "E2E",
+            "contact_email": f"{name.lower().replace(' ', '-')}@test.local", "contact_phone": "1",
+        })
 
     job = first(db, Job, title=JOB)
     if job is None:
@@ -101,7 +109,7 @@ def teardown(db: Session) -> None:
     purge(db, delete(SecurityAlert).where(SecurityAlert.alert_key.startswith("e2e:", autoescape=True)))
     # Restricted foreign keys to the country: before the country goes.
     purge(db, delete(PartnerCandidate).where(PartnerCandidate.partner_id.in_(partners)))
-    purge(db, delete(Partner).where(Partner.name == PARTNER))
+    purge(db, delete(Partner).where(Partner.name.in_((PARTNER, *VA_AGENCIES))))
     # set_by is NOT NULL yet ON DELETE SET NULL, so a target an e2e user set
     # blocks deleting them.
     purge(db, delete(StaffKpiTarget).where(StaffKpiTarget.set_by.in_(e2e_users)))
