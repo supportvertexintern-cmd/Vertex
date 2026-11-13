@@ -356,6 +356,23 @@ def test_hr_on_a_partner_submission(api, db, world, sent_notices):
     assert api.post(f"{URL}/{world['lead'].id}/messages", headers=as_partner, json={"body": "Thanks"}).json()["notify"] == []
     assert len(sent_notices) == 1  # the partner's own message tells nobody
 
+    # Once someone has reviewed it, they hear who replied, about whom, on
+    # which programme, and what was said (2026-11-03).
+    reviewer, _ = person(db, Role.hr)
+    submission.reviewed_by = reviewer.id
+    world["lead"].full_name = "Abebe\nKebede"
+    job = db.scalar(select(Job).join(Application, Application.job_id == Job.id).where(Application.candidate_id == world["lead"].id))
+    reply = "Passport scan attached.\n<b>Thanks</b> " + "x" * 700
+    res = api.post(f"{URL}/{world['lead'].id}/messages", headers=as_partner, json={"body": reply})
+    assert res.status_code == 201, res.text
+    [notice] = sent_notices[1:]
+    assert re.fullmatch(r"\d{2} \w{3} \d{4}, \d{2}:\d{2} UTC", notice.pop("replied_at"))
+    assert notice == {
+        "kind": "partner_reply", "email": reviewer.email, "full_name": reviewer.full_name,
+        "partner_name": "P", "sender_name": partner_user.full_name, "candidate_name": "Abebe Kebede",
+        "programme": job.title, "country": job.country, "reply": reply.strip()[:600] + "…", "view_path": f"/hr/{submission.id}",
+    }
+
 
 def test_strangers_and_bad_messages_are_refused(api, world):
     assert api.post(f"{URL}/{world['lead'].id}/messages", headers=world["sup"], json={"body": "Hi"}).status_code == 403

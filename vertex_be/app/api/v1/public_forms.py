@@ -23,6 +23,7 @@ from app.core.api import ApiError, Data
 from app.core.auth import OptionalUser, calling_service
 from app.core.config import settings
 from app.core.logging import log_event
+from app.core.passport import PassportNumber
 from app.models.enums import JobStatus
 from app.services import emails
 
@@ -51,7 +52,7 @@ class IntakeIn(BaseModel):
     email: str = Field(max_length=320)
     phone: str | None = None
     nationality: str | None = None
-    passport_number: str | None = None
+    passport_number: PassportNumber | None = None
     earliest_travel_date: str
     prior_eu_visa_applied: bool | None = None
     prior_eu_visa_applied_details: str | None = None

@@ -233,6 +233,8 @@ def set_stage(
     check = can_set_case_stage(user.role, case.current_stage, body.stage)
     if not check.allowed:
         raise ApiError(403, "invalid_transition", check.reason or "Transition not allowed.")
+    if check.is_update:
+        return _update_current_stage(db, case, body, user)
 
     now = _now()
     for event in db.scalars(select(CaseStageEvent).where(CaseStageEvent.case_id == case_id, CaseStageEvent.completed_at.is_(None))):
@@ -265,6 +267,30 @@ def set_stage(
     db.refresh(case)
     events = sorted(case.stage_events, key=lambda e: e.entered_at)
     return {"data": CaseWithEvents.model_validate(case).model_copy(update={"stage_events": [StageEventRow.model_validate(e) for e in events]}), "notify": deliver(db, notify)}
+
+
+def _update_current_stage(db: AuditedDb, case: Case, body: StageIn, user: AuthUser) -> dict:
+    """The current stage re-selected (2026-10-26): its open entry's date
+    and/or notes edited in place (notes sent as null or "" clear them).
+    Nothing moves, so no stage email, commission or retention follow-up."""
+    notes_sent = "notes" in body.model_fields_set
+    if body.stage_date is None and not notes_sent:
+        raise ApiError(422, "nothing_to_update", "Enter a new date or notes to update the current stage.")
+    event = db.scalar(
+        select(CaseStageEvent).where(CaseStageEvent.case_id == case.id, CaseStageEvent.stage == body.stage, CaseStageEvent.completed_at.is_(None))
+    )
+    if event is None:
+        event = CaseStageEvent(case_id=case.id, stage=body.stage, entered_at=body.stage_date or _now())
+        db.add(event)
+    event.owner_id = user.user_id
+    if body.stage_date is not None:
+        event.entered_at = body.stage_date
+    if notes_sent:
+        event.notes = body.notes or None
+    db.commit()
+    db.refresh(case)
+    events = sorted(case.stage_events, key=lambda e: e.entered_at)
+    return {"data": CaseWithEvents.model_validate(case).model_copy(update={"stage_events": [StageEventRow.model_validate(e) for e in events]}), "notify": []}
 
 
 # --- Operations' documentation review ----------------------------------------

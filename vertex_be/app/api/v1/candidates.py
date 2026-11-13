@@ -38,7 +38,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
-from app.api.notices import CandidateApprovedEmail, MessageEmail, Notice, Notifying, commission_email, invite_email
+from app.api.notices import CandidateApprovedEmail, MessageEmail, Notice, Notifying, PartnerReplyEmail, commission_email, invite_email
 from app.services.emails import deliver
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
@@ -48,10 +48,12 @@ from app.core.pipeline import PipelineWrites
 from app.core.rbac import require_role
 from app.core.scope import CandidateRef, can_access_candidate
 from app.core.tokens import InvalidToken, verify_candidate_invite_token
+from app.core.passport import PassportNumber
 from app.models.candidate import Application, Candidate, CandidateMessage
 from app.models.cases import Case
 from app.models.enums import CandidateLifecycleStatus, CandidateSource, Gender, PartnerCandidateStatus, ReferralMilestone, Role
 from app.models.identity import User
+from app.models.jobs import Job
 from app.models.partners import Partner, PartnerCandidate
 from app.services.candidate_lifecycle import can_set_lifecycle_status
 from app.services.case_lifecycle import open_case
@@ -135,7 +137,7 @@ class ProfileIn(_Fields):
     """candidateProfileSchema: Section 2 of the Candidate Information Form,
     edited by the candidate."""
 
-    passport_number: str | None = None
+    passport_number: PassportNumber | None = None
     date_of_birth: Annotated[datetime | None, Blank] = None
     nationality: str | None = None
     second_nationality: str | None = Field(None, max_length=100)
@@ -156,7 +158,7 @@ class DetailsIn(_Fields):
     full_name: str | None = Field(None, min_length=2, max_length=100)
     nationality: str | None = Field(None, min_length=2, max_length=100)
     date_of_birth: Annotated[datetime | None, Blank] = None
-    passport_number: str | None = None
+    passport_number: PassportNumber | None = None
     phone: str | None = None
     email: Annotated[Email | None, Blank] = None
     desired_role: str | None = Field(None, max_length=150)
@@ -484,8 +486,40 @@ def _message_text(body: MessageIn) -> str:
     return text.strip()
 
 
+def _one_line(text: str) -> str:
+    # Names go into the subject too: no line breaks there.
+    return " ".join(text.split())
+
+
+def _partner_reply_email(db, user: AuthUser, candidate: Candidate, message: CandidateMessage) -> list[Notice]:
+    """A partner's reply, to the HR reviewer of the submission it came from,
+    with what HR needs to triage it (2026-11-03): the partner and sender, the
+    candidate, the newest application's programme and country, the reply (the
+    first 600 characters) and when, linking to that submission's review page."""
+    origin = db.scalar(select(PartnerCandidate).where(PartnerCandidate.bridged_candidate_id == candidate.id))
+    reviewer = db.get(User, origin.reviewed_by) if origin is not None and origin.reviewed_by else None
+    if reviewer is None:
+        return []
+    partner = db.get(Partner, candidate.partner_id)
+    sender = db.get(User, user.user_id)
+    job = db.scalar(
+        select(Job).join(Application, Application.job_id == Job.id).where(Application.candidate_id == candidate.id)
+        .order_by(Application.submitted_at.desc().nulls_last()).limit(1)
+    )
+    reply = message.body if len(message.body) <= 600 else f"{message.body[:600]}…"
+    return [PartnerReplyEmail(
+        email=reviewer.email, full_name=reviewer.full_name,
+        partner_name=_one_line(partner.name if partner else "Partner"),
+        sender_name=sender.full_name if sender else "Partner user",
+        candidate_name=_one_line(candidate.full_name or "the candidate"),
+        programme=job.title if job else "Programme", country=job.country if job else "",
+        reply=reply, replied_at=f"{message.created_at:%d %b %Y, %H:%M} UTC", view_path=f"/hr/{origin.id}",
+    )]
+
+
 def _message_email(db, user: AuthUser, candidate: Candidate) -> list[Notice]:
-    """Tells whichever side didn't send the message."""
+    """Tells whichever side didn't send the message (a partner's reply:
+    _partner_reply_email)."""
     recipient: tuple[str, str] | None = None
     view_path = "/dashboard"
 
@@ -495,9 +529,6 @@ def _message_email(db, user: AuthUser, candidate: Candidate) -> list[Notice]:
 
     if candidate.user_id == user.user_id:
         recipient, view_path = person(candidate.recruiter_id), f"/recruiter/candidates/{candidate.id}"
-    elif user.role is Role.partner and candidate.partner_id:
-        reviewer = db.scalar(select(PartnerCandidate.reviewed_by).where(PartnerCandidate.bridged_candidate_id == candidate.id))
-        recipient, view_path = person(reviewer), "/hr"
     elif user.role in CASE_STAFF and candidate.partner_id:
         partner = db.get(Partner, candidate.partner_id)
         recipient, view_path = ((partner.contact_email, partner.contact_name) if partner else None), "/partner"
@@ -529,7 +560,11 @@ def post_message(candidate_id: str, body: MessageIn, user: CurrentUser, db: Audi
         if submission is not None:
             submission.status = PartnerCandidateStatus.under_review
 
-    notify = _message_email(db, user, candidate)
+    if user.role is Role.partner and candidate.partner_id:
+        db.flush()  # created_at, for the email
+        notify = _partner_reply_email(db, user, candidate, message)
+    else:
+        notify = _message_email(db, user, candidate)
     db.commit()
     db.refresh(message)
     return {"data": message, "notify": deliver(db, notify)}

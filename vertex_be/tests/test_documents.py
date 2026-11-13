@@ -25,8 +25,9 @@ from app.db.session import get_db
 from app.main import app
 from app.models.audit import AuditLog
 from app.models.candidate import Application, Candidate, Document
-from app.models.enums import CandidateLifecycleStatus, PartnerCandidateStatus, PartnerType, Role, VerificationStatus
+from app.models.enums import CandidateLifecycleStatus, CaseStage, PartnerCandidateStatus, PartnerType, Role, VerificationStatus
 from app.models.identity import Country, Region, User
+from app.models.jobs import Job, JobPaymentStage
 from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import DocumentRequirementType
 from app.services import malware_scan, storage
@@ -271,9 +272,29 @@ def test_a_bad_file_is_refused_and_not_stored(api, world, kwargs, message):
     assert stored() == set()
 
 
+def test_a_missing_receipt_type_is_created_for_a_real_payment_stage(api, db, world):
+    """A payment stage without its receipt type no longer blocks the upload
+    (2026-10-26); a receipt key for no stage, or any other unknown key, is
+    refused and never created."""
+    job = Job(title="Receipt programme", country="Germany", city="Berlin", job_description="d", requirements="r")
+    db.add(job)
+    db.flush()
+    stage = JobPaymentStage(job_id=job.id, order=1, label="At Application", percent=25, trigger_stage=CaseStage.registration_document_submission)
+    db.add(stage)
+    db.flush()
+    key = f"payment_receipt_stage_{stage.id}"
+    assert upload(api, world.own, key).status_code == 200
+    created = db.scalar(select(DocumentRequirementType).where(DocumentRequirementType.key == key))
+    assert (created.label, created.is_universal) == ("Payment Receipt — At Application", False)
+    assert upload(api, world.own, key).status_code == 200  # the second time, it's simply there
+    for unknown in ("payment_receipt_stage_nosuch", "made_up_type"):
+        assert upload(api, world.own, unknown).status_code == 400
+        assert db.scalar(select(DocumentRequirementType.id).where(DocumentRequirementType.key == unknown)) is None
+
+
 def test_a_request_must_name_a_type_and_carry_a_file(api, world):
     res = upload(api, world.own, "no_such_type")
-    assert (res.status_code, error(res)["message"]) == (400, "Query param 'type' must be a known document requirement type.")
+    assert (res.status_code, error(res)["message"]) == (400, "This document type isn't recognised. Please refresh the page and try again.")
     res = api.post(URL, headers=world.own, params={"type": world.passport}, data={"label": "x"})
     assert res.status_code == 400 and error(res)["code"] in ("no_file", "invalid_form")
 

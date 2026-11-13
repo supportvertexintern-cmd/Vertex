@@ -182,6 +182,35 @@ def test_staff_submit_for_a_named_partner(api, db, world):
     assert submit(api, world, recruiter).status_code == 403
 
 
+def test_a_pasted_space_or_lower_case_is_still_the_same_passport(api, db, world):
+    """2026-11-12: "AK1791697", "AK1791697 " and "AK1791697  " got through
+    as three people. Numbers are stored without whitespace, upper-cased, and
+    the duplicate check compares those."""
+    passport = f"AK{secrets.token_hex(3).upper()}"
+    first = submit(api, world, passport_number=f" {passport.lower()}  ")
+    assert first.status_code in (200, 201), first.text
+    assert db.get(Candidate, first.json()["data"]["candidateId"]).passport_number == passport
+    for again in (f"{passport} ", f"{passport[:2]}\u00a0{passport[2:]}", passport.lower()):
+        dup = submit(api, world, passport_number=again)
+        assert (dup.status_code, error(dup)["code"]) == (422, "duplicate_passport"), again
+    assert submit(api, world, passport_number="   ").status_code == 422  # nothing left: still required
+
+
+def test_stored_passport_numbers_are_normalised_by_migration_0022(db):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("m0022", BASE_DIR / "alembic" / "versions" / "20261113_0022_normalize_passports.py")
+    m0022 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m0022)
+    tag = secrets.token_hex(3).upper()
+    rows = [Candidate(passport_number=f"zz{tag} "), Candidate(passport_number=f"ZZ\u00a0{tag}"), Candidate(passport_number="  "), Candidate(passport_number=f"ZZ{tag}9")]
+    db.add_all(rows)
+    db.flush()
+    m0022.normalize(db.connection())
+    db.expire_all()
+    assert [db.get(Candidate, r.id).passport_number for r in rows] == [f"ZZ{tag}", f"ZZ{tag}", "  ", f"ZZ{tag}9"]
+
+
 def test_the_checks_before_anything_is_created(api, db, world):
     passport = f"DUP{secrets.token_hex(3)}"
     submit(api, world, passport_number=passport)

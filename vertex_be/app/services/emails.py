@@ -186,6 +186,10 @@ VALUES: dict[str, Callable[[BaseModel], Filled]] = {
     ),
     "candidate_approved": lambda n: Filled(n.email, {"name": n.full_name}),
     "candidate_message": lambda n: Filled(n.email, {"name": n.full_name, "viewUrl": _url(n.view_path)}),
+    "partner_reply": lambda n: Filled(n.email, {
+        "name": n.full_name, "partnerName": n.partner_name, "senderName": n.sender_name, "candidateName": n.candidate_name,
+        "programme": n.programme, "country": n.country, "reply": n.reply, "repliedAt": n.replied_at, "viewUrl": _url(n.view_path),
+    }),
     "case_stage": lambda n: Filled(n.email, {"name": n.full_name, "jobTitle": n.job_title, "friendlyStage": friendly_stage(n.stage)}),
     "partner_case_stage": lambda n: Filled(n.email, {
         "partnerName": n.partner_name, "candidateName": n.candidate_name, "jobTitle": n.job_title, "friendlyStage": friendly_stage(n.stage),
