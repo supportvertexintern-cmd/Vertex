@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAuthUser, requireAdmin } from "@/lib/api-auth";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // DELETE /api/admin/document-types/:id — blocked (409 in_use) while any real
@@ -9,7 +9,7 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // early and passes the request on.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireAdmin(user);
+  const guardRes = requireRole(user, ["admin", "marketing"]);
   if (guardRes) return guardRes;
 
   const { id } = await params;

@@ -50,7 +50,11 @@ REQUIREMENT_READERS: tuple[Role, ...] = (Role.candidate, *SECTOR_READERS)
 # Every staff role that renders or configures a document checklist.
 DOCUMENT_TYPE_READERS: tuple[Role, ...] = (*SECTOR_READERS, Role.hr, Role.operations_team, Role.operations_director)
 
-AdminUser = Annotated[AuthUser, Depends(require_role(Role.admin))]
+# Who adds and removes sectors and document types, and sets a country's
+# required documents: admin, and marketing since 2026-11-06 (its Sectors &
+# Requirements page). The website's routes must match (tests check it).
+REFERENCE_EDITORS: tuple[Role, ...] = (Role.admin, Role.marketing)
+Editor = Annotated[AuthUser, Depends(require_role(*REFERENCE_EDITORS))]
 
 UNIQUE_VIOLATION = "23505"
 FOREIGN_KEY_VIOLATION = "23503"
@@ -86,7 +90,7 @@ def list_sectors(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(
 
 
 @router.post("/sectors", status_code=status.HTTP_201_CREATED)
-def create_sector(body: SectorIn, db: AuditedDb, _admin: AdminUser) -> Data[SectorOut]:
+def create_sector(body: SectorIn, db: AuditedDb, _editor: Editor) -> Data[SectorOut]:
     if db.scalars(select(Sector.id).where(Sector.name == body.name)).first() is not None:
         raise _sector_duplicate()
     sector = Sector(name=body.name)
@@ -103,7 +107,7 @@ def create_sector(body: SectorIn, db: AuditedDb, _admin: AdminUser) -> Data[Sect
 
 
 @router.delete("/sectors/{sector_id}")
-def delete_sector(sector_id: str, db: AuditedDb, _admin: AdminUser) -> Data[dict[str, str]]:
+def delete_sector(sector_id: str, db: AuditedDb, _editor: Editor) -> Data[dict[str, str]]:
     """Applications that chose the sector let go of it (SET NULL)."""
     sector = db.get(Sector, sector_id)
     if sector is None:
@@ -155,7 +159,7 @@ def list_requirements(
 
 
 @router.put("/countries/{country_id}/document-requirements")
-def replace_requirements(country_id: str, body: RequirementsIn, db: AuditedDb, _admin: AdminUser) -> Data[list[RequirementOut]]:
+def replace_requirements(country_id: str, body: RequirementsIn, db: AuditedDb, _editor: Editor) -> Data[list[RequirementOut]]:
     """Replaces the country's whole list (the admin ticks a checklist)."""
     if db.get(Country, country_id) is None:
         raise ApiError(404, "not_found", "Country not found.")
@@ -212,7 +216,7 @@ def list_document_types(db: DbSession, _user: Annotated[AuthUser, Depends(requir
 
 
 @router.post("/document-types", status_code=status.HTTP_201_CREATED)
-def create_document_type(body: DocumentTypeIn, db: AuditedDb, _admin: AdminUser) -> Data[DocumentTypeOut]:
+def create_document_type(body: DocumentTypeIn, db: AuditedDb, _editor: Editor) -> Data[DocumentTypeOut]:
     """A new type from just a label; its key is the label, slugified."""
     key = _slug(body.label)
     if not key:
@@ -235,7 +239,7 @@ def create_document_type(body: DocumentTypeIn, db: AuditedDb, _admin: AdminUser)
 
 
 @router.delete("/document-types/{type_id}")
-def delete_document_type(type_id: str, db: AuditedDb, _admin: AdminUser) -> Data[dict[str, str]]:
+def delete_document_type(type_id: str, db: AuditedDb, _editor: Editor) -> Data[dict[str, str]]:
     """Refused while an uploaded document uses the type. Countries that
     required it stop requiring it, each removal on the audit trail."""
     doc_type = db.get(DocumentRequirementType, type_id)

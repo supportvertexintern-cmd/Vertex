@@ -110,6 +110,27 @@ test.describe("Next.js -> FastAPI (sectors and document requirements, step 2.2)"
     expect((await bad.json()).error.code).toBe("unknown_type");
   });
 
+  test("marketing manages sectors from its own Sectors & Requirements page (2026-11-06)", async ({ browser }) => {
+    // Its own browser, signed in as marketing (the admin's session stays out of it).
+    const context = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+    await context.addInitScript(() => window.localStorage.setItem("vertex_welcome_accepted", "true"));
+    const page = await context.newPage();
+    await page.goto("/auth/login");
+    await page.fill("#login-email", "e2e-marketing@test.local");
+    await page.fill("#login-password", "E2ETestPassword123!");
+    await page.click("#login-submit-btn");
+    await page.waitForURL(/\/marketing\//, { timeout: 25_000 });
+
+    const name = `E2E Marketing Sector ${Date.now().toString(36)}`;
+    const created = await page.request.post("/api/admin/sectors", { data: { name } });
+    expect(created.status()).toBe(201);
+    await page.getByRole("link", { name: "Sectors & Requirements" }).click();
+    await page.waitForURL(/\/marketing\/sectors/);
+    await expect(page.getByText(name)).toBeVisible({ timeout: 25_000 });
+    expect((await page.request.delete(`/api/admin/sectors/${(await created.json()).data.id}`)).status()).toBe(200);
+    await context.close();
+  });
+
   test("the admin Sectors page shows FastAPI's sectors", async ({ page }) => {
     const name = `E2E Page Sector ${Date.now().toString(36)}`;
     await page.request.post("/api/admin/sectors", { data: { name } });

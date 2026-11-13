@@ -10,12 +10,13 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // GET /api/admin/countries: flat list for assignment dropdowns and the
 // campaign-target, dashboard and case-list Country filters. Every staff
 // role reads it; hr/operations_team/operations_director/finance since
-// 2026-08-18 (their case pages' Country filters were silently empty).
+// 2026-08-18 (their case pages' Country filters were silently empty);
+// marketing since 2026-11-06 (its per-country requirements editor).
 // Must match COUNTRY_READERS in geography.py (tests check it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   const guardRes = requireRole(user, [
-    "regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin", "hr", "operations_team", "operations_director", "finance",
+    "regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "admin", "marketing", "hr", "operations_team", "operations_director", "finance",
   ]);
   if (guardRes) return guardRes;
 

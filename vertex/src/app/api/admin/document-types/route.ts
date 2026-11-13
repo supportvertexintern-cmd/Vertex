@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser, requireAdmin, requireRole } from "@/lib/api-auth";
+import { getAuthUser, requireRole } from "@/lib/api-auth";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // GET /api/admin/document-types — every admin-managed document requirement
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 // passes the request on.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
-  const guardRes = requireAdmin(user);
+  const guardRes = requireRole(user, ["admin", "marketing"]);
   if (guardRes) return guardRes;
 
   let body: unknown;

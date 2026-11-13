@@ -157,10 +157,10 @@ describe("refuses early, without calling FastAPI", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it("marketing can't write document types", async () => {
-    expect((await docTypes.POST(req("POST", "{}"))).status).toBe(403);
-    expect((await docType.DELETE(req("DELETE"), params("d1"))).status).toBe(403);
-    expect(callBackend).not.toHaveBeenCalled();
+  it("marketing writes document types since 2026-11-06 (its Sectors & Requirements page)", async () => {
+    await docTypes.POST(req("POST", "{}"));
+    await docType.DELETE(req("DELETE"), params("d1"));
+    expect(callBackend).toHaveBeenCalledTimes(2);
   });
 
   it("a body that isn't JSON", async () => {

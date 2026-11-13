@@ -40,9 +40,11 @@ REGION_READERS: tuple[Role, ...] = (
     Role.admin,
 )
 # Assignment dropdowns and the case lists' Country filter: the hierarchy,
-# plus the case-management directorates (2026-08-18).
+# plus the case-management directorates (2026-08-18), and marketing for its
+# per-country requirements editor (2026-11-06).
 COUNTRY_READERS: tuple[Role, ...] = (
     *REGION_READERS,
+    Role.marketing,
     Role.hr,
     Role.operations_team,
     Role.operations_director,

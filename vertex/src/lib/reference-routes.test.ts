@@ -89,11 +89,17 @@ describe("refuses early, without calling FastAPI", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it("writes for anyone but admin", async () => {
-    state.role = "director";
+  it.each([["director"], ["hr"], ["inhouse_supervisor"]])("writes for %s (only admin and marketing write)", async (role) => {
+    state.role = role;
     const writes = [sectors.POST(req("POST", "{}")), sector.DELETE(req("DELETE"), params("s1")), requirements.PUT(req("PUT", "{}"), params("c1"))];
     for (const res of await Promise.all(writes)) expect(res.status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("marketing writes, passed on to FastAPI (2026-11-06)", async () => {
+    state.role = "marketing";
+    await Promise.all([sectors.POST(req("POST", "{}")), sector.DELETE(req("DELETE"), params("s1")), requirements.PUT(req("PUT", "{}"), params("c1"))]);
+    expect(callBackend).toHaveBeenCalledTimes(3);
   });
 
   it("a body that isn't JSON", async () => {
