@@ -84,6 +84,19 @@ test.describe("Mobility case lifecycle (Phase 4)", () => {
       await expect(page.getByText("Docs look complete, moving to document preparation.")).toBeVisible();
     });
 
+    await test.step("Operations re-selects the current stage to correct its notes, without moving the case", async () => {
+      await page.getByRole("combobox").first().click();
+      await page.getByRole("option", { name: "Document Preparation, Translation & Legalization (current: update date/notes)" }).click();
+      // The saved notes are loaded to edit.
+      await expect(page.getByPlaceholder("Notes (optional)")).toHaveValue("Docs look complete, moving to document preparation.");
+      await page.getByPlaceholder("Notes (optional)").fill("Apostille booked for Friday.");
+      await page.getByRole("button", { name: "Save Stage Details" }).click();
+
+      await expect(page.getByText("Apostille booked for Friday.")).toBeVisible({ timeout: 25_000 });
+      await expect(page.getByText("Docs look complete, moving to document preparation.")).toHaveCount(0);
+      await expect(page.getByText(/Stage 2 of 11: Document Preparation, Translation & Legalization/)).toBeVisible();
+    });
+
     await test.step("Operations delivers the Work Permit (2026-07-31: replaces Contract in Operations' own case view — Operations doesn't issue contracts, that's Director/Admin's lane)", async () => {
       const workPermitCard = page.locator(".card", { hasText: "Work Permit" });
       await expect(workPermitCard.getByText("Not delivered yet.")).toBeVisible();

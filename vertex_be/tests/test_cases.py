@@ -134,7 +134,9 @@ def test_the_stage_order_matches_the_website():
 def test_only_operations_move_stages():
     assert can_set_case_stage(Role.operations_team, CaseStage.visa_interview_decision, CaseStage.permit_application_submission).is_return
     assert not can_set_case_stage(Role.hr, CaseStage.registration_document_submission, CaseStage.permit_application_submission).allowed
-    assert can_set_case_stage(Role.admin, CaseStage.visa_interview_decision, CaseStage.visa_interview_decision).reason == "Case is already at that stage."
+    same = can_set_case_stage(Role.operations_team, CaseStage.visa_interview_decision, CaseStage.visa_interview_decision)
+    assert same.allowed and same.is_update and not same.is_return
+    assert not can_set_case_stage(Role.hr, CaseStage.visa_interview_decision, CaseStage.visa_interview_decision).allowed
 
 
 def test_every_write_waits_for_the_switch(api, monkeypatch, world):
@@ -172,6 +174,23 @@ def test_a_stage_move_closes_the_last_and_tells_both_sides(api, db, world, sent_
     ]
 
 
+def test_the_current_stage_can_be_edited_in_place(api, db, world, sent_notices):
+    """Re-selecting the current stage edits its open entry's date and
+    notes; nothing moves and nobody is told (2026-10-26)."""
+    res = stage(api, world, "registration_document_submission", notes="Passport copy chased", stage_date="2026-09-20")
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert data["current_stage"] == "registration_document_submission"
+    [event] = data["stage_events"]
+    assert (event["entered_at"], event["notes"], event["completed_at"]) == ("2026-09-20T00:00:00.000Z", "Passport copy chased", None)
+    assert sent_notices == [] and res.json()["notify"] == []
+    # Notes sent empty clear them; the date stays.
+    [event] = stage(api, world, "registration_document_submission", notes="").json()["data"]["stage_events"]
+    assert (event["entered_at"], event["notes"]) == ("2026-09-20T00:00:00.000Z", None)
+    # Only Operations, director and admin.
+    assert stage(api, world, "registration_document_submission", headers=world["hr"], notes="x").status_code == 403
+
+
 def test_a_milestone_stage_earns_the_commission(api, db, world, sent_notices):
     res = stage(api, world, "permit_authorization_approved")
     commission = sent_notices[0]
@@ -198,7 +217,7 @@ def test_stages_wait_for_the_documentation_review(api, db, world):
 
 def test_stage_moves_are_refused_when_they_should_be(api, db, world):
     same = stage(api, world, "registration_document_submission")
-    assert (same.status_code, error(same)["message"]) == (403, "Case is already at that stage.")
+    assert (same.status_code, error(same)["code"]) == (422, "nothing_to_update")
     assert stage(api, world, "permit_application_submission", headers=world["hr"]).status_code == 403
     assert api.patch(f"{URL}/cnosuch/stage", headers=world["ops"], json={"stage": "permit_application_submission"}).status_code == 404
     world["case"].status = CaseStatus.rejected

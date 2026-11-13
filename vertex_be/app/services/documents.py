@@ -96,3 +96,20 @@ def is_payment_receipt_type(key: str) -> bool:
 
 def is_non_programme_type(key: str) -> bool:
     return key in NON_PROGRAMME_TYPE_KEYS or is_payment_receipt_type(key)
+
+
+def ensure_receipt_type(db: Session, key: str) -> bool:
+    """The receipt type for one payment stage, created if it's missing, in
+    the caller's transaction. False when the key isn't a per-stage receipt
+    key or names no stage, so an arbitrary key is never created."""
+    from app.models.jobs import JobPaymentStage  # noqa: PLC0415  (jobs imports this module)
+
+    if not key.startswith(PAYMENT_RECEIPT_TYPE_PREFIX):
+        return False
+    stage = db.get(JobPaymentStage, key.removeprefix(PAYMENT_RECEIPT_TYPE_PREFIX))
+    if stage is None:
+        return False
+    if db.scalar(select(DocumentRequirementType.id).where(DocumentRequirementType.key == key)) is None:
+        db.add(DocumentRequirementType(key=key, label=f"Payment Receipt — {stage.label}", is_universal=False))
+        db.flush()
+    return True

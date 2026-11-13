@@ -9939,6 +9939,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -9961,6 +9962,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10077,6 +10081,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10099,6 +10104,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10215,6 +10223,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10237,6 +10246,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10353,6 +10365,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10375,6 +10388,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10491,6 +10507,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10513,6 +10530,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10629,6 +10649,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10651,6 +10672,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10767,6 +10791,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10789,6 +10814,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -10905,6 +10933,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -10927,6 +10956,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11043,6 +11075,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11065,6 +11098,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11181,6 +11217,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11203,6 +11240,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11319,6 +11359,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11341,6 +11382,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11457,6 +11501,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11479,6 +11524,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11595,6 +11643,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11617,6 +11666,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11733,6 +11785,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11755,6 +11808,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -11871,6 +11927,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -11893,6 +11950,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12009,6 +12069,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12031,6 +12092,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12147,6 +12211,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12169,6 +12234,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12285,6 +12353,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12307,6 +12376,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12423,6 +12495,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12445,6 +12518,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12561,6 +12637,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12583,6 +12660,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12699,6 +12779,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12721,6 +12802,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12837,6 +12921,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12859,6 +12944,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -12975,6 +13063,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -12997,6 +13086,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -15046,6 +15138,71 @@
      "creators"
     ],
     "title": "PartnerOptions",
+    "type": "object"
+   },
+   "PartnerReplyEmail": {
+    "description": "A partner replied on a candidate's thread (2026-11-03): the HR reviewer of the submission hears who, about whom, for\nwhich programme, and what was said, with a link to that submission.",
+    "properties": {
+     "candidate_name": {
+      "title": "Candidate Name",
+      "type": "string"
+     },
+     "country": {
+      "title": "Country",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "kind": {
+      "const": "partner_reply",
+      "default": "partner_reply",
+      "title": "Kind",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     },
+     "programme": {
+      "title": "Programme",
+      "type": "string"
+     },
+     "replied_at": {
+      "title": "Replied At",
+      "type": "string"
+     },
+     "reply": {
+      "title": "Reply",
+      "type": "string"
+     },
+     "sender_name": {
+      "title": "Sender Name",
+      "type": "string"
+     },
+     "view_path": {
+      "title": "View Path",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "full_name",
+     "partner_name",
+     "sender_name",
+     "candidate_name",
+     "programme",
+     "country",
+     "reply",
+     "replied_at",
+     "view_path"
+    ],
+    "title": "PartnerReplyEmail",
     "type": "object"
    },
    "PartnerRow": {
@@ -19739,6 +19896,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -19761,6 +19919,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"
@@ -20444,6 +20605,7 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
          "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
@@ -20466,6 +20628,9 @@
         },
         {
          "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
         },
         {
          "$ref": "#/components/schemas/ApplicationConfirmationEmail"

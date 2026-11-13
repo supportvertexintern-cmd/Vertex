@@ -27,17 +27,18 @@ class CaseTransitionCheck:
     allowed: bool
     is_return: bool
     reason: str | None = None
+    # The current stage again: an edit of its date and notes, not a move.
+    is_update: bool = False
 
 
 def can_set_case_stage(role: Role, current: CaseStage, target: CaseStage) -> CaseTransitionCheck:
-    """canSetCaseStage: any move but staying put, for Operations."""
+    """canSetCaseStage: Operations pick any stage at any time (2026-10-26),
+    the current one included, which edits its date and notes in place."""
     from_idx, to_idx = CASE_STAGE_ORDER.index(current), CASE_STAGE_ORDER.index(target)
-    is_return = to_idx < from_idx
-    if to_idx == from_idx:
-        return CaseTransitionCheck(False, False, "Case is already at that stage.")
+    is_return, is_update = to_idx < from_idx, to_idx == from_idx
     if role in OPERATIONS_ROLES:
-        return CaseTransitionCheck(True, is_return)
-    return CaseTransitionCheck(False, is_return, "This role cannot update case status.")
+        return CaseTransitionCheck(True, is_return, is_update=is_update)
+    return CaseTransitionCheck(False, is_return, "This role cannot update case status.", is_update)
 
 
 def open_case(db: Session, application_id: str) -> Case:

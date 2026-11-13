@@ -43,6 +43,7 @@ from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import HR_ROLES, require_role
+from app.core.passport import PassportNumber
 from app.db.base import SOFT_DELETE_COLUMNS
 from app.models.candidate import Application, Candidate, Document
 from app.models.enums import CandidateLifecycleStatus, CandidateSource, Gender, JobStatus, PartnerCandidateStatus, Role
@@ -89,7 +90,7 @@ class _Form(BaseModel):
     nationality: str | None = Field(None, min_length=2, max_length=100)
     date_of_birth: datetime | None = None
     gender: Gender | None = None
-    passport_number: str | None = Field(None, min_length=1)
+    passport_number: PassportNumber | None = Field(None, min_length=1)
     passport_expiry: datetime | None = None
     email: Email | None = None
     second_nationality: str | None = Field(None, max_length=100)
@@ -129,7 +130,7 @@ class SubmitIn(_Form):
     nationality: str = Field(min_length=2, max_length=100)
     date_of_birth: datetime
     gender: Gender
-    passport_number: str = Field(min_length=1)
+    passport_number: PassportNumber = Field(min_length=1)
     passport_expiry: datetime
     email: Email | None = None  # a plain email when given: "" is refused
     job_id: str = Field(pattern=CUID)
@@ -157,7 +158,7 @@ class DetailsIn(BaseModel):
     nationality: str | None = Field(None, min_length=2, max_length=100)
     second_nationality: str | None = Field(None, max_length=100)
     gender: Gender | None = None
-    passport_number: str | None = Field(None, min_length=3, max_length=50)
+    passport_number: PassportNumber | None = Field(None, min_length=3, max_length=50)
     date_of_birth: datetime | None = None
     passport_expiry: datetime | None = None
     current_occupation: str | None = Field(None, max_length=150)

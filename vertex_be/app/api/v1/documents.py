@@ -54,7 +54,7 @@ from app.models.enums import CandidateLifecycleStatus, PartnerCandidateStatus, R
 from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import DocumentRequirementType
 from app.services import storage
-from app.services.documents import document_completeness
+from app.services.documents import document_completeness, ensure_receipt_type
 from app.services.malware_scan import scan_bytes
 
 router = APIRouter()
@@ -149,8 +149,16 @@ async def _read_upload(request: Request) -> _Upload:
 
 
 def _known_type(db: Session, document_type: str | None) -> str:
-    if not document_type or db.scalar(select(DocumentRequirementType.id).where(DocumentRequirementType.key == document_type)) is None:
-        raise ApiError(400, "invalid_type", "Query param 'type' must be a known document requirement type.")
+    """The type, if the table has it. A payment stage's receipt type is
+    created here when it's missing (2026-10-26): the jobs API only syncs them
+    when a programme is saved, so a stage could exist without one, and every
+    receipt upload for that programme failed. Any other unknown key is
+    refused, never created."""
+    if not document_type:
+        raise ApiError(400, "invalid_type", "This document type isn't recognised. Please refresh the page and try again.")
+    if db.scalar(select(DocumentRequirementType.id).where(DocumentRequirementType.key == document_type)) is None:
+        if not ensure_receipt_type(db, document_type):
+            raise ApiError(400, "invalid_type", "This document type isn't recognised. Please refresh the page and try again.")
     return document_type
 
 

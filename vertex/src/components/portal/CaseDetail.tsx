@@ -461,7 +461,12 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
     const res = await fetch(`/api/cases/${caseId}/stage`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stage: nextStage, notes: stageNotes || undefined, stage_date: stageDate || undefined }),
+      // Editing the current stage sends the notes even when cleared, so they can be removed (2026-10-26).
+      body: JSON.stringify({
+        stage: nextStage,
+        notes: nextStage === data.current_stage ? stageNotes : stageNotes || undefined,
+        stage_date: stageDate || undefined,
+      }),
     });
     const json = await res.json();
     if (!res.ok) { void dialog.alert(describeApiError(json, "Failed to update stage.")); return; }
@@ -1000,14 +1005,33 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
             <div className="mt-6 pt-6 border-t border-midnight-900/10 grid sm:grid-cols-3 gap-3">
               <SearchableSelect
                 value={nextStage}
-                onChange={setNextStage}
+                onChange={(stage) => {
+                  setNextStage(stage);
+                  // Re-selecting the current stage edits it, so start from its saved notes.
+                  if (stage === data.current_stage) {
+                    const open = data.stage_events.find((e) => e.stage === stage && !e.completed_at);
+                    setStageNotes(open?.notes ?? "");
+                  }
+                }}
                 placeholder="Set stage…"
-                options={CASE_STAGE_ORDER.filter((s) => s !== data.current_stage).map((s) => ({ value: s, label: CASE_STAGE_LABELS[s] }))}
+                options={CASE_STAGE_ORDER.map((s) => ({
+                  value: s,
+                  label: s === data.current_stage ? `${CASE_STAGE_LABELS[s]} (current: update date/notes)` : CASE_STAGE_LABELS[s],
+                }))}
               />
               <input type="date" value={stageDate} onChange={(e) => setStageDate(e.target.value)} className="input-field text-sm" placeholder="Date (optional)" />
               <input value={stageNotes} onChange={(e) => setStageNotes(e.target.value)} className="input-field text-sm" placeholder="Notes (optional)" />
             </div>
-            <button onClick={advanceStage} disabled={!nextStage} className="btn-primary mt-3 text-xs disabled:opacity-40">Update Stage</button>
+            <button
+              onClick={advanceStage}
+              disabled={!nextStage || data.ops_review_status !== "confirmed"}
+              className="btn-primary mt-3 text-xs disabled:opacity-40"
+            >
+              {nextStage && nextStage === data.current_stage ? "Save Stage Details" : "Update Stage"}
+            </button>
+            {data.ops_review_status !== "confirmed" && (
+              <p className="text-xs text-amber-700 mt-2">Confirm the Documentation Review below before changing the stage.</p>
+            )}
           </>
         )}
 

@@ -44,6 +44,7 @@ from app.core.clock import utc_now_ms
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate
+from app.core.passport import PassportNumber
 from app.models.candidate import Application, Candidate
 from app.models.enums import (
     ApplicationStatus,
@@ -99,7 +100,7 @@ class SubmissionIn(BaseModel):
     full_name: str | None = Field(None, min_length=2, max_length=100)
     nationality: str | None = Field(None, min_length=2, max_length=100)
     date_of_birth: datetime | None = None
-    passport_number: str | None = None
+    passport_number: PassportNumber | None = None
     passport_expiry: datetime | None = None
     second_nationality: str | None = Field(None, max_length=100)
     gender: Gender | None = None

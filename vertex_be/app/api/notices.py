@@ -47,6 +47,23 @@ class MessageEmail(BaseModel):
     view_path: str
 
 
+class PartnerReplyEmail(BaseModel):
+    """A partner replied on a candidate's thread (2026-11-03): the HR reviewer of the submission hears who, about whom, for
+    which programme, and what was said, with a link to that submission."""
+
+    kind: Literal["partner_reply"] = "partner_reply"
+    email: str
+    full_name: str
+    partner_name: str
+    sender_name: str
+    candidate_name: str
+    programme: str
+    country: str
+    reply: str
+    replied_at: str
+    view_path: str
+
+
 class ApplicationConfirmationEmail(BaseModel):
     """sendApplicationConfirmationEmail(email, full_name, job_title, has_account)."""
 
@@ -315,6 +332,7 @@ Notice = Annotated[
     InviteEmail
     | CommissionEmail
     | MessageEmail
+    | PartnerReplyEmail
     | ApplicationConfirmationEmail
     | ApplicationStatusEmail
     | CandidateApprovedEmail
