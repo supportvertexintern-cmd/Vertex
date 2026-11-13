@@ -15,6 +15,7 @@ from app.models.cases import (
 )
 from app.models.identity import Country, InhouseCountryAssignment, RefreshToken, Region, User
 from app.models.jobs import EmployerClient, Job, JobMilestonePrice, JobPaymentStage, JobPosition, JobSector
+from app.models.partner_tracking import AdminFee, PartnerCommission, PartnerCommissionRule, PartnerFollowUp, PartnerReport
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import ConsultationBooking, Payment
 from app.models.reference import (
@@ -47,6 +48,11 @@ import app.db.soft_delete  # noqa: E402, F401
 import app.models.live_unique  # noqa: E402, F401
 
 __all__ = [
+    "AdminFee",
+    "PartnerCommission",
+    "PartnerCommissionRule",
+    "PartnerFollowUp",
+    "PartnerReport",
     "Application",
     "AuditLog",
     "Campaign",

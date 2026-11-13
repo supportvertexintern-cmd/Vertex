@@ -658,6 +658,79 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('AddressRule', 'removed_at',                             'grant'),   -- business timestamp
   ('AddressRule', 'removed_by',                             'grant'),   -- identifier/link
   ('AddressRule', 'removed_reason',                         'exclude'), -- free text/JSON: may hold personal data
+  -- Partner tracking and commissions (0023, Phase 6).
+  ('Partner', 'sla_status',                               'grant'),   -- status/type value
+  ('Partner', 'sla_signed_at',                            'grant'),   -- business timestamp
+  ('Partner', 'onboarding_documents',                     'grant'),   -- status/type value
+  ('Partner', 'documents_submitted_at',                   'grant'),   -- business timestamp
+  ('Partner', 'assigned_team_member_id',                  'grant'),   -- identifier/link
+  ('PartnerCommissionRule', 'id',                         'grant'),   -- identifier/link
+  ('PartnerCommissionRule', 'rule_type',                  'grant'),   -- status/type value
+  ('PartnerCommissionRule', 'amount',                     'grant'),   -- count/amount
+  ('PartnerCommissionRule', 'currency',                   'grant'),   -- status/type value
+  ('PartnerCommissionRule', 'updated_by',                 'grant'),   -- identifier/link
+  ('PartnerCommissionRule', 'created_at',                 'grant'),   -- business timestamp
+  ('PartnerCommissionRule', 'updated_at',                 'grant'),   -- business timestamp
+  ('PartnerCommissionRule', 'deleted_at',                 'grant'),   -- business timestamp
+  ('PartnerCommissionRule', 'deleted_links',              'exclude'), -- soft delete bookkeeping
+  ('PartnerCommission', 'id',                             'grant'),   -- identifier/link
+  ('PartnerCommission', 'partner_id',                     'grant'),   -- identifier/link
+  ('PartnerCommission', 'candidate_id',                   'grant'),   -- identifier/link
+  ('PartnerCommission', 'case_id',                        'grant'),   -- identifier/link
+  ('PartnerCommission', 'rule_type',                      'grant'),   -- status/type value
+  ('PartnerCommission', 'period',                         'grant'),   -- status/type value
+  ('PartnerCommission', 'amount',                         'grant'),   -- count/amount
+  ('PartnerCommission', 'currency',                       'grant'),   -- status/type value
+  ('PartnerCommission', 'status',                         'grant'),   -- status/type value
+  ('PartnerCommission', 'approved_by',                    'grant'),   -- identifier/link
+  ('PartnerCommission', 'approved_at',                    'grant'),   -- business timestamp
+  ('PartnerCommission', 'paid_by',                        'grant'),   -- identifier/link
+  ('PartnerCommission', 'paid_at',                        'grant'),   -- business timestamp
+  ('PartnerCommission', 'payment_reference',              'exclude'), -- free text/JSON: may hold personal data
+  ('PartnerCommission', 'payment_method',                 'exclude'), -- free text/JSON: may hold personal data
+  ('PartnerCommission', 'created_at',                     'grant'),   -- business timestamp
+  ('PartnerCommission', 'updated_at',                     'grant'),   -- business timestamp
+  ('PartnerCommission', 'deleted_at',                     'grant'),   -- business timestamp
+  ('PartnerCommission', 'deleted_links',                  'exclude'), -- soft delete bookkeeping
+  ('AdminFee', 'id',                                      'grant'),   -- identifier/link
+  ('AdminFee', 'partner_id',                              'grant'),   -- identifier/link
+  ('AdminFee', 'candidate_id',                            'grant'),   -- identifier/link
+  ('AdminFee', 'case_id',                                 'grant'),   -- identifier/link
+  ('AdminFee', 'fee_type',                                'grant'),   -- status/type value
+  ('AdminFee', 'period',                                  'grant'),   -- status/type value
+  ('AdminFee', 'amount',                                  'grant'),   -- count/amount
+  ('AdminFee', 'currency',                                'grant'),   -- status/type value
+  ('AdminFee', 'status',                                  'grant'),   -- status/type value
+  ('AdminFee', 'paid_by',                                 'grant'),   -- identifier/link
+  ('AdminFee', 'paid_at',                                 'grant'),   -- business timestamp
+  ('AdminFee', 'payment_reference',                       'exclude'), -- free text/JSON: may hold personal data
+  ('AdminFee', 'created_at',                              'grant'),   -- business timestamp
+  ('AdminFee', 'updated_at',                              'grant'),   -- business timestamp
+  ('AdminFee', 'deleted_at',                              'grant'),   -- business timestamp
+  ('AdminFee', 'deleted_links',                           'exclude'), -- soft delete bookkeeping
+  ('PartnerReport', 'id',                                 'grant'),   -- identifier/link
+  ('PartnerReport', 'partner_id',                         'grant'),   -- identifier/link
+  ('PartnerReport', 'reported_at',                        'grant'),   -- business timestamp
+  ('PartnerReport', 'period_start',                       'grant'),   -- business timestamp
+  ('PartnerReport', 'period_end',                         'grant'),   -- business timestamp
+  ('PartnerReport', 'content',                            'exclude'), -- free text/JSON: may hold personal data
+  ('PartnerReport', 'status',                             'grant'),   -- status/type value
+  ('PartnerReport', 'submitted_by',                       'grant'),   -- identifier/link
+  ('PartnerReport', 'created_at',                         'grant'),   -- business timestamp
+  ('PartnerReport', 'updated_at',                         'grant'),   -- business timestamp
+  ('PartnerReport', 'deleted_at',                         'grant'),   -- business timestamp
+  ('PartnerReport', 'deleted_links',                      'exclude'), -- soft delete bookkeeping
+  ('PartnerFollowUp', 'id',                               'grant'),   -- identifier/link
+  ('PartnerFollowUp', 'partner_id',                       'grant'),   -- identifier/link
+  ('PartnerFollowUp', 'action',                           'exclude'), -- free text/JSON: may hold personal data
+  ('PartnerFollowUp', 'due_at',                           'grant'),   -- business timestamp
+  ('PartnerFollowUp', 'assigned_team_member',             'grant'),   -- identifier/link
+  ('PartnerFollowUp', 'status',                           'grant'),   -- status/type value
+  ('PartnerFollowUp', 'completed_at',                     'grant'),   -- business timestamp
+  ('PartnerFollowUp', 'created_at',                       'grant'),   -- business timestamp
+  ('PartnerFollowUp', 'updated_at',                       'grant'),   -- business timestamp
+  ('PartnerFollowUp', 'deleted_at',                       'grant'),   -- business timestamp
+  ('PartnerFollowUp', 'deleted_links',                    'exclude'), -- soft delete bookkeeping
   -- Sessions (0005, G19): token hashes and devices, never for browsing.
   ('RefreshToken', 'id',                                    'exclude'), -- session security state
   ('RefreshToken', 'user_id',                               'exclude'), -- session security state

@@ -29,6 +29,8 @@ PARTNER_KEYS = {
     "id", "name", "partner_type", "country_of_operation", "business_registration_number", "contact_name", "contact_email",
     "contact_phone", "status", "mou_status", "mou_signed_at", "notes", "created_at", "updated_at", "user_id",
     "created_by",
+    # Partner tracking (Phase 6, migration 0023).
+    "sla_status", "sla_signed_at", "onboarding_documents", "documents_submitted_at", "assigned_team_member_id",
 }
 MILESTONES = {"registered", "qualified", "application_submitted", "work_permit_approved", "visa_approved", "deployed"}
 

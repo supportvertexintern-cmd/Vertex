@@ -3,8 +3,9 @@
 # (scripts/seed/reference.py: regions, countries, sectors, document requirements,
 # job programmes), the test accounts (scripts/seed/test_accounts.py:
 # one per staff role plus a partner) and the partner logins
-# (scripts/seed/partner_logins.py), all with password TestPassword123!.
-# Safe to re-run: all three upsert. Refuses any stack whose env file isn't
+# (scripts/seed/partner_logins.py) and the virtual-assistant demo cast
+# (scripts/seed/va_demo.py), all with password TestPassword123!.
+# Safe to re-run: all four upsert. Refuses any stack whose env file isn't
 # APP_ENV=development.
 #
 #   ENV_FILE=.env.dev sh deploy/seed-dev.sh vertex-dev
@@ -42,4 +43,5 @@ PYTHON="env/Scripts/python.exe"
 "$PYTHON" -m scripts.seed.reference
 "$PYTHON" -m scripts.seed.test_accounts
 "$PYTHON" -m scripts.seed.partner_logins
+"$PYTHON" -m scripts.seed.va_demo
 echo "Seeded. Sign in at $(env_value NEXT_PUBLIC_APP_URL) as e.g. admin@test.local / TestPassword123!"

@@ -6619,6 +6619,18 @@
     "title": "Data[Updated]",
     "type": "object"
    },
+   "Data_VaOverview_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/VaOverview"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[VaOverview]",
+    "type": "object"
+   },
    "Data_WebsiteLoginLimits_": {
     "properties": {
      "data": {
@@ -7103,6 +7115,22 @@
      "data"
     ],
     "title": "Data[list[TemplateOut]]",
+    "type": "object"
+   },
+   "Data_list_VaPartnerRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/VaPartnerRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[VaPartnerRow]]",
     "type": "object"
    },
    "Data_list_dict_str__Any___": {
@@ -8230,6 +8258,49 @@
      "review_date"
     ],
     "title": "FinalizedOut",
+    "type": "object"
+   },
+   "FlaggedPartner": {
+    "properties": {
+     "assigned_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned To"
+     },
+     "commissions_due": {
+      "title": "Commissions Due",
+      "type": "number"
+     },
+     "flags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "partner_id",
+     "partner_name",
+     "assigned_to",
+     "flags",
+     "commissions_due"
+    ],
+    "title": "FlaggedPartner",
     "type": "object"
    },
    "ForceReset": {
@@ -13433,6 +13504,69 @@
     "title": "Overview",
     "type": "object"
    },
+   "OverviewSummary": {
+    "properties": {
+     "agreements_signed": {
+      "title": "Agreements Signed",
+      "type": "integer"
+     },
+     "agreements_unsigned": {
+      "title": "Agreements Unsigned",
+      "type": "integer"
+     },
+     "applications_not_started": {
+      "title": "Applications Not Started",
+      "type": "integer"
+     },
+     "applications_started": {
+      "title": "Applications Started",
+      "type": "integer"
+     },
+     "commissions_due": {
+      "title": "Commissions Due",
+      "type": "number"
+     },
+     "no_recent_activity": {
+      "title": "No Recent Activity",
+      "type": "integer"
+     },
+     "partners_flagged": {
+      "title": "Partners Flagged",
+      "type": "integer"
+     },
+     "reports_outstanding": {
+      "title": "Reports Outstanding",
+      "type": "integer"
+     },
+     "reports_submitted": {
+      "title": "Reports Submitted",
+      "type": "integer"
+     },
+     "total_candidates": {
+      "title": "Total Candidates",
+      "type": "integer"
+     },
+     "total_partners": {
+      "title": "Total Partners",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total_partners",
+     "agreements_signed",
+     "agreements_unsigned",
+     "reports_submitted",
+     "reports_outstanding",
+     "applications_started",
+     "applications_not_started",
+     "total_candidates",
+     "no_recent_activity",
+     "commissions_due",
+     "partners_flagged"
+    ],
+    "title": "OverviewSummary",
+    "type": "object"
+   },
    "OwnCandidate": {
     "properties": {
      "created_at": {
@@ -14629,6 +14763,17 @@
    },
    "PartnerDetail": {
     "properties": {
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
      "business_registration_number": {
       "anyOf": [
        {
@@ -14677,6 +14822,17 @@
        }
       ],
       "title": "Created By"
+     },
+     "documents_submitted_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Documents Submitted At"
      },
      "id": {
       "title": "Id",
@@ -14733,8 +14889,31 @@
       ],
       "title": "Notes"
      },
+     "onboarding_documents": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Onboarding Documents",
+      "type": "array"
+     },
      "partner_type": {
       "$ref": "#/components/schemas/PartnerType"
+     },
+     "sla_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sla Signed At"
+     },
+     "sla_status": {
+      "$ref": "#/components/schemas/SlaStatus",
+      "default": "none"
      },
      "status": {
       "$ref": "#/components/schemas/PartnerStatus"
@@ -14782,6 +14961,17 @@
      "_count": {
       "$ref": "#/components/schemas/CandidateCount"
      },
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
      "business_registration_number": {
       "anyOf": [
        {
@@ -14824,6 +15014,17 @@
       ],
       "title": "Created By"
      },
+     "documents_submitted_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Documents Submitted At"
+     },
      "id": {
       "title": "Id",
       "type": "string"
@@ -14857,8 +15058,31 @@
       ],
       "title": "Notes"
      },
+     "onboarding_documents": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Onboarding Documents",
+      "type": "array"
+     },
      "partner_type": {
       "$ref": "#/components/schemas/PartnerType"
+     },
+     "sla_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sla Signed At"
+     },
+     "sla_status": {
+      "$ref": "#/components/schemas/SlaStatus",
+      "default": "none"
      },
      "status": {
       "$ref": "#/components/schemas/PartnerStatus"
@@ -15207,6 +15431,17 @@
    },
    "PartnerRow": {
     "properties": {
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
      "business_registration_number": {
       "anyOf": [
        {
@@ -15249,6 +15484,17 @@
       ],
       "title": "Created By"
      },
+     "documents_submitted_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Documents Submitted At"
+     },
      "id": {
       "title": "Id",
       "type": "string"
@@ -15282,8 +15528,31 @@
       ],
       "title": "Notes"
      },
+     "onboarding_documents": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Onboarding Documents",
+      "type": "array"
+     },
      "partner_type": {
       "$ref": "#/components/schemas/PartnerType"
+     },
+     "sla_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sla Signed At"
+     },
+     "sla_status": {
+      "$ref": "#/components/schemas/SlaStatus",
+      "default": "none"
      },
      "status": {
       "$ref": "#/components/schemas/PartnerStatus"
@@ -16789,6 +17058,46 @@
     "title": "Received",
     "type": "object"
    },
+   "RecentPartner": {
+    "properties": {
+     "assigned_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned To"
+     },
+     "candidates": {
+      "title": "Candidates",
+      "type": "integer"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status",
+     "assigned_to",
+     "candidates"
+    ],
+    "title": "RecentPartner",
+    "type": "object"
+   },
    "RecordIn": {
     "properties": {
      "amount": {
@@ -17892,7 +18201,8 @@
      "operations_team",
      "operations_director",
      "finance",
-     "referral_agent"
+     "referral_agent",
+     "virtual_assistant"
     ],
     "title": "Role",
     "type": "string"
@@ -18704,6 +19014,15 @@
     ],
     "title": "SignedOut",
     "type": "object"
+   },
+   "SlaStatus": {
+    "enum": [
+     "none",
+     "sent",
+     "signed"
+    ],
+    "title": "SlaStatus",
+    "type": "string"
    },
    "StaffBrief": {
     "properties": {
@@ -20258,6 +20577,24 @@
     "title": "TargetRow",
     "type": "object"
    },
+   "TeamMember": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name"
+    ],
+    "title": "TeamMember",
+    "type": "object"
+   },
    "TemplateIn": {
     "properties": {
      "body_html": {
@@ -20428,6 +20765,83 @@
      "status"
     ],
     "title": "Updated",
+    "type": "object"
+   },
+   "VaOverview": {
+    "properties": {
+     "flags": {
+      "items": {
+       "$ref": "#/components/schemas/FlaggedPartner"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
+     "recent_partners": {
+      "items": {
+       "$ref": "#/components/schemas/RecentPartner"
+      },
+      "title": "Recent Partners",
+      "type": "array"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/OverviewSummary"
+     }
+    },
+    "required": [
+     "summary",
+     "flags",
+     "recent_partners"
+    ],
+    "title": "VaOverview",
+    "type": "object"
+   },
+   "VaPartnerRow": {
+    "properties": {
+     "assigned_team_member": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TeamMember"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_status": {
+      "title": "Mou Status",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sla_status": {
+      "title": "Sla Status",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "submissions": {
+      "title": "Submissions",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status",
+     "mou_status",
+     "sla_status",
+     "assigned_team_member",
+     "submissions"
+    ],
+    "title": "VaPartnerRow",
     "type": "object"
    },
    "ValidationError": {
@@ -36745,6 +37159,60 @@
     "summary": "Resend Setup Email",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/va/overview": {
+   "get": {
+    "description": "GET /api/va/overview: the dashboard, worked out on this read.",
+    "operationId": "va_overview_api_v1_va_overview_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_VaOverview_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Va Overview",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/va/partners": {
+   "get": {
+    "description": "GET /api/va/partners: the working list, by name.",
+    "operationId": "va_partners_api_v1_va_partners_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_VaPartnerRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Va Partners",
+    "tags": [
+     "virtual assistants"
     ]
    }
   }

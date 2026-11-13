@@ -28,6 +28,7 @@ const ROLES: Record<Role, true> = {
   operations_director: true,
   finance: true,
   referral_agent: true,
+  virtual_assistant: true,
 };
 const SOURCES: Record<CandidateSource, true> = {
   self_registered: true,
