@@ -17,7 +17,9 @@
 //   enforce                the proxy replaces it with the nonce policy on
 //                          every page.
 
-import { MEDIA_ORIGIN } from "./media";
+// No imports here: next.config.ts loads this file at run time, and the
+// runtime image holds only csp.ts (next-config-imports.test.ts). An import of
+// ./media crash-looped dev and staging on 69baeb0 (2026-11-14).
 
 export const NONCE_HEADER = "x-nonce";
 export const CSP_REPORT_PATH = "/api/csp-report";
@@ -41,7 +43,9 @@ const isDev = () => process.env.NODE_ENV === "development";
 const STYLE_HOSTS = "https://www.gstatic.com https://translate.googleapis.com https://assets.calendly.com";
 const CONNECT_HOSTS = "https://translate.googleapis.com https://translate-pa.googleapis.com";
 const FRAME_HOSTS = "https://calendly.com https://*.calendly.com https://translate.google.com";
-// The public marketing videos (lib/media.ts).
+// The public marketing videos: R2's public bucket (lib/media.ts builds the
+// video URLs from this).
+export const MEDIA_ORIGIN = "https://pub-c44d878acbc84beda0fb6d80efb77b8b.r2.dev";
 const MEDIA_HOSTS = MEDIA_ORIGIN;
 
 /** The target policy: nonce-based, no inline or eval for scripts. */
