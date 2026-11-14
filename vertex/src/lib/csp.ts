@@ -17,6 +17,8 @@
 //   enforce                the proxy replaces it with the nonce policy on
 //                          every page.
 
+import { MEDIA_ORIGIN } from "./media";
+
 export const NONCE_HEADER = "x-nonce";
 export const CSP_REPORT_PATH = "/api/csp-report";
 export const CSP_REPORT_GROUP = "csp-endpoint";
@@ -39,6 +41,8 @@ const isDev = () => process.env.NODE_ENV === "development";
 const STYLE_HOSTS = "https://www.gstatic.com https://translate.googleapis.com https://assets.calendly.com";
 const CONNECT_HOSTS = "https://translate.googleapis.com https://translate-pa.googleapis.com";
 const FRAME_HOSTS = "https://calendly.com https://*.calendly.com https://translate.google.com";
+// The public marketing videos (lib/media.ts).
+const MEDIA_HOSTS = MEDIA_ORIGIN;
 
 /** The target policy: nonce-based, no inline or eval for scripts. */
 export function noncePolicy(nonce: string, { https }: { https: boolean }): string {
@@ -52,6 +56,7 @@ export function noncePolicy(nonce: string, { https }: { https: boolean }): strin
     "font-src 'self' data:",
     `connect-src 'self' ${CONNECT_HOSTS}`,
     `frame-src ${FRAME_HOSTS}`,
+    `media-src 'self' ${MEDIA_HOSTS}`,
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
@@ -78,6 +83,7 @@ export function legacyPolicy(): string {
     "font-src 'self' data:",
     `connect-src 'self' ${CONNECT_HOSTS}`,
     `frame-src ${FRAME_HOSTS}`,
+    `media-src 'self' ${MEDIA_HOSTS}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

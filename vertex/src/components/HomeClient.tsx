@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import VideoPlayer from "@/components/VideoPlayer";
+import PartnerEnquiryForm from "@/components/PartnerEnquiryForm";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -32,6 +34,7 @@ import {
   Users,
   Wrench,
 } from "@phosphor-icons/react";
+import { LANDING_VIDEO } from "@/lib/media";
 
 /* ===== Static content — sourced from Vertex International company documentation ===== */
 
@@ -109,7 +112,7 @@ const SERVICES = [
     ],
     text: "We help recruitment agencies, travel agencies, and manpower suppliers expand into international recruitment and mobility services.",
     cta: "Partner With Vertex",
-    href: "/contact",
+    href: "#partner-form",
   },
 ];
 
@@ -223,6 +226,66 @@ const FAQS = [
   },
 ];
 
+// Partner-focused content (2026-11-05)
+const PARTNER_BENEFITS = [
+  {
+    icon: Handshake,
+    title: "Discuss sourcing and workforce requirements",
+    text: "Tell us about your organisation, the markets you serve, and the cooperation you have in mind.",
+  },
+  {
+    icon: FileText,
+    title: "Understand programme and submission processes",
+    text: "Get clarity on how we work together, from initial enquiry to candidate deployment.",
+  },
+  {
+    icon: CheckCircle,
+    title: "Agree responsibilities before onboarding",
+    text: "Clear terms and structured processes ensure both parties know what to expect.",
+  },
+];
+
+const PARTNER_PROCESS = [
+  {
+    step: "01",
+    title: "Company review",
+    text: "The team reviews your organisation and cooperation requirements.",
+  },
+  {
+    step: "02",
+    title: "Proposal & introductory meeting",
+    text: "Discuss the proposed services, operating process and responsibilities.",
+  },
+  {
+    step: "03",
+    title: "Agreement & onboarding",
+    text: "Suitable partnerships move to agreed terms and portal onboarding.",
+  },
+];
+
+const PARTNER_FAQS = [
+  {
+    q: "What should I include in my first enquiry?",
+    a: "A brief company introduction, the markets and sectors you serve, and the cooperation you want to explore. Use the optional business details section for a company profile link or meeting preference. Clear information helps the team prepare a relevant response.",
+  },
+  {
+    q: "Can I request a proposal or an introductory meeting?",
+    a: "Yes. Mention your request in the cooperation field. The team will review your requirements and discuss an appropriate next step. A meeting date is confirmed separately.",
+  },
+  {
+    q: "Does a partnership enquiry create an agreement?",
+    a: "No. The enquiry starts a discussion. Partnership terms and onboarding are confirmed separately after review.",
+  },
+  {
+    q: "Can I submit candidates through this form?",
+    a: "Please use the official application process or your existing partner portal. This form is for business enquiries.",
+  },
+  {
+    q: "How will the team contact me?",
+    a: "Provide an email address you monitor. The team will contact you to discuss your requirements and, where appropriate, arrange an introductory meeting.",
+  },
+];
+
 /* ===== Motion helper ===== */
 
 function FadeIn({
@@ -248,6 +311,13 @@ function FadeIn({
 }
 
 /* ===== Page ===== */
+
+// Landing-page player — the shared VideoPlayer with the audience chapter
+// buttons (timestamps per the supplied cut) framing the 16:9 cut.
+const VIDEO_CHAPTERS = [
+  { label: "For partners", timeLabel: "2:53", seconds: 173 },
+  { label: "For individual applicants", timeLabel: "4:20", seconds: 260 },
+];
 
 // The fields of a public job (server/services/publicJobs.ts) this page shows.
 interface FeaturedJob {
@@ -289,9 +359,9 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
               <Link href="/jobs" className="btn-gold px-8 py-3.5">
                 Explore Opportunities <ArrowRight size={16} weight="bold" />
               </Link>
-              <Link href="/contact" className="btn-ghost-dark px-8 py-3.5">
+              <a href="#partner-form" className="btn-ghost-dark px-8 py-3.5">
                 Start a Partnership Discussion
-              </Link>
+              </a>
             </div>
 
             <div className="flex items-center gap-3 text-ivory-50/50">
@@ -302,41 +372,86 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
             </div>
           </div>
 
-          {/* Service finder widget */}
-          <ServiceWidget />
-        </div>
-
-        <div className="relative border-t border-white/10">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4">
-            {STATS.map((stat, idx) => (
-              <div
-                key={stat.label}
-                className={`py-7 md:py-9 pr-6 ${idx > 0 ? "md:border-l md:border-white/10 md:pl-8" : ""}`}
-              >
-                <div className="text-2xl md:text-3xl font-semibold tracking-tight text-ivory-50">{stat.value}</div>
-                <div className="text-ivory-50/40 text-[11px] uppercase tracking-[0.2em] mt-2">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+          {/* Landing video */}
+          <FadeIn delay={0.1}>
+            <VideoPlayer
+              src={LANDING_VIDEO}
+              alt="Vertex International — how we move talent around the world"
+              chapters={VIDEO_CHAPTERS}
+              fallback="Take a tour in person — book a consultation with our team."
+            />
+          </FadeIn>
         </div>
       </section>
 
-      {/* ===== Sector marquee ===== */}
-      <section className="bg-midnight-900 border-b border-white/5 py-4 overflow-hidden marquee-mask">
-        <div className="flex w-max animate-marquee">
-          {[...Array(2)].map((_, dup) => (
-            <div key={dup} className="flex items-center shrink-0">
-              {[...SECTORS, ...SECTORS].map((s, idx) => (
-                <span
-                  key={`${dup}-${idx}`}
-                  className="flex items-center text-[12px] font-semibold uppercase tracking-[0.3em] text-ivory-50/40"
-                >
-                  <span className="px-8">{s.title}</span>
-                  <span className="text-gold-500/50 text-[8px]">◆</span>
-                </span>
-              ))}
+      {/* ===== Partner enquiry form ===== */}
+      <section id="partner-form" className="bg-midnight-900 text-ivory-50 py-16 md:py-24 scroll-mt-20">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-10 lg:gap-16 lg:items-start">
+          {/* Left column: Benefits + Process + Already a Partner */}
+          <FadeIn className="mb-10 lg:mb-0">
+            <p className="eyebrow-dark mb-4">
+              <span className="eyebrow-rule" />
+              For partners & employers
+            </p>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">
+              Good partnerships start with a <span className="text-gold-300">clear conversation.</span>
+            </h2>
+            <p className="text-ivory-50/65 leading-relaxed font-light mb-8">
+              Tell us about your organisation, the markets you serve and the cooperation you have in mind.
+            </p>
+
+            {/* Benefits */}
+            <div className="space-y-4 mb-10">
+              {PARTNER_BENEFITS.map((benefit, idx) => {
+                const Icon = benefit.icon;
+                return (
+                  <div key={benefit.title} className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-gold-300 shrink-0">
+                      <Icon size={18} weight="regular" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-ivory-50 mb-1 text-sm">{benefit.title}</h3>
+                      <p className="text-sm text-ivory-50/50 font-light leading-relaxed">{benefit.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+
+            {/* Process Steps */}
+            <div className="mb-10">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-ivory-50/50 mb-4">
+                What happens next
+              </h3>
+              <div className="space-y-4">
+                {PARTNER_PROCESS.map((step, idx) => (
+                  <div key={step.step} className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                    <div className="text-2xl font-semibold text-gold-400 tracking-tight shrink-0">
+                      {step.step}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-ivory-50 mb-1 text-sm">{step.title}</h4>
+                      <p className="text-sm text-ivory-50/50 font-light leading-relaxed">{step.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Already a Partner */}
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-ivory-50/50 mb-2">Already a Vertex partner?</p>
+              <p className="text-sm text-ivory-50/60 mb-3">Use the portal for candidate submissions and existing cases.</p>
+              <Link href="/auth/login" className="text-gold-400 hover:text-gold-300 text-sm font-semibold inline-flex items-center gap-1">
+                Go to the partner portal <ArrowRight size={14} weight="bold" />
+              </Link>
+            </div>
+          </FadeIn>
+
+          {/* Right column: Form */}
+          <FadeIn delay={0.1}>
+            <PartnerEnquiryForm variant="dark" />
+          </FadeIn>
         </div>
       </section>
 
@@ -624,21 +739,52 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           </FadeIn>
 
           <FadeIn>
-            <div className="border-t border-midnight-900/10">
-              {FAQS.map((faq) => (
-                <details key={faq.q} className="group border-b border-midnight-900/10">
-                  <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                    <span className="font-semibold text-midnight-900 text-lg tracking-tight">{faq.q}</span>
-                    <Plus
-                      size={20}
-                      weight="bold"
-                      className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
-                    />
-                  </summary>
-                  <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">{faq.a}</p>
-                </details>
-              ))}
+            {/* Partner FAQs */}
+            <div className="mb-10">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-midnight-900/60 mb-4 flex items-center gap-2">
+                <Handshake size={16} weight="regular" className="text-gold-600" />
+                For partners & employers
+              </h3>
+              <div className="border-t border-midnight-900/10">
+                {PARTNER_FAQS.map((faq) => (
+                  <details key={faq.q} className="group border-b border-midnight-900/10">
+                    <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                      <span className="font-semibold text-midnight-900 text-lg tracking-tight">{faq.q}</span>
+                      <Plus
+                        size={20}
+                        weight="bold"
+                        className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
+                      />
+                    </summary>
+                    <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">{faq.a}</p>
+                  </details>
+                ))}
+              </div>
             </div>
+
+            {/* General FAQs */}
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-midnight-900/60 mb-4 flex items-center gap-2">
+                <ChatCircleText size={16} weight="regular" className="text-gold-600" />
+                General enquiries
+              </h3>
+              <div className="border-t border-midnight-900/10">
+                {FAQS.map((faq) => (
+                  <details key={faq.q} className="group border-b border-midnight-900/10">
+                    <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                      <span className="font-semibold text-midnight-900 text-lg tracking-tight">{faq.q}</span>
+                      <Plus
+                        size={20}
+                        weight="bold"
+                        className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
+                      />
+                    </summary>
+                    <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">{faq.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+
             <p className="text-center mt-10 text-sm text-midnight-900/50 font-light">
               More questions?{" "}
               <Link href="/help" className="font-semibold text-midnight-800 hover:text-gold-600 transition-colors">
@@ -724,9 +870,9 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
               <Link href="/apply" className="btn-gold px-8 py-3.5">
                 Apply Now
               </Link>
-              <Link href="/contact" className="btn-ghost-dark px-8 py-3.5">
+              <a href="#partner-form" className="btn-ghost-dark px-8 py-3.5">
                 Partner With Vertex
-              </Link>
+              </a>
             </div>
           </FadeIn>
         </div>
@@ -780,9 +926,15 @@ function ServiceWidget() {
           ))}
         </ul>
         <p className="text-sm text-ivory-50/50 font-light leading-relaxed mb-5">{service.text}</p>
-        <Link href={service.href} className="btn-primary w-full py-3 text-[12px]">
-          {service.cta} <ArrowRight size={14} weight="bold" />
-        </Link>
+        {service.href.startsWith("#") ? (
+          <a href={service.href} className="btn-primary w-full py-3 text-[12px] inline-flex items-center justify-center gap-2">
+            {service.cta} <ArrowRight size={14} weight="bold" />
+          </a>
+        ) : (
+          <Link href={service.href} className="btn-primary w-full py-3 text-[12px]">
+            {service.cta} <ArrowRight size={14} weight="bold" />
+          </Link>
+        )}
       </motion.div>
     </div>
   );

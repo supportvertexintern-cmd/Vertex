@@ -27,13 +27,16 @@ class Attachment(NamedTuple):
 
 
 def send_mail(
-    to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = (), reply_to: str | None = None
+    to: list[str], subject: str, text: str, *, html: bool = False, attachments: Sequence[Attachment] = (), reply_to: str | None = None,
+    cc: Sequence[str] = (),
 ) -> bool:
     if not settings.SMTP_HOST:
         return False
     message = EmailMessage()
     message["From"] = settings.EMAIL_FROM
     message["To"] = ", ".join(to)
+    if cc:
+        message["Cc"] = ", ".join(cc)
     message["Subject"] = subject
     if reply_to:
         message["Reply-To"] = reply_to

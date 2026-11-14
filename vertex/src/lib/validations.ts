@@ -715,6 +715,19 @@ export const contactMessageSchema = z.object({
   // include its registration/licence number; optional since most contact
   // messages aren't from partners at all.
   registration_number: z.string().max(100).optional(),
+  // The landing page's partner enquiry (2026-11-05): enquiry_type "partner"
+  // with its organisation's details. FastAPI's ContactIn checks the same.
+  enquiry_type: z.enum(["partner", "general"]).default("general"),
+  organisation: z.string().max(150).optional(),
+  organisation_type: z.enum(["agency", "employer", "travel", "institution", "other"]).optional(),
+  country: z.string().max(100).optional(),
+  job_title: z.string().max(100).optional(),
+  phone: z.string().max(30).optional(),
+  cooperation_requirements: z.string().max(2500).optional(),
+  meeting_preference: z.string().max(150).optional(),
+  estimated_volume: z.number().int().min(1).max(100000).optional(),
+  preferred_language: z.string().max(80).optional(),
+  profile_link: z.string().url().max(300).regex(/^https?:\/\//i, "Enter a web address starting with http:// or https://").optional(),
 });
 
 // Public self-registration for the Referral Agent System (2026-08-29) —

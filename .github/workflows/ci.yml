@@ -265,6 +265,8 @@ jobs:
       SMTP_PORT: "1025"
       SMTP_SECURE: "false"
       EMAIL_FROM: e2e@test.local
+      # Where the public forms go (public-pages.spec.ts sends a partner enquiry).
+      PUBLIC_FORMS_NOTIFY_EMAIL: forms@test.local
       NEXT_PUBLIC_APP_URL: http://localhost:3100
       # The journeys log in many times from one machine (default limit: 10/min).
       LOGIN_RATE_LIMIT_MAX: "1000"

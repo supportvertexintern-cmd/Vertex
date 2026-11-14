@@ -5218,12 +5218,82 @@
     "type": "string"
    },
    "ContactIn": {
-    "description": "contactMessageSchema.",
+    "description": "contactMessageSchema. A partner enquiry (the landing page's form,\n2026-11-05) is enquiry_type \"partner\" with its organisation's details.",
     "properties": {
+     "cooperation_requirements": {
+      "anyOf": [
+       {
+        "maxLength": 2500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cooperation Requirements"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
      "email": {
       "maxLength": 320,
       "title": "Email",
       "type": "string"
+     },
+     "enquiry_type": {
+      "default": "general",
+      "enum": [
+       "partner",
+       "general"
+      ],
+      "title": "Enquiry Type",
+      "type": "string"
+     },
+     "estimated_volume": {
+      "anyOf": [
+       {
+        "maximum": 100000.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Estimated Volume"
+     },
+     "job_title": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Job Title"
+     },
+     "meeting_preference": {
+      "anyOf": [
+       {
+        "maxLength": 150,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Meeting Preference"
      },
      "message": {
       "maxLength": 5000,
@@ -5236,6 +5306,73 @@
       "minLength": 2,
       "title": "Name",
       "type": "string"
+     },
+     "organisation": {
+      "anyOf": [
+       {
+        "maxLength": 150,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Organisation"
+     },
+     "organisation_type": {
+      "anyOf": [
+       {
+        "enum": [
+         "agency",
+         "employer",
+         "travel",
+         "institution",
+         "other"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Organisation Type"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "maxLength": 30,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     },
+     "preferred_language": {
+      "anyOf": [
+       {
+        "maxLength": 80,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preferred Language"
+     },
+     "profile_link": {
+      "anyOf": [
+       {
+        "maxLength": 300,
+        "pattern": "^https?://",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Profile Link"
      },
      "registration_number": {
       "anyOf": [

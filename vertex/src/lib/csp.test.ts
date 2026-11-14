@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 import { proxy } from "@/proxy";
 import nextConfig from "../../next.config";
 import { legacyPolicy, noncePolicy, scriptSrc } from "@/lib/csp";
+import { LANDING_VIDEO, MEDIA_ORIGIN, PARTNER_REEL } from "@/lib/media";
 import { setLogSink } from "@/lib/log";
 import { POST as cspReport } from "@/app/api/csp-report/route";
 import { z } from "zod";
@@ -104,6 +105,13 @@ describe("regression check (E3 step 9)", () => {
       expect(src).not.toContain("'unsafe-inline'");
       expect(src).not.toContain("'unsafe-eval'"); // NODE_ENV is "test", as in production builds: no eval
     }
+  });
+
+  it("media plays only from this site and the marketing videos' bucket (2026-11-03)", () => {
+    for (const p of [noncePolicy("n", { https: true }), legacyPolicy()]) {
+      expect(p).toContain(`media-src 'self' ${MEDIA_ORIGIN}`);
+    }
+    for (const src of [LANDING_VIDEO, PARTNER_REEL]) expect(src.startsWith(`${MEDIA_ORIGIN}/`)).toBe(true);
   });
 
   it("the nonce policy keeps the other hardening directives", () => {

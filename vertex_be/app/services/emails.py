@@ -61,6 +61,7 @@ class Mail:
     html: str
     attachments: tuple[Attachment, ...] = ()
     reply_to: str | None = None
+    cc: tuple[str, ...] = ()
 
 
 def _url(path: str) -> str:
@@ -228,7 +229,7 @@ VALUES: dict[str, Callable[[BaseModel], Filled]] = {
 }
 SENT_HERE = frozenset(VALUES)
 # The templates sent straight from a request, not as a notice.
-DIRECT = frozenset({"contact", "public_intake", "public_intake_confirmation", "case_invoice"})
+DIRECT = frozenset({"contact", "partner_enquiry", "public_intake", "public_intake_confirmation", "case_invoice"})
 
 
 def _fill(text: str, values: dict[str, str], *, escape: bool, raw: dict[str, str] | None = None) -> str:
@@ -273,7 +274,7 @@ dispatch: Callable[[Callable[[], None]], None] = _in_background
 
 def _transmit(mail: Mail) -> None:
     """Sends one email over SMTP; raises if it can't (no SMTP_HOST included)."""
-    if not send_mail([mail.to], mail.subject, mail.html, html=True, attachments=mail.attachments, reply_to=mail.reply_to):
+    if not send_mail([mail.to], mail.subject, mail.html, html=True, attachments=mail.attachments, reply_to=mail.reply_to, cc=mail.cc):
         raise RuntimeError("SMTP isn't configured")
 
 
@@ -310,6 +311,42 @@ def contact_mail(db: Session, to: str, form: BaseModel) -> Mail:
               "registrationNumber": form.registration_number or ""}
     subject, body = render(db, "contact.registration" if form.registration_number else "contact.no_registration", values)
     return Mail("contact", to, subject, body, reply_to=form.email)
+
+
+ORGANISATION_TYPES = {
+    "agency": "Recruitment agency / manpower supplier",
+    "employer": "Employer / corporate client",
+    "travel": "Travel agency / visa consultancy",
+    "institution": "Institution / association",
+    "other": "Other business collaborator",
+}
+
+
+def partner_enquiry_mail(db: Session, to: str, form: BaseModel) -> Mail:
+    """The landing page's partner enquiry (2026-11-05): the organisation's
+    details as rows, a row left out when empty, every value escaped. Replies
+    go to the sender; PARTNER_ENQUIRY_CC_EMAIL, when set, is copied in."""
+    parts = TEMPLATES["partner_enquiry"]["parts"]
+    rows = [
+        ("Organisation", form.organisation), ("Type", ORGANISATION_TYPES.get(form.organisation_type or "")), ("Country", form.country),
+        ("Contact", form.name), ("Role", form.job_title), ("Email", form.email), ("Phone", form.phone),
+        ("Registration / licence number", form.registration_number), ("Meeting preference", form.meeting_preference),
+        ("Estimated volume", str(form.estimated_volume) if form.estimated_volume else None),
+        ("Preferred language", form.preferred_language), ("Profile link", form.profile_link),
+    ]
+    raw = {
+        "rows": "".join(_fill(parts["row"], {"label": label, "value": value}, escape=True) for label, value in rows if value),
+        "cooperation": _fill(parts["block"], {"label": "Cooperation requirements", "value": form.cooperation_requirements}, escape=True)
+        if form.cooperation_requirements else "",
+        # The form sends the requirements as the message too: shown once.
+        "message": _fill(parts["block"], {"label": "Message", "value": form.message}, escape=True)
+        if form.message and form.message != form.cooperation_requirements else "",
+    }
+    values = {"organisation": " ".join((form.organisation or form.name).split()), "country": " ".join((form.country or "Unknown country").split()),
+              "name": form.name, "email": form.email, "subject": form.subject}
+    subject, body = render(db, "partner_enquiry", values, raw)
+    cc = (settings.PARTNER_ENQUIRY_CC_EMAIL,) if settings.PARTNER_ENQUIRY_CC_EMAIL else ()
+    return Mail("partner_enquiry", to, subject, body, reply_to=form.email, cc=cc)
 
 
 def _yes_no(flag: bool | None, details: str | None) -> str | None:
