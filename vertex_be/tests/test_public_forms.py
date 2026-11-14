@@ -55,6 +55,38 @@ def test_a_contact_message_is_emailed_to_the_team(api, sent_mail):
     assert "Registration/Licence Number" not in without.html
 
 
+ENQUIRY = {
+    "enquiry_type": "partner", "name": "Sara Bekele", "email": "sara@test.invalid", "subject": "Partnership enquiry: Addis <PLC>",
+    "message": "We place 40 carers a year & want to grow.", "cooperation_requirements": "We place 40 carers a year & want to grow.",
+    "organisation": "Addis <PLC>", "organisation_type": "agency", "country": "Ethiopia", "job_title": "Director", "phone": "+251 911 000000",
+    "estimated_volume": 40, "profile_link": "https://addis.example",
+}
+
+
+def test_a_partner_enquiry_has_its_own_email(api, sent_mail, monkeypatch):
+    """The landing page's partner enquiry (2026-11-05): the organisation's
+    details as rows, empty ones left out, every value escaped, the CC when
+    one is set."""
+    monkeypatch.setattr(settings, "PARTNER_ENQUIRY_CC_EMAIL", "support@test.invalid")
+    assert api.post(CONTACT, headers=website(), json=ENQUIRY).status_code == 201
+    [mail] = sent_mail
+    assert (mail.to, mail.cc, mail.reply_to, mail.subject) == (
+        "forms@test.invalid", ("support@test.invalid",), "sara@test.invalid", "[Partner Enquiry] Addis <PLC> · Ethiopia",
+    )
+    html = mail.html
+    assert "Addis &lt;PLC&gt;" in html and "<PLC>" not in html
+    assert "Recruitment agency / manpower supplier" in html and "https://addis.example" in html and "+251 911 000000" in html
+    # The requirements are the message too: shown once. No language given: no row.
+    assert html.count("We place 40 carers a year &amp; want to grow.") == 1
+    assert "Preferred language" not in html and "{{" not in html
+
+
+def test_a_partner_enquiry_is_checked(api, sent_mail):
+    for bad in ({"organisation_type": "bank"}, {"estimated_volume": 0}, {"profile_link": "javascript:alert(1)"}):
+        assert api.post(CONTACT, headers=website(), json=ENQUIRY | bad).status_code == 422, bad
+    assert sent_mail == []
+
+
 def test_only_the_website_may_send_one(api, sent_mail):
     assert api.post(CONTACT, json=MESSAGE).status_code == 401
     assert sent_mail == []

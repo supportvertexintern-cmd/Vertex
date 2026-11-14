@@ -13,6 +13,7 @@ it may call these (calling_service).
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
@@ -35,13 +36,25 @@ class Sent(BaseModel):
 
 
 class ContactIn(BaseModel):
-    """contactMessageSchema."""
+    """contactMessageSchema. A partner enquiry (the landing page's form,
+    2026-11-05) is enquiry_type "partner" with its organisation's details."""
 
     name: str = Field(min_length=2, max_length=150)
     email: str = Field(max_length=320)
     subject: str = Field(min_length=2, max_length=200)
     message: str = Field(min_length=10, max_length=5000)
     registration_number: str | None = Field(default=None, max_length=100)
+    enquiry_type: Literal["partner", "general"] = "general"
+    organisation: str | None = Field(default=None, max_length=150)
+    organisation_type: Literal["agency", "employer", "travel", "institution", "other"] | None = None
+    country: str | None = Field(default=None, max_length=100)
+    job_title: str | None = Field(default=None, max_length=100)
+    phone: str | None = Field(default=None, max_length=30)
+    cooperation_requirements: str | None = Field(default=None, max_length=2500)
+    meeting_preference: str | None = Field(default=None, max_length=150)
+    estimated_volume: int | None = Field(default=None, ge=1, le=100000)
+    preferred_language: str | None = Field(default=None, max_length=80)
+    profile_link: str | None = Field(default=None, max_length=300, pattern=r"^https?://")
 
 
 class IntakeIn(BaseModel):
@@ -82,7 +95,9 @@ def _inbox(kind: str, message: str) -> str:
 @router.post("/contact", response_model=Data[Sent], status_code=status.HTTP_201_CREATED)
 def contact(body: ContactIn, db: DbSession):
     """POST /api/contact: the message, emailed to the team (reply-to the sender)."""
-    if not emails.send_now(emails.contact_mail(db, _inbox("contact", CONTACT_FAILED), body)):
+    to = _inbox("contact", CONTACT_FAILED)
+    mail = emails.partner_enquiry_mail(db, to, body) if body.enquiry_type == "partner" else emails.contact_mail(db, to, body)
+    if not emails.send_now(mail):
         raise ApiError(502, "send_failed", CONTACT_FAILED)
     return {"data": Sent()}
 

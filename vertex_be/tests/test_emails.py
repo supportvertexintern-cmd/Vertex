@@ -264,7 +264,7 @@ def test_a_failure_is_logged_by_kind_without_the_link(db, sent_mail, monkeypatch
 def test_one_send_failing_doesnt_stop_the_rest(monkeypatch, caplog):
     tried = []
 
-    def send_mail(to, subject, body, *, html=False, attachments=(), reply_to=None):
+    def send_mail(to, subject, body, *, html=False, attachments=(), reply_to=None, cc=()):
         tried.append(to[0])
         if to[0] == "a@test.invalid":
             raise OSError("smtp down")

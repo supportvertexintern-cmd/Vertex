@@ -92,6 +92,8 @@ class Settings(BaseSettings):
     # The public contact form and CIF go here; unset, they fail (502), as
     # there's no other record of them.
     PUBLIC_FORMS_NOTIFY_EMAIL: str | None = None
+    # Copied in on every partner enquiry from the landing page (2026-11-05).
+    PARTNER_ENQUIRY_CC_EMAIL: str | None = None
     # Security alerts (app/services/security_monitor.py): comma-separated
     # addresses; unset = every admin user.
     SECURITY_ALERT_EMAILS: str | None = None

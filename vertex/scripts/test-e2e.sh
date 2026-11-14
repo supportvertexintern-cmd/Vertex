@@ -64,6 +64,7 @@ export DATABASE_URL="postgresql://postgres@localhost:$PG_PORT/vertex_e2e"
 export S3_ENDPOINT="http://localhost:$S3_PORT" S3_BUCKET=vertex-e2e
 export S3_ACCESS_KEY_ID=ci-root S3_SECRET_ACCESS_KEY="$S3_SECRET"
 export SMTP_HOST=localhost SMTP_PORT="$SMTP_PORT" SMTP_SECURE=false EMAIL_FROM=e2e@test.local
+export PUBLIC_FORMS_NOTIFY_EMAIL=forms@test.local
 export NEXT_PUBLIC_APP_URL="http://localhost:$E2E_PORT"
 # The journeys log in many times from one machine (default limit: 10/min).
 export LOGIN_RATE_LIMIT_MAX=1000

@@ -5650,15 +5650,42 @@ export interface components {
         ContactChannel: "email" | "whatsapp" | "phone";
         /**
          * ContactIn
-         * @description contactMessageSchema.
+         * @description contactMessageSchema. A partner enquiry (the landing page's form,
+         *     2026-11-05) is enquiry_type "partner" with its organisation's details.
          */
         ContactIn: {
+            /** Cooperation Requirements */
+            cooperation_requirements?: string | null;
+            /** Country */
+            country?: string | null;
             /** Email */
             email: string;
+            /**
+             * Enquiry Type
+             * @default general
+             * @enum {string}
+             */
+            enquiry_type: "partner" | "general";
+            /** Estimated Volume */
+            estimated_volume?: number | null;
+            /** Job Title */
+            job_title?: string | null;
+            /** Meeting Preference */
+            meeting_preference?: string | null;
             /** Message */
             message: string;
             /** Name */
             name: string;
+            /** Organisation */
+            organisation?: string | null;
+            /** Organisation Type */
+            organisation_type?: ("agency" | "employer" | "travel" | "institution" | "other") | null;
+            /** Phone */
+            phone?: string | null;
+            /** Preferred Language */
+            preferred_language?: string | null;
+            /** Profile Link */
+            profile_link?: string | null;
             /** Registration Number */
             registration_number?: string | null;
             /** Subject */

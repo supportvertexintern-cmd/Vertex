@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ChatCircleText, Phone, EnvelopeSimple, MapPin, CheckCircle } from "@phosphor-icons/react";
+import VideoPlayer from "@/components/VideoPlayer";
+import { PARTNER_REEL } from "@/lib/media";
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", registration_number: "" });
@@ -50,6 +52,38 @@ export default function ContactPage() {
           <p className="text-ivory-50/50 text-lg font-light">
             Employers, agencies, partners, or candidates — reach the Vertex team directly.
           </p>
+        </div>
+      </section>
+
+      {/* Partner reel — portrait 9:16, so it's height-capped and centered
+          (never stretched wide), muted-autoplay loop for the short cut. */}
+      <section className="bg-midnight-900 text-ivory-50 py-16 md:py-20">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[auto_auto] gap-10 items-center">
+          <div className="max-w-xl">
+            <p className="eyebrow-dark mb-4">
+              <span className="eyebrow-rule" />
+              For partners
+            </p>
+            <h2 className="section-title-dark text-3xl md:text-4xl">See how partnerships work at Vertex.</h2>
+            <p className="text-ivory-50/65 leading-relaxed font-light mt-4">
+              We work with recruitment agencies and manpower partners around the world. Watch a quick look at how we
+              collaborate — then get in touch using the form below.
+            </p>
+          </div>
+          <VideoPlayer
+            src={PARTNER_REEL}
+            alt="Vertex partner overview reel"
+            // The portrait height cap belongs on the player's OWN
+            // wrapper — a height class on an outer div wouldn't reach
+            // the video (the original full-page-height bug). The pair is
+            // content-sized + centered as a unit, so the reel sits tight
+            // beside the text instead of floating at the far right.
+            wrapperClassName="h-[420px] sm:h-[520px] flex items-center"
+            videoClassName="h-full w-auto max-w-full object-contain rounded-2xl bg-midnight-900 ring-1 ring-white/10 shadow-2xl"
+            autoPlay
+            muted
+            loop
+          />
         </div>
       </section>
 

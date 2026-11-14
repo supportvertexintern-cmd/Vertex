@@ -34,7 +34,15 @@ describe("POST /api/contact", () => {
   it("passes the checked message on, as this app, and answers as before", async () => {
     const res = await contact.POST(post(message));
     expect([res.status, await res.json()]).toEqual([201, { success: true }]);
-    expect(callBackend).toHaveBeenCalledWith("/api/v1/public-forms/contact", { method: "POST", body: message, asUser: false });
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/public-forms/contact", { method: "POST", body: { ...message, enquiry_type: "general" }, asUser: false });
+  });
+
+  it("passes a partner enquiry on with its organisation's details (2026-11-05)", async () => {
+    const enquiry = { ...message, enquiry_type: "partner", organisation: "Addis PLC", organisation_type: "agency", country: "Ethiopia", estimated_volume: 40 };
+    expect((await contact.POST(post(enquiry))).status).toBe(201);
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/public-forms/contact", { method: "POST", body: enquiry, asUser: false });
+    const bad = await contact.POST(post({ ...enquiry, organisation_type: "bank" }));
+    expect(bad.status).toBe(422);
   });
 
   it("keeps its own validation messages, and a send that fails is a 502", async () => {
