@@ -2,7 +2,7 @@
 # repo; these comment lines match no path). Each was reviewed on 2026-11-14:
 # none of the hits is a live credential.
 #
-# Placeholder URLs: postgresql://u:p@db/x and the like, the cases the URL
+# Placeholder database URLs (user "u", password "p"): the cases the URL
 # parsing tests feed in.
 ^vertex_be/tests/test_config\.py$
 ^vertex_be/tests/test_seeds\.py$
@@ -13,3 +13,6 @@
 # nowhere else).
 ^\.env\.example$
 ^docker-compose\.test\.yml$
+# This file: its first version (02078811) quoted one of those placeholder
+# URLs in a comment, and that version stays in history.
+^\.trufflehog-exclude\.txt$
