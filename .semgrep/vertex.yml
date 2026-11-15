@@ -1,0 +1,23 @@
+# The repo's own Semgrep rules, from upstream staging's .semgrep/vertex.yml
+# (2026-11-13). Its Prisma rules (raw SQL, Server Actions, a route reading
+# the database, body spreading, client-sent money) have no target here: the
+# website has no database, and FastAPI owns every write. These two still do.
+rules:
+  - id: vertex-no-html-sink
+    message: >-
+      dangerouslySetInnerHTML renders raw HTML. Render text instead, or
+      suppress with a nosemgrep comment saying why this HTML is safe.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include: ["*.tsx", "*.jsx"]
+    pattern-regex: dangerouslySetInnerHTML
+
+  - id: vertex-no-public-secret
+    message: >-
+      NEXT_PUBLIC_ variables are bundled into the browser. A name containing
+      SECRET, KEY, TOKEN or DATABASE suggests a server-only value. A
+      publishable key (Stripe's, say) may be suppressed with a reason.
+    severity: ERROR
+    languages: [generic]
+    pattern-regex: NEXT_PUBLIC_[A-Z0-9_]*(SECRET|KEY|TOKEN|DATABASE)[A-Z0-9_]*

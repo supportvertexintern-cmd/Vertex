@@ -37,6 +37,7 @@ describe("getAuthUser", () => {
     state.token = "not-a-token";
     expect(await getAuthUser()).toBeNull();
     // Before G19 (no session id, the shared secret): refused.
+    // nosemgrep: javascript.jsonwebtoken.security.jwt-hardcode.hardcoded-jwt-secret -- a forged token, made to be refused.
     state.token = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin" }, "irrelevant");
     expect(await getAuthUser()).toBeNull();
     // The right shape, signed with a key FastAPI didn't list.

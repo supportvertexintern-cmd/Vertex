@@ -74,6 +74,35 @@ jobs:
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 \
             git /repo --config /repo/.gitleaks.toml --redact --no-banner --verbose
 
+      # A second opinion on the same history (upstream staging, 2026-11-13):
+      # TruffleHog checks the secrets it finds against their services, so a
+      # verified hit is a live credential. Verified and unknown results fail
+      # the run; .trufflehog-exclude.txt lists the paths it skips, each with
+      # its reason.
+      - name: TruffleHog
+        run: |
+          docker run --rm -v "$PWD:/repo" trufflesecurity/trufflehog:3.99.7 \
+            git file:///repo --results=verified,unknown --fail --no-update \
+            --exclude-paths=/repo/.trufflehog-exclude.txt
+
+  # Static analysis of both apps (upstream staging, 2026-11-13): Semgrep's
+  # OWASP, TypeScript, React, Python and JWT packs, plus the repo's own rules
+  # (.semgrep/vertex.yml). Errors and warnings fail the run; a finding that
+  # is a false alarm is suppressed where it is, with a nosemgrep comment that
+  # says why.
+  semgrep:
+    name: Static analysis (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Semgrep
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.183.0 \
+            semgrep scan vertex/src vertex_be/app \
+              --config p/owasp-top-ten --config p/typescript --config p/react --config p/python --config p/jwt \
+              --config .semgrep/vertex.yml \
+              --severity ERROR --severity WARNING --error --metrics=off
+
   backend:
     name: Backend tests
     needs: changes
@@ -406,7 +435,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [changes, secrets, backend, flutter, nextjs, e2e, images]
+    needs: [changes, secrets, semgrep, backend, flutter, nextjs, e2e, images]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any job failed or was cancelled
