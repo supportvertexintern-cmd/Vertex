@@ -7,6 +7,7 @@ import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
 // Card payments go to Stripe's hosted Checkout page; a missing key is
 // handled gracefully in the UI.
+// nosemgrep: semgrep.vertex-no-public-secret -- Stripe's publishable key is public by design.
 const stripeConfigured = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 const errorMessage = (err: unknown, fallback: string) => (err instanceof Error && err.message) || fallback;

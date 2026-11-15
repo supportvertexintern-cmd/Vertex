@@ -1,0 +1,15 @@
+# Paths TruffleHog skips (one regex per line, matched against the path in the
+# repo; these comment lines match no path). Each was reviewed on 2026-11-14:
+# none of the hits is a live credential.
+#
+# Placeholder URLs: postgresql://u:p@db/x and the like, the cases the URL
+# parsing tests feed in.
+^vertex_be/tests/test_config\.py$
+^vertex_be/tests/test_seeds\.py$
+# Shell variables ($API_PW, $MIG_PW, $WEB_PW) the drill fills at run time.
+^vertex_be/deploy/backup/restore-drill\.sh$
+# Deleted files, still in history: the template's USER:PASSWORD@HOST, and the
+# throwaway database password of the black-box test image (4bf86ca7, used
+# nowhere else).
+^\.env\.example$
+^docker-compose\.test\.yml$
