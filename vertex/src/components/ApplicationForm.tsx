@@ -8,6 +8,7 @@ import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadHint } from "@/lib/uploadPolicy";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -119,16 +120,6 @@ interface Props {
     marital_status: string;
   }>;
   /**
-   * Only set by the public /apply page's two renders (signed-out and
-   * signed-in-candidate) — RegisterCandidateForm (recruiter walk-in lead)
-   * and PartnerCandidateForm never set this, so staff-entered submissions
-   * always go straight into the CRM regardless of the admin's Public Form
-   * Intake Mode setting. When set and the fetched mode is "email", submit
-   * posts to /api/public-intake/application (no CRM writes, straight to
-   * PUBLIC_FORMS_NOTIFY_EMAIL) instead of /api/applications.
-   */
-  useEmailIntakeIfConfigured?: boolean;
-  /**
    * Set only by /apply's signed-in-candidate render (2026-08-06) — tells
    * Section 3's post-submit upload loop to use the plain self-upload path
    * (no candidate_id) instead of the on-behalf path every other renderer
@@ -206,10 +197,12 @@ const emptyForm = {
  * public submission now always goes to HR for review, a recruiter's own
  * walk-in lead stays exactly on its existing recruiter/supervisor/inhouse
  * pipeline), and the narrower existing-candidate on-behalf flow, since all
- * three submit through the same POST /api/applications (or, while the CRM
- * isn't live yet for public traffic, POST /api/public-intake/application).
+ * three submit through the same POST /api/applications. A public
+ * submission always reaches HR's Self Applications queue (2026-10-24); the
+ * Public Form Intake Mode setting only decides whether the team also gets
+ * an email copy, which FastAPI sends.
  */
-export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, useEmailIntakeIfConfigured, signedInCandidate, referralCode }: Props) {
+export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, signedInCandidate, referralCode }: Props) {
   const [countries, setCountries] = useState<Option[]>([]);
   const [locationCountries, setLocationCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
@@ -221,12 +214,6 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   const [sector, setSector] = useState("");
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeOption[]>([]);
   const [documentRequirements, setDocumentRequirements] = useState<{ country_id: string; document_type: string }[]>([]);
-  // Defaults "email" so that if useEmailIntakeIfConfigured is set and
-  // someone somehow submits before /api/apply/options resolves, the safe
-  // failure mode is "email PUBLIC_FORMS_NOTIFY_EMAIL", not "silently write
-  // into a CRM the business hasn't signed off on yet" — same fail-safe
-  // reasoning as that route's own server-side default.
-  const [intakeMode, setIntakeMode] = useState<"email" | "crm">("email");
   const [form, setForm] = useState(() => {
     // A plain {...emptyForm, ...initialProfile} spread would overwrite a
     // field with `undefined` whenever initialProfile has that key at all
@@ -252,6 +239,17 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
   // uploaded until Submit; unchecking a document clears its file too.
   const [documentFiles, setDocumentFiles] = useState<Record<string, File | null>>({});
   const [otherDocuments, setOtherDocuments] = useState<{ label: string; file: File | null }[]>([]);
+  // Why a picked file was refused, by picker ("passport", "other-0"), shown
+  // under it; the file is cleared so it can be chosen again once fixed.
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
+  const pick = async (key: string, input: HTMLInputElement): Promise<File | null> => {
+    const { file, error } = await readUploadSelection(input);
+    setFileErrors((errs) => {
+      const { [key]: _gone, ...rest } = errs;
+      return error ? { ...rest, [key]: error } : rest;
+    });
+    return file;
+  };
 
   useEffect(() => {
     fetch("/api/apply/options")
@@ -261,7 +259,6 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
         setLocationCountries(res.locationCountries ?? []);
         setDocumentTypes(res.documentTypes ?? []);
         setDocumentRequirements(res.documentRequirements ?? []);
-        setIntakeMode(res.intakeMode === "email" ? "email" : "crm");
       })
       .catch(() => {});
     fetch("/api/jobs?limit=50")
@@ -416,13 +413,9 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
     setMessage("");
     setFieldErrors({});
 
-    // A public self-submission now always goes to HR for review once the
-    // CRM is active (2026-07-31) — the old per-submission "no recruiter
-    // for this country" fallback is gone along with recruiter assignment
-    // itself; only the admin-wide Public Form Intake Mode setting decides
-    // whether this reaches the CRM at all.
-    const useEmailIntake = useEmailIntakeIfConfigured && intakeMode === "email";
-    const res = await fetch(useEmailIntake ? "/api/public-intake/application" : "/api/applications", {
+    // A public self-submission always goes to HR for review (2026-07-31),
+    // whatever the Public Form Intake Mode setting (2026-10-24).
+    const res = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -440,7 +433,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
     const data = await res.json();
     if (res.ok) {
       let uploadFailures = 0;
-      if (!useEmailIntake && data.candidate_id) {
+      if (data.candidate_id) {
         uploadFailures = await uploadCollectedDocuments(data.candidate_id, data.upload_token);
       }
       setStatus("success");
@@ -688,7 +681,10 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                     checked={checked}
                     onChange={() => {
                       toggleDocument(doc.key);
-                      if (checked) setDocumentFiles((f) => ({ ...f, [doc.key]: null }));
+                      if (checked) {
+                        setDocumentFiles((f) => ({ ...f, [doc.key]: null }));
+                        setFileErrors(({ [doc.key]: _gone, ...rest }) => rest);
+                      }
                     }}
                     className="w-4 h-4 mt-0.5"
                   />
@@ -707,11 +703,16 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                   <div className="ml-6 mt-1.5">
                     <input
                       type="file"
-                      accept="application/pdf,image/*"
+                      accept={UPLOAD_ACCEPT}
                       data-testid={`cif-doc-${doc.key}-input`}
-                      onChange={(e) => setDocumentFiles((f) => ({ ...f, [doc.key]: e.target.files?.[0] ?? null }))}
+                      onChange={async (e) => {
+                        const picked = await pick(doc.key, e.currentTarget);
+                        setDocumentFiles((f) => ({ ...f, [doc.key]: picked }));
+                      }}
                       className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs"
                     />
+                    <span className="block text-[11px] text-slate-400 mt-0.5">{uploadHint()}</span>
+                    {fileErrors[doc.key] && <span role="alert" className="block text-[11px] text-red-600 mt-0.5">{fileErrors[doc.key]}</span>}
                     {file && <span className="block text-[11px] text-emerald-700 mt-0.5">{file.name} ready to upload</span>}
                   </div>
                 )}
@@ -725,7 +726,8 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
           <p className="text-xs text-slate-500 mb-3">Anything else that supports your application — optional.</p>
           <div className="space-y-2">
             {otherDocuments.map((d, i) => (
-              <div key={i} className="flex items-center gap-2">
+              <div key={i}>
+              <div className="flex items-center gap-2">
                 <input
                   value={d.label}
                   onChange={(e) =>
@@ -736,21 +738,25 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                 />
                 <input
                   type="file"
-                  accept="application/pdf,image/*"
-                  onChange={(e) =>
-                    setOtherDocuments((docs) =>
-                      docs.map((doc, j) => (j === i ? { ...doc, file: e.target.files?.[0] ?? null } : doc))
-                    )
-                  }
+                  accept={UPLOAD_ACCEPT}
+                  onChange={async (e) => {
+                    const picked = await pick(`other-${i}`, e.currentTarget);
+                    setOtherDocuments((docs) => docs.map((doc, j) => (j === i ? { ...doc, file: picked } : doc)));
+                  }}
                   className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-100 file:text-slate-700 file:text-xs max-w-[180px]"
                 />
                 <button
                   type="button"
-                  onClick={() => setOtherDocuments((docs) => docs.filter((_, j) => j !== i))}
+                  onClick={() => {
+                    setOtherDocuments((docs) => docs.filter((_, j) => j !== i));
+                    setFileErrors({}); // the rows below shift up a place
+                  }}
                   className="text-xs text-red-500 hover:underline"
                 >
                   Remove
                 </button>
+              </div>
+              {fileErrors[`other-${i}`] && <span role="alert" className="block text-[11px] text-red-600 mt-0.5">{fileErrors[`other-${i}`]}</span>}
               </div>
             ))}
             <button

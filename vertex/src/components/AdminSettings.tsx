@@ -115,17 +115,16 @@ export default function AdminSettings() {
               value={settings.intake_mode || "email"}
               onChange={(value) => setSettings({ ...settings, intake_mode: value })}
               options={[
-                { value: "email", label: "Email to Staff (CRM not yet live)" },
-                { value: "crm", label: "CRM Pipeline (recruiters assigned automatically)" },
+                { value: "email", label: "CRM + email copy to staff" },
+                { value: "crm", label: "CRM only" },
               ]}
             />
             <p className="text-xs text-midnight-900/45 mt-2">
-              While set to Email, the public Candidate Information Form (/apply) doesn&apos;t touch the CRM at
-              all — submissions are emailed straight to <code>PUBLIC_FORMS_NOTIFY_EMAIL</code> instead. Switch to
-              CRM Pipeline once staff are ready to work submissions inside the system (candidates get created,
-              recruiters are auto-assigned, as today). Doesn&apos;t affect staff-entered leads (recruiter portal,
-              partner portal) — those always go straight into the CRM. The Contact form always emails regardless
-              of this setting.
+              Every public Candidate Information Form (/apply) submission is created in the CRM and appears in
+              HR&apos;s Self Applications queue. With &quot;CRM + email copy to staff&quot;, a formatted copy of
+              each submission is also emailed to <code>PUBLIC_FORMS_NOTIFY_EMAIL</code>; choose &quot;CRM only&quot;
+              to stop those emails. Doesn&apos;t affect staff-entered leads (recruiter portal, partner portal). The
+              Contact form always emails regardless of this setting.
             </p>
           </div>
         </div>

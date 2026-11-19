@@ -37,14 +37,17 @@ export const metadata: Metadata = {
 import Script from "next/script";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
+import { MAX_UPLOAD_MB_ATTRIBUTE, maxUploadMb } from "@/lib/uploadPolicy";
 
 // Reading the request's CSP nonce (set by src/proxy.ts) also makes every
 // page render per request, which nonces require: a page prerendered at
 // build time would carry no nonce (E3).
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
+  // The upload size limit, read here at run time so the browser's check
+  // (lib/uploadPolicy.ts) agrees with the FastAPI this site runs beside.
   return (
-    <html lang="en" className={font.variable}>
+    <html lang="en" className={font.variable} {...{ [MAX_UPLOAD_MB_ATTRIBUTE]: maxUploadMb() }}>
       <body className="min-h-screen flex flex-col bg-ivory-50">
         <DialogProvider>
         <SessionRefresh />

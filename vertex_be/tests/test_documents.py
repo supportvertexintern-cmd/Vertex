@@ -245,6 +245,17 @@ def test_a_reupload_replaces_the_file_but_other_documents_add_up(api, db, world)
     assert {one["storage_path"], two["storage_path"]} <= stored()
 
 
+def test_a_label_is_150_characters_at_most(api, world):
+    # Measured after trimming: surrounding spaces don't count.
+    kept = upload(api, world.own, "other", label=f"  {'a' * 150}  ")
+    assert (kept.status_code, kept.json()["data"]["label"]) == (200, "a" * 150)
+    before = stored()
+    long = upload(api, world.own, "other", label="a" * 151)
+    assert long.status_code == 400
+    assert long.json()["error"]["message"] == "The document label is too long (150 characters at most)."
+    assert stored() == before  # refused before anything is stored
+
+
 def test_staff_upload_for_candidates_they_reach(api, db, world):
     assert upload(api, world.rec, world.passport, candidate_id=world.mine.id).status_code == 200
     out = upload(api, world.rec, world.passport, candidate_id=world.elsewhere.id)

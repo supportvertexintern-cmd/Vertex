@@ -136,7 +136,6 @@ function ApplyPageInner() {
               includePersonalInfo
               onSubmitted={() => {}}
               jobId={jobId}
-              useEmailIntakeIfConfigured
               referralCode={referralCode}
             />
             <p className="text-center text-xs text-slate-400 mt-4">
@@ -159,7 +158,6 @@ function ApplyPageInner() {
                   includePersonalInfo
                   onSubmitted={() => fetch("/api/candidates/profile").then((r) => r.json()).then(setProfile)}
                   jobId={jobId}
-                  useEmailIntakeIfConfigured
                   referralCode={referralCode}
                   signedInCandidate
                   initialProfile={{
