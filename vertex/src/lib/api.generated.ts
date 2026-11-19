@@ -1392,6 +1392,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/intake": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload For Intake
+         * @description POST /api/upload?intake=1: a file for the Candidate Information Form,
+         *     before it's submitted. Only Next.js may call this, and it rate-limits
+         *     by address: the applicant may have no account.
+         */
+        post: operations["upload_for_intake_api_v1_documents_intake_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/readable": {
         parameters: {
             query?: never;
@@ -5954,6 +5976,10 @@ export interface components {
         Data_FinalizedOut_: {
             data: components["schemas"]["FinalizedOut"];
         };
+        /** Data[IntakeReceipt] */
+        Data_IntakeReceipt_: {
+            data: components["schemas"]["IntakeReceipt"];
+        };
         /** Data[JobOut] */
         Data_JobOut_: {
             data: components["schemas"]["JobOut"];
@@ -6769,6 +6795,19 @@ export interface components {
             prior_visa_refusals_details?: string | null;
             /** Willing To Start Within 30 Days */
             willing_to_start_within_30_days: boolean;
+        };
+        /**
+         * IntakeReceipt
+         * @description A form upload: what it is, and the receipt that claims it. Nothing
+         *     about where it's stored: the caller may be anyone.
+         */
+        IntakeReceipt: {
+            /** Id */
+            id: string;
+            /** Intake Token */
+            intake_token: string;
+            /** Type */
+            type: string;
         };
         /**
          * InviteEmail
@@ -9542,6 +9581,8 @@ export interface components {
             current_occupation?: string | null;
             /** Date Of Birth */
             date_of_birth?: string | null;
+            /** Document Tokens */
+            document_tokens?: string[] | null;
             /**
              * Documents Available
              * @default []
@@ -13019,6 +13060,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_DocumentRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_for_intake_api_v1_documents_intake_post: {
+        parameters: {
+            query?: {
+                type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_IntakeReceipt_"];
                 };
             };
             /** @description Validation Error */

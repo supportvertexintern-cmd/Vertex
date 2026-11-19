@@ -87,8 +87,9 @@ test.describe("Candidate pre-application lifecycle (Phase 2)", () => {
       await page.getByLabel("I understand the payment plan above.").check();
       // Preferred contact channel is mandatory now.
       await pickOption(page, page.getByLabel(/Preferred contact channel/), "Email");
-      // Passport and passport-size photo must be attached in the form itself
-      // before Submit unlocks (ApplicationForm REQUIRED_UPLOAD_TYPES).
+      // Every document the programme requires must be attached before Submit
+      // unlocks; FastAPI refuses the application without them (2026-10-24).
+      // Here that's the universal passport and photo (the CV has its own upload).
       for (const [label, key] of [["Passport Copy — first page", "passport"], ["Passport-Size Photos", "passport_photo"]] as const) {
         await page.getByLabel(label).check();
         await page.getByTestId(`cif-doc-${key}-input`).setInputFiles({ name: `${key}.pdf`, mimeType: "application/pdf", buffer: PDF_BUFFER });

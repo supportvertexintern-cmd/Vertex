@@ -11,14 +11,23 @@ document-reading routes ask /documents/readable before serving a file.
 They answer as those routes do: the same roles (tests fail if the lists
 drift), access rules (app/core/scope.py), checks, messages and status codes.
 
-Three callers can upload:
+Four callers can upload:
   - a signed-in user: a candidate for themself; staff, partners, HR,
     operations or finance for a candidate they can reach (candidate_id);
     a partner, or HR and operations on its behalf, to a draft submission
     (partner_candidate_id);
   - the Candidate Information Form, before any account exists: Next.js
     calls /documents/form-upload as itself with the form's upload token,
-    which FastAPI verifies.
+    which FastAPI verifies;
+  - the Candidate Information Form before it's submitted (2026-10-24,
+    upstream staging): Next.js calls /documents/intake as itself for an
+    applicant who may have no account at all. The file is stored with no
+    owner, readable by nobody, and the answer carries a receipt (an
+    intake_document token) the application presents to claim it. Only
+    the types the form collects are taken. An upload unclaimed once its
+    receipt has expired is soft-deleted (owner's decision, 2026-11-19: the
+    rule that nothing deleted leaves the database holds, so its file is
+    kept).
 
 A re-upload of a type replaces the earlier file, except "other", which may
 repeat (each with its own label). The replaced file is deleted only once the
@@ -30,7 +39,7 @@ AUDITED_MODELS); a malware rejection is a security event.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -48,13 +57,13 @@ from app.core.config import settings
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate, can_access_document
-from app.core.tokens import InvalidToken, verify_cif_upload_token
+from app.core.tokens import INTAKE_DOCUMENT_TTL_SECONDS, InvalidToken, sign_intake_document_token, verify_cif_upload_token
 from app.models.candidate import Candidate, Document
 from app.models.enums import CandidateLifecycleStatus, PartnerCandidateStatus, Role, VerificationStatus
 from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import DocumentRequirementType
 from app.services import storage
-from app.services.documents import document_completeness, ensure_receipt_type
+from app.services.documents import document_completeness, ensure_receipt_type, is_non_programme_type
 from app.services.malware_scan import scan_bytes
 
 router = APIRouter()
@@ -76,6 +85,9 @@ DRAFT_STAFF: frozenset[Role] = frozenset({Role.hr, Role.operations_team, Role.op
 VERIFIERS: tuple[Role, ...] = (Role.country_supervisor, Role.inhouse_supervisor, Role.director, Role.admin, Role.hr)
 REPEATABLE_TYPE = "other"
 MAX_LABEL_LENGTH = 150
+# Abandoned form uploads soft-deleted per new one, so each sweep stays short.
+INTAKE_SWEEP_BATCH = 100
+UNKNOWN_TYPE = "This document type isn't recognised. Please refresh the page and try again."
 UPLOAD_TOKEN_HEADER = "X-Upload-Token"
 # Room for the multipart framing and the label around the file itself.
 FORM_OVERHEAD = 64 * 1024
@@ -102,6 +114,15 @@ class DocumentRow(BaseModel):
     label: str | None
     scan_status: str
     scanned_at: UtcDateTime | None
+
+
+class IntakeReceipt(BaseModel):
+    """A form upload: what it is, and the receipt that claims it. Nothing
+    about where it's stored: the caller may be anyone."""
+
+    id: str
+    type: str
+    intake_token: str
 
 
 class VerifyIn(BaseModel):
@@ -308,6 +329,64 @@ async def upload_from_form(
     token = request.headers.get(UPLOAD_TOKEN_HEADER)
     document = await run_in_threadpool(_upload_from_form, db, token, candidate_id, document_type, upload)
     return {"data": document}
+
+
+def _intake_type(db: Session, document_type: str | None) -> str:
+    """The form's own types only: its checklist (programme documents) and
+    "other". A CV, permit or receipt has its own upload, never this one."""
+    known = document_type and db.scalar(select(DocumentRequirementType.id).where(DocumentRequirementType.key == document_type)) is not None
+    if not known or (document_type != REPEATABLE_TYPE and is_non_programme_type(document_type)):
+        raise ApiError(400, "invalid_type", UNKNOWN_TYPE)
+    return document_type
+
+
+def unclaimed_intake_documents(db: Session):
+    """Form uploads no application has claimed (no owner yet)."""
+    return select(Document).where(Document.candidate_id.is_(None), Document.partner_candidate_id.is_(None))
+
+
+def _sweep_abandoned_intake(db: Session) -> None:
+    """Soft-deletes form uploads whose receipt has expired unclaimed."""
+    cutoff = _now() - timedelta(seconds=INTAKE_DOCUMENT_TTL_SECONDS)
+    for abandoned in db.scalars(unclaimed_intake_documents(db).where(Document.uploaded_at < cutoff).limit(INTAKE_SWEEP_BATCH)):
+        db.delete(abandoned)
+
+
+def _upload_intake(db: Session, document_type: str, upload: _Upload) -> IntakeReceipt:
+    saved = _store(upload, document_type, None, "Document", "intake")
+    _sweep_abandoned_intake(db)
+    document = Document(
+        type=document_type,
+        storage_path=saved.storage_path,
+        label=upload.label if document_type == REPEATABLE_TYPE else None,
+        scan_status=saved.scan_status,
+        scanned_at=saved.scanned_at,
+    )
+    db.add(document)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        storage.delete_document(saved.storage_path)
+        raise
+    return IntakeReceipt(id=document.id, type=document_type, intake_token=sign_intake_document_token(document.id, document_type))
+
+
+@router.post("/documents/intake", response_model=Data[IntakeReceipt], dependencies=[Depends(calling_service)])
+async def upload_for_intake(
+    request: Request,
+    db: DbSession,
+    _on: PipelineWrites,
+    document_type: Annotated[str | None, Query(alias="type")] = None,
+):
+    """POST /api/upload?intake=1: a file for the Candidate Information Form,
+    before it's submitted. Only Next.js may call this, and it rate-limits
+    by address: the applicant may have no account."""
+    set_audit_actor(db, None)
+    document_type = await run_in_threadpool(_intake_type, db, document_type)
+    upload = await _read_upload(request)
+    receipt = await run_in_threadpool(_upload_intake, db, document_type, upload)
+    return {"data": receipt}
 
 
 # --- verification ------------------------------------------------------------

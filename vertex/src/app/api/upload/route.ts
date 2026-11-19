@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import { callBackend } from "@/lib/backend";
+import { clientKey } from "@/lib/client-ip";
+import { limitedResponse, rateLimit } from "@/lib/rate-limit";
 
 // POST /api/upload?type=<key>[&candidate_id=...|&partner_candidate_id=...]
 // Documents are FastAPI's since the pipeline switch (step 6.7; owner's
@@ -8,21 +10,32 @@ import { callBackend } from "@/lib/backend";
 // writes the row (vertex_be/app/api/v1/documents.py). This route passes
 // the multipart body on as it came and answers in its older shape.
 //
-// Three callers, as before: a signed-in candidate for themself; staff,
-// partners, HR, operations or finance for a candidate they can reach, or a
-// partner (or HR/operations) to a draft; and an anonymous self-applicant
-// attaching documents to the form they've just submitted, whose
-// X-Upload-Token FastAPI verifies (/documents/form-upload, called as this
-// app: there's no session).
+// Four callers: a signed-in candidate for themself; staff, partners, HR,
+// operations or finance for a candidate they can reach, or a partner (or
+// HR/operations) to a draft; an anonymous self-applicant attaching
+// documents to the form they've just submitted, whose X-Upload-Token
+// FastAPI verifies (/documents/form-upload); and, with ?intake=1, the
+// Candidate Information Form uploading its files before it's submitted
+// (2026-10-24): anyone, rate-limited by address. FastAPI stores the file
+// with no owner and answers with the receipt the application presents
+// (/documents/intake). Both anonymous paths call FastAPI as this app.
 const UPLOAD_TIMEOUT_MS = 60_000; // the scan comes first
+// Upstream's limit: enough for a long checklist and a few retries. Closed
+// when the limiter's store is down: anyone can call it, and it stores files.
+const INTAKE_LIMIT = { max: 30, windowMs: 10 * 60_000, failClosed: true };
+const INTAKE_LIMITED = "Too many uploads. Please wait a few minutes and try again.";
 
 export async function POST(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const uploadToken = req.headers.get("X-Upload-Token");
   const candidateId = params.get("candidate_id");
   const fromForm = Boolean(uploadToken && candidateId);
+  const intake = params.get("intake") === "1";
 
-  if (!fromForm) {
+  if (intake) {
+    const rl = await rateLimit(`upload-intake:${clientKey(req.headers)}`, INTAKE_LIMIT);
+    if (!rl.success) return limitedResponse(rl, { error: INTAKE_LIMITED });
+  } else if (!fromForm) {
     const guardRes = requireAuth(await getAuthUser(req));
     if (guardRes) return guardRes;
   }
@@ -37,6 +50,15 @@ export async function POST(req: NextRequest) {
     candidate_id: candidateId ?? undefined,
     partner_candidate_id: params.get("partner_candidate_id") ?? undefined,
   };
+
+  if (intake) {
+    const receipt = await callBackend("/api/v1/documents/intake", {
+      method: "POST", raw, query: { type: query.type }, asUser: false, timeoutMs: UPLOAD_TIMEOUT_MS,
+    });
+    if (!receipt.ok) return NextResponse.json({ error: receipt.error.message }, { status: receipt.status });
+    const { id, intake_token } = receipt.body.data as { id: string; intake_token: string };
+    return NextResponse.json({ documentId: id, intake_token });
+  }
 
   const result = fromForm
     ? await callBackend("/api/v1/documents/form-upload", {

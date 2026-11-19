@@ -201,6 +201,26 @@ describe("uploads", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
+  // The form's files before it's submitted (2026-10-24): anyone, by address.
+  it("an intake upload goes as this app with only its type, and answers with the receipt", async () => {
+    state.role = null;
+    callBackend.mockResolvedValueOnce(ok({ id: "d3", type: "passport", intake_token: "receipt" }));
+    const res = await upload.POST(form({ "x-real-ip": "192.0.2.10" }, "?type=passport&intake=1&candidate_id=someone"));
+    const [path, call] = callBackend.mock.calls[0];
+    expect([path, call.asUser, call.query, call.forward]).toEqual(["/api/v1/documents/intake", false, { type: "passport" }, undefined]);
+    expect(await res.json()).toEqual({ documentId: "d3", intake_token: "receipt" });
+  });
+
+  it("intake uploads are limited per address", async () => {
+    state.role = null;
+    callBackend.mockResolvedValue(ok({ id: "d4", type: "passport", intake_token: "receipt" }));
+    for (let i = 0; i < 30; i++) expect((await upload.POST(form({ "x-real-ip": "192.0.2.11" }, "?type=passport&intake=1"))).status).toBe(200);
+    const limited = await upload.POST(form({ "x-real-ip": "192.0.2.11" }, "?type=passport&intake=1"));
+    expect([limited.status, (await limited.json()).error]).toEqual([429, "Too many uploads. Please wait a few minutes and try again."]);
+    expect(callBackend).toHaveBeenCalledTimes(30);
+    expect((await upload.POST(form({ "x-real-ip": "192.0.2.12" }, "?type=passport&intake=1"))).status).toBe(200); // another address
+  });
+
   // FastAPI raises the malware and scanner alerts since reads handover R7a.
   it("a rejected upload answers with FastAPI's message", async () => {
     state.role = "candidate";

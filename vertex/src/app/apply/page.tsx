@@ -159,7 +159,6 @@ function ApplyPageInner() {
                   onSubmitted={() => fetch("/api/candidates/profile").then((r) => r.json()).then(setProfile)}
                   jobId={jobId}
                   referralCode={referralCode}
-                  signedInCandidate
                   initialProfile={{
                     full_name: profile.user?.full_name ?? undefined,
                     email: profile.user?.email ?? undefined,
