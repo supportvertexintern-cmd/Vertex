@@ -8,7 +8,7 @@ import { isNonProgrammeTypeKey } from "@/lib/documentTypes";
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
-import { UPLOAD_ACCEPT, readUploadSelection, uploadHint } from "@/lib/uploadPolicy";
+import { UPLOAD_ACCEPT, UPLOAD_MESSAGES, readUploadSelection, uploadErrorMessage, uploadHint } from "@/lib/uploadPolicy";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -120,17 +120,6 @@ interface Props {
     marital_status: string;
   }>;
   /**
-   * Set only by /apply's signed-in-candidate render (2026-08-06) — tells
-   * Section 3's post-submit upload loop to use the plain self-upload path
-   * (no candidate_id) instead of the on-behalf path every other renderer
-   * of this form ends up using (an anonymous self-applicant via the
-   * upload_token the submission response returns, or a staff user's own
-   * session for a walk-in lead) — a signed-in "candidate" role isn't in
-   * /api/upload's on-behalf allowlist at all, so passing candidate_id
-   * explicitly here would 403.
-   */
-  signedInCandidate?: boolean;
-  /**
    * Referral Agent attribution (2026-08-29) — the code captured from
    * /apply's ?ref= param (or a prior visit's localStorage copy). Resolved
    * server-side against a real, active ReferralAgent in
@@ -202,7 +191,7 @@ const emptyForm = {
  * Public Form Intake Mode setting only decides whether the team also gets
  * an email copy, which FastAPI sends.
  */
-export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, signedInCandidate, referralCode }: Props) {
+export default function ApplicationForm({ candidateId, onSubmitted, compact, includePersonalInfo, jobId, initialProfile, referralCode }: Props) {
   const [countries, setCountries] = useState<Option[]>([]);
   const [locationCountries, setLocationCountries] = useState<Option[]>([]);
   const [jobs, setJobs] = useState<JobOption[]>([]);
@@ -360,58 +349,78 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
         : [...f.documents_available, type],
     }));
 
-  // Passport and passport-size photo are the two documents the business
-  // named as mandatory (2026-08-06) — both already is_universal: true, so
-  // they're always in documentChecklist regardless of the selected job;
-  // this just also requires a real attached file, not just the checkbox,
-  // before Submit unlocks (same missingRequiredDocs gate
-  // PartnerCandidateForm.tsx already uses for its own required set).
-  const REQUIRED_UPLOAD_TYPES = ["passport", "passport_photo"];
-  const missingRequiredDocs = includePersonalInfo
-    ? REQUIRED_UPLOAD_TYPES.filter((type) => !(documentFiles[type] instanceof File))
-    : [];
+  // Every document the programme requires (2026-10-24, upstream staging):
+  // the universal set plus the destination's extras, the rule FastAPI
+  // enforces on submission. Each needs a valid file attached, and each is
+  // always ticked so its picker shows.
+  const requiredDocTypes = useMemo(
+    () => documentChecklist.filter((d) => d.is_universal || requiredForSelectedJob.has(d.key)).map((d) => d.key),
+    [documentChecklist, requiredForSelectedJob]
+  );
+  const docLabel = (key: string) => documentTypes.find((t) => t.key === key)?.label ?? key;
+  const missingRequiredDocs = requiredDocTypes.filter((type) => !(documentFiles[type] instanceof File));
+  // One sentence naming what to fix in Section 3, or null when it's ready.
+  const documentProblem = (() => {
+    if (missingRequiredDocs.length > 0) {
+      return `Attach a file (PDF, JPG or PNG) for every required document: ${missingRequiredDocs.map(docLabel).join(", ")}.`;
+    }
+    if (otherDocuments.some((d) => d.file && !d.label.trim())) return "Describe each additional document you attached, or remove it.";
+    return null;
+  })();
 
-  // Uploads everything collected in Section 3 — fired once the main
-  // submission above has already succeeded and returned a candidate id.
-  // Failure-tolerant (PartnerCandidateForm.tsx's own pattern): one flaky
-  // upload doesn't undo an otherwise-successful application submission,
-  // it's just surfaced as a count of documents that need re-attaching
-  // from the dashboard afterward.
-  const uploadCollectedDocuments = async (newCandidateId: string, uploadToken: string | undefined) => {
-    const targetId = signedInCandidate ? undefined : newCandidateId;
-    const headers: Record<string, string> = {};
-    if (uploadToken) headers["X-Upload-Token"] = uploadToken;
-
-    const jobs: { type: string; file: File; label?: string }[] = [
+  // Uploads each attached file first (POST /api/upload?intake=1: FastAPI's
+  // checks and scan) and returns the receipts the submission presents, or
+  // null after saying which file failed and why (2026-10-24). Nothing is
+  // created until every required file is in.
+  const uploadAttachedDocuments = async (): Promise<string[] | null> => {
+    const uploads = [
       ...Object.entries(documentFiles)
         .filter((entry): entry is [string, File] => entry[1] instanceof File)
-        .map(([type, file]) => ({ type, file })),
+        .map(([type, file]) => ({ key: type, type, file, label: undefined as string | undefined })),
       ...otherDocuments
-        .filter((d): d is { label: string; file: File } => d.file instanceof File && !!d.label.trim())
-        .map((d) => ({ type: "other", file: d.file, label: d.label })),
+        .map((d, i) => ({ key: `other-${i}`, type: "other", file: d.file, label: d.label.trim() }))
+        .filter((d): d is { key: string; type: string; file: File; label: string } => d.file instanceof File),
     ];
-
-    let failures = 0;
-    for (const { type, file, label } of jobs) {
+    const tokens: string[] = [];
+    for (const { key, type, file, label } of uploads) {
+      const refuse = (problem: string) => {
+        setFileErrors((errs) => ({ ...errs, [key]: problem }));
+        setMessage(`${label || docLabel(type)}: ${problem}`);
+      };
       try {
         const fd = new FormData();
         fd.append("file", file);
         if (label) fd.append("label", label);
-        const url = targetId ? `/api/upload?type=${type}&candidate_id=${targetId}` : `/api/upload?type=${type}`;
-        const res = await fetch(url, { method: "POST", body: fd, headers });
-        if (!res.ok) failures++;
+        const res = await fetch(`/api/upload?type=${encodeURIComponent(type)}&intake=1`, { method: "POST", body: fd });
+        if (!res.ok) {
+          refuse(await uploadErrorMessage(res));
+          return null;
+        }
+        tokens.push((await res.json()).intake_token);
       } catch {
-        failures++;
+        refuse(UPLOAD_MESSAGES.failed());
+        return null;
       }
     }
-    return failures;
+    return tokens;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (documentProblem) {
+      setStatus("error");
+      setMessage(documentProblem);
+      return;
+    }
     setStatus("loading");
     setMessage("");
     setFieldErrors({});
+
+    const documentTokens = await uploadAttachedDocuments();
+    if (!documentTokens) {
+      setStatus("error");
+      return;
+    }
 
     // A public self-submission always goes to HR for review (2026-07-31),
     // whatever the Public Form Intake Mode setting (2026-10-24).
@@ -420,6 +429,8 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
+        documents_available: [...new Set([...form.documents_available, ...requiredDocTypes])],
+        document_tokens: documentTokens,
         candidate_id: candidateId,
         referral_code: referralCode,
         job_position_id: form.job_position_id || undefined,
@@ -430,26 +441,21 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (res.ok) {
-      let uploadFailures = 0;
-      if (data.candidate_id) {
-        uploadFailures = await uploadCollectedDocuments(data.candidate_id, data.upload_token);
-      }
       setStatus("success");
-      const baseMessage = includePersonalInfo
-        ? "Thank you. We'll review your information and email you within 24 hours if you clear the screening stage."
-        : "Application submitted successfully. We'll review it and confirm your programme within 48 hours.";
       setMessage(
-        uploadFailures > 0
-          ? `${baseMessage} ${uploadFailures} document(s) failed to upload — you can re-attach them from your dashboard once you've created your account.`
-          : baseMessage
+        includePersonalInfo
+          ? "Thank you. We'll review your information and email you within 24 hours if you clear the screening stage."
+          : "Application submitted successfully. We'll review it and confirm your programme within 48 hours."
       );
       onSubmitted();
     } else {
       setStatus("error");
       setMessage(data.error === "Validation failed" ? "Please check the highlighted fields." : (data.error || "Failed to submit application."));
-      setFieldErrors(data.details ?? {});
+      // missing_documents names types, not fields: only field errors go here.
+      const { missing_documents: _types, ...details } = (data.details ?? {}) as Record<string, string[]>;
+      setFieldErrors(details);
     }
   };
 
@@ -665,13 +671,13 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
       <section className="border-t border-slate-200 pt-5">
         <h2 className="font-bold text-slate-800 mb-1">Section 3 — Document Checklist</h2>
         <p className="text-xs text-slate-500 mb-4">
-          Tick the documents you can provide and attach the file — items marked with a programme name are only
-          required for that programme, your manager will confirm your exact document set. Passport and a
-          passport-size photo are required for every submission.
+          Attach a file for every required document: your programme&apos;s required documents are ticked for you
+          and the form can&apos;t be submitted without them. Tick and attach anything else you can provide.
         </p>
         <div className="space-y-3">
           {documentChecklist.map((doc) => {
-            const checked = form.documents_available.includes(doc.key);
+            const required = requiredDocTypes.includes(doc.key);
+            const checked = required || form.documents_available.includes(doc.key);
             const file = documentFiles[doc.key];
             return (
               <div key={doc.key}>
@@ -679,6 +685,7 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
                   <input
                     type="checkbox"
                     checked={checked}
+                    disabled={required}
                     onChange={() => {
                       toggleDocument(doc.key);
                       if (checked) {
@@ -950,16 +957,11 @@ export default function ApplicationForm({ candidateId, onSubmitted, compact, inc
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 text-sm">{message}</div>
       )}
 
-      {missingRequiredDocs.length > 0 && (
-        <p className="text-xs text-red-600">
-          Attach a file for every required document before submitting:{" "}
-          {missingRequiredDocs.map((key) => documentTypes.find((t) => t.key === key)?.label ?? key).join(", ")}.
-        </p>
-      )}
+      {documentProblem && <p className="text-xs text-red-600">{documentProblem}</p>}
 
       <button
         type="submit"
-        disabled={status === "loading" || missingRequiredDocs.length > 0}
+        disabled={status === "loading" || documentProblem !== null}
         className="btn-gold w-full text-base py-3.5 disabled:opacity-60"
       >
         {status === "loading" ? "Submitting…" : "Submit Application"}

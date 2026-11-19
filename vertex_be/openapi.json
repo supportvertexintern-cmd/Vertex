@@ -6202,6 +6202,18 @@
     "title": "Data[FinalizedOut]",
     "type": "object"
    },
+   "Data_IntakeReceipt_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/IntakeReceipt"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[IntakeReceipt]",
+    "type": "object"
+   },
    "Data_JobOut_": {
     "properties": {
      "data": {
@@ -8746,6 +8758,30 @@
      "willing_to_start_within_30_days"
     ],
     "title": "IntakeIn",
+    "type": "object"
+   },
+   "IntakeReceipt": {
+    "description": "A form upload: what it is, and the receipt that claims it. Nothing\nabout where it's stored: the caller may be anyone.",
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "intake_token": {
+      "title": "Intake Token",
+      "type": "string"
+     },
+     "type": {
+      "title": "Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "type",
+     "intake_token"
+    ],
+    "title": "IntakeReceipt",
     "type": "object"
    },
    "InviteEmail": {
@@ -20040,6 +20076,23 @@
       ],
       "title": "Date Of Birth"
      },
+     "document_tokens": {
+      "anyOf": [
+       {
+        "items": {
+         "maxLength": 2000,
+         "minLength": 1,
+         "type": "string"
+        },
+        "maxItems": 40,
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Document Tokens"
+     },
      "documents_available": {
       "default": [],
       "items": {
@@ -28203,6 +28256,61 @@
      }
     ],
     "summary": "Upload From Form",
+    "tags": [
+     "candidate pipeline"
+    ]
+   }
+  },
+  "/api/v1/documents/intake": {
+   "post": {
+    "description": "POST /api/upload?intake=1: a file for the Candidate Information Form,\nbefore it's submitted. Only Next.js may call this, and it rate-limits\nby address: the applicant may have no account.",
+    "operationId": "upload_for_intake_api_v1_documents_intake_post",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Type"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_IntakeReceipt_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     }
+    ],
+    "summary": "Upload For Intake",
     "tags": [
      "candidate pipeline"
     ]

@@ -6,10 +6,11 @@ website must send. All of them refuse until the switch."""
 
 import re
 import secrets
+from types import SimpleNamespace
 from datetime import datetime
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from app.api.v1 import applications as module
 from app.api.v1.applications import REVIEWERS
@@ -17,7 +18,7 @@ from app.core.config import BASE_DIR, settings
 from app.db.session import get_db
 from app.main import app
 from app.models.audit import AuditLog
-from app.models.candidate import Application, Candidate
+from app.models.candidate import Application, Candidate, Document
 from app.models.enums import (
     ApplicationStatus,
     CandidateLifecycleStatus,
@@ -35,7 +36,9 @@ from app.models.jobs import Job, JobPosition, JobSector
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import Payment
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
-from app.models.reference import SystemSetting
+from app.models.reference import CountryDocumentRequirement, DocumentRequirementType, SystemSetting
+from app.core import tokens
+from app.core.tokens import sign_intake_document_token
 from app.core.tokens import verify_candidate_invite_token
 from tests.mail import token
 from tests.test_auth import add_session, bearer, session_token
@@ -116,6 +119,7 @@ def form(world, **fields) -> dict:
         "preferred_contact_channel": "whatsapp",
         "payment_plan_acknowledged": True,
         "documents_available": ["passport"],
+        "document_tokens": [],  # the form always sends the list (2026-10-24)
     } | fields
 
 
@@ -227,6 +231,134 @@ def test_no_inbox_still_files_the_application(api, db, world, sent_mail, monkeyp
     assert "email.recipient_not_configured" in caplog.text
 
 
+# --- the programme's documents (upstream staging, 2026-10-24) -----------------
+
+
+@pytest.fixture
+def programme(db, world):
+    """A programme whose destination asks for an extra document on top of the
+    universal one; a universal CV, collected by its own upload, isn't asked for."""
+    hex_ = secrets.token_hex(3)
+    passport = DocumentRequirementType(key=f"passport_{hex_}", label="Passport", is_universal=True)
+    visa_form = DocumentRequirementType(key=f"visa_form_{hex_}", label="Visa form")
+    cv = db.scalar(select(DocumentRequirementType).where(DocumentRequirementType.key == "cv"))
+    if cv is None:
+        cv = DocumentRequirementType(key="cv", label="CV")
+    other = db.scalar(select(DocumentRequirementType).where(DocumentRequirementType.key == "other"))
+    if other is None:
+        other = DocumentRequirementType(key="other", label="Other Document")
+    cv.is_universal = True
+    destination = Country(name=f"Destination {hex_}", region_id=world["home"].region_id)
+    db.add_all([passport, visa_form, cv, other, destination])
+    db.flush()
+    db.add(CountryDocumentRequirement(country_id=destination.id, document_type=visa_form.key))
+    job = Job(title="Nurse", country=destination.name.lower(), city="Town", job_description="d", requirements="r")
+    db.add(job)
+    db.flush()
+    return SimpleNamespace(job=job, passport=passport.key, visa_form=visa_form.key)
+
+
+def uploaded(db, document_type: str, label: str | None = None) -> tuple[Document, str]:
+    """A file the form uploaded before submitting, and its receipt."""
+    document = Document(type=document_type, storage_path=f"{document_type}/{secrets.token_hex(4)}.pdf", label=label)
+    db.add(document)
+    db.flush()
+    return document, sign_intake_document_token(document.id, document_type)
+
+
+def for_programme(world, programme, **fields) -> dict:
+    return form(world, job_id=programme.job.id, job_position_id=None, **fields)
+
+
+def test_a_missing_document_refuses_the_application_before_anything_is_made(api, db, world, programme):
+    _, passport = uploaded(db, programme.passport)
+    body = for_programme(world, programme, document_tokens=[passport])
+    res = submit(api, body)
+    assert res.status_code == 422
+    assert error(res)["code"] == "missing_documents"
+    assert error(res)["message"] == "Please attach the required documents for this programme: Visa form."
+    assert error(res)["details"] == {"missing_documents": [programme.visa_form]}
+    assert db.scalar(select(func.count()).select_from(Candidate).where(Candidate.email == body["email"])) == 0
+    nothing = submit(api, for_programme(world, programme))
+    assert error(nothing)["details"]["missing_documents"] == [programme.passport, programme.visa_form]  # never the CV
+
+
+def test_the_uploads_become_the_new_candidates(api, db, world, programme):
+    passport_doc, passport = uploaded(db, programme.passport)
+    visa_doc, visa = uploaded(db, programme.visa_form)
+    extra_doc, extra = uploaded(db, "other", label="Reference letter")
+    res = submit(api, for_programme(world, programme, document_tokens=[passport, visa, extra, passport]))
+    assert res.status_code == 201, res.text
+    candidate_id = res.json()["data"]["candidate_id"]
+    for document in (passport_doc, visa_doc, extra_doc):
+        db.refresh(document)
+        assert (document.candidate_id, document.partner_candidate_id) == (candidate_id, None)
+    # A receipt claims its file once.
+    again = submit(api, for_programme(world, programme, document_tokens=[passport, visa]))
+    assert (again.status_code, error(again)["code"]) == (422, "document_unavailable")
+
+
+def test_an_expired_or_forged_receipt_is_refused(api, db, world, programme):
+    document, _ = uploaded(db, programme.passport)
+    claims = {"documentId": document.id, "docType": programme.passport, "type": "intake_document"}
+    expired = tokens._sign("intake_document", claims, -60)
+    for token in (expired, "not-a-token", tokens.sign_account_setup_token(document.id)):
+        res = submit(api, for_programme(world, programme, document_tokens=[token]))
+        assert (res.status_code, error(res)["code"]) == (422, "document_expired")
+
+
+def test_an_abandoned_upload_cant_be_claimed(api, db, world, programme):
+    passport_doc, passport = uploaded(db, programme.passport)
+    _, visa = uploaded(db, programme.visa_form)
+    db.delete(passport_doc)  # soft-deleted by the sweep once its receipt expired
+    db.flush()
+    res = submit(api, for_programme(world, programme, document_tokens=[passport, visa]))
+    assert (res.status_code, error(res)["code"]) == (422, "document_unavailable")
+
+
+def test_a_page_from_before_the_rule_is_asked_to_refresh(api, world):
+    body = form(world)
+    del body["document_tokens"]
+    res = submit(api, body)
+    assert (res.status_code, error(res)["code"]) == (409, "form_outdated")
+    assert "Please refresh the page" in error(res)["message"]
+
+
+def test_documents_on_file_count_and_a_new_one_replaces_its_type(api, db, world, programme):
+    account, session = person(db, Role.candidate)
+    mine = Candidate(user_id=account.id)
+    db.add(mine)
+    db.flush()
+    on_file = Document(candidate_id=mine.id, type=programme.passport, storage_path="passport/old.pdf")
+    kept_other = Document(candidate_id=mine.id, type="other", storage_path="other/old.pdf", label="Old letter")
+    db.add_all([on_file, kept_other])
+    db.flush()
+    # The passport on file counts: the visa form alone completes the set.
+    new_visa, visa = uploaded(db, programme.visa_form)
+    new_other, extra = uploaded(db, "other", label="New letter")
+    res = submit(api, for_programme(world, programme, full_name="Signed In", document_tokens=[visa, extra]), session)
+    assert res.status_code == 201, res.text
+    current = set(db.scalars(select(Document.id).where(Document.candidate_id == mine.id)))
+    assert current == {on_file.id, kept_other.id, new_visa.id, new_other.id}  # "other" adds up
+
+
+def test_a_new_upload_replaces_the_one_on_file(api, db, world, programme):
+    lead = Candidate(full_name="On file", recruiter_id=world["recruiter"].id, country_id=world["home"].id)
+    db.add(lead)
+    db.flush()
+    old = Document(candidate_id=lead.id, type=programme.passport, storage_path="passport/old.pdf")
+    db.add(old)
+    db.flush()
+    new_passport, passport = uploaded(db, programme.passport)
+    _, visa = uploaded(db, programme.visa_form)
+    keep = ("job_id", "earliest_travel_date", "current_location_country_name", "preferred_contact_channel", "payment_plan_acknowledged")
+    body = {k: v for k, v in for_programme(world, programme).items() if k in keep}
+    res = submit(api, body | {"candidate_id": lead.id, "document_tokens": [passport, visa]}, world["rec"])
+    assert res.status_code == 201, res.text
+    passports = list(db.scalars(select(Document.id).where(Document.candidate_id == lead.id, Document.type == programme.passport)))
+    assert passports == [new_passport.id]  # the old one soft-deleted, as a re-upload does
+
+
 def test_a_failed_screening_still_files_the_form(api, db, world, sent_notices):
     out = submit(api, form(world, passport_expiry="2027-01-01")).json()
     candidate = db.get(Candidate, out["data"]["candidate_id"])
@@ -262,7 +394,7 @@ def test_staff_submit_for_a_candidate_on_file(api, db, world):
     lead = Candidate(full_name="On file", recruiter_id=world["recruiter"].id, country_id=world["home"].id, lifecycle_status=CandidateLifecycleStatus.guided_to_apply)
     db.add(lead)
     db.flush()
-    body = {k: v for k, v in form(world).items() if k in ("job_id", "earliest_travel_date", "current_location_country_name", "preferred_contact_channel", "payment_plan_acknowledged")}
+    body = {k: v for k, v in form(world).items() if k in ("job_id", "earliest_travel_date", "current_location_country_name", "preferred_contact_channel", "payment_plan_acknowledged", "document_tokens")}
     res = submit(api, body | {"candidate_id": lead.id}, world["rec"])
     assert res.status_code == 201
     db.refresh(lead)

@@ -20,7 +20,9 @@ from sqlalchemy import select, text
 from app.api.v1 import documents as module
 from app.api.v1.documents import VERIFIERS
 from app.core.config import BASE_DIR, settings
-from app.core.tokens import key_for
+from app.core.auth import AuthUser
+from app.core.scope import can_access_document
+from app.core.tokens import key_for, verify_intake_document_token
 from app.db.session import get_db
 from app.main import app
 from app.models.audit import AuditLog
@@ -160,6 +162,67 @@ def required_universal_types(db) -> list[str]:
     return list(db.scalars(select(DocumentRequirementType.key).where(DocumentRequirementType.is_universal.is_(True))))
 
 
+# --- the form's uploads before it's submitted (2026-10-24) -------------------
+
+
+def intake(api, document_type, *, data=PDF, mime="application/pdf", label=None, headers=None):
+    files = {"file": ("scan.pdf", data, mime)}
+    form = {"label": label} if label is not None else None
+    headers = {"X-Vertex-Service": service_token()} if headers is None else headers
+    return api.post(f"{URL}/intake", headers=headers, params={"type": document_type}, files=files, data=form)
+
+
+def test_the_form_uploads_before_it_is_submitted(api, db, world):
+    res = intake(api, world.passport)
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    assert set(data) == {"id", "type", "intake_token"}  # nothing about where it's stored
+    assert (data["type"], verify_intake_document_token(data["intake_token"])) == (world.passport, data["id"])
+    document = db.get(Document, data["id"])
+    assert (document.candidate_id, document.partner_candidate_id, document.label) == (None, None, None)
+    assert document.storage_path in stored()
+    # Nobody can open it, whatever their role: it has no owner yet.
+    admin, _ = person(db, Role.admin)
+    assert can_access_document(db, AuthUser(user_id=admin.id, email=admin.email, role=Role.admin, sid="s", ver=0), None, None) is False
+
+
+def test_only_the_forms_types_and_files_are_taken(api, db, world):
+    cv = db.scalar(select(DocumentRequirementType).where(DocumentRequirementType.key == "cv"))
+    if cv is None:
+        db.add(DocumentRequirementType(key="cv", label="CV"))
+        db.flush()
+    for refused in ("cv", "payment_receipt_stage_x", "no_such_type", None):
+        res = intake(api, refused) if refused else api.post(f"{URL}/intake", headers={"X-Vertex-Service": service_token()}, files={"file": ("a.pdf", PDF, "application/pdf")})
+        assert (res.status_code, error(res)["code"]) == (400, "invalid_type"), refused
+    fake = intake(api, world.passport, data=b"<html></html>")
+    assert (fake.status_code, error(fake)["code"]) == (400, "upload_rejected")
+    other = intake(api, "other", label="  Reference letter ").json()["data"]
+    assert db.get(Document, other["id"]).label == "Reference letter"
+    labelled = intake(api, world.passport, label="ignored").json()["data"]
+    assert db.get(Document, labelled["id"]).label is None  # only "other" carries one
+
+
+def test_only_the_website_may_call_it(api, world):
+    assert intake(api, world.passport, headers={}).status_code == 401
+    assert intake(api, world.passport, headers=world.own).status_code == 401  # a user session is not the service
+
+
+def test_an_abandoned_upload_is_soft_deleted_when_its_receipt_has_expired(api, db, world):
+    stale = Document(type=world.passport, storage_path="x/stale.pdf")
+    fresh = Document(type=world.passport, storage_path="x/fresh.pdf")
+    claimed = Document(candidate_id=world.mine.id, type="other", storage_path="x/claimed.pdf")
+    db.add_all([stale, fresh, claimed])
+    db.flush()
+    db.execute(text('UPDATE "Document" SET uploaded_at = now() - interval \'3 hours\' WHERE id IN (:a, :b)'), {"a": stale.id, "b": claimed.id})
+    db.execute(text('UPDATE "Document" SET uploaded_at = now() - interval \'1 hours\' WHERE id = :a'), {"a": fresh.id})
+    db.expire_all()
+    assert intake(api, world.passport).status_code == 200
+    assert db.get(Document, stale.id) is None
+    deleted_at = db.scalar(select(Document.deleted_at).where(Document.id == stale.id).execution_options(include_deleted=True))
+    assert deleted_at is not None  # soft: the row and its file stay (owner's decision, 2026-11-19)
+    assert db.get(Document, fresh.id) is not None and db.get(Document, claimed.id) is not None
+
+
 # --- drift -------------------------------------------------------------------
 
 
@@ -206,9 +269,10 @@ def test_every_write_waits_for_the_switch(api, monkeypatch, world):
         api.patch(f"{URL}/cx/verify", headers=world.sup, json={"verification_status": "verified"}),
         api.post(f"{URL}/readable", headers={"X-Vertex-Service": service_token()}, json={"storage_path": "x"}),
         api.post(f"{URL}/form-upload", headers={"X-Vertex-Service": service_token()}, params={"candidate_id": "c", "type": "x"}),
+        api.post(f"{URL}/intake", headers={"X-Vertex-Service": service_token()}, params={"type": "x"}),
     ):
         assert (res.status_code, error(res)["code"]) == (503, "pipeline_not_enabled")
-    assert len(module.router.routes) == 4
+    assert len(module.router.routes) == 5
 
 
 # --- uploading ---------------------------------------------------------------

@@ -19,7 +19,7 @@ Every other token follows the same rules:
   - issuer "vertex-web", audience "vertex:<purpose>", an expiry;
   - userId, email, role and sid non-empty strings, ver an integer.
 
-Eight purposes are verified here; FastAPI issues "session" and, since
+Nine purposes are verified here; FastAPI issues "session" and, since
 users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
   - "session": a user's session, ES256 (above). The signature is
     necessary, not sufficient: app/core/auth.py also checks the session is
@@ -46,6 +46,10 @@ users step 8.3 (D4 A), the email links (the referral agent's since 8.4).
   - "referral_agent_email_verification": the link in a referral agent's
     application email (signReferralAgentEmailVerificationToken). It names
     an application, not an account: the agent has none until approved.
+  - "intake_document": FastAPI's receipt for a file the Candidate
+    Information Form uploaded before the application exists (2026-10-24,
+    upstream staging). Keyed like the account links, so only FastAPI can
+    issue one; the application presents it to claim the file.
 """
 
 from __future__ import annotations
@@ -72,11 +76,15 @@ SALT = b"vertex-token-keys"
 KEY_VERSION = {
     "service": 1, "candidate_invite": 1, "cif_upload": 1,
     "email_verification": 1, "password_reset": 1, "account_setup": 1,
-    "referral_agent_email_verification": 1,
+    "referral_agent_email_verification": 1, "intake_document": 1,
 }
 # 24 hours, as the website's jwt.ts signed them before users steps 8.3 and 8.4.
 EMAIL_TOKEN_TTL_SECONDS = 24 * 60 * 60
 ACCOUNT_SETUP_TTL_SECONDS = 7 * 24 * 60 * 60
+# Long enough to finish the form, short enough that an abandoned upload
+# can't be claimed much later (upstream's 2 hours). Unclaimed uploads are
+# soft-deleted once it has passed.
+INTAKE_DOCUMENT_TTL_SECONDS = 2 * 60 * 60
 
 
 class InvalidToken(Exception):
@@ -380,3 +388,18 @@ def verify_referral_agent_verification_token(token: str) -> str:
     if payload.get("type") != purpose:
         raise InvalidToken(f"{purpose} token has the wrong type")
     return agent_id
+
+
+def sign_intake_document_token(document_id: str, document_type: str) -> str:
+    claims = {"documentId": document_id, "docType": document_type, "type": "intake_document"}
+    return _sign("intake_document", claims, INTAKE_DOCUMENT_TTL_SECONDS)
+
+
+def verify_intake_document_token(token: str) -> str:
+    """The unattached document a form upload's receipt was signed for."""
+    purpose = "intake_document"
+    payload = _decode(purpose, token)
+    document_id = _text(payload, "documentId", purpose)
+    if payload.get("type") != purpose:
+        raise InvalidToken(f"{purpose} token has the wrong type")
+    return document_id

@@ -50,7 +50,8 @@ from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate
 from app.core.passport import PassportNumber
-from app.models.candidate import Application, Candidate
+from app.core.tokens import InvalidToken, verify_intake_document_token
+from app.models.candidate import Application, Candidate, Document
 from app.models.enums import (
     ApplicationStatus,
     CandidateLifecycleStatus,
@@ -69,6 +70,8 @@ from app.models.partners import PartnerCandidate
 from app.models.payments import Payment
 from app.models.referral import ReferralAgent
 from app.models.reference import SystemSetting
+from app.models.reference import DocumentRequirementType
+from app.services.documents import is_non_programme_type, required_types_by_country
 from app.services.referrals import commission_if_due, flag_if_duplicate
 from app.services.screening import screen_and_invite
 
@@ -124,6 +127,10 @@ class SubmissionIn(BaseModel):
     prior_eu_visa_applied_details: str | None = Field(None, max_length=500)
     # Section 3: what the candidate says they can provide, not the files.
     documents_available: list[Annotated[str, Field(min_length=1, max_length=60)]] = []
+    # Receipts for the files the form uploaded first (POST /documents/intake,
+    # 2026-10-24). The form always sends the list, empty or not: None means
+    # a page loaded before the programme's documents were required.
+    document_tokens: list[Annotated[str, Field(min_length=1, max_length=2000)]] | None = Field(None, max_length=40)
     # Section 5: a free choice of world country, resolved by name.
     current_location_country_name: str = Field(min_length=1)
     holds_schengen_visa: bool | None = None
@@ -347,6 +354,11 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
     missing = body.section_2_missing()
     if missing:
         raise ApiError(422, "validation_error", "Validation failed", missing)
+    if body.document_tokens is None:
+        raise ApiError(
+            409, "form_outdated",
+            "This form was updated while you had it open. Please refresh the page, attach your documents again and resubmit.",
+        )
 
     candidate = _who_applies(db, user, body)
     is_new = candidate is None
@@ -368,6 +380,10 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
     if body.job_position_id and not _position_belongs(db, body.job_position_id, job.id):
         raise ApiError(422, "validation_error", "Selected position does not belong to this opportunity.")
     _check_fee(db, job, candidate)
+    # Before anything is created: bypassing the form's own checks can't make
+    # an application without the programme's documents (2026-10-24).
+    uploads = _claimable_uploads(db, body.document_tokens)
+    _require_programme_documents(db, job, candidate, uploads)
 
     location_id = _country_named(db, body.current_location_country_name)
     notify: list[Notice] = []
@@ -423,6 +439,7 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
     )
     db.add(application)
     db.flush()
+    _attach_uploads(db, uploads, candidate.id, replace=not is_new)
 
     if not is_new and candidate.lifecycle_status is CandidateLifecycleStatus.guided_to_apply:
         candidate.lifecycle_status = CandidateLifecycleStatus.submitted
@@ -444,6 +461,65 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
     if is_new and candidate.source is not CandidateSource.recruiter_sourced:
         _email_intake_copy(db, body, job)
     return {"data": application, "notify": deliver(db, notify), "screening_passed": screening_passed}
+
+
+# --- the programme's documents (upstream staging, 2026-10-24) -----------------
+
+
+def _claimable_uploads(db: DbSession, tokens: list[str]) -> list[Document]:
+    """The form's uploads these receipts name, still unclaimed, locked until
+    this request commits, so two submissions can't claim one file."""
+    ids: list[str] = []
+    for token in tokens:
+        try:
+            ids.append(verify_intake_document_token(token))
+        except InvalidToken:
+            raise ApiError(422, "document_expired", "One of your uploaded documents has expired. Please attach it again and resubmit.") from None
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return []
+    found = list(
+        db.scalars(
+            select(Document)
+            .where(Document.id.in_(ids), Document.candidate_id.is_(None), Document.partner_candidate_id.is_(None))
+            .with_for_update()
+        )
+    )
+    if len(found) != len(ids):
+        raise ApiError(422, "document_unavailable", "One of your uploaded documents is no longer available. Please attach it again and resubmit.")
+    return found
+
+
+def required_programme_documents(db: DbSession, job: Job) -> list[str]:
+    """What the form must carry for this programme: the universal types and
+    the destination's extras, less those collected elsewhere (the CV has its
+    own screening upload). The same list the form shows."""
+    country_id = db.scalar(select(Country.id).where(func.lower(Country.name) == job.country.lower()))
+    return [t for t in required_types_by_country(db, [country_id])[country_id] if not is_non_programme_type(t)]
+
+
+def _require_programme_documents(db: DbSession, job: Job, candidate: Candidate | None, uploads: list[Document]) -> None:
+    provided = {d.type for d in uploads}
+    if candidate is not None:  # what's already on file counts too
+        provided |= set(db.scalars(select(Document.type).where(Document.candidate_id == candidate.id)))
+    missing = [t for t in required_programme_documents(db, job) if t not in provided]
+    if missing:
+        label = dict(db.execute(select(DocumentRequirementType.key, DocumentRequirementType.label).where(DocumentRequirementType.key.in_(missing))).all())
+        names = ", ".join(label.get(t, t) for t in missing)
+        raise ApiError(422, "missing_documents", f"Please attach the required documents for this programme: {names}.", {"missing_documents": missing})
+
+
+def _attach_uploads(db: DbSession, uploads: list[Document], candidate_id: str, *, replace: bool) -> None:
+    """Files the form uploaded become the candidate's. For a candidate
+    already on file, each replaces an earlier one of its type, as a
+    re-upload would ("other" adds up instead)."""
+    if replace:
+        types = {d.type for d in uploads if d.type != "other"}
+        if types:
+            for earlier in db.scalars(select(Document).where(Document.candidate_id == candidate_id, Document.type.in_(types))):
+                db.delete(earlier)  # soft: the row and its file stay, for a restore
+    for document in uploads:
+        document.candidate_id = candidate_id
 
 
 def _email_intake_copy(db: DbSession, body: SubmissionIn, job: Job) -> None:
