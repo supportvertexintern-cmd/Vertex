@@ -3,6 +3,7 @@
 import { useState } from "react";
 import DocumentLink from "@/components/DocumentLink";
 import { UploadSimple } from "@phosphor-icons/react";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadErrorMessage, UPLOAD_MESSAGES } from "@/lib/uploadPolicy";
 
 interface SupportingDocument {
   id: string;
@@ -45,11 +46,12 @@ export default function SupportingDocumentUpload({ candidateId, documents, onUpl
       formData.append("label", label.trim());
       const url = candidateId ? `/api/upload?type=other&candidate_id=${candidateId}` : "/api/upload?type=other";
       const res = await fetch(url, { method: "POST", body: formData });
-      const json = await res.json();
-      if (!res.ok) { setError(json.error ?? "Upload failed."); return; }
+      if (!res.ok) { setError(await uploadErrorMessage(res)); return; }
       setLabel("");
       setFile(null);
       onUploaded();
+    } catch {
+      setError(UPLOAD_MESSAGES.failed());
     } finally {
       setUploading(false);
     }
@@ -88,9 +90,13 @@ export default function SupportingDocumentUpload({ candidateId, documents, onUpl
           {file ? file.name : "Choose file"}
           <input
             type="file"
-            accept="application/pdf,image/*"
+            accept={UPLOAD_ACCEPT}
             className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={async (e) => {
+              const { file, error } = await readUploadSelection(e.currentTarget);
+              setError(error ?? "");
+              setFile(file);
+            }}
           />
         </label>
         <button

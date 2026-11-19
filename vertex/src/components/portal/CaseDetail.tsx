@@ -16,6 +16,7 @@ import { isMilestoneDue } from "@/server/services/paymentSchedule";
 import { ArrowLeft, UploadSimple } from "@phosphor-icons/react";
 import { useDialog } from "@/components/ui/DialogProvider";
 import { describeApiError } from "@/lib/apiError";
+import { UPLOAD_ACCEPT, readUploadSelection } from "@/lib/uploadPolicy";
 
 // Mirrors the `CaseStatus` enum — the statuses a case can be
 // set to after a rejection is overturned (2026-09-25).
@@ -241,6 +242,12 @@ function yesNoWithDetail(value: boolean | null | undefined, detail?: string | nu
 
 export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: Props) {
   const dialog = useDialog();
+  // A picked file, checked before it's uploaded; a refused one is cleared and explained.
+  const pick = async (input: HTMLInputElement): Promise<File | null> => {
+    const { file, error } = await readUploadSelection(input);
+    if (error) void dialog.alert(error);
+    return file;
+  };
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1277,7 +1284,7 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
               className="w-auto"
               options={docTypes.map((t) => ({ value: t.key, label: t.label }))}
             />
-            <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} className="text-sm" />
+            <input type="file" accept={UPLOAD_ACCEPT} onChange={async (e) => setUploadFile(await pick(e.currentTarget))} className="text-sm" />
             <button onClick={uploadDocument} disabled={!uploadFile} className="btn-primary text-xs disabled:opacity-40">Upload</button>
           </div>
         )}
@@ -1314,8 +1321,8 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                 <div className="flex items-center gap-2 pt-1">
                   <input
                     type="file"
-                    accept="application/pdf,image/*"
-                    onChange={(e) => setWorkPermitFile(e.target.files?.[0] ?? null)}
+                    accept={UPLOAD_ACCEPT}
+                    onChange={async (e) => setWorkPermitFile(await pick(e.currentTarget))}
                     className="text-sm flex-1"
                   />
                   <button
@@ -1396,11 +1403,11 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                                 {replacingReceiptFor === p.id ? "Replacing…" : "Replace"}
                                 <input
                                   type="file"
-                                  accept="application/pdf,image/*"
+                                  accept={UPLOAD_ACCEPT}
                                   className="hidden"
                                   disabled={replacingReceiptFor === p.id}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0] ?? null;
+                                  onChange={async (e) => {
+                                    const file = await pick(e.currentTarget);
                                     if (file) replacePaymentReceipt(p.id, file);
                                   }}
                                 />
@@ -1431,11 +1438,11 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                               {replacingReceiptFor === p.id ? "Attaching…" : "Attach receipt"}
                               <input
                                 type="file"
-                                accept="application/pdf,image/*"
+                                accept={UPLOAD_ACCEPT}
                                 className="hidden"
                                 disabled={replacingReceiptFor === p.id}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0] ?? null;
+                                onChange={async (e) => {
+                                  const file = await pick(e.currentTarget);
                                   if (file) replacePaymentReceipt(p.id, file);
                                 }}
                               />
@@ -1483,10 +1490,10 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                         {markPaidReceiptId[p.id] ? "Replace receipt" : "Attach receipt"}
                         <input
                           type="file"
-                          accept="application/pdf,image/*"
+                          accept={UPLOAD_ACCEPT}
                           className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null;
+                          onChange={async (e) => {
+                            const file = await pick(e.currentTarget);
                             if (file) uploadMarkPaidReceipt(p.id, file);
                           }}
                         />
@@ -1533,9 +1540,9 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                   <label className="text-[11px] text-midnight-900/50 flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="file"
-                      accept="application/pdf,image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
+                      accept={UPLOAD_ACCEPT}
+                      onChange={async (e) => {
+                        const file = await pick(e.currentTarget);
                         if (file) uploadPaymentReceipt(file);
                       }}
                       className="text-xs w-32"
@@ -1624,10 +1631,10 @@ export default function CaseDetail({ caseId, capabilities = NO_CAPABILITIES }: P
                       {invoiceDocumentId ? "Replace invoice file" : "Attach invoice file"}
                       <input
                         type="file"
-                        accept="application/pdf,image/*"
+                        accept={UPLOAD_ACCEPT}
                         className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null;
+                        onChange={async (e) => {
+                          const file = await pick(e.currentTarget);
                           if (file) uploadInvoiceFile(file);
                         }}
                       />

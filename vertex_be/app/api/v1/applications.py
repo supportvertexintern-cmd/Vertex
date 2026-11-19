@@ -26,6 +26,7 @@ PartnerCandidate and ReferralCommission are in AUDITED_MODELS).
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
@@ -35,12 +36,16 @@ from sqlalchemy import func, select
 
 from app.api.deps import DbSession
 from app.api.notices import ApplicationConfirmationEmail, ApplicationStatusEmail, Notice, Notifying, commission_email, invite_email
+from app.services import emails
 from app.services.emails import deliver
 from app.api.v1.candidates import DETAIL_EDITORS, MaritalStatus, _blank_is_missing, _date
+from app.api.v1.public_forms import IntakeIn
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, OptionalUser, calling_service
 from app.core.clock import utc_now_ms
+from app.core.config import settings
+from app.core.logging import log_event
 from app.core.pipeline import PipelineWrites
 from app.core.rbac import STAFF_ROLES, require_role
 from app.core.scope import CandidateRef, can_access_candidate
@@ -63,6 +68,7 @@ from app.models.jobs import Job, JobPosition, JobSector
 from app.models.partners import PartnerCandidate
 from app.models.payments import Payment
 from app.models.referral import ReferralAgent
+from app.models.reference import SystemSetting
 from app.services.referrals import commission_if_due, flag_if_duplicate
 from app.services.screening import screen_and_invite
 
@@ -435,7 +441,31 @@ def submit(body: SubmissionIn, user: OptionalUser, db: DbSession, _on: PipelineW
 
     db.commit()
     db.refresh(application)
+    if is_new and candidate.source is not CandidateSource.recruiter_sourced:
+        _email_intake_copy(db, body, job)
     return {"data": application, "notify": deliver(db, notify), "screening_passed": screening_passed}
+
+
+def _email_intake_copy(db: DbSession, body: SubmissionIn, job: Job) -> None:
+    """A public application always reaches HR's Self Applications queue
+    (upstream staging, 2026-10-24): /apply no longer goes to the email-only
+    intake while Public Form Intake Mode is "email". In that mode (also
+    when it's unset, which has always meant email) the team still gets the
+    CIF by email, as before, so an inbox workflow keeps working; "crm"
+    turns the copy off. Sent off the request: the application is already
+    saved, so a missing inbox or a failed send is logged, never answered."""
+    # Anything but "crm" is email mode, as GET /apply/options reports it.
+    if db.scalar(select(SystemSetting.value).where(SystemSetting.key == "intake_mode")) == "crm":
+        return
+    if not settings.PUBLIC_FORMS_NOTIFY_EMAIL:
+        log_event(logging.ERROR, "email.recipient_not_configured", kind="public_intake")
+        return
+    # The email the email-only intake sent, from that form's own model: the
+    # travel date as the day the applicant picked, the channel as its value.
+    fields = body.model_dump(mode="json", include=set(IntakeIn.model_fields))
+    fields["earliest_travel_date"] = body.earliest_travel_date.date().isoformat()
+    form = IntakeIn.model_validate(fields)
+    emails.send_later(emails.intake_mail(db, settings.PUBLIC_FORMS_NOTIFY_EMAIL, form, job.title, job.country, job.city))
 
 
 # --- review ------------------------------------------------------------------

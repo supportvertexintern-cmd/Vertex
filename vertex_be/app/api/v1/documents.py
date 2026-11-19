@@ -75,6 +75,7 @@ DRAFT_STAFF: frozenset[Role] = frozenset({Role.hr, Role.operations_team, Role.op
 # recruiter), HR for partner submissions.
 VERIFIERS: tuple[Role, ...] = (Role.country_supervisor, Role.inhouse_supervisor, Role.director, Role.admin, Role.hr)
 REPEATABLE_TYPE = "other"
+MAX_LABEL_LENGTH = 150
 UPLOAD_TOKEN_HEADER = "X-Upload-Token"
 # Room for the multipart framing and the label around the file itself.
 FORM_OVERHEAD = 64 * 1024
@@ -145,6 +146,10 @@ async def _read_upload(request: Request) -> _Upload:
     label = form.get("label")
     # Only meaningful for "other": says what the supporting document is.
     label = label.strip() or None if isinstance(label, str) else None
+    # Free text, so bounded like any other input (upstream staging,
+    # 2026-11-12): it is shown in lists, not a place for a page of text.
+    if label is not None and len(label) > MAX_LABEL_LENGTH:
+        raise ApiError(400, "validation_error", f"The document label is too long ({MAX_LABEL_LENGTH} characters at most).")
     return _Upload(data, file.content_type or "", label)
 
 

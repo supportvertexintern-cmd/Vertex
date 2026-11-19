@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { UploadSimple } from "@phosphor-icons/react";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadErrorMessage, UPLOAD_MESSAGES } from "@/lib/uploadPolicy";
 
 interface Props {
   candidateId: string;
@@ -26,14 +27,13 @@ export default function CandidateDocumentUpload({ candidateId, type, label, onUp
         method: "POST",
         body: formData,
       });
-      const body = await res.json();
       if (!res.ok) {
-        setError(body.error ?? "Upload failed.");
+        setError(await uploadErrorMessage(res));
         return;
       }
       onUploaded();
     } catch {
-      setError("Upload failed.");
+      setError(UPLOAD_MESSAGES.failed());
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -46,10 +46,11 @@ export default function CandidateDocumentUpload({ candidateId, type, label, onUp
         ref={inputRef}
         type="file"
         data-testid={`upload-${type}-input`}
-        accept="application/pdf,image/*"
+        accept={UPLOAD_ACCEPT}
         className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
+        onChange={async (e) => {
+          const { file, error } = await readUploadSelection(e.currentTarget);
+          setError(error ?? "");
           if (file) handleFile(file);
         }}
       />

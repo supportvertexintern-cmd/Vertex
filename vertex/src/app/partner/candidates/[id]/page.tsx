@@ -16,6 +16,7 @@ import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
 import { CheckCircle, WarningCircle, CircleNotch, PencilSimple } from "@phosphor-icons/react";
 import { describeApiError } from "@/lib/apiError";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadErrorMessage, UPLOAD_MESSAGES } from "@/lib/uploadPolicy";
 import { useDialog } from "@/components/ui/DialogProvider";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
@@ -344,6 +345,13 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       .catch(() => {});
   }, []);
 
+  // A picked file, checked before it can be uploaded; a refused one is cleared and explained.
+  const pick = async (input: HTMLInputElement): Promise<File | null> => {
+    const { file, error } = await readUploadSelection(input);
+    if (error) void dialog.alert(error);
+    return file;
+  };
+
   const uploadDocument = async (type: string, file: File | null, onDone: () => void) => {
     if (!file || !data?.bridged_candidate_id) return;
     setUploading(true);
@@ -351,10 +359,11 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch(`/api/upload?type=${type}&candidate_id=${data.bridged_candidate_id}`, { method: "POST", body: formData });
-      const json = await res.json();
-      if (!res.ok) { void dialog.alert(describeApiError(json, "Upload failed.")); return; }
+      if (!res.ok) { void dialog.alert(await uploadErrorMessage(res)); return; }
       onDone();
       load();
+    } catch {
+      void dialog.alert(UPLOAD_MESSAGES.failed());
     } finally {
       setUploading(false);
     }
@@ -716,8 +725,8 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
                       <span className="text-xs text-red-700 flex-1">Rejected — attach a new version to replace it.</span>
                       <input
                         type="file"
-                        accept="application/pdf,image/*"
-                        onChange={(e) => { setReplacingType(d.type); setReplaceFile(e.target.files?.[0] ?? null); }}
+                        accept={UPLOAD_ACCEPT}
+                        onChange={async (e) => { const file = await pick(e.currentTarget); setReplacingType(d.type); setReplaceFile(file); }}
                         className="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-white file:text-slate-700 file:text-xs max-w-[180px]"
                       />
                       <button
@@ -735,7 +744,7 @@ export default function PartnerCandidateDetailPage({ params }: { params: Promise
             </div>
             <div className="flex items-center gap-2 pt-2 border-t border-midnight-900/10">
               <SearchableSelect value={uploadType} onChange={setUploadType} className="w-auto" options={docTypes.map((t) => ({ value: t.key, label: t.label }))} />
-              <input type="file" accept="application/pdf,image/*" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} className="text-sm" />
+              <input type="file" accept={UPLOAD_ACCEPT} onChange={async (e) => setUploadFile(await pick(e.currentTarget))} className="text-sm" />
               <button
                 type="button"
                 disabled={uploading || !uploadFile}

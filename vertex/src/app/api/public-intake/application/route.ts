@@ -12,9 +12,10 @@ const FAILED = "We couldn't submit your application right now. Please try again 
 // Settings → Public Form Intake Mode). Deliberately writes nothing to the
 // CRM (no Candidate/Application, no recruiter assignment) — it just emails
 // PUBLIC_FORMS_NOTIFY_EMAIL the same information the CIF collects, plus a
-// short confirmation to the applicant. Once staff flip the setting to
-// "crm", ApplicationForm posts to /api/applications instead and this route
-// stops being used by the public form (though it stays reachable).
+// short confirmation to the applicant. Since 2026-10-24 the public form
+// always posts to /api/applications (HR's Self Applications queue, with the
+// email copy while the setting is "email"), so the form no longer uses this
+// route, though it stays reachable.
 //
 // FastAPI checks the job and sends both emails since reads handover R7b
 // (vertex_be/app/api/v1/public_forms.py); this route keeps the rate limit

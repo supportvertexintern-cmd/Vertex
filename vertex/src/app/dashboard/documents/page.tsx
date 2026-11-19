@@ -6,6 +6,7 @@ import { CANDIDATE_NAV_ITEMS } from "@/components/portal/candidateNav";
 import SupportingDocumentUpload from "@/components/portal/SupportingDocumentUpload";
 import { documentTypeLabel } from "@/lib/documentTypes";
 import { CheckCircle, FileText, UploadSimple } from "@phosphor-icons/react";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadErrorMessage, uploadHint, UPLOAD_MESSAGES } from "@/lib/uploadPolicy";
 
 interface Application {
   id: string;
@@ -20,6 +21,8 @@ interface Profile {
 
 function UploadTile({ type, label, uploaded, onUploaded }: { type: string; label: string; uploaded: boolean; onUploaded: () => void }) {
   const [uploading, setUploading] = useState(false);
+  // A refused file used to fail silently (2026-11-19): the tile just went back to "Upload".
+  const [error, setError] = useState("");
 
   return (
     <label
@@ -35,22 +38,35 @@ function UploadTile({ type, label, uploaded, onUploaded }: { type: string; label
       <div className="font-semibold text-midnight-800 group-hover:text-midnight-950">
         {uploading ? "Uploading…" : uploaded ? "Uploaded" : "Upload"} {label}
       </div>
-      <div className="text-xs text-midnight-900/40 mt-1">PDF, JPG, PNG · Max 5MB{uploaded && " · Click to replace"}</div>
+      <div className="text-xs text-midnight-900/40 mt-1">{uploadHint()}{uploaded && " · Click to replace"}</div>
+      {error && <div role="alert" className="text-xs text-red-600 mt-2">{error}</div>}
       <input
         type="file"
         data-testid={`upload-${type}-input`}
-        accept=".pdf,.jpg,.jpeg,.png"
+        accept={UPLOAD_ACCEPT}
         className="hidden"
         disabled={uploading}
         onChange={async (e) => {
-          const file = e.target.files?.[0];
+          const input = e.currentTarget;
+          const { file, error: refused } = await readUploadSelection(input);
+          setError(refused ?? "");
           if (!file) return;
           setUploading(true);
-          const fd = new FormData();
-          fd.append("file", file);
-          await fetch(`/api/upload?type=${type}`, { method: "POST", body: fd });
-          setUploading(false);
-          onUploaded();
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            const res = await fetch(`/api/upload?type=${type}`, { method: "POST", body: fd });
+            if (!res.ok) {
+              setError(await uploadErrorMessage(res));
+              return;
+            }
+            onUploaded();
+          } catch {
+            setError(UPLOAD_MESSAGES.failed());
+          } finally {
+            setUploading(false);
+            input.value = "";
+          }
         }}
       />
     </label>

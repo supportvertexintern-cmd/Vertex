@@ -24,8 +24,9 @@ export const dynamic = "force-dynamic";
 // back to) went away along with recruiter assignment for self-registered
 // candidates entirely; see /api/jobs for the opportunity list itself.
 // Read from FastAPI since reads handover R1 (vertex_be/app/api/v1/public.py),
-// which keeps intakeMode "email" unless the admin chose "crm": an
-// unconfigured deployment fails safe toward not touching the CRM.
+// which reports intakeMode "email" unless the admin chose "crm". The form no
+// longer reads it (2026-10-24): every /apply submission reaches the CRM, and
+// the mode only decides whether FastAPI emails the team a copy.
 export async function GET(req: Request) {
   const limited = await limitByIp(req, "apply-options", { max: 60 });
   if (limited) return limited;

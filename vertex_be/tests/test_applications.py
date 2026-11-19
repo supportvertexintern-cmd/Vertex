@@ -35,6 +35,7 @@ from app.models.jobs import Job, JobPosition, JobSector
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import Payment
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
+from app.models.reference import SystemSetting
 from app.core.tokens import verify_candidate_invite_token
 from tests.mail import token
 from tests.test_auth import add_session, bearer, session_token
@@ -171,6 +172,59 @@ def test_a_self_applicant_is_screened_and_invited(api, db, world, sent_mail, sen
     assert sent_notices[1:] == [{"kind": "application_confirmation", "email": body["email"], "full_name": "Abebe Kebede", "job_title": "Care worker", "has_account": False}]
     actors = set(db.scalars(select(AuditLog.actor_id).where(AuditLog.entity_id.in_([candidate.id, app_row["id"]]))))
     assert actors == {None}
+
+
+# --- the team's copy while Public Form Intake Mode is "email" (2026-10-24) --------
+
+
+INBOX = "forms@test.invalid"
+
+
+def intake_copies(sent_mail) -> list[str]:
+    return [m.to for m in sent_mail if m.kind == "public_intake"]
+
+
+def test_a_public_application_is_filed_and_emailed_in_email_mode(api, db, world, sent_mail, monkeypatch):
+    # /apply always reaches HR's queue now; "email" (or no setting at all)
+    # also sends the team the CIF, as the email-only intake did.
+    monkeypatch.setattr(settings, "PUBLIC_FORMS_NOTIFY_EMAIL", INBOX)
+    res = submit(api, form(world))
+    assert res.status_code == 201, res.text
+    out = res.json()
+    assert db.get(Candidate, out["data"]["candidate_id"]).source is CandidateSource.self_registered
+    assert intake_copies(sent_mail) == [INBOX]
+    copy = next(m for m in sent_mail if m.kind == "public_intake")
+    assert "Abebe Kebede" in copy.html and "Care worker" in copy.html
+
+    db.add(SystemSetting(key="intake_mode", value="email"))
+    db.commit()
+    sent_mail.clear()
+    submit(api, form(world, email="second@test.invalid", passport_number="EP7654321"))
+    assert intake_copies(sent_mail) == [INBOX]
+
+
+def test_crm_mode_files_it_without_the_copy(api, db, world, sent_mail, monkeypatch):
+    monkeypatch.setattr(settings, "PUBLIC_FORMS_NOTIFY_EMAIL", INBOX)
+    db.add(SystemSetting(key="intake_mode", value="crm"))
+    db.commit()
+    res = submit(api, form(world))
+    assert res.status_code == 201
+    assert intake_copies(sent_mail) == []
+
+
+def test_a_staff_walk_in_lead_sends_no_copy(api, db, world, sent_mail, monkeypatch):
+    monkeypatch.setattr(settings, "PUBLIC_FORMS_NOTIFY_EMAIL", INBOX)
+    submit(api, form(world), world["rec"])  # a recruiter's walk-in lead
+    assert intake_copies(sent_mail) == []
+
+
+def test_no_inbox_still_files_the_application(api, db, world, sent_mail, monkeypatch, caplog):
+    # The application is saved before the copy: a missing inbox is logged.
+    monkeypatch.setattr(settings, "PUBLIC_FORMS_NOTIFY_EMAIL", None)
+    res = submit(api, form(world))
+    assert res.status_code == 201
+    assert intake_copies(sent_mail) == []
+    assert "email.recipient_not_configured" in caplog.text
 
 
 def test_a_failed_screening_still_files_the_form(api, db, world, sent_notices):

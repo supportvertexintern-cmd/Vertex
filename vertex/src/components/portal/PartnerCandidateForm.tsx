@@ -7,6 +7,7 @@ import PaymentStagesPreview, { type PaymentStageOption } from "@/components/Paym
 import { WORLD_COUNTRIES } from "@/lib/worldCountries";
 import { MARITAL_STATUS_OPTIONS } from "@/lib/maritalStatus";
 import { GENDER_OPTIONS } from "@/lib/gender";
+import { UPLOAD_ACCEPT, readUploadSelection, uploadErrorMessage, UPLOAD_MESSAGES } from "@/lib/uploadPolicy";
 
 const WORLD_COUNTRY_OPTIONS = WORLD_COUNTRIES.map((name) => ({ value: name, label: name }));
 
@@ -395,6 +396,16 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
   // state update has actually landed (React state updates aren't
   // synchronous, so reading `draftId` right after calling setDraftId would
   // still see the old, empty value).
+  // A picked file, checked before it's uploaded or queued; a refused one is cleared and explained.
+  const pick = async (input: HTMLInputElement): Promise<File | null> => {
+    const { file, error } = await readUploadSelection(input);
+    if (error) {
+      setStatus("error");
+      setMessage(error);
+    }
+    return file;
+  };
+
   const uploadDocumentToDraft = async (id: string, type: string, file: File, label?: string) => {
     setUploadingType(type);
     const uploadData = new FormData();
@@ -402,8 +413,8 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
     if (label) uploadData.append("label", label);
     try {
       const res = await fetch(`/api/upload?type=${type}&partner_candidate_id=${id}`, { method: "POST", body: uploadData });
-      const data = await res.json();
       if (res.ok) {
+        const data = await res.json();
         if (type === "other") {
           setOtherUploadedDocs((prev) => [...prev, { id: data.documentId, name: file.name, label: label ?? "" }]);
           setOtherDocumentFile(null);
@@ -414,11 +425,11 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
         }
       } else {
         setStatus("error");
-        setMessage(data.error || "Failed to upload document.");
+        setMessage(await uploadErrorMessage(res));
       }
     } catch {
       setStatus("error");
-      setMessage("Failed to upload document.");
+      setMessage(UPLOAD_MESSAGES.failed());
     } finally {
       setUploadingType(null);
     }
@@ -793,10 +804,10 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
                   <div className="ml-6 mt-1.5">
                     <input
                       type="file"
-                      accept="application/pdf,image/*"
+                      accept={UPLOAD_ACCEPT}
                       disabled={isUploading}
-                      onChange={(e) => {
-                        const picked = e.target.files?.[0] ?? null;
+                      onChange={async (e) => {
+                        const picked = await pick(e.currentTarget);
                         if (!picked) return;
                         if (draftId) uploadDocumentToDraft(draftId, doc.key, picked);
                         else setDocumentFiles((f) => ({ ...f, [doc.key]: picked }));
@@ -841,10 +852,10 @@ export default function PartnerCandidateForm({ onSubmitted, partnerId, draftId: 
             />
             <input
               type="file"
-              accept="application/pdf,image/*"
+              accept={UPLOAD_ACCEPT}
               disabled={uploadingType === "other"}
-              onChange={(e) => {
-                const picked = e.target.files?.[0] ?? null;
+              onChange={async (e) => {
+                const picked = await pick(e.currentTarget);
                 if (!picked) return;
                 if (draftId) uploadDocumentToDraft(draftId, "other", picked, otherDocumentLabel.trim() || undefined);
                 else setOtherDocumentFile(picked);
