@@ -19,7 +19,9 @@ import {
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]);
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10]);
-const file = (bytes: Uint8Array | string, name: string, type: string) => new File([bytes], name, { type });
+// A fresh copy is ArrayBuffer-backed, which a File's parts must be.
+const file = (bytes: Uint8Array | string, name: string, type: string) =>
+  new File([typeof bytes === "string" ? bytes : new Uint8Array(bytes)], name, { type });
 
 afterEach(() => vi.unstubAllEnvs());
 
