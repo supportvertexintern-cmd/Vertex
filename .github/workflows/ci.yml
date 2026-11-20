@@ -413,9 +413,11 @@ jobs:
 
   # The security controls and user stories each test proves (upstream
   # staging's traceability gate; the QA, Security & Implementation Guide,
-  # section 15). Report-only for now, so it isn't in ci-passed: it fails the
-  # run (--gate) once every control and story is covered. A job skipped on
-  # this PR just has no results in the report.
+  # section 15). The gate: every control and story needs a passing test, or
+  # the run fails (and ci-passed with it). It holds when all three suites
+  # ran and passed; on a PR into dev that skips one (its area unchanged), or
+  # when one failed (ci-passed fails on that already), it reports what it
+  # saw without judging proofs it couldn't see.
   traceability:
     name: Security traceability
     if: always()
@@ -429,11 +431,22 @@ jobs:
           path: junit
           merge-multiple: true
       - name: Coverage of the controls and stories
+        env:
+          ALL_SUITES_PASSED: ${{ needs.backend.result == 'success' && needs.nextjs.result == 'success' && needs.e2e.result == 'success' }}
         run: |
+          set +e
           args=""
           for f in junit/*.xml; do [ -e "$f" ] && args="$args --junit $f"; done
-          python3 tools/traceability.py $args --out coverage.md
+          gate=""
+          if [ "$ALL_SUITES_PASSED" = "true" ]; then gate="--gate"; fi
+          python3 tools/traceability.py $args --out coverage.md $gate
+          status=$?
+          if [ -z "$gate" ]; then
+            echo "> Report only: not every suite ran and passed here (backend: ${{ needs.backend.result }}, website: ${{ needs.nextjs.result }}, journeys: ${{ needs.e2e.result }}), so the gate isn't applied." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+          fi
           cat coverage.md >> "$GITHUB_STEP_SUMMARY"
+          exit $status
 
   # Promotions, manual runs, and PRs into dev that change a Dockerfile, a
   # compose file, the workflows or the Trivy ignore list.
@@ -491,7 +504,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [changes, secrets, semgrep, backend, flutter, nextjs, e2e, images]
+    needs: [changes, secrets, semgrep, backend, flutter, nextjs, e2e, traceability, images]
     runs-on: ubuntu-latest
     steps:
       - name: Fail if any job failed or was cancelled
