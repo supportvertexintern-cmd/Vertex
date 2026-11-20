@@ -30,7 +30,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict
 from pydantic_core import PydanticCustomError
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
@@ -38,6 +38,7 @@ from app.api.notices import Notice, Notifying, PasswordResetEmail, VerificationE
 from app.services.emails import deliver
 from app.api.v1.candidates import claimable_candidate, link_account
 from app.api.v1.sessions import account_email_allowed, record_account_email, security_event
+from app.core.account_email import account_email, email_taken, find_account
 from app.core.api import ApiError, Email
 from app.core.audit import set_audit_actor
 from app.core.auth import calling_service
@@ -148,7 +149,7 @@ def _latest_country(db, candidate_id: str) -> str | None:
 
 
 def _email_taken(db, email: str) -> bool:
-    return bool(db.scalar(select(exists().where(User.email == email))))
+    return email_taken(db, email)  # in any case (DEF-001)
 
 
 @router.post("/accounts/register", status_code=status.HTTP_201_CREATED, response_model=Notifying[Registered])
@@ -170,7 +171,7 @@ def register(body: RegisterIn, request: Request, db: DbSession, _on: PipelineWri
         raise ApiError(409, "duplicate", "An account with this email already exists. Please log in instead.")
 
     user = User(
-        full_name=candidate.full_name, email=candidate.email, password_hash=password_hash,
+        full_name=candidate.full_name, email=account_email(candidate.email), password_hash=password_hash,
         phone=candidate.phone, country=_latest_country(db, candidate.id), role=Role.candidate,
     )
     db.add(user)
@@ -290,7 +291,7 @@ def forgot_password(body: ForgotIn, request: Request, db: DbSession):
     """The same answer whether or not the address has an account; an email
     only for an account that can sign in with a password, and isn't
     deactivated."""
-    user = db.scalar(select(User).where(User.email == body.email))
+    user = find_account(db, body.email)
     can_reset = bool(user and user.password_hash and user.deactivated_at is None)
     # G3: at most 3 an hour and 6 a day to one address, from anywhere. The
     # answer is the usual one either way.
