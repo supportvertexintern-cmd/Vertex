@@ -140,7 +140,17 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python -m pytest -q
+      - run: python -m pytest -q --junitxml=junit-backend.xml
+
+      # For the security traceability report (tools/traceability.py).
+      - name: Keep the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-backend
+          path: vertex_be/junit-backend.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
   flutter:
     name: Flutter analyze & test
@@ -232,7 +242,17 @@ jobs:
       - name: Create the test bucket
         run: docker exec ${{ job.services.minio.id }} sh -c 'export MC_CONFIG_DIR=/tmp/.mc; mc alias set l http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc mb --ignore-existing l/vertex-ci'
 
-      - run: npx vitest run
+      - run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=junit-web.xml
+
+      # For the security traceability report (tools/traceability.py).
+      - name: Keep the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-web
+          path: vertex/junit-web.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
       # FastAPI's schema and the types generated from it (auth hardening
       # plan D.3): a renamed field fails here and in tsc, not in production.
@@ -365,7 +385,19 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test --reporter=line --fail-on-flaky-tests
+      - run: npx playwright test --reporter=line,junit --fail-on-flaky-tests
+        env:
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: junit-e2e.xml
+
+      # For the security traceability report (tools/traceability.py).
+      - name: Keep the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-e2e
+          path: vertex/junit-e2e.xml
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: FastAPI's log
         if: failure()
@@ -378,6 +410,30 @@ jobs:
           name: e2e-failures
           path: vertex/test-results
           retention-days: 14
+
+  # The security controls and user stories each test proves (upstream
+  # staging's traceability gate; the QA, Security & Implementation Guide,
+  # section 15). Report-only for now, so it isn't in ci-passed: it fails the
+  # run (--gate) once every control and story is covered. A job skipped on
+  # this PR just has no results in the report.
+  traceability:
+    name: Security traceability
+    if: always()
+    needs: [backend, nextjs, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: junit-*
+          path: junit
+          merge-multiple: true
+      - name: Coverage of the controls and stories
+        run: |
+          args=""
+          for f in junit/*.xml; do [ -e "$f" ] && args="$args --junit $f"; done
+          python3 tools/traceability.py $args --out coverage.md
+          cat coverage.md >> "$GITHUB_STEP_SUMMARY"
 
   # Promotions, manual runs, and PRs into dev that change a Dockerfile, a
   # compose file, the workflows or the Trivy ignore list.

@@ -91,6 +91,7 @@ def test_six_calendar_months_from_the_deployment_month():
     assert engine.monthly_periods(datetime(2026, 10, 31)) == ["2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"]
 
 
+@pytest.mark.proves("SEC-BIZ-009")
 def test_only_a_whole_fee_on_credit_is_fully_financed(db):
     job = Job(title="Georgia", country="Georgia", city="Tbilisi", job_description="d", requirements="r", is_credit_service=True)
     db.add(job)
@@ -108,6 +109,7 @@ def test_only_a_whole_fee_on_credit_is_fully_financed(db):
     assert engine.is_fully_financed(job) is False
 
 
+@pytest.mark.proves("SEC-BIZ-001", "SEC-BIZ-003")
 def test_registration_earns_once_with_the_rules_amount(db, world):
     c = world["candidate"]
     earned = engine.partner_commissions_if_due(db, c.id, "registered")
@@ -117,6 +119,7 @@ def test_registration_earns_once_with_the_rules_amount(db, world):
     assert (row.rule_type.value, row.period, row.amount, row.status) == ("registration", "registration", Decimal("10.00"), CommissionStatus.pending)
 
 
+@pytest.mark.proves("SEC-BIZ-006", "SEC-BIZ-007", "SEC-BIZ-008")
 def test_deployment_earns_six_months_and_vertex_its_six_fees(db, world):
     c = world["candidate"]
     earned = engine.partner_commissions_if_due(db, c.id, "deployed", deployed_at=datetime(2026, 11, 15))
@@ -176,6 +179,7 @@ def test_the_list_shows_what_is_due(api, db, world):
     assert api.get(f"{URL}/partner-commissions", headers=world["va"]).status_code == 403
 
 
+@pytest.mark.proves("SEC-BIZ-004", "SEC-BIZ-012")
 def test_approving_and_paying(api, db, world, sent_mail):
     row = commission(db, world, current_period(utc_now_ms()))
     d = world["director"]
@@ -190,6 +194,7 @@ def test_approving_and_paying(api, db, world, sent_mail):
     assert all(m.to == world["partner"].contact_email for m in sent_mail)
 
 
+@pytest.mark.proves("SEC-BIZ-013")
 def test_a_month_ahead_is_neither_approved_nor_paid(api, db, world):
     ahead = commission(db, world, months_from_now(1))
     res = api.post(f"{URL}/partner-commissions/{ahead.id}/approve", headers=world["director"])
@@ -198,6 +203,7 @@ def test_a_month_ahead_is_neither_approved_nor_paid(api, db, world):
     assert api.post(f"{URL}/partner-commissions/{early.id}/mark-paid", headers=world["director"], json={}).json()["error"]["code"] == "not_due"
 
 
+@pytest.mark.proves("SEC-AUTHZ-004")
 def test_moving_money_is_the_directors_and_admins(api, db, world):
     row = commission(db, world, current_period(utc_now_ms()))
     assert api.post(f"{URL}/partner-commissions/{row.id}/approve", headers=world["inhouse"]).status_code == 403
@@ -225,6 +231,7 @@ def test_the_admin_fee_list(api, db, world):
 # --- what the database refuses (migration 0025) --------------------------------------
 
 
+@pytest.mark.proves("SEC-DB-010")
 def test_a_negative_amount_or_a_malformed_month_is_refused(db, world):
     for bad in (
         PartnerCommission(partner_id=world["partner"].id, candidate_id=world["candidate"].id, rule_type=PartnerCommissionRuleType.registration, period="registration", amount=Decimal("-1")),
@@ -238,6 +245,7 @@ def test_a_negative_amount_or_a_malformed_month_is_refused(db, world):
         savepoint.rollback()
 
 
+@pytest.mark.proves("SEC-DB-009", "SEC-BIZ-007")
 def test_a_seventh_month_is_refused(db, world):
     for n in range(6):
         commission(db, world, f"2026-{n + 1:02d}")

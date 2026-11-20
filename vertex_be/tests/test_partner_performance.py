@@ -112,6 +112,7 @@ def test_the_roles_match_next_js():
 # --- the statement -------------------------------------------------------------------
 
 
+@pytest.mark.proves("SEC-BIZ-011", "SEC-BIZ-013")
 def test_the_statement_counts_only_what_is_earned(api, ledger):
     s = api.get(f"{URL}/partners/{ledger['rich'].id}/commission-statement", headers=ledger["director"]).json()["data"]["summary"]
     assert (s["registered_candidates"], s["deployed_candidates"]) == (3, 1)
@@ -133,6 +134,7 @@ def test_the_statement_lists_the_ledger_with_names_and_records_who_looked(api, d
     assert all(a["action"] != "statement_viewed" for a in feed)
 
 
+@pytest.mark.proves("SEC-AUTHZ-004")
 def test_the_statement_is_the_managers(api, ledger):
     assert api.get(f"{URL}/partners/{ledger['rich'].id}/commission-statement", headers=ledger["as_va"]).status_code == 403
     assert api.get(f"{URL}/partners/no-such/commission-statement", headers=ledger["director"]).status_code == 404
@@ -178,5 +180,6 @@ def test_the_totals_count_earned_commissions_and_due_fees(api, ledger):
     assert totals["admin_fee_revenue"] >= 30.0 and totals["admin_fee_collected"] >= 25.0
 
 
+@pytest.mark.proves("SEC-AUTHZ-004")
 def test_performance_is_the_managers(api, ledger):
     assert api.get(f"{URL}/partner-performance", headers=ledger["as_va"]).status_code == 403

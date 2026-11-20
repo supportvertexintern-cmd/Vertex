@@ -86,7 +86,7 @@ describe("token purposes (gap G17)", () => {
     }
   });
 
-  it("an unsigned (alg:none) token is rejected", () => {
+  it("SEC-AUTH-001 an unsigned (alg:none) token is rejected", () => {
     // nosemgrep: javascript.jsonwebtoken.security.jwt-hardcode.hardcoded-jwt-secret -- an unsigned token, made to be refused.
     const none = jwt.sign({ userId: "u1", email: "a@test.invalid", role: "admin", iss: "vertex-web", aud: "vertex:session" }, "", { algorithm: "none" });
     expect(() => verifyToken(none)).toThrow();

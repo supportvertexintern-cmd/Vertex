@@ -88,6 +88,7 @@ def test_the_roles_match_next_js():
         assert next_roles(route) == {r.value for r in MANAGERS}, route
 
 
+@pytest.mark.proves("SEC-AUTHZ-009")
 def test_a_va_tracks_only_its_own_partners(api, team):
     assert api.get(f"{URL}/partners/{team['hers'].id}/tracking", headers=team["as_sarah"]).status_code == 200
     refused = api.get(f"{URL}/partners/{team['his'].id}/tracking", headers=team["as_sarah"])
@@ -97,12 +98,14 @@ def test_a_va_tracks_only_its_own_partners(api, team):
     assert api.get(f"{URL}/partners/no-such/tracking", headers=team["director"]).status_code == 404
 
 
+@pytest.mark.proves("SEC-AUDIT-008")
 def test_a_refusal_is_on_the_audit_trail(api, db, team):
     api.get(f"{URL}/partners/{team['his'].id}/tracking", headers=team["as_sarah"])
     denied = db.scalars(select(AuditLog).where(AuditLog.action == "access_denied", AuditLog.actor_id == team["sarah"].id)).all()
     assert any(team["his"].id in (d.entity_id or "") for d in denied)
 
 
+@pytest.mark.proves("SEC-AUTHZ-007")
 def test_a_va_writes_only_for_its_own_partners(api, db, team):
     # Upstream's DEF-013: viewing and creating were scoped, editing wasn't.
     theirs = PartnerReport(partner_id=team["his"].id, reported_at=utc_now_ms(), content={"notes": "His"})
@@ -203,6 +206,7 @@ def test_the_feed_is_the_partners_own_history_in_sentences(api, db, team):
 # --- the VA team ----------------------------------------------------------------------
 
 
+@pytest.mark.proves("SEC-AUTHZ-004")
 def test_managers_list_the_vas_and_what_each_holds(api, db, team):
     agency(db, team["sarah"])
     gone, _ = person(db, Role.virtual_assistant, "Zed Gone")
@@ -231,6 +235,7 @@ def test_a_manager_adds_a_va_whose_setup_email_goes_out(api, db, team, sent_mail
     assert api.post(f"{URL}/va-users", headers=team["as_sarah"], json={"full_name": "Mine", "email": "x@test.invalid"}).status_code == 403
 
 
+@pytest.mark.proves("SEC-AUTHZ-012")
 def test_deactivating_a_va_hands_its_partners_over_and_ends_its_sessions(api, db, team):
     second = agency(db, team["sarah"], name="Sarah's Second")
     sessions_before = db.query(RefreshToken).filter(RefreshToken.user_id == team["sarah"].id, RefreshToken.revoked_at.is_(None)).count()

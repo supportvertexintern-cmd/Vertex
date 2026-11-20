@@ -118,6 +118,7 @@ def test_a_successful_sign_in_clears_the_failures_but_not_the_history(api, db):
     assert [r.step for r in lockouts(db, user.email)] == [1, 2]  # the success didn't reset the steps
 
 
+@pytest.mark.proves("SEC-AUTH-014", "SEC-AUTH-015")
 def test_the_lock_message_is_the_same_with_or_without_an_account(api, db):
     user = account(db, role=Role.hr)
     nobody = f"nobody-{secrets.token_hex(4)}@test.invalid"

@@ -40,6 +40,7 @@ def test_round_trip_with_defaults_and_relationships(db):
     assert loaded.recruiter.assigned_country.region.name == "Test Region"
 
 
+@pytest.mark.proves("SEC-AUDIT-012", "SEC-INF-010")
 def test_audit_log_is_immutable(db):
     entry = AuditLog(entity_type="Candidate", entity_id="x", action="create")
     db.add(entry)
@@ -48,6 +49,7 @@ def test_audit_log_is_immutable(db):
         db.execute(text('UPDATE "AuditLog" SET action = \'tampered\''))
 
 
+@pytest.mark.proves("SEC-AUTH-009")
 def test_password_or_role_change_bumps_token_version(db):
     # G19: whatever code path changes a credential or a role, every session
     # issued before the change stops working.
@@ -67,6 +69,7 @@ def test_password_or_role_change_bumps_token_version(db):
     assert version() == 2
 
 
+@pytest.mark.proves("SEC-DB-010")
 def test_case_payments_and_referral_commissions_are_exact_to_the_cent(db):
     # Migration 0024 (upstream staging, 2026-11-13): NUMERIC(12, 2), not a binary fraction.
     rows = db.execute(

@@ -85,6 +85,7 @@ def test_who_reads_the_portal(api, db, role):
     assert api.get("/api/v1/va/overview", headers=headers).status_code == (200 if role in VA_OVERVIEW_ROLES else 403)
 
 
+@pytest.mark.proves("SEC-AUTHZ-006", "SEC-AUTHZ-011")
 def test_a_va_sees_only_its_own_partners(api, db):
     sarah, as_sarah = person(db, Role.virtual_assistant)
     daniel, _ = person(db, Role.virtual_assistant)

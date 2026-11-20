@@ -62,6 +62,7 @@ def test_the_roles_match_next_js():
         assert "requireRole(user, REFERRAL_AGENT_MANAGER_ROLES)" in (NEXT / path).read_text(encoding="utf-8"), path
 
 
+@pytest.mark.proves("SEC-AUDIT-001")
 def test_approve_then_mark_paid(api, db, commission, sent_notices):
     _, director = person(db, Role.director)
     approved = api.post(f"{URL}/{commission.id}/approve", headers=director)
@@ -136,6 +137,7 @@ def race(monkeypatch, path: str, headers: dict, body: dict | None = None) -> lis
     return sorted(results)
 
 
+@pytest.mark.proves("SEC-BIZ-010", "SEC-DB-008")
 def test_two_approvals_at_once_approve_once(committed_commission, monkeypatch, sent_mail):
     commission_id, headers = committed_commission
     assert race(monkeypatch, f"{URL}/{commission_id}/approve", headers) == [200, 422]
@@ -145,6 +147,7 @@ def test_two_approvals_at_once_approve_once(committed_commission, monkeypatch, s
         assert (s.get(ReferralCommission, commission_id).status, updates) == (ReferralCommissionStatus.approved, 1)
 
 
+@pytest.mark.proves("SEC-BIZ-010", "SEC-DB-008")
 def test_two_payments_at_once_pay_once(committed_commission, monkeypatch, sent_mail):
     commission_id, headers = committed_commission
     with TestClient(app) as c:
