@@ -38,6 +38,7 @@ from app.core.auth import AuthUser, CurrentUser, OptionalUser, calling_service, 
 from app.core.config import settings
 from app.core.logging import log_event
 from app.core.rbac import require_role
+from app.core.account_email import find_account
 from app.models.enums import Role
 from app.models.identity import User
 from app.services import address_controls, email_limit, geoip, login_lockout, login_settings
@@ -253,7 +254,7 @@ def login(body: LoginIn, request: Request, db: DbSession):
                detail={"scope": "account", "client": body.client, "email_fp": fp, "step": held.step})
         raise ApiError(429, "rate_limited", login_lockout.locked_message(left), {"retry_after_seconds": left})
 
-    user = db.scalar(select(User).where(User.email == body.email))
+    user = find_account(db, body.email)  # in any case (DEF-001)
 
     def refuse(reason: str, status: int, code: str, message: str) -> ApiError:
         security_event(request, "login_failed", actor_id=None, entity_type="Auth", entity_id=f"user:{user.id}" if user else "unknown_account",
@@ -315,7 +316,7 @@ def google_sign_in(body: GoogleIn, request: Request, db: DbSession, google: Anno
     if user is not None and user.deactivated_at is not None:
         raise refuse("deactivated", user.id, "account_deactivated")
     if user is None:
-        by_email = db.scalar(select(User).where(User.email == found.email))
+        by_email = find_account(db, found.email)
         if by_email is None:
             raise refuse("unknown_account", None, "google_no_account")
         if not found.email_verified:

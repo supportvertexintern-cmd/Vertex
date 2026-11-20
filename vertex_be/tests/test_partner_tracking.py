@@ -18,7 +18,7 @@ from app.main import app
 from app.models.audit import AuditLog
 from app.models.candidate import Candidate
 from app.models.enums import PartnerCandidateStatus, PartnerStatus, PartnerType, Role
-from app.models.identity import User
+from app.models.identity import RefreshToken, User
 from app.models.partner_tracking import PartnerFollowUp, PartnerReport
 from app.models.partners import Partner, PartnerCandidate
 from tests.test_auth import add_session, bearer, session_token
@@ -74,14 +74,18 @@ def error(res) -> dict:
 
 
 def next_roles(route: str) -> set[str]:
+    """The roles every handler in a route file asks for (they must agree)."""
     src = (NEXT_API / route / "route.ts").read_text(encoding="utf-8")
-    return set(re.findall(r'"(\w+)"', re.search(r"requireRole\(user, \[(.*?)\]\)", src, re.S).group(1)))
+    lists = [frozenset(re.findall(r'"(\w+)"', m)) for m in re.findall(r"requireRole\(user, \[(.*?)\]\)", src, re.S)]
+    assert lists and len(set(lists)) == 1, route
+    return set(lists[0])
 
 
 def test_the_roles_match_next_js():
     for route in ("management/partners/[id]/tracking", "partner-reports", "partner-reports/[id]", "partner-follow-ups", "partner-follow-ups/[id]"):
         assert next_roles(route) == {r.value for r in TRACKERS}, route
-    assert next_roles("admin/va-users") == {r.value for r in MANAGERS}
+    for route in ("admin/va-users", "admin/va-users/[id]", "admin/va-users/[id]/reset-password"):
+        assert next_roles(route) == {r.value for r in MANAGERS}, route
 
 
 def test_a_va_tracks_only_its_own_partners(api, team):
@@ -209,6 +213,93 @@ def test_managers_list_the_vas_and_what_each_holds(api, db, team):
     assert (rows["Sarah VA"]["is_active"], rows["Zed Gone"]["is_active"]) == (True, False)
     assert "password_hash" not in rows["Sarah VA"]
     assert api.get(f"{URL}/va-users", headers=team["as_sarah"]).status_code == 403
+
+
+# --- managing the VA team --------------------------------------------------------------------
+
+
+def test_a_manager_adds_a_va_whose_setup_email_goes_out(api, db, team, sent_mail):
+    address = f"New.VA-{secrets.token_hex(3)}@Test.Invalid"
+    res = api.post(f"{URL}/va-users", headers=team["director"], json={"full_name": "New VA", "email": address})
+    assert res.status_code == 201
+    row = res.json()["data"]
+    assert (row["email"], row["is_active"], row["partners_assigned"], row["email_verified"]) == (address.lower(), True, 0, False)
+    assert db.get(User, row["id"]).role is Role.virtual_assistant
+    assert [(m.kind, m.to) for m in sent_mail] == [("account_setup", address.lower())]
+    again = api.post(f"{URL}/va-users", headers=team["director"], json={"full_name": "Twin", "email": address.upper()})
+    assert (again.status_code, error(again)["message"]) == (409, "A user with this email already exists.")  # DEF-001
+    assert api.post(f"{URL}/va-users", headers=team["as_sarah"], json={"full_name": "Mine", "email": "x@test.invalid"}).status_code == 403
+
+
+def test_deactivating_a_va_hands_its_partners_over_and_ends_its_sessions(api, db, team):
+    second = agency(db, team["sarah"], name="Sarah's Second")
+    sessions_before = db.query(RefreshToken).filter(RefreshToken.user_id == team["sarah"].id, RefreshToken.revoked_at.is_(None)).count()
+    assert sessions_before >= 1
+    res = api.patch(f"{URL}/va-users/{team['sarah'].id}", headers=team["director"],
+                    json={"is_active": False, "reassign_to": team["daniel"].id, "reason": "Left the team"})
+    assert res.status_code == 200, res.text
+    state = res.json()["data"]
+    assert (state["is_active"], state["reassigned"], state["reassign_to"], state["ended"] >= 1) == (False, 2, team["daniel"].id, True)
+    for p in (team["hers"], second):
+        db.refresh(p)
+        assert p.assigned_team_member_id == team["daniel"].id
+    db.refresh(team["sarah"])
+    assert (team["sarah"].deactivated_at is not None, team["sarah"].deactivation_reason) == (True, "Left the team")
+    # The partner's own feed shows the move, by who made it.
+    feed = api.get(f"{URL}/partners/{team['hers'].id}/tracking", headers=team["director"]).json()["data"]["activity"]
+    moved = [a for a in feed if a["summary"].startswith("Assigned VA:")]
+    assert moved and moved[0]["summary"] == f"Assigned VA: {team['sarah'].id} → {team['daniel'].id}"
+    # Her session no longer works.
+    assert api.get(f"{URL}/va/partners", headers=team["as_sarah"]).status_code == 401
+
+
+def test_a_va_can_be_deactivated_leaving_its_partners_unassigned_then_reactivated(api, db, team):
+    res = api.patch(f"{URL}/va-users/{team['daniel'].id}", headers=team["director"], json={"is_active": False})
+    assert res.json()["data"]["reassigned"] == 1
+    db.refresh(team["his"])
+    assert team["his"].assigned_team_member_id is None
+    back = api.patch(f"{URL}/va-users/{team['daniel'].id}", headers=team["director"], json={"is_active": True})
+    assert back.json()["data"]["is_active"] is True
+    db.refresh(team["daniel"])
+    assert team["daniel"].deactivated_at is None
+    assert team["his"].assigned_team_member_id is None  # reactivating gives nothing back by itself
+
+
+def test_the_replacement_must_be_another_active_va(api, db, team):
+    gone, _ = person(db, Role.virtual_assistant)
+    gone.deactivated_at = utc_now_ms()
+    hr_user = db.scalar(select(User).where(User.role == Role.hr).limit(1))
+    db.flush()
+    for replacement, message in ((team["sarah"].id, "Choose a different VA to take over the partners."),
+                                 (gone.id, "The replacement must be an active Virtual Assistant."),
+                                 (hr_user.id, "The replacement must be an active Virtual Assistant."),
+                                 ("no-such-user", "The replacement must be an active Virtual Assistant.")):
+        res = api.patch(f"{URL}/va-users/{team['sarah'].id}", headers=team["director"], json={"is_active": False, "reassign_to": replacement})
+        assert (res.status_code, error(res)["message"]) == (422, message)
+    db.refresh(team["sarah"])
+    assert team["sarah"].deactivated_at is None  # refused before anything changed
+
+
+def test_only_va_accounts_are_reached_here(api, db, team):
+    hr_user = db.scalar(select(User).where(User.role == Role.hr).limit(1))
+    assert api.patch(f"{URL}/va-users/{hr_user.id}", headers=team["director"], json={"is_active": False}).status_code == 404
+    assert api.post(f"{URL}/va-users/{hr_user.id}/reset-password", headers=team["director"]).status_code == 404
+    db.refresh(hr_user)
+    assert hr_user.deactivated_at is None
+
+
+def test_a_vas_password_is_reset_and_its_setup_email_sent(api, db, team, sent_mail):
+    team["sarah"].password_hash = "x"
+    db.flush()
+    res = api.post(f"{URL}/va-users/{team['sarah'].id}/reset-password", headers=team["director"])
+    assert (res.status_code, res.json()["data"]["email"]) == (200, team["sarah"].email)
+    db.refresh(team["sarah"])
+    assert team["sarah"].password_hash is None
+    assert [(m.kind, m.to) for m in sent_mail] == [("account_setup", team["sarah"].email)]
+    team["sarah"].deactivated_at = utc_now_ms()
+    db.flush()
+    refused = api.post(f"{URL}/va-users/{team['sarah'].id}/reset-password", headers=team["director"])
+    assert refused.status_code == 409
 
 
 # --- the partner's onboarding fields --------------------------------------------------------

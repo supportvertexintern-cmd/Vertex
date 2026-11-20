@@ -31,7 +31,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic_core import PydanticCustomError
-from sqlalchemy import exists, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import DbSession
@@ -46,6 +46,7 @@ from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
 from app.core.scope import candidate_scope
 from app.core.tokens import sign_account_setup_token
+from app.core.account_email import account_email, email_taken
 from app.services.sessions import revoke_all_for_user
 from app.models.candidate import Candidate
 from app.models.enums import CandidateLifecycleStatus, MouStatus, PartnerStatus, PartnerType, Role, SlaStatus
@@ -339,7 +340,7 @@ def update_partner(partner_id: str, body: UpdateIn, manager: Manager, request: R
 
     email_changed = "contact_email" in changes and changes["contact_email"] != partner.contact_email
     login = db.get(User, partner.user_id) if email_changed and partner.user_id else None
-    if login is not None and db.scalar(select(exists().where(User.email == changes["contact_email"], User.id != login.id))):
+    if login is not None and email_taken(db, changes["contact_email"], other_than=login.id):
         raise _duplicate()
 
     if changes.get("assigned_team_member_id"):
@@ -361,7 +362,7 @@ def update_partner(partner_id: str, body: UpdateIn, manager: Manager, request: R
         setattr(partner, field, value)
     notify: list[Notice] = []
     if login is not None:
-        login.email = changes["contact_email"]
+        login.email = account_email(changes["contact_email"])
         login.password_hash = None
         notify.append(_setup_email(login))
         record_account_email(request, login, "account_setup", actor_id=manager.user_id)
@@ -408,8 +409,8 @@ def provision_account(partner_id: str, body: LoginIn, manager: Manager, request:
     if partner.user_id:
         raise ApiError(409, "already_provisioned", "This partner already has a login.")
     _no_nulls(body)
-    email = body.email or partner.contact_email
-    if db.scalar(select(exists().where(User.email == email))):
+    email = account_email(body.email or partner.contact_email)
+    if email_taken(db, email):
         raise _duplicate()
 
     login = User(full_name=partner.contact_name, email=email, role=Role.partner, email_verified=False, created_by=manager.user_id)

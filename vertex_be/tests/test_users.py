@@ -109,6 +109,16 @@ def test_no_session_is_401(api, world):
 # --- create ---------------------------------------------------------------------
 
 
+def test_an_address_in_another_case_is_the_same_account(api, db, world):
+    # Upstream's DEF-001: SARAH@... made a second account.
+    body = new_staff(email=f"Sarah.{secrets.token_hex(3)}@Test.Invalid")
+    made = api.post(URL, headers=world["admin"], json=body).json()["data"]
+    assert made["email"] == body["email"].lower()  # stored lowercased
+    for variant in (body["email"].upper(), body["email"].lower()):
+        res = api.post(URL, headers=world["admin"], json=new_staff(email=variant))
+        assert (res.status_code, res.json()["error"]["message"]) == (409, "A user with this email already exists."), variant
+
+
 def test_an_admin_creates_staff_and_the_setup_email_is_listed(api, db, world, sent_mail):
     body = new_staff(supervisor_id=world["boss"].id, assigned_country_id=world["countries"][0])
     res = api.post(URL, headers=world["admin"], json=body)

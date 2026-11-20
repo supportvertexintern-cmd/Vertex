@@ -6837,6 +6837,18 @@
     "title": "Data[VaOverview]",
     "type": "object"
    },
+   "Data_VaState_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/VaState"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[VaState]",
+    "type": "object"
+   },
    "Data_WebsiteLoginLimits_": {
     "properties": {
      "data": {
@@ -13678,6 +13690,148 @@
      "data"
     ],
     "title": "Notifying[Submission]",
+    "type": "object"
+   },
+   "Notifying_VaUserRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/VaUserRow"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[VaUserRow]",
     "type": "object"
    },
    "OpsReviewIn": {
@@ -21446,6 +21600,26 @@
     "title": "Updated",
     "type": "object"
    },
+   "VaIn": {
+    "properties": {
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "full_name": {
+      "maxLength": 150,
+      "minLength": 2,
+      "title": "Full Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name",
+     "email"
+    ],
+    "title": "VaIn",
+    "type": "object"
+   },
    "VaOverview": {
     "properties": {
      "flags": {
@@ -21521,6 +21695,82 @@
      "submissions"
     ],
     "title": "VaPartnerRow",
+    "type": "object"
+   },
+   "VaState": {
+    "properties": {
+     "ended": {
+      "title": "Ended",
+      "type": "integer"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "is_active": {
+      "title": "Is Active",
+      "type": "boolean"
+     },
+     "reassign_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reassign To"
+     },
+     "reassigned": {
+      "title": "Reassigned",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "is_active",
+     "reassigned",
+     "reassign_to",
+     "ended"
+    ],
+    "title": "VaState",
+    "type": "object"
+   },
+   "VaStateIn": {
+    "properties": {
+     "is_active": {
+      "title": "Is Active",
+      "type": "boolean"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "reassign_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reassign To"
+     }
+    },
+    "required": [
+     "is_active"
+    ],
+    "title": "VaStateIn",
     "type": "object"
    },
    "VaUserRow": {
@@ -38458,6 +38708,157 @@
      }
     ],
     "summary": "Va Users",
+    "tags": [
+     "virtual assistants"
+    ]
+   },
+   "post": {
+    "description": "POST /api/admin/va-users: a VA account with no password; the setup\nemail lets them set their own. An address in any case is one account\n(upstream's DEF-001).",
+    "operationId": "add_va_api_v1_va_users_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VaIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_VaUserRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Add Va",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/va-users/{va_id}": {
+   "patch": {
+    "description": "PATCH /api/admin/va-users/[id]: deactivate or reactivate a VA.\nDeactivating moves every partner it holds to the replacement, or leaves\nthem unassigned: a deactivated VA never keeps a partner. Its sessions\nend at once. Deactivating one already deactivated just moves what it\nstill holds.",
+    "operationId": "set_va_state_api_v1_va_users__va_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "va_id",
+      "required": true,
+      "schema": {
+       "title": "Va Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VaStateIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_VaState_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Set Va State",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/va-users/{va_id}/reset-password": {
+   "post": {
+    "description": "POST /api/admin/va-users/[id]/reset-password: the password is cleared,\nso it stops working at once (its sessions end: the token_version\ntrigger), and the setup email goes out. Only a VA's: other staff are\nan admin's to reset.",
+    "operationId": "reset_va_password_api_v1_va_users__va_id__reset_password_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "va_id",
+      "required": true,
+      "schema": {
+       "title": "Va Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Notifying_SetupSent_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Reset Va Password",
     "tags": [
      "virtual assistants"
     ]
