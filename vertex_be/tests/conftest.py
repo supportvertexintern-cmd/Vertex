@@ -113,3 +113,23 @@ def sent_notices(monkeypatch: pytest.MonkeyPatch, sent_mail: list[emails.Mail]) 
 
     monkeypatch.setattr(emails, "_mail", recording)
     return notices
+
+
+# --- the security controls a test proves (tools/traceability.py) ------------
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "proves(*ids): the test IDs of the QA, Security & Implementation Guide this test proves (SEC-AUTH-014, ...)",
+    )
+
+
+def pytest_collection_modifyitems(items):
+    """Each test's IDs go into the JUnit report, where the traceability
+    report counts them once the test has passed."""
+    for item in items:
+        ids = [test_id for marker in item.iter_markers("proves") for test_id in marker.args]
+        if ids:
+            item.user_properties.append(("proves", " ".join(ids)))
+

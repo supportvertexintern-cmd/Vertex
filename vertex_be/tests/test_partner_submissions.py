@@ -362,6 +362,7 @@ def test_a_partners_correction_follows_through(api, db, world):
 # --- HR's review -------------------------------------------------------------
 
 
+@pytest.mark.proves("SEC-BIZ-001", "SEC-BIZ-009")
 def test_hr_opens_the_case(api, db, world, sent_notices):
     data = submit(api, world).json()["data"]
     res = api.patch(f"{URL}/partner-candidates/{data['id']}/create-case", headers=world["hr"])

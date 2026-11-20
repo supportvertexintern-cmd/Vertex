@@ -81,6 +81,7 @@ def test_create_update_and_delete_are_recorded_with_actor_and_request(db):
     assert deleted.before["full_name"] == "Renamed" and deleted.after is None
 
 
+@pytest.mark.proves("SEC-AUDIT-011")
 def test_snapshots_never_hold_the_password_hash(db):
     u = new_user(db)
     u.password_hash = "another-hash"
@@ -143,6 +144,7 @@ def test_vertex_api_can_write_audited_rows_without_reading_the_trail(db):
     assert [r.action for r in trail(db, u.id)] == ["create"]
 
 
+@pytest.mark.proves("SEC-AUDIT-010")
 def test_granting_admin_is_logged(db, caplog):
     u = new_user(db, role=Role.director)
     with caplog.at_level(logging.WARNING, logger="vertex"):

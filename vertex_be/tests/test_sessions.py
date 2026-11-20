@@ -112,6 +112,7 @@ def test_sign_in_issues_a_session_the_website_and_fastapi_accept(api, db, caplog
     assert (ok["method"], ok["client"], ok["role"], ok["ip"]) == ("password", "web", "director", IP)
 
 
+@pytest.mark.proves("SEC-AUTH-014")
 def test_an_unknown_account_and_a_wrong_password_get_the_same_answer(api, db, caplog):
     user = account(db)
     with caplog.at_level(logging.INFO, logger="vertex"):
@@ -175,6 +176,7 @@ def test_a_long_password_set_on_the_website_still_works(api, db):
     assert sign_in(api, user, "x" + long[1:]).status_code == 401
 
 
+@pytest.mark.proves("SEC-AUTH-013")
 def test_an_existing_bcryptjs_hash_verifies(api, db):
     # $2a$, cost 12, as bcryptjs wrote them before it moved to $2b$.
     user = account(db)
@@ -183,6 +185,7 @@ def test_an_existing_bcryptjs_hash_verifies(api, db):
     assert sign_in(api, user).status_code == 200
 
 
+@pytest.mark.proves("SEC-AUTH-015")
 def test_ten_failures_lock_the_account_for_a_while(api, db, caplog):
     user = account(db)
     for _ in range(login_lockout.ACCOUNT_MAX_FAILURES):
@@ -207,6 +210,7 @@ def test_a_forwarded_address_is_ignored_without_the_websites_credential(db):
     assert api_sessions._client_ip(Request(scope)) is None
 
 
+@pytest.mark.proves("SEC-AUTH-003")
 def test_lifetimes_staff_twelve_hours_candidates_and_partners_fourteen_days(api, db):
     for role, hours in ((Role.admin, 12), (Role.finance, 12), (Role.candidate, 336), (Role.partner, 336)):
         expires = sessions.start_session(db, account(db, role=role), None).refresh_expires_at
@@ -230,6 +234,7 @@ def test_a_refresh_rotates_and_spends_the_old_token(api, db):
     assert row_for(db, new["refresh_token"]).used_at is None
 
 
+@pytest.mark.proves("SEC-AUTH-007", "SEC-AUTH-011")
 def test_reusing_a_spent_token_revokes_the_whole_session_and_reports_it(api, db, caplog):
     s = sign_in(api, account(db)).json()["data"]["session"]
     new = refresh(api, s["refresh_token"]).json()["data"]["session"]
@@ -259,6 +264,7 @@ def test_a_missing_or_unknown_token_is_refused(api, raw):
     assert (res.status_code, res.json()["error"]["details"]["reason"]) == (401, "missing" if not raw else "unknown")
 
 
+@pytest.mark.proves("SEC-AUTH-007")
 def test_an_expired_or_revoked_token_is_refused(api, db):
     user = account(db)
     expired = sessions.start_session(db, user, None)
@@ -281,6 +287,7 @@ def test_a_password_change_ends_the_session_at_its_next_refresh(api, db):
 # --- sign-out and the session lists ---------------------------------------------------
 
 
+@pytest.mark.proves("SEC-AUTH-006")
 def test_sign_out_by_refresh_token_ends_the_session(api, db):
     s = sessions.start_session(db, account(db), None)
     res = api.post("/api/v1/auth/logout", headers=svc(), json={"refresh_token": s.refresh_token, "client": "app"})
@@ -289,6 +296,7 @@ def test_sign_out_by_refresh_token_ends_the_session(api, db):
     assert api.get("/api/v1/me", headers=bearer(s.access_token)).status_code == 401
 
 
+@pytest.mark.proves("SEC-AUTH-006")
 def test_the_browser_signs_out_its_own_session_without_a_refresh_token(api, db):
     s = sessions.start_session(db, account(db), None)
     res = api.post("/api/v1/auth/logout", headers=svc() | bearer(s.access_token), json={})

@@ -341,6 +341,7 @@ def test_staff_upload_for_candidates_they_reach(api, db, world):
         ({"data": PDF + b"x" * (1024 * 1024)}, "File too large. Maximum size is 1MB."),
     ],
 )
+@pytest.mark.proves("SEC-FILE-002", "SEC-FILE-003")
 def test_a_bad_file_is_refused_and_not_stored(api, world, kwargs, message):
     res = upload(api, world.own, world.passport, **kwargs)
     assert (res.status_code, error(res)) == (400, {"code": "upload_rejected", "message": message})

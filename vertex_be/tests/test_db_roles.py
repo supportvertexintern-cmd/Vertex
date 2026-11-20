@@ -110,6 +110,7 @@ def test_the_api_writes_rows(conn):
                                          VALUES ('ctest-role-row', 'Role test', 'role-row@test.invalid', now())""") is None
 
 
+@pytest.mark.proves("SEC-AUDIT-013")
 def test_no_runtime_role_reads_the_audit_trail(conn):
     # Phase 10: FastAPI may append to the trail but not read it; since reads
     # handover R5 and R7a it asks the functions of migrations 0008 and 0009.
@@ -201,6 +202,7 @@ def test_only_the_api_may_ask_for_the_trail_it_shows(conn, ask):
         "CREATE SCHEMA role_probe",
     ],
 )
+@pytest.mark.proves("SEC-DB-011")
 def test_runtime_roles_cannot_do_admin_or_destructive_work(conn, role, sql):
     if sql.startswith("CREATE DATABASE"):
         # Not allowed inside a transaction at all; the role attribute is what
@@ -330,6 +332,7 @@ def test_migrator_owns_the_schema_and_can_run_ddl(conn):
     assert run_as(conn, "vertex_migrator", 'ALTER TABLE "Region" ADD COLUMN role_probe int') is None
 
 
+@pytest.mark.proves("SEC-AUDIT-012", "SEC-INF-010")
 def test_audit_log_stays_immutable_even_for_the_owner(conn):
     # The migrator owns AuditLog, but the triggers still refuse changes.
     conn.execute(text("""INSERT INTO "AuditLog" (id, entity_type, entity_id, action)

@@ -177,6 +177,7 @@ def invite(**claims):
         pytest.param(lambda: invite(candidateId=7), id="candidate not a string"),
     ],
 )
+@pytest.mark.proves("SEC-AUTH-010")
 def test_bad_invites_are_refused(token):
     with pytest.raises(InvalidToken):
         verify_candidate_invite_token(token())

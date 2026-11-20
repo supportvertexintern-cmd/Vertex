@@ -21,3 +21,6 @@ id_ed25519*
 *.sqlite3
 *.dump
 *.sql.gz
+
+# JUnit reports for tools/traceability.py (CI writes them; never committed)
+junit-*.xml

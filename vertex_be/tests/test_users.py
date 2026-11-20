@@ -181,6 +181,7 @@ def test_invalid_input_is_a_422(api, world, change, field):
     assert field in error(res)["details"]
 
 
+@pytest.mark.proves("SEC-DB-005", "SEC-INJ-008")
 def test_unknown_fields_are_ignored(api, db, world):
     res = api.post(URL, headers=world["admin"], json=new_staff(email_verified=True, password_hash="$2b$x", token_version=99, google_id="g"))
     user = db.get(User, res.json()["data"]["id"])
@@ -238,6 +239,7 @@ def test_promoting_to_admin_is_reported_for_the_alert(api, db, world):
     assert again.json()["privilege_granted"] is None
 
 
+@pytest.mark.proves("SEC-AUTH-009")
 def test_a_role_change_ends_the_users_sessions(api, db, world):
     target, _ = person(db, Role.hr)
     before = target.token_version

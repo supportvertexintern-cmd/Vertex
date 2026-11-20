@@ -35,7 +35,7 @@ describe("per-request nonce", () => {
     expect(a).not.toBe(b);
   });
 
-  it("is the nonce in the policy Next.js reads and the browser receives", () => {
+  it("SEC-WEB-006 is the nonce in the policy Next.js reads and the browser receives", () => {
     const res = page();
     const nonce = forwarded(res, "x-nonce")!;
     // Next.js reads the nonce from this internal request header in both modes.

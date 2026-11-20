@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { safeRedirectPath } from "./safe-redirect";
 
-describe("safeRedirectPath", () => {
+describe("SEC-NEXT-011 safeRedirectPath", () => {
   it.each(["/dashboard", "/recruiter/cases?id=1", "/jobs/abc#apply", "%2Fadmin%2Fusers"])("keeps same-site path %s", (v) => {
     expect(safeRedirectPath(v)).toBe(decodeURIComponent(v));
   });

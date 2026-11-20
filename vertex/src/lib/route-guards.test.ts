@@ -58,7 +58,7 @@ describe("API route guards", () => {
     for (const h of all) expect(METHODS).toContain(h.key.split(" ")[0]);
   });
 
-  it("every handler checks its caller or is a registered public endpoint", () => {
+  it("SEC-AUTHZ-002 SEC-NEXT-005 every handler checks its caller or is a registered public endpoint", () => {
     const unguarded = all.filter((h) => !GUARD.test(h.body) && !(h.key in PUBLIC_ENDPOINTS)).map((h) => h.key);
     expect(unguarded, "add a guard, or register the endpoint in src/lib/public-endpoints.ts").toEqual([]);
   });

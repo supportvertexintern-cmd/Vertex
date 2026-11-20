@@ -123,6 +123,7 @@ def test_a_manager_adds_a_partner_and_it_is_audited(api, db, manager):
     assert db.scalar(select(AuditLog).where(AuditLog.entity_type == "Partner", AuditLog.entity_id == data["id"], AuditLog.action == "create"))
 
 
+@pytest.mark.proves("SEC-DB-005", "SEC-INJ-008")
 def test_unknown_fields_are_ignored_not_trusted(api, db, manager):
     other, _ = person(db, Role.partner)
     data = api.post(URL, headers=manager, json=new_agency(status="active", mou_status="signed", user_id=other.id, id="cforged000000")).json()["data"]
