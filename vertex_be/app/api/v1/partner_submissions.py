@@ -32,7 +32,7 @@ from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
-from app.api.notices import Notice, Notifying, PartnerCaseCreatedEmail, PartnerSubmissionRejectedEmail, PartnerSubmittedEmail
+from app.api.notices import Notice, Notifying, PartnerCaseCreatedEmail, PartnerSubmissionRejectedEmail, PartnerSubmittedEmail, partner_commission_email
 from app.services.emails import deliver
 from app.api.v1.applications import ApplicationRow, _country_named, _position_belongs
 from app.api.v1.candidates import MaritalStatus, _blank_is_missing, _date
@@ -52,6 +52,7 @@ from app.models.jobs import Job
 from app.models.partners import Partner, PartnerCandidate
 from app.services.case_lifecycle import open_case
 from app.services.documents import is_non_programme_type, required_types_by_country
+from app.services.partner_commissions import admin_fees_if_due, partner_commissions_if_due
 
 router = APIRouter()
 
@@ -520,11 +521,15 @@ def create_case(submission_id: str, user: Reviewer, db: AuditedDb, _on: Pipeline
     case = open_case(db, application.id)
     row.status = PartnerCandidateStatus.job_assigned
     row.reviewed_by = user.user_id
+    # The partner earns its registration commission, and Vertex records its
+    # application fee, when HR approves the submission (Phase 6).
+    earned = partner_commissions_if_due(db, candidate.id, "registered")
+    admin_fees_if_due(db, candidate.id, "application", job_id=application.job_id)
     db.commit()
     db.refresh(row)
     db.refresh(case)
     # The partner is told, never the candidate: the partner is their contact.
-    notify: list[Notice] = []
+    notify: list[Notice] = partner_commission_email(earned)
     if row.partner.contact_email:
         notify.append(PartnerCaseCreatedEmail(email=row.partner.contact_email, partner_name=row.partner.name, candidate_name=candidate.full_name or "your candidate"))
     return {"data": {"partnerCandidate": row, "case": case}, "notify": deliver(db, notify)}

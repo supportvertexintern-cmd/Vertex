@@ -56,6 +56,8 @@ def _sample(model):
             return 1234.5
         if isinstance(annotation, type) and issubclass(annotation, Enum):
             return next(iter(annotation))
+        if typing.get_origin(annotation) is typing.Literal:
+            return typing.get_args(annotation)[0]
         return "Abebe"
     fields = {name: value(field.annotation) for name, field in model.model_fields.items() if name != "kind"}
     if "email" in fields:

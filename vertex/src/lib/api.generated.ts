@@ -139,6 +139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin-fees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Admin Fees
+         * @description GET /api/admin/admin-fees: Vertex's own fees that are due, newest first.
+         */
+        get: operations["list_admin_fees_api_v1_admin_fees_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/applications": {
         parameters: {
             query?: never;
@@ -2787,6 +2807,91 @@ export interface paths {
         patch: operations["reject_api_v1_partner_candidates__submission_id__reject_patch"];
         trace?: never;
     };
+    "/api/v1/partner-commission-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description GET /api/admin/partner-commission-rules: the two global rules.
+         */
+        get: operations["list_rules_api_v1_partner_commission_rules_get"];
+        put?: never;
+        /**
+         * Set Rule
+         * @description POST /api/admin/partner-commission-rules: a rule set or changed. It
+         *     applies to what's earned from now on; recorded rows keep their amount.
+         */
+        post: operations["set_rule_api_v1_partner_commission_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partner-commissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Commissions
+         * @description GET /api/admin/partner-commissions: what's due, newest first.
+         */
+        get: operations["list_commissions_api_v1_partner_commissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partner-commissions/{commission_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Commission
+         * @description POST /api/admin/partner-commissions/[id]/approve: pending -> approved.
+         */
+        post: operations["approve_commission_api_v1_partner_commissions__commission_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partner-commissions/{commission_id}/mark-paid": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Commission Paid
+         * @description POST /api/admin/partner-commissions/[id]/mark-paid: approved -> paid.
+         */
+        post: operations["mark_commission_paid_api_v1_partner_commissions__commission_id__mark_paid_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-follow-ups": {
         parameters: {
             query?: never;
@@ -4702,6 +4807,11 @@ export interface components {
             /** Removed Reason */
             removed_reason: string | null;
         };
+        /**
+         * AdminFeeType
+         * @enum {string}
+         */
+        AdminFeeType: "application" | "deployment_monthly";
         /** AgentCommission */
         AgentCommission: {
             /** Amount */
@@ -5428,6 +5538,13 @@ export interface components {
             /** Full Name */
             full_name: string | null;
         };
+        /** CandidateRef */
+        CandidateRef: {
+            /** Full Name */
+            full_name: string | null;
+            /** Id */
+            id: string;
+        };
         /**
          * CandidateRow
          * @description Every column, as Prisma returns a candidate row.
@@ -5833,41 +5950,6 @@ export interface components {
              * @enum {string}
              */
             kind: "referral_commission_paid";
-        };
-        /** CommissionRow */
-        CommissionRow: {
-            /** Amount */
-            amount: number;
-            /** Approved At */
-            approved_at: string | null;
-            /** Approved By Id */
-            approved_by_id: string | null;
-            /** Candidate Id */
-            candidate_id: string;
-            /** Case Id */
-            case_id: string | null;
-            /** Commission Rule Id */
-            commission_rule_id: string | null;
-            /** Created At */
-            created_at: string;
-            /** Currency */
-            currency: string;
-            /** Id */
-            id: string;
-            milestone: components["schemas"]["ReferralMilestone"];
-            /** Paid At */
-            paid_at: string | null;
-            /** Paid By Id */
-            paid_by_id: string | null;
-            /** Payment Method */
-            payment_method: string | null;
-            /** Payment Reference */
-            payment_reference: string | null;
-            /** Referral Agent Id */
-            referral_agent_id: string;
-            status: components["schemas"]["ReferralCommissionStatus"];
-            /** Updated At */
-            updated_at: string;
         };
         /**
          * CommissionStatus
@@ -6371,10 +6453,6 @@ export interface components {
         Data_ReturnedOut_: {
             data: components["schemas"]["ReturnedOut"];
         };
-        /** Data[RuleRow] */
-        Data_RuleRow_: {
-            data: components["schemas"]["RuleRow"];
-        };
         /** Data[Sent] */
         Data_Sent_: {
             data: components["schemas"]["Sent"];
@@ -6426,7 +6504,7 @@ export interface components {
         /** Data[Union[list[PartnerListRow], list[PartnerName]]] */
         Data_Union_list_PartnerListRow___list_PartnerName___: {
             /** Data */
-            data: components["schemas"]["PartnerListRow"][] | components["schemas"]["PartnerName"][];
+            data: components["schemas"]["PartnerListRow"][] | components["schemas"]["app__api__v1__partner_agencies__PartnerName"][];
         };
         /** Data[Unlocked] */
         Data_Unlocked_: {
@@ -6496,6 +6574,11 @@ export interface components {
             /** Data */
             data: components["schemas"]["CommissionListRow"][];
         };
+        /** Data[list[CommissionRow]] */
+        Data_list_CommissionRow__: {
+            /** Data */
+            data: components["schemas"]["app__api__v1__partner_ledgers__CommissionRow"][];
+        };
         /** Data[list[CountryRow]] */
         Data_list_CountryRow__: {
             /** Data */
@@ -6530,6 +6613,11 @@ export interface components {
         Data_list_FeePolicyOut__: {
             /** Data */
             data: components["schemas"]["FeePolicyOut"][];
+        };
+        /** Data[list[FeeRow]] */
+        Data_list_FeeRow__: {
+            /** Data */
+            data: components["schemas"]["FeeRow"][];
         };
         /** Data[list[LockedRow]] */
         Data_list_LockedRow__: {
@@ -6575,6 +6663,11 @@ export interface components {
         Data_list_RuleListRow__: {
             /** Data */
             data: components["schemas"]["RuleListRow"][];
+        };
+        /** Data[list[RuleRow]] */
+        Data_list_RuleRow__: {
+            /** Data */
+            data: components["schemas"]["app__api__v1__partner_ledgers__RuleRow"][];
         };
         /** Data[list[ScorecardListItem]] */
         Data_list_ScorecardListItem__: {
@@ -6949,6 +7042,33 @@ export interface components {
             updated_by: string;
             /** Visa Amount */
             visa_amount: number | null;
+        };
+        /** FeeRow */
+        FeeRow: {
+            /** Amount */
+            amount: number;
+            candidate: components["schemas"]["CandidateRef"];
+            /** Candidate Id */
+            candidate_id: string;
+            /** Case Id */
+            case_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            fee_type: components["schemas"]["AdminFeeType"];
+            /** Id */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            partner: components["schemas"]["app__api__v1__partner_ledgers__PartnerName"];
+            /** Partner Id */
+            partner_id: string;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Period */
+            period: string;
+            status: components["schemas"]["CommissionStatus"];
         };
         /** FinalizeIn */
         FinalizeIn: {
@@ -7641,7 +7761,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[ApplicationRow] */
         Notifying_ApplicationRow_: {
@@ -7650,7 +7770,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Applied] */
         Notifying_Applied_: {
@@ -7659,7 +7779,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Bridged] */
         Notifying_Bridged_: {
@@ -7668,7 +7788,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[CaseWithEvents] */
         Notifying_CaseWithEvents_: {
@@ -7677,16 +7797,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
-        };
-        /** Notifying[CommissionRow] */
-        Notifying_CommissionRow_: {
-            data: components["schemas"]["CommissionRow"];
-            /**
-             * Notify
-             * @default []
-             */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[DecisionOut] */
         Notifying_DecisionOut_: {
@@ -7695,7 +7806,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Done] */
         Notifying_Done_: {
@@ -7704,7 +7815,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[ForceReset] */
         Notifying_ForceReset_: {
@@ -7713,7 +7824,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[LinkOut] */
         Notifying_LinkOut_: {
@@ -7722,7 +7833,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[LoginAddress] */
         Notifying_LoginAddress_: {
@@ -7731,7 +7842,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[MessageOut] */
         Notifying_MessageOut_: {
@@ -7740,7 +7851,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[PartnerCandidateRow] */
         Notifying_PartnerCandidateRow_: {
@@ -7749,7 +7860,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[PartnerRow] */
         Notifying_PartnerRow_: {
@@ -7758,7 +7869,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[PaymentRow] */
         Notifying_PaymentRow_: {
@@ -7767,7 +7878,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Prefill] */
         Notifying_Prefill_: {
@@ -7776,7 +7887,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Received] */
         Notifying_Received_: {
@@ -7785,7 +7896,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Registered] */
         Notifying_Registered_: {
@@ -7794,7 +7905,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[ReminderRow] */
         Notifying_ReminderRow_: {
@@ -7803,7 +7914,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Resent] */
         Notifying_Resent_: {
@@ -7812,7 +7923,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[SetupSent] */
         Notifying_SetupSent_: {
@@ -7821,7 +7932,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[StatusOut] */
         Notifying_StatusOut_: {
@@ -7830,7 +7941,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[Submission] */
         Notifying_Submission_: {
@@ -7839,7 +7950,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Notifying[VaUserRow] */
         Notifying_VaUserRow_: {
@@ -7848,7 +7959,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** Onboarding */
         Onboarding: {
@@ -8133,13 +8244,6 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** PaidIn */
-        PaidIn: {
-            /** Payment Method */
-            payment_method?: string | null;
-            /** Payment Reference */
-            payment_reference?: string | null;
-        };
         /** PartnerAttention */
         PartnerAttention: {
             /** Days */
@@ -8308,6 +8412,75 @@ export interface components {
             stage: components["schemas"]["CaseStage"];
         };
         /**
+         * PartnerCommissionApprovedEmail
+         * @description sendPartnerCommissionApprovedEmail(to, partner_name, candidate_name, amount, currency).
+         */
+        PartnerCommissionApprovedEmail: {
+            /** Amount */
+            amount: number;
+            /** Candidate Name */
+            candidate_name: string;
+            /** Currency */
+            currency: string;
+            /** Email */
+            email: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "partner_commission_approved";
+            /** Partner Name */
+            partner_name: string;
+        };
+        /**
+         * PartnerCommissionEarnedEmail
+         * @description sendPartnerCommissionEarnedEmail(to, partner_name, candidate_name, type, amount, currency):
+         *     to the partner's contact address, never the candidate's (Phase 6).
+         */
+        PartnerCommissionEarnedEmail: {
+            /** Amount */
+            amount: number;
+            /** Candidate Name */
+            candidate_name: string;
+            /**
+             * Commission Type
+             * @enum {string}
+             */
+            commission_type: "registration" | "deployment";
+            /** Currency */
+            currency: string;
+            /** Email */
+            email: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "partner_commission_earned";
+            /** Partner Name */
+            partner_name: string;
+        };
+        /**
+         * PartnerCommissionPaidEmail
+         * @description sendPartnerCommissionPaidEmail(to, partner_name, candidate_name, amount, currency).
+         */
+        PartnerCommissionPaidEmail: {
+            /** Amount */
+            amount: number;
+            /** Candidate Name */
+            candidate_name: string;
+            /** Currency */
+            currency: string;
+            /** Email */
+            email: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "partner_commission_paid";
+            /** Partner Name */
+            partner_name: string;
+        };
+        /**
          * PartnerCommissionRuleType
          * @enum {string}
          */
@@ -8466,23 +8639,21 @@ export interface components {
             partner_type: components["schemas"]["PartnerType"];
             status: components["schemas"]["PartnerStatus"];
         };
-        /**
-         * PartnerName
-         * @description Everyone else's row: enough to pick or filter by a partner.
-         */
-        PartnerName: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            status: components["schemas"]["PartnerStatus"];
-        };
         /** PartnerOptions */
         PartnerOptions: {
             /** Countries */
             countries: string[];
             /** Creators */
             creators: components["schemas"]["Person"][];
+        };
+        /** PartnerRef */
+        PartnerRef: {
+            /** Contact Email */
+            contact_email: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /**
          * PartnerReplyEmail
@@ -9509,46 +9680,11 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "regional_recruiter" | "country_supervisor" | "inhouse_supervisor" | "director" | "admin" | "marketing" | "partner" | "hr" | "operations_team" | "operations_director" | "finance" | "referral_agent" | "virtual_assistant";
-        /**
-         * RuleIn
-         * @description upsertReferralCommissionRuleSchema. Zero is a real amount: some
-         *     milestones pay nothing.
-         */
-        RuleIn: {
-            /** Amount */
-            amount: number;
-            /** Country Id */
-            country_id: string;
-            /**
-             * Currency
-             * @default USD
-             */
-            currency: string;
-            milestone: components["schemas"]["ReferralMilestone"];
-        };
         /** RuleListRow */
         RuleListRow: {
             /** Amount */
             amount: number;
             country: components["schemas"]["Ref"];
-            /** Country Id */
-            country_id: string;
-            /** Created At */
-            created_at: string;
-            /** Currency */
-            currency: string;
-            /** Id */
-            id: string;
-            milestone: components["schemas"]["ReferralMilestone"];
-            /** Updated At */
-            updated_at: string;
-            /** Updated By */
-            updated_by: string;
-        };
-        /** RuleRow */
-        RuleRow: {
-            /** Amount */
-            amount: number;
             /** Country Id */
             country_id: string;
             /** Created At */
@@ -10118,7 +10254,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
             /**
              * Screening Passed
              * @default false
@@ -10469,7 +10605,7 @@ export interface components {
              * Notify
              * @default []
              */
-            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
             privilege_granted?: components["schemas"]["Granted"] | null;
         };
         /** _Child */
@@ -10497,6 +10633,24 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** Notifying[CommissionRow] */
+        app__api__notices__Notifying_CommissionRow___1: {
+            data: components["schemas"]["app__api__v1__referral_commissions__CommissionRow"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+        };
+        /** Notifying[CommissionRow] */
+        app__api__notices__Notifying_CommissionRow___2: {
+            data: components["schemas"]["app__api__v1__partner_ledgers__CommissionRow"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["PartnerCommissionEarnedEmail"] | components["schemas"]["PartnerCommissionApprovedEmail"] | components["schemas"]["PartnerCommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
         /** VerifyIn */
         app__api__v1__accounts__VerifyIn: {
@@ -10714,6 +10868,17 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /**
+         * PartnerName
+         * @description Everyone else's row: enough to pick or filter by a partner.
+         */
+        app__api__v1__partner_agencies__PartnerName: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            status: components["schemas"]["PartnerStatus"];
+        };
         /** PersonRef */
         app__api__v1__partner_agencies__PersonRef: {
             /** Email */
@@ -10754,6 +10919,86 @@ export interface components {
             partner_type?: components["schemas"]["PartnerType"] | null;
             sla_status?: components["schemas"]["SlaStatus"] | null;
             status?: components["schemas"]["PartnerStatus"] | null;
+        };
+        /** CommissionRow */
+        app__api__v1__partner_ledgers__CommissionRow: {
+            /** Amount */
+            amount: number;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By */
+            approved_by: string | null;
+            candidate: components["schemas"]["CandidateRef"];
+            /** Candidate Id */
+            candidate_id: string;
+            /** Case Id */
+            case_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Paid By */
+            paid_by: string | null;
+            partner: components["schemas"]["PartnerRef"];
+            /** Partner Id */
+            partner_id: string;
+            /** Payment Method */
+            payment_method: string | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Period */
+            period: string;
+            rule_type: components["schemas"]["PartnerCommissionRuleType"];
+            status: components["schemas"]["CommissionStatus"];
+        };
+        /**
+         * PaidIn
+         * @description The receipt is optional: the row itself is the record of the event.
+         */
+        app__api__v1__partner_ledgers__PaidIn: {
+            /** Payment Method */
+            payment_method?: string | null;
+            /** Payment Reference */
+            payment_reference?: string | null;
+        };
+        /** PartnerName */
+        app__api__v1__partner_ledgers__PartnerName: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * RuleIn
+         * @description upsertPartnerCommissionRuleSchema: one of the two rules, set.
+         */
+        app__api__v1__partner_ledgers__RuleIn: {
+            /** Amount */
+            amount: number | string;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            rule_type: components["schemas"]["PartnerCommissionRuleType"];
+        };
+        /** RuleRow */
+        app__api__v1__partner_ledgers__RuleRow: {
+            /** Amount */
+            amount: number;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            rule_type: components["schemas"]["PartnerCommissionRuleType"];
+            /** Updated At */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string | null;
         };
         /** Performance */
         app__api__v1__partner_performance__Performance: {
@@ -11024,6 +11269,83 @@ export interface components {
             /** Token */
             token?: string | null;
         };
+        /** CommissionRow */
+        app__api__v1__referral_commissions__CommissionRow: {
+            /** Amount */
+            amount: number;
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /** Candidate Id */
+            candidate_id: string;
+            /** Case Id */
+            case_id: string | null;
+            /** Commission Rule Id */
+            commission_rule_id: string | null;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            /** Paid At */
+            paid_at: string | null;
+            /** Paid By Id */
+            paid_by_id: string | null;
+            /** Payment Method */
+            payment_method: string | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Referral Agent Id */
+            referral_agent_id: string;
+            status: components["schemas"]["ReferralCommissionStatus"];
+            /** Updated At */
+            updated_at: string;
+        };
+        /** PaidIn */
+        app__api__v1__referral_commissions__PaidIn: {
+            /** Payment Method */
+            payment_method?: string | null;
+            /** Payment Reference */
+            payment_reference?: string | null;
+        };
+        /**
+         * RuleIn
+         * @description upsertReferralCommissionRuleSchema. Zero is a real amount: some
+         *     milestones pay nothing.
+         */
+        app__api__v1__referral_commissions__RuleIn: {
+            /** Amount */
+            amount: number;
+            /** Country Id */
+            country_id: string;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+        };
+        /** RuleRow */
+        app__api__v1__referral_commissions__RuleRow: {
+            /** Amount */
+            amount: number;
+            /** Country Id */
+            country_id: string;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            milestone: components["schemas"]["ReferralMilestone"];
+            /** Updated At */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string;
+        };
         /**
          * Performance
          * @description kpi.ts's ReferralAgentPerformance.
@@ -11159,6 +11481,14 @@ export interface components {
         /** Data[ReportRow] */
         app__core__api__Data_ReportRow___2: {
             data: components["schemas"]["app__api__v1__partner_tracking__ReportRow"];
+        };
+        /** Data[RuleRow] */
+        app__core__api__Data_RuleRow___1: {
+            data: components["schemas"]["app__api__v1__referral_commissions__RuleRow"];
+        };
+        /** Data[RuleRow] */
+        app__core__api__Data_RuleRow___2: {
+            data: components["schemas"]["app__api__v1__partner_ledgers__RuleRow"];
         };
         /** Data[SectorOut] */
         app__core__api__Data_SectorOut___1: {
@@ -11420,6 +11750,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_list_AddressControl__"];
+                };
+            };
+        };
+    };
+    list_admin_fees_api_v1_admin_fees_get: {
+        parameters: {
+            query?: {
+                partnerId?: string | null;
+                feeType?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_FeeRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -16097,6 +16460,158 @@ export interface operations {
             };
         };
     };
+    list_rules_api_v1_partner_commission_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_RuleRow__"];
+                };
+            };
+        };
+    };
+    set_rule_api_v1_partner_commission_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__partner_ledgers__RuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__api__Data_RuleRow___2"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_commissions_api_v1_partner_commissions_get: {
+        parameters: {
+            query?: {
+                partnerId?: string | null;
+                ruleType?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_CommissionRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_commission_api_v1_partner_commissions__commission_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__notices__Notifying_CommissionRow___2"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_commission_paid_api_v1_partner_commissions__commission_id__mark_paid_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__partner_ledgers__PaidIn"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__notices__Notifying_CommissionRow___2"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_follow_up_api_v1_partner_follow_ups_post: {
         parameters: {
             query?: never;
@@ -17555,7 +18070,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["RuleIn"];
+                "application/json": components["schemas"]["app__api__v1__referral_commissions__RuleIn"];
             };
         };
         responses: {
@@ -17565,7 +18080,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Data_RuleRow_"];
+                    "application/json": components["schemas"]["app__core__api__Data_RuleRow___1"];
                 };
             };
             /** @description Validation Error */
@@ -17629,7 +18144,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notifying_CommissionRow_"];
+                    "application/json": components["schemas"]["app__api__notices__Notifying_CommissionRow___1"];
                 };
             };
             /** @description Validation Error */
@@ -17654,7 +18169,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PaidIn"];
+                "application/json": components["schemas"]["app__api__v1__referral_commissions__PaidIn"];
             };
         };
         responses: {
@@ -17664,7 +18179,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notifying_CommissionRow_"];
+                    "application/json": components["schemas"]["app__api__notices__Notifying_CommissionRow___1"];
                 };
             };
             /** @description Validation Error */

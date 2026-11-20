@@ -166,6 +166,10 @@ def _commission(n: BaseModel) -> dict[str, str]:
     return {"agentName": n.agent_name, "candidateName": n.candidate_name, "amount": locale_number(n.amount), "currency": n.currency}
 
 
+def _partner_commission(n: BaseModel) -> dict[str, str]:
+    return {"partnerName": n.partner_name, "candidateName": n.candidate_name, "amount": locale_number(n.amount), "currency": n.currency}
+
+
 # Each kind this service sends: its recipient and its template's values.
 VALUES: dict[str, Callable[[BaseModel], Filled]] = {
     "email_verification": lambda n: Filled(n.email, {"fullName": n.full_name, "verifyUrl": _url(f"/auth/verify-email?token={n.token}")}),
@@ -219,6 +223,10 @@ VALUES: dict[str, Callable[[BaseModel], Filled]] = {
     "referral_commission_earned": lambda n: Filled(n.agent_email, {**_commission(n), "milestone": _text(n.milestone)}),
     "referral_commission_approved": lambda n: Filled(n.email, _commission(n)),
     "referral_commission_paid": lambda n: Filled(n.email, _commission(n)),
+    # Phase 6: the partner's own commissions, to its contact address.
+    "partner_commission_earned": lambda n: Filled(n.email, {**_partner_commission(n), "commissionType": n.commission_type}),
+    "partner_commission_approved": lambda n: Filled(n.email, _partner_commission(n)),
+    "partner_commission_paid": lambda n: Filled(n.email, _partner_commission(n)),
     # Batch 3: the reminder, the payment plan, the staff's booking notice and the receipt.
     "case_reminder": lambda n: Filled(n.email, {
         "recipientName": n.recipient_name, "candidateName": n.candidate_name, "programmeTitle": n.programme_title, "message": n.message or "",

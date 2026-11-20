@@ -978,6 +978,14 @@
     "title": "AddressRuleRow",
     "type": "object"
    },
+   "AdminFeeType": {
+    "enum": [
+     "application",
+     "deployment_monthly"
+    ],
+    "title": "AdminFeeType",
+    "type": "string"
+   },
    "AgentCommission": {
     "properties": {
      "amount": {
@@ -3667,6 +3675,31 @@
     "title": "CandidateName",
     "type": "object"
    },
+   "CandidateRef": {
+    "properties": {
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "full_name"
+    ],
+    "title": "CandidateRef",
+    "type": "object"
+   },
    "CandidateRow": {
     "description": "Every column, as Prisma returns a candidate row.",
     "properties": {
@@ -5011,153 +5044,6 @@
      "currency"
     ],
     "title": "CommissionPaidEmail",
-    "type": "object"
-   },
-   "CommissionRow": {
-    "properties": {
-     "amount": {
-      "title": "Amount",
-      "type": "number"
-     },
-     "approved_at": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Approved At"
-     },
-     "approved_by_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Approved By Id"
-     },
-     "candidate_id": {
-      "title": "Candidate Id",
-      "type": "string"
-     },
-     "case_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Case Id"
-     },
-     "commission_rule_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Commission Rule Id"
-     },
-     "created_at": {
-      "title": "Created At",
-      "type": "string"
-     },
-     "currency": {
-      "title": "Currency",
-      "type": "string"
-     },
-     "id": {
-      "title": "Id",
-      "type": "string"
-     },
-     "milestone": {
-      "$ref": "#/components/schemas/ReferralMilestone"
-     },
-     "paid_at": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Paid At"
-     },
-     "paid_by_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Paid By Id"
-     },
-     "payment_method": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Payment Method"
-     },
-     "payment_reference": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Payment Reference"
-     },
-     "referral_agent_id": {
-      "title": "Referral Agent Id",
-      "type": "string"
-     },
-     "status": {
-      "$ref": "#/components/schemas/ReferralCommissionStatus"
-     },
-     "updated_at": {
-      "title": "Updated At",
-      "type": "string"
-     }
-    },
-    "required": [
-     "id",
-     "referral_agent_id",
-     "candidate_id",
-     "case_id",
-     "milestone",
-     "commission_rule_id",
-     "amount",
-     "currency",
-     "status",
-     "approved_by_id",
-     "approved_at",
-     "paid_by_id",
-     "paid_at",
-     "payment_reference",
-     "payment_method",
-     "created_at",
-     "updated_at"
-    ],
-    "title": "CommissionRow",
     "type": "object"
    },
    "CommissionStatus": {
@@ -6701,18 +6587,6 @@
     "title": "Data[ReturnedOut]",
     "type": "object"
    },
-   "Data_RuleRow_": {
-    "properties": {
-     "data": {
-      "$ref": "#/components/schemas/RuleRow"
-     }
-    },
-    "required": [
-     "data"
-    ],
-    "title": "Data[RuleRow]",
-    "type": "object"
-   },
    "Data_Sent_": {
     "properties": {
      "data": {
@@ -6869,7 +6743,7 @@
        },
        {
         "items": {
-         "$ref": "#/components/schemas/PartnerName"
+         "$ref": "#/components/schemas/app__api__v1__partner_agencies__PartnerName"
         },
         "type": "array"
        }
@@ -7081,6 +6955,22 @@
     "title": "Data[list[CommissionListRow]]",
     "type": "object"
    },
+   "Data_list_CommissionRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/app__api__v1__partner_ledgers__CommissionRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[CommissionRow]]",
+    "type": "object"
+   },
    "Data_list_CountryRow__": {
     "properties": {
      "data": {
@@ -7191,6 +7081,22 @@
      "data"
     ],
     "title": "Data[list[FeePolicyOut]]",
+    "type": "object"
+   },
+   "Data_list_FeeRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/FeeRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[FeeRow]]",
     "type": "object"
    },
    "Data_list_LockedRow__": {
@@ -7335,6 +7241,22 @@
      "data"
     ],
     "title": "Data[list[RuleListRow]]",
+    "type": "object"
+   },
+   "Data_list_RuleRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/app__api__v1__partner_ledgers__RuleRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[RuleRow]]",
     "type": "object"
    },
    "Data_list_ScorecardListItem__": {
@@ -8491,6 +8413,101 @@
      "country"
     ],
     "title": "FeePolicyOut",
+    "type": "object"
+   },
+   "FeeRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "candidate": {
+      "$ref": "#/components/schemas/CandidateRef"
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "case_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "fee_type": {
+      "$ref": "#/components/schemas/AdminFeeType"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "partner": {
+      "$ref": "#/components/schemas/app__api__v1__partner_ledgers__PartnerName"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "period": {
+      "title": "Period",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionStatus"
+     }
+    },
+    "required": [
+     "id",
+     "partner_id",
+     "candidate_id",
+     "case_id",
+     "fee_type",
+     "period",
+     "amount",
+     "currency",
+     "status",
+     "paid_at",
+     "payment_reference",
+     "created_at",
+     "partner",
+     "candidate"
+    ],
+    "title": "FeeRow",
     "type": "object"
    },
    "FinalizeIn": {
@@ -10629,6 +10646,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -10694,6 +10714,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -10771,6 +10800,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -10836,6 +10868,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -10913,6 +10954,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -10978,6 +11022,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11055,6 +11108,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11120,6 +11176,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11197,6 +11262,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11262,6 +11330,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11311,148 +11388,6 @@
     "title": "Notifying[CaseWithEvents]",
     "type": "object"
    },
-   "Notifying_CommissionRow_": {
-    "properties": {
-     "data": {
-      "$ref": "#/components/schemas/CommissionRow"
-     },
-     "notify": {
-      "default": [],
-      "items": {
-       "discriminator": {
-        "mapping": {
-         "account_locked": "#/components/schemas/AccountLockedEmail",
-         "account_setup": "#/components/schemas/AccountSetupEmail",
-         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
-         "application_status": "#/components/schemas/ApplicationStatusEmail",
-         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
-         "candidate_invite": "#/components/schemas/InviteEmail",
-         "candidate_message": "#/components/schemas/MessageEmail",
-         "case_rejected": "#/components/schemas/CaseRejectedEmail",
-         "case_reminder": "#/components/schemas/CaseReminderEmail",
-         "case_stage": "#/components/schemas/CaseStageEmail",
-         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
-         "email_verification": "#/components/schemas/VerificationEmail",
-         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
-         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
-         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
-         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
-         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
-         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
-         "partner_reply": "#/components/schemas/PartnerReplyEmail",
-         "password_reset": "#/components/schemas/PasswordResetEmail",
-         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
-         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
-         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
-         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
-         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
-         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
-         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
-         "referral_commission_earned": "#/components/schemas/CommissionEmail",
-         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
-        },
-        "propertyName": "kind"
-       },
-       "oneOf": [
-        {
-         "$ref": "#/components/schemas/InviteEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CommissionEmail"
-        },
-        {
-         "$ref": "#/components/schemas/MessageEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerReplyEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ApplicationStatusEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CandidateApprovedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CaseStageEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerCaseStageEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CaseRejectedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CaseReminderEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerSubmittedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CommissionApprovedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/CommissionPaidEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ConsultationBookedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PaymentReceiptEmail"
-        },
-        {
-         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
-        },
-        {
-         "$ref": "#/components/schemas/VerificationEmail"
-        },
-        {
-         "$ref": "#/components/schemas/PasswordResetEmail"
-        },
-        {
-         "$ref": "#/components/schemas/AccountSetupEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
-        },
-        {
-         "$ref": "#/components/schemas/AccountLockedEmail"
-        }
-       ]
-      },
-      "title": "Notify",
-      "type": "array"
-     }
-    },
-    "required": [
-     "data"
-    ],
-    "title": "Notifying[CommissionRow]",
-    "type": "object"
-   },
    "Notifying_DecisionOut_": {
     "properties": {
      "data": {
@@ -11481,6 +11416,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11546,6 +11484,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11623,6 +11570,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11688,6 +11638,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11765,6 +11724,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11830,6 +11792,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -11907,6 +11878,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -11972,6 +11946,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12049,6 +12032,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12114,6 +12100,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12191,6 +12186,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12256,6 +12254,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12333,6 +12340,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12398,6 +12408,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12475,6 +12494,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12540,6 +12562,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12617,6 +12648,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12682,6 +12716,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12759,6 +12802,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12824,6 +12870,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -12901,6 +12956,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -12966,6 +13024,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13043,6 +13110,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13108,6 +13178,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13185,6 +13264,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13250,6 +13332,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13327,6 +13418,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13392,6 +13486,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13469,6 +13572,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13534,6 +13640,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13611,6 +13726,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13676,6 +13794,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13753,6 +13880,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13818,6 +13948,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -13895,6 +14034,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -13960,6 +14102,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -14880,36 +15031,6 @@
     "title": "Page[dict[str, Any]]",
     "type": "object"
    },
-   "PaidIn": {
-    "properties": {
-     "payment_method": {
-      "anyOf": [
-       {
-        "maxLength": 100,
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Payment Method"
-     },
-     "payment_reference": {
-      "anyOf": [
-       {
-        "maxLength": 200,
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Payment Reference"
-     }
-    },
-    "title": "PaidIn",
-    "type": "object"
-   },
    "PartnerAttention": {
     "properties": {
      "days": {
@@ -15545,6 +15666,135 @@
     "title": "PartnerCaseStageEmail",
     "type": "object"
    },
+   "PartnerCommissionApprovedEmail": {
+    "description": "sendPartnerCommissionApprovedEmail(to, partner_name, candidate_name, amount, currency).",
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "candidate_name": {
+      "title": "Candidate Name",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "kind": {
+      "const": "partner_commission_approved",
+      "default": "partner_commission_approved",
+      "title": "Kind",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "partner_name",
+     "candidate_name",
+     "amount",
+     "currency"
+    ],
+    "title": "PartnerCommissionApprovedEmail",
+    "type": "object"
+   },
+   "PartnerCommissionEarnedEmail": {
+    "description": "sendPartnerCommissionEarnedEmail(to, partner_name, candidate_name, type, amount, currency):\nto the partner's contact address, never the candidate's (Phase 6).",
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "candidate_name": {
+      "title": "Candidate Name",
+      "type": "string"
+     },
+     "commission_type": {
+      "enum": [
+       "registration",
+       "deployment"
+      ],
+      "title": "Commission Type",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "kind": {
+      "const": "partner_commission_earned",
+      "default": "partner_commission_earned",
+      "title": "Kind",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "partner_name",
+     "candidate_name",
+     "commission_type",
+     "amount",
+     "currency"
+    ],
+    "title": "PartnerCommissionEarnedEmail",
+    "type": "object"
+   },
+   "PartnerCommissionPaidEmail": {
+    "description": "sendPartnerCommissionPaidEmail(to, partner_name, candidate_name, amount, currency).",
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "candidate_name": {
+      "title": "Candidate Name",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "kind": {
+      "const": "partner_commission_paid",
+      "default": "partner_commission_paid",
+      "title": "Kind",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "email",
+     "partner_name",
+     "candidate_name",
+     "amount",
+     "currency"
+    ],
+    "title": "PartnerCommissionPaidEmail",
+    "type": "object"
+   },
    "PartnerCommissionRuleType": {
     "enum": [
      "registration",
@@ -16117,29 +16367,6 @@
     "title": "PartnerLoginRow",
     "type": "object"
    },
-   "PartnerName": {
-    "description": "Everyone else's row: enough to pick or filter by a partner.",
-    "properties": {
-     "id": {
-      "title": "Id",
-      "type": "string"
-     },
-     "name": {
-      "title": "Name",
-      "type": "string"
-     },
-     "status": {
-      "$ref": "#/components/schemas/PartnerStatus"
-     }
-    },
-    "required": [
-     "id",
-     "name",
-     "status"
-    ],
-    "title": "PartnerName",
-    "type": "object"
-   },
    "PartnerOptions": {
     "properties": {
      "countries": {
@@ -16162,6 +16389,29 @@
      "creators"
     ],
     "title": "PartnerOptions",
+    "type": "object"
+   },
+   "PartnerRef": {
+    "properties": {
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "contact_email"
+    ],
+    "title": "PartnerRef",
     "type": "object"
    },
    "PartnerReplyEmail": {
@@ -19068,38 +19318,6 @@
     "title": "Role",
     "type": "string"
    },
-   "RuleIn": {
-    "description": "upsertReferralCommissionRuleSchema. Zero is a real amount: some\nmilestones pay nothing.",
-    "properties": {
-     "amount": {
-      "minimum": 0.0,
-      "title": "Amount",
-      "type": "number"
-     },
-     "country_id": {
-      "pattern": "^c[^\\s-]{8,}$",
-      "title": "Country Id",
-      "type": "string"
-     },
-     "currency": {
-      "default": "USD",
-      "maxLength": 10,
-      "minLength": 1,
-      "title": "Currency",
-      "type": "string"
-     },
-     "milestone": {
-      "$ref": "#/components/schemas/ReferralMilestone"
-     }
-    },
-    "required": [
-     "country_id",
-     "milestone",
-     "amount"
-    ],
-    "title": "RuleIn",
-    "type": "object"
-   },
    "RuleListRow": {
     "properties": {
      "amount": {
@@ -19149,53 +19367,6 @@
      "country"
     ],
     "title": "RuleListRow",
-    "type": "object"
-   },
-   "RuleRow": {
-    "properties": {
-     "amount": {
-      "title": "Amount",
-      "type": "number"
-     },
-     "country_id": {
-      "title": "Country Id",
-      "type": "string"
-     },
-     "created_at": {
-      "title": "Created At",
-      "type": "string"
-     },
-     "currency": {
-      "title": "Currency",
-      "type": "string"
-     },
-     "id": {
-      "title": "Id",
-      "type": "string"
-     },
-     "milestone": {
-      "$ref": "#/components/schemas/ReferralMilestone"
-     },
-     "updated_at": {
-      "title": "Updated At",
-      "type": "string"
-     },
-     "updated_by": {
-      "title": "Updated By",
-      "type": "string"
-     }
-    },
-    "required": [
-     "id",
-     "country_id",
-     "milestone",
-     "amount",
-     "currency",
-     "updated_by",
-     "created_at",
-     "updated_at"
-    ],
-    "title": "RuleRow",
     "type": "object"
    },
    "ScopeLevel": {
@@ -21305,6 +21476,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -21370,6 +21544,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -22454,6 +22637,9 @@
          "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
          "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
          "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
          "partner_reply": "#/components/schemas/PartnerReplyEmail",
          "password_reset": "#/components/schemas/PasswordResetEmail",
          "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
@@ -22519,6 +22705,15 @@
         },
         {
          "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
         },
         {
          "$ref": "#/components/schemas/ConsultationBookedEmail"
@@ -22646,6 +22841,314 @@
      "name"
     ],
     "title": "_Place",
+    "type": "object"
+   },
+   "app__api__notices__Notifying_CommissionRow___1": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__referral_commissions__CommissionRow"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[CommissionRow]",
+    "type": "object"
+   },
+   "app__api__notices__Notifying_CommissionRow___2": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__partner_ledgers__CommissionRow"
+     },
+     "notify": {
+      "default": [],
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "account_locked": "#/components/schemas/AccountLockedEmail",
+         "account_setup": "#/components/schemas/AccountSetupEmail",
+         "application_confirmation": "#/components/schemas/ApplicationConfirmationEmail",
+         "application_status": "#/components/schemas/ApplicationStatusEmail",
+         "candidate_approved": "#/components/schemas/CandidateApprovedEmail",
+         "candidate_invite": "#/components/schemas/InviteEmail",
+         "candidate_message": "#/components/schemas/MessageEmail",
+         "case_rejected": "#/components/schemas/CaseRejectedEmail",
+         "case_reminder": "#/components/schemas/CaseReminderEmail",
+         "case_stage": "#/components/schemas/CaseStageEmail",
+         "consultation_booked": "#/components/schemas/ConsultationBookedEmail",
+         "email_verification": "#/components/schemas/VerificationEmail",
+         "milestone_payment_link": "#/components/schemas/MilestonePaymentLinkEmail",
+         "partner_candidate_rejected": "#/components/schemas/PartnerSubmissionRejectedEmail",
+         "partner_candidate_submitted": "#/components/schemas/PartnerSubmittedEmail",
+         "partner_case_created": "#/components/schemas/PartnerCaseCreatedEmail",
+         "partner_case_rejected": "#/components/schemas/PartnerCaseRejectedEmail",
+         "partner_case_stage": "#/components/schemas/PartnerCaseStageEmail",
+         "partner_commission_approved": "#/components/schemas/PartnerCommissionApprovedEmail",
+         "partner_commission_earned": "#/components/schemas/PartnerCommissionEarnedEmail",
+         "partner_commission_paid": "#/components/schemas/PartnerCommissionPaidEmail",
+         "partner_reply": "#/components/schemas/PartnerReplyEmail",
+         "password_reset": "#/components/schemas/PasswordResetEmail",
+         "payment_receipt": "#/components/schemas/PaymentReceiptEmail",
+         "referral_agent_admin_notification": "#/components/schemas/ReferralAgentAdminEmail",
+         "referral_agent_application": "#/components/schemas/ReferralAgentApplicationEmail",
+         "referral_agent_approved": "#/components/schemas/ReferralAgentApprovedEmail",
+         "referral_agent_rejected": "#/components/schemas/ReferralAgentRejectedEmail",
+         "referral_agent_suspended": "#/components/schemas/ReferralAgentSuspendedEmail",
+         "referral_commission_approved": "#/components/schemas/CommissionApprovedEmail",
+         "referral_commission_earned": "#/components/schemas/CommissionEmail",
+         "referral_commission_paid": "#/components/schemas/CommissionPaidEmail"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/InviteEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MessageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerReplyEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationConfirmationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ApplicationStatusEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CandidateApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseStageEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CaseReminderEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmittedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCaseCreatedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerSubmissionRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/CommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionEarnedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PartnerCommissionPaidEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ConsultationBookedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PaymentReceiptEmail"
+        },
+        {
+         "$ref": "#/components/schemas/MilestonePaymentLinkEmail"
+        },
+        {
+         "$ref": "#/components/schemas/VerificationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/PasswordResetEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountSetupEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApplicationEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentAdminEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentApprovedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentRejectedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/ReferralAgentSuspendedEmail"
+        },
+        {
+         "$ref": "#/components/schemas/AccountLockedEmail"
+        }
+       ]
+      },
+      "title": "Notify",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Notifying[CommissionRow]",
     "type": "object"
    },
    "app__api__v1__accounts__VerifyIn": {
@@ -23450,6 +23953,29 @@
     "title": "LoginIn",
     "type": "object"
    },
+   "app__api__v1__partner_agencies__PartnerName": {
+    "description": "Everyone else's row: enough to pick or filter by a partner.",
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status"
+    ],
+    "title": "PartnerName",
+    "type": "object"
+   },
    "app__api__v1__partner_agencies__PersonRef": {
     "properties": {
      "email": {
@@ -23635,6 +24161,275 @@
      }
     },
     "title": "UpdateIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_ledgers__CommissionRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By"
+     },
+     "candidate": {
+      "$ref": "#/components/schemas/CandidateRef"
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "case_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid By"
+     },
+     "partner": {
+      "$ref": "#/components/schemas/PartnerRef"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "payment_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "period": {
+      "title": "Period",
+      "type": "string"
+     },
+     "rule_type": {
+      "$ref": "#/components/schemas/PartnerCommissionRuleType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionStatus"
+     }
+    },
+    "required": [
+     "id",
+     "partner_id",
+     "candidate_id",
+     "case_id",
+     "rule_type",
+     "period",
+     "amount",
+     "currency",
+     "status",
+     "approved_by",
+     "approved_at",
+     "paid_by",
+     "paid_at",
+     "payment_reference",
+     "payment_method",
+     "created_at",
+     "partner",
+     "candidate"
+    ],
+    "title": "CommissionRow",
+    "type": "object"
+   },
+   "app__api__v1__partner_ledgers__PaidIn": {
+    "description": "The receipt is optional: the row itself is the record of the event.",
+    "properties": {
+     "payment_method": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     }
+    },
+    "title": "PaidIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_ledgers__PartnerName": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name"
+    ],
+    "title": "PartnerName",
+    "type": "object"
+   },
+   "app__api__v1__partner_ledgers__RuleIn": {
+    "description": "upsertPartnerCommissionRuleSchema: one of the two rules, set.",
+    "properties": {
+     "amount": {
+      "anyOf": [
+       {
+        "minimum": 0.0,
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Amount"
+     },
+     "currency": {
+      "default": "USD",
+      "maxLength": 10,
+      "minLength": 1,
+      "title": "Currency",
+      "type": "string"
+     },
+     "rule_type": {
+      "$ref": "#/components/schemas/PartnerCommissionRuleType"
+     }
+    },
+    "required": [
+     "rule_type",
+     "amount"
+    ],
+    "title": "RuleIn",
+    "type": "object"
+   },
+   "app__api__v1__partner_ledgers__RuleRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "rule_type": {
+      "$ref": "#/components/schemas/PartnerCommissionRuleType"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "updated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated By"
+     }
+    },
+    "required": [
+     "id",
+     "rule_type",
+     "amount",
+     "currency",
+     "updated_by",
+     "updated_at"
+    ],
+    "title": "RuleRow",
     "type": "object"
    },
    "app__api__v1__partner_performance__Performance": {
@@ -24838,6 +25633,262 @@
     "title": "VerifyIn",
     "type": "object"
    },
+   "app__api__v1__referral_commissions__CommissionRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By Id"
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "case_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Case Id"
+     },
+     "commission_rule_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Commission Rule Id"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "paid_by_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid By Id"
+     },
+     "payment_method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "referral_agent_id": {
+      "title": "Referral Agent Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReferralCommissionStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "referral_agent_id",
+     "candidate_id",
+     "case_id",
+     "milestone",
+     "commission_rule_id",
+     "amount",
+     "currency",
+     "status",
+     "approved_by_id",
+     "approved_at",
+     "paid_by_id",
+     "paid_at",
+     "payment_reference",
+     "payment_method",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "CommissionRow",
+    "type": "object"
+   },
+   "app__api__v1__referral_commissions__PaidIn": {
+    "properties": {
+     "payment_method": {
+      "anyOf": [
+       {
+        "maxLength": 100,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Method"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "maxLength": 200,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     }
+    },
+    "title": "PaidIn",
+    "type": "object"
+   },
+   "app__api__v1__referral_commissions__RuleIn": {
+    "description": "upsertReferralCommissionRuleSchema. Zero is a real amount: some\nmilestones pay nothing.",
+    "properties": {
+     "amount": {
+      "minimum": 0.0,
+      "title": "Amount",
+      "type": "number"
+     },
+     "country_id": {
+      "pattern": "^c[^\\s-]{8,}$",
+      "title": "Country Id",
+      "type": "string"
+     },
+     "currency": {
+      "default": "USD",
+      "maxLength": 10,
+      "minLength": 1,
+      "title": "Currency",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     }
+    },
+    "required": [
+     "country_id",
+     "milestone",
+     "amount"
+    ],
+    "title": "RuleIn",
+    "type": "object"
+   },
+   "app__api__v1__referral_commissions__RuleRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "country_id": {
+      "title": "Country Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "milestone": {
+      "$ref": "#/components/schemas/ReferralMilestone"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     },
+     "updated_by": {
+      "title": "Updated By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "country_id",
+     "milestone",
+     "amount",
+     "currency",
+     "updated_by",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "RuleRow",
+    "type": "object"
+   },
    "app__api__v1__referral_reads__Performance": {
     "description": "kpi.ts's ReferralAgentPerformance.",
     "properties": {
@@ -25241,6 +26292,30 @@
      "data"
     ],
     "title": "Data[ReportRow]",
+    "type": "object"
+   },
+   "app__core__api__Data_RuleRow___1": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__referral_commissions__RuleRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[RuleRow]",
+    "type": "object"
+   },
+   "app__core__api__Data_RuleRow___2": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__partner_ledgers__RuleRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[RuleRow]",
     "type": "object"
    },
    "app__core__api__Data_SectorOut___1": {
@@ -25653,6 +26728,93 @@
     "summary": "Address Controls For The Website",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/admin-fees": {
+   "get": {
+    "description": "GET /api/admin/admin-fees: Vertex's own fees that are due, newest first.",
+    "operationId": "list_admin_fees_api_v1_admin_fees_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "partnerId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Partnerid"
+      }
+     },
+     {
+      "in": "query",
+      "name": "feeType",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Feetype"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_FeeRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Admin Fees",
+    "tags": [
+     "virtual assistants"
     ]
    }
   },
@@ -34882,6 +36044,278 @@
     ]
    }
   },
+  "/api/v1/partner-commission-rules": {
+   "get": {
+    "description": "GET /api/admin/partner-commission-rules: the two global rules.",
+    "operationId": "list_rules_api_v1_partner_commission_rules_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_RuleRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Rules",
+    "tags": [
+     "virtual assistants"
+    ]
+   },
+   "post": {
+    "description": "POST /api/admin/partner-commission-rules: a rule set or changed. It\napplies to what's earned from now on; recorded rows keep their amount.",
+    "operationId": "set_rule_api_v1_partner_commission_rules_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__partner_ledgers__RuleIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__core__api__Data_RuleRow___2"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Set Rule",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-commissions": {
+   "get": {
+    "description": "GET /api/admin/partner-commissions: what's due, newest first.",
+    "operationId": "list_commissions_api_v1_partner_commissions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "partnerId",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Partnerid"
+      }
+     },
+     {
+      "in": "query",
+      "name": "ruleType",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Ruletype"
+      }
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_CommissionRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Commissions",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-commissions/{commission_id}/approve": {
+   "post": {
+    "description": "POST /api/admin/partner-commissions/[id]/approve: pending -> approved.",
+    "operationId": "approve_commission_api_v1_partner_commissions__commission_id__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "commission_id",
+      "required": true,
+      "schema": {
+       "title": "Commission Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__api__notices__Notifying_CommissionRow___2"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Approve Commission",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-commissions/{commission_id}/mark-paid": {
+   "post": {
+    "description": "POST /api/admin/partner-commissions/[id]/mark-paid: approved -> paid.",
+    "operationId": "mark_commission_paid_api_v1_partner_commissions__commission_id__mark_paid_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "commission_id",
+      "required": true,
+      "schema": {
+       "title": "Commission Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "anyOf": [
+         {
+          "$ref": "#/components/schemas/app__api__v1__partner_ledgers__PaidIn"
+         },
+         {
+          "type": "null"
+         }
+        ],
+        "title": "Body"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__api__notices__Notifying_CommissionRow___2"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Mark Commission Paid",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
   "/api/v1/partner-follow-ups": {
    "post": {
     "description": "POST /api/partner-follow-ups: an action to take for the partner,\nassigned to whoever records it unless they name an active colleague.",
@@ -37114,7 +38548,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/RuleIn"
+        "$ref": "#/components/schemas/app__api__v1__referral_commissions__RuleIn"
        }
       }
      },
@@ -37125,7 +38559,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Data_RuleRow_"
+         "$ref": "#/components/schemas/app__core__api__Data_RuleRow___1"
         }
        }
       },
@@ -37260,7 +38694,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Notifying_CommissionRow_"
+         "$ref": "#/components/schemas/app__api__notices__Notifying_CommissionRow___1"
         }
        }
       },
@@ -37307,7 +38741,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/PaidIn"
+        "$ref": "#/components/schemas/app__api__v1__referral_commissions__PaidIn"
        }
       }
      },
@@ -37318,7 +38752,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Notifying_CommissionRow_"
+         "$ref": "#/components/schemas/app__api__notices__Notifying_CommissionRow___1"
         }
        }
       },

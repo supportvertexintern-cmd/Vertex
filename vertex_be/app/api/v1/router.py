@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import accounts, applications, audit_events, backup, campaigns, candidates, deleted, case_payments, case_reads, cases, content, dashboards, documents, exceptions, fee_policy, geography, health, jobs, me, monitoring, partner_agencies, partner_performance, partner_submissions, partner_tracking, partners, payment_reads, payments, pipeline_reads, public, public_forms, reference, referral_agents, referral_commissions, referral_reads, reports, scorecards, sessions, settings, targets, users, va
+from app.api.v1 import accounts, applications, audit_events, backup, campaigns, candidates, deleted, case_payments, case_reads, cases, content, dashboards, documents, exceptions, fee_policy, geography, health, jobs, me, monitoring, partner_agencies, partner_ledgers, partner_performance, partner_submissions, partner_tracking, partners, payment_reads, payments, pipeline_reads, public, public_forms, reference, referral_agents, referral_commissions, referral_reads, reports, scorecards, sessions, settings, targets, users, va
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -45,3 +45,4 @@ api_router.include_router(monitoring.router, tags=["admin monitoring"])
 api_router.include_router(va.router, tags=["virtual assistants"])
 api_router.include_router(partner_tracking.router, tags=["virtual assistants"])
 api_router.include_router(partner_performance.router, tags=["virtual assistants"])
+api_router.include_router(partner_ledgers.router, tags=["virtual assistants"])

@@ -25,6 +25,7 @@ from app.models.cases import Case
 from app.models.enums import CandidateLifecycleStatus, CandidateSource, JobStatus, PartnerCandidateStatus, PartnerType, Role
 from app.models.identity import Country, Region, User
 from app.models.jobs import Job
+from app.models.partner_tracking import AdminFee, PartnerCommission
 from app.models.partners import Partner, PartnerCandidate
 from app.models.reference import CountryDocumentRequirement, DocumentRequirementType
 from app.services import documents
@@ -369,7 +370,16 @@ def test_hr_opens_the_case(api, db, world, sent_notices):
     assert body["data"]["partnerCandidate"]["status"] == "job_assigned"
     case = db.get(Case, body["data"]["case"]["id"])
     assert (case.application_id, db.get(Candidate, data["candidateId"]).lifecycle_status) == (data["applicationId"], CandidateLifecycleStatus.approved)
-    assert sent_notices[1:] == [{"kind": "partner_case_created", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"}]
+    # HR's approval earns the partner its registration commission (Phase 6),
+    # and Vertex records its application fee.
+    assert sent_notices[1:] == [
+        {"kind": "partner_commission_earned", "email": world["partner"].contact_email, "partner_name": "Bridge Agency",
+         "candidate_name": "Juma Otieno", "commission_type": "registration", "amount": 10.0, "currency": "USD"},
+        {"kind": "partner_case_created", "email": world["partner"].contact_email, "partner_name": "Bridge Agency", "candidate_name": "Juma Otieno"},
+    ]
+    [registration] = db.scalars(select(PartnerCommission).where(PartnerCommission.candidate_id == data["candidateId"])).all()
+    [application_fee] = db.scalars(select(AdminFee).where(AdminFee.candidate_id == data["candidateId"])).all()
+    assert (registration.period, registration.amount, application_fee.fee_type.value) == ("registration", 10, "application")
     again = api.patch(f"{URL}/partner-candidates/{data['id']}/create-case", headers=world["hr"])
     assert (again.status_code, error(again)["code"]) == (409, "already_bridged")
     no_reject = api.patch(f"{URL}/partner-candidates/{data['id']}/reject", headers=world["hr"], json={"rejection_reason": "x"})

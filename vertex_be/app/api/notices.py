@@ -197,6 +197,41 @@ class CommissionPaidEmail(BaseModel):
     currency: str
 
 
+class PartnerCommissionEarnedEmail(BaseModel):
+    """sendPartnerCommissionEarnedEmail(to, partner_name, candidate_name, type, amount, currency):
+    to the partner's contact address, never the candidate's (Phase 6)."""
+
+    kind: Literal["partner_commission_earned"] = "partner_commission_earned"
+    email: str
+    partner_name: str
+    candidate_name: str
+    commission_type: Literal["registration", "deployment"]
+    amount: float
+    currency: str
+
+
+class PartnerCommissionApprovedEmail(BaseModel):
+    """sendPartnerCommissionApprovedEmail(to, partner_name, candidate_name, amount, currency)."""
+
+    kind: Literal["partner_commission_approved"] = "partner_commission_approved"
+    email: str
+    partner_name: str
+    candidate_name: str
+    amount: float
+    currency: str
+
+
+class PartnerCommissionPaidEmail(BaseModel):
+    """sendPartnerCommissionPaidEmail(to, partner_name, candidate_name, amount, currency)."""
+
+    kind: Literal["partner_commission_paid"] = "partner_commission_paid"
+    email: str
+    partner_name: str
+    candidate_name: str
+    amount: float
+    currency: str
+
+
 class ConsultationBookedEmail(BaseModel):
     """sendConsultationBookingNotification({fullName, email, phone, amount, currency})."""
 
@@ -346,6 +381,9 @@ Notice = Annotated[
     | PartnerSubmissionRejectedEmail
     | CommissionApprovedEmail
     | CommissionPaidEmail
+    | PartnerCommissionEarnedEmail
+    | PartnerCommissionApprovedEmail
+    | PartnerCommissionPaidEmail
     | ConsultationBookedEmail
     | PaymentReceiptEmail
     | MilestonePaymentLinkEmail
@@ -371,6 +409,17 @@ class Notifying(Data[T], Generic[T]):
 
 def invite_email(invite: Invite | None) -> list[Notice]:
     return [InviteEmail(candidate_id=invite.candidate_id, email=invite.email, full_name=invite.full_name)] if invite else []
+
+
+def partner_commission_email(earned) -> list[Notice]:
+    """The partner's "commission earned" email, when the engine recorded
+    something payable (app/services/partner_commissions.py)."""
+    if earned is None:
+        return []
+    return [PartnerCommissionEarnedEmail(
+        email=earned.email, partner_name=earned.partner_name, candidate_name=earned.candidate_name,
+        commission_type=earned.commission_type, amount=float(earned.amount), currency=earned.currency,
+    )]
 
 
 def commission_email(earned: CommissionEarned | None) -> list[Notice]:

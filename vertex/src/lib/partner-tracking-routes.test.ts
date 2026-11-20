@@ -32,6 +32,11 @@ import * as vaUser from "@/app/api/admin/va-users/[id]/route";
 import * as vaReset from "@/app/api/admin/va-users/[id]/reset-password/route";
 import * as statement from "@/app/api/management/partners/[id]/commission-statement/route";
 import * as performance from "@/app/api/management/partner-performance/route";
+import * as commissions from "@/app/api/admin/partner-commissions/route";
+import * as approve from "@/app/api/admin/partner-commissions/[id]/approve/route";
+import * as markPaid from "@/app/api/admin/partner-commissions/[id]/mark-paid/route";
+import * as rules from "@/app/api/admin/partner-commission-rules/route";
+import * as adminFees from "@/app/api/admin/admin-fees/route";
 
 const req = (method = "GET", body?: string) =>
   new NextRequest("http://localhost/api/x", { method, body, headers: body ? { "content-type": "application/json" } : {} });
@@ -60,6 +65,28 @@ describe("passes each request on to FastAPI", () => {
     await statement.GET(req(), params("p/1"));
     await performance.GET(req());
     expect(callBackend.mock.calls).toEqual([["/api/v1/partners/p%2F1/commission-statement"], ["/api/v1/partner-performance"]]);
+  });
+
+  it("the ledgers, with their filters", async () => {
+    state.role = "inhouse_supervisor";
+    await commissions.GET(new NextRequest("http://localhost/api/x?partnerId=p1&status=pending,approved&other=x"));
+    await adminFees.GET(new NextRequest("http://localhost/api/x?feeType=application"));
+    expect(callBackend.mock.calls).toEqual([
+      ["/api/v1/partner-commissions", { query: { partnerId: "p1", ruleType: undefined, status: "pending,approved" } }],
+      ["/api/v1/admin-fees", { query: { partnerId: undefined, feeType: "application", status: undefined } }],
+    ]);
+  });
+
+  it.each([
+    ["an approval", () => approve.POST(req("POST"), params("c/1")), ["/api/v1/partner-commissions/c%2F1/approve", { method: "POST" }]],
+    ["a payment with its receipt", () => markPaid.POST(req("POST", '{"payment_reference":"B-1"}'), params("c1")), ["/api/v1/partner-commissions/c1/mark-paid", { method: "POST", body: { payment_reference: "B-1" } }]],
+    ["a payment without one", () => markPaid.POST(req("POST"), params("c1")), ["/api/v1/partner-commissions/c1/mark-paid", { method: "POST", body: {} }]],
+    ["the rules", () => rules.GET(req()), ["/api/v1/partner-commission-rules"]],
+    ["a rule set", () => rules.POST(req("POST", '{"rule_type":"registration","amount":12}')), ["/api/v1/partner-commission-rules", { method: "POST", body: { rule_type: "registration", amount: 12 } }]],
+  ])("moving money, as a director: %s", async (_name, call, expected) => {
+    state.role = "director";
+    await call();
+    expect(callBackend).toHaveBeenCalledWith(...expected);
   });
 
   it("the VA team, for a manager", async () => {
@@ -101,6 +128,14 @@ describe("refuses early, without calling FastAPI", () => {
     expect((await vaUsers.POST(req("POST", "{}"))).status).toBe(403);
     expect((await vaUser.PATCH(req("PATCH", "{}"), params("v1"))).status).toBe(403);
     expect((await vaReset.POST(req("POST"), params("v1"))).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("an in-house supervisor from moving money (it reads the ledgers)", async () => {
+    state.role = "inhouse_supervisor";
+    expect((await approve.POST(req("POST"), params("c1"))).status).toBe(403);
+    expect((await markPaid.POST(req("POST"), params("c1"))).status).toBe(403);
+    expect((await rules.GET(req())).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
   });
 

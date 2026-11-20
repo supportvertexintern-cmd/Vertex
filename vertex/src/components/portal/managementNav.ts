@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, Target, FileText, Airplane, HandCoins, Handshake, Buildings, Warning, UserCheck, DownloadSimple, ShareNetwork, XCircle, ChartBar, UsersThree } from "@phosphor-icons/react";
+import { Gauge, Target, FileText, Airplane, HandCoins, Handshake, Buildings, Warning, UserCheck, DownloadSimple, ShareNetwork, XCircle, ChartBar, CurrencyCircleDollar, Receipt, UsersThree } from "@phosphor-icons/react";
 
 // Fee Policy lives here rather than under System Administrator — "sets
 // policy & criteria... approves & controls the workflow" is In-House
@@ -30,7 +30,10 @@ export const MANAGEMENT_NAV_ITEMS: PortalNavItem[] = [
   { href: "/management/campaigns", label: "Campaigns", icon: Target },
   { href: "/management/partners", label: "Partners", icon: Handshake },
   { href: "/management/va-team", label: "VA Team", icon: UsersThree },
+  { href: "/management/partner-commissions", label: "Partner Commissions", icon: CurrencyCircleDollar },
   { href: "/management/partner-performance", label: "Partner Performance", icon: ChartBar },
+  { href: "/management/admin-fees", label: "Admin Fees", icon: Receipt },
+  { href: "/management/partner-commission-rules", label: "Commission Rules", icon: HandCoins },
   { href: "/management/referral-agents", label: "Referral Agents", icon: ShareNetwork },
   { href: "/management/employer-clients", label: "Employer Clients", icon: Buildings },
   { href: "/management/fee-policy", label: "Fee Policy", icon: HandCoins },

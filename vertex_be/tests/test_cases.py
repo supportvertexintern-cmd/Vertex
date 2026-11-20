@@ -33,6 +33,7 @@ from app.models.identity import Country, Region, User
 from app.models.jobs import Job
 from app.models.partners import Partner
 from app.models.referral import ReferralAgent, ReferralCommission, ReferralCommissionRule
+from app.models.partner_tracking import AdminFee, PartnerCommission
 from app.services.case_lifecycle import CASE_STAGE_ORDER, can_set_case_stage
 from tests.test_auth import add_session, bearer, session_token
 from tests.test_db_roles import roles_provisioned  # noqa: F401  (vertex_api must exist)
@@ -206,6 +207,27 @@ def test_the_last_stage_starts_the_retention_follow_up(api, db, world):
     stage(api, world, "pre_departure_arrangements")
     stage(api, world, "departure_arrival_support")
     assert len(db.scalars(select(RetentionFollowUp).where(RetentionFollowUp.case_id == world["case"].id)).all()) == 1
+
+
+def test_a_partners_candidate_deploying_earns_its_six_months_once(api, db, world, sent_notices):
+    # Phase 6: Departure & Arrival Support is the deployment; the months run
+    # from the month the stage is dated, and re-entering it adds nothing.
+    partner = Partner(name="Deploy Agency", partner_type=PartnerType.manpower_supplier, country_of_operation="Kenya",
+                      contact_name="Pat", contact_email=f"dep-{secrets.token_hex(3)}@test.invalid", contact_phone="1")
+    db.add(partner)
+    db.flush()
+    world["candidate"].partner_id = partner.id
+    db.flush()
+    assert stage(api, world, "departure_arrival_support", stage_date="2026-10-20T09:00:00.000Z").status_code == 200
+    months = [c.period for c in db.scalars(select(PartnerCommission).where(PartnerCommission.candidate_id == world["candidate"].id).order_by(PartnerCommission.period))]
+    assert months == ["2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"]
+    fees = db.scalars(select(AdminFee).where(AdminFee.candidate_id == world["candidate"].id)).all()
+    assert len(fees) == 6
+    earned = [n for n in sent_notices if n["kind"] == "partner_commission_earned"]
+    assert [(n["commission_type"], n["amount"], n["email"]) for n in earned] == [("deployment", 40.0, partner.contact_email)]
+    stage(api, world, "pre_departure_arrangements")
+    stage(api, world, "departure_arrival_support", stage_date="2026-12-01T09:00:00.000Z")
+    assert len(db.scalars(select(PartnerCommission).where(PartnerCommission.candidate_id == world["candidate"].id)).all()) == 6
 
 
 def test_stages_wait_for_the_documentation_review(api, db, world):

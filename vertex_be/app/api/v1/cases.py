@@ -38,6 +38,7 @@ from app.api.notices import (
     PartnerCaseRejectedEmail,
     PartnerCaseStageEmail,
     commission_email,
+    partner_commission_email,
 )
 from app.services.emails import deliver
 from app.api.v1.candidates import _date
@@ -63,6 +64,7 @@ from app.models.enums import (
 from app.models.identity import User
 from app.services.case_lifecycle import can_set_case_stage
 from app.services.referrals import STAGE_MILESTONES, commission_if_due
+from app.services.partner_commissions import admin_fees_if_due, partner_commissions_if_due
 
 router = APIRouter()
 
@@ -249,6 +251,12 @@ def set_stage(
         notify += commission_email(commission_if_due(db, candidate.id, milestone, case_id=case_id))
     if body.stage is CaseStage.departure_arrival_support and case.retention_follow_up is None:
         db.add(RetentionFollowUp(case_id=case_id, due_at=now + timedelta(days=RETENTION_DAYS)))
+    if body.stage is CaseStage.departure_arrival_support:
+        # Deployed: the partner's six monthly commissions and Vertex's six
+        # monthly fees, from the month the stage dates (Phase 6).
+        deployed_at = body.stage_date or now
+        notify += partner_commission_email(partner_commissions_if_due(db, candidate.id, "deployed", case_id=case_id, deployed_at=deployed_at))
+        admin_fees_if_due(db, candidate.id, "deployed", case_id=case_id, deployed_at=deployed_at)
 
     # The candidate with an account hears about it; a partner-sourced
     # candidate is reached through their partner only.
