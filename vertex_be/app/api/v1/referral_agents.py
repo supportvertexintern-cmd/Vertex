@@ -53,6 +53,7 @@ from app.api.notices import (
     ReferralAgentSuspendedEmail,
 )
 from app.services.emails import deliver
+from app.core.account_email import account_email, email_taken
 from app.core.api import ApiError, Data, Email, UtcDateTime, js_date
 from app.core.audit import AuditedDb, set_audit_actor
 from app.core.auth import AuthUser, calling_service
@@ -322,9 +323,9 @@ def approve(agent_id: str, body: ApproveIn, user: Manager, request: Request, db:
         raise ApiError(409, "already_provisioned", "This agent already has a login.")
     if "email" in body.model_fields_set and body.email is None:
         raise ApiError(422, "validation_error", "Validation failed", {"email": ["Invalid input: expected a value, received null"]})
-    email = body.email or agent.email
+    email = account_email(body.email or agent.email)
     duplicate = ApiError(409, "duplicate", "A user with this email already exists.")
-    if db.scalar(select(exists().where(User.email == email))):
+    if email_taken(db, email):
         raise duplicate
 
     login = User(full_name=agent.full_name, email=email, role=Role.referral_agent, email_verified=True)

@@ -4307,7 +4307,60 @@ export interface paths {
          */
         get: operations["va_users_api_v1_va_users_get"];
         put?: never;
+        /**
+         * Add Va
+         * @description POST /api/admin/va-users: a VA account with no password; the setup
+         *     email lets them set their own. An address in any case is one account
+         *     (upstream's DEF-001).
+         */
+        post: operations["add_va_api_v1_va_users_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/va-users/{va_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Va State
+         * @description PATCH /api/admin/va-users/[id]: deactivate or reactivate a VA.
+         *     Deactivating moves every partner it holds to the replacement, or leaves
+         *     them unassigned: a deactivated VA never keeps a partner. Its sessions
+         *     end at once. Deactivating one already deactivated just moves what it
+         *     still holds.
+         */
+        patch: operations["set_va_state_api_v1_va_users__va_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/va-users/{va_id}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Va Password
+         * @description POST /api/admin/va-users/[id]/reset-password: the password is cleared,
+         *     so it stops working at once (its sessions end: the token_version
+         *     trigger), and the setup email goes out. Only a VA's: other staff are
+         *     an admin's to reset.
+         */
+        post: operations["reset_va_password_api_v1_va_users__va_id__reset_password_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6387,6 +6440,10 @@ export interface components {
         Data_VaOverview_: {
             data: components["schemas"]["VaOverview"];
         };
+        /** Data[VaState] */
+        Data_VaState_: {
+            data: components["schemas"]["VaState"];
+        };
         /** Data[WebsiteLoginLimits] */
         Data_WebsiteLoginLimits_: {
             data: components["schemas"]["WebsiteLoginLimits"];
@@ -7778,6 +7835,15 @@ export interface components {
         /** Notifying[Submission] */
         Notifying_Submission_: {
             data: components["schemas"]["Submission"];
+            /**
+             * Notify
+             * @default []
+             */
+            notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
+        };
+        /** Notifying[VaUserRow] */
+        Notifying_VaUserRow_: {
+            data: components["schemas"]["VaUserRow"];
             /**
              * Notify
              * @default []
@@ -10267,6 +10333,13 @@ export interface components {
             id: string;
             status: components["schemas"]["ExceptionStatus"];
         };
+        /** VaIn */
+        VaIn: {
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+        };
         /** VaOverview */
         VaOverview: {
             /** Flags */
@@ -10290,6 +10363,28 @@ export interface components {
             status: string;
             /** Submissions */
             submissions: number;
+        };
+        /** VaState */
+        VaState: {
+            /** Ended */
+            ended: number;
+            /** Id */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Reassign To */
+            reassign_to: string | null;
+            /** Reassigned */
+            reassigned: number;
+        };
+        /** VaStateIn */
+        VaStateIn: {
+            /** Is Active */
+            is_active: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Reassign To */
+            reassign_to?: string | null;
         };
         /** VaUserRow */
         VaUserRow: {
@@ -18723,6 +18818,105 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_list_VaUserRow__"];
+                };
+            };
+        };
+    };
+    add_va_api_v1_va_users_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_VaUserRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_va_state_api_v1_va_users__va_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                va_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VaStateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_VaState_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_va_password_api_v1_va_users__va_id__reset_password_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                va_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notifying_SetupSent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

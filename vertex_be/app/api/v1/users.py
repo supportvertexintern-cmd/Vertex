@@ -34,7 +34,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 from pydantic_core import PydanticCustomError
-from sqlalchemy import exists, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -47,6 +47,7 @@ from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.rbac import is_staff_role, require_role
 from app.core.tokens import sign_account_setup_token
+from app.core.account_email import account_email, email_taken
 from app.models.enums import Role
 from app.models.identity import Country, InhouseCountryAssignment, User
 from app.services import security_monitor
@@ -231,13 +232,13 @@ def _load(db, user_id: str) -> User:
 def create_user(body: CreateIn, admin: Admin, request: Request, db: AuditedDb):
     """A new staff account with no password: the setup email lets them set
     their own."""
-    if db.scalar(select(exists().where(User.email == body.email))):
+    if email_taken(db, body.email):  # in any case (DEF-001)
         raise ApiError(409, "duplicate", "A user with this email already exists.")
     _check_supervisor(db, body.supervisor_id)
     _check_countries(db, body.assigned_country_id, body.assigned_country_ids)
 
     user = User(
-        full_name=body.full_name, email=body.email, role=body.role, email_verified=False,
+        full_name=body.full_name, email=account_email(body.email), role=body.role, email_verified=False,
         supervisor_id=body.supervisor_id, assigned_country_id=body.assigned_country_id, created_by=admin.user_id,
     )
     if body.role is Role.inhouse_supervisor and body.assigned_country_ids:
