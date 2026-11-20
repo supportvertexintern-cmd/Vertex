@@ -65,3 +65,14 @@ def test_password_or_role_change_bumps_token_version(db):
     assert version() == 1
     db.execute(text("""UPDATE "User" SET role = 'admin' WHERE id = :id"""), {"id": user.id})
     assert version() == 2
+
+
+def test_case_payments_and_referral_commissions_are_exact_to_the_cent(db):
+    # Migration 0024 (upstream staging, 2026-11-13): NUMERIC(12, 2), not a binary fraction.
+    rows = db.execute(
+        text(
+            "SELECT table_name, data_type, numeric_precision, numeric_scale FROM information_schema.columns "
+            "WHERE column_name = 'amount' AND table_name IN ('CasePayment', 'ReferralCommission') ORDER BY table_name"
+        )
+    ).all()
+    assert [tuple(r) for r in rows] == [("CasePayment", "numeric", 12, 2), ("ReferralCommission", "numeric", 12, 2)]

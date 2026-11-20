@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
+from sqlalchemy import Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
@@ -126,7 +128,8 @@ class CasePayment(SoftDeletable, Base):
     job_payment_stage_id: Mapped[str] = mapped_column(fk("JobPaymentStage.id", "RESTRICT"))
     # Unused since 0006 (payments are per stage again); kept, nothing dropped.
     type: Mapped[MilestonePaymentType | None] = enum_col(MilestonePaymentType)
-    amount: Mapped[float]
+    # Exact to the cent since 0024 (upstream staging, 2026-11-13).
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     receipt_reference: Mapped[str | None]
     receipt_document_id: Mapped[str | None] = mapped_column(fk("Document.id", "SET NULL"))

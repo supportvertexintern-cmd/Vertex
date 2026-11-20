@@ -70,8 +70,14 @@ class CommissionRow(BaseModel):
     updated_at: UtcDateTime
 
 
-def _load(db, commission_id: str) -> ReferralCommission:
-    commission = db.get(ReferralCommission, commission_id)
+def _load_for_update(db, commission_id: str) -> ReferralCommission:
+    """The commission, locked until this request commits, its status read
+    fresh (upstream staging, 2026-11-11): of simultaneous approvals or
+    payments only the first finds it in the status it needs; the rest wait,
+    then are refused, so it changes, is audited and emailed once."""
+    commission = db.scalar(
+        select(ReferralCommission).where(ReferralCommission.id == commission_id).with_for_update().execution_options(populate_existing=True)
+    )
     if commission is None:
         raise ApiError(404, "not_found", "Commission not found.")
     return commission
@@ -91,7 +97,7 @@ def _for_agent(commission: ReferralCommission) -> dict:
 def approve(commission_id: str, user: Manager, db: AuditedDb, _on: PipelineWrites):
     """pending -> approved. A zero commission is settled as paid when it's
     earned, so only a payable amount gets here."""
-    commission = _load(db, commission_id)
+    commission = _load_for_update(db, commission_id)
     if commission.status is not ReferralCommissionStatus.pending:
         raise ApiError(422, "not_pending", f"Already {commission.status.value} — nothing to approve.")
     commission.status = ReferralCommissionStatus.approved
@@ -105,7 +111,7 @@ def approve(commission_id: str, user: Manager, db: AuditedDb, _on: PipelineWrite
 @router.post("/referral-commissions/{commission_id}/mark-paid", response_model=Notifying[CommissionRow])
 def mark_paid(commission_id: str, body: PaidIn, user: Manager, db: AuditedDb, _on: PipelineWrites):
     """approved -> paid; the reference and method are optional."""
-    commission = _load(db, commission_id)
+    commission = _load_for_update(db, commission_id)
     if commission.status is not ReferralCommissionStatus.approved:
         raise ApiError(422, "not_approved", f"Must be approved before it can be marked paid (currently {commission.status.value}).")
     commission.status = ReferralCommissionStatus.paid

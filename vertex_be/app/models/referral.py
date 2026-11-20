@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import Index, text
+from sqlalchemy import Index, Numeric, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, SoftDeletable, created_at_col, enum_col, fk, flag, pk, updated_at_col
@@ -98,7 +99,8 @@ class ReferralCommission(SoftDeletable, Base):
     commission_rule_id: Mapped[str | None] = mapped_column(
         fk("ReferralCommissionRule.id", "SET NULL", name="ReferralCommission_rule_fkey")
     )
-    amount: Mapped[float]
+    # Exact to the cent since 0024 (upstream staging, 2026-11-13).
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     currency: Mapped[str] = mapped_column(default="USD", server_default="USD")
     status: Mapped[ReferralCommissionStatus] = enum_col(
         ReferralCommissionStatus, default=ReferralCommissionStatus.pending, index=True
