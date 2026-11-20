@@ -24,3 +24,6 @@ id_ed25519*
 
 # JUnit reports for tools/traceability.py (CI writes them; never committed)
 junit-*.xml
+
+# Python bytecode caches (tools/ runs outside vertex_be)
+__pycache__/
