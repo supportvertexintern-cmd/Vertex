@@ -13,7 +13,11 @@ The panel's activity feed is the audit trail itself (upstream's DEF-004):
 changes to the partner and to its submissions, reports, follow-ups,
 commissions and admin fees, summarised as sentences.
 
-The VA team list (GET /va-users) is for the managers who assign partners.
+The VA team (/va-users) is the managers': they list the VAs, add one (its
+setup email lets it set a password), deactivate one, moving its partners
+to another active VA or leaving them unassigned (each move audited, so the
+partner's feed shows it), reactivate one, or reset its password. Only VA
+accounts are reached here; other staff are an admin's (Users).
 """
 
 from __future__ import annotations
@@ -22,18 +26,22 @@ import json
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import DbSession
+from app.api.notices import AccountSetupEmail, Notifying
+from app.api.v1.sessions import EMAIL_LIMITED, account_email_allowed, record_account_email, security_event
 from app.api.v1.va import VA_LIST_ROLES
-from app.core.api import ApiError, Data, UtcDateTime
+from app.core.account_email import account_email, email_taken
+from app.core.api import ApiError, Data, Email, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
 from app.core.clock import utc_now_ms
 from app.core.rbac import require_role
+from app.core.tokens import sign_account_setup_token
 from app.models.audit import AuditLog
 from app.models.candidate import Candidate
 from app.models.enums import (
@@ -48,6 +56,8 @@ from app.models.enums import (
 from app.models.identity import User
 from app.models.partner_tracking import AdminFee, PartnerCommission, PartnerFollowUp, PartnerReport
 from app.models.partners import Partner, PartnerCandidate
+from app.services.emails import deliver
+from app.services.sessions import revoke_all_for_user
 
 router = APIRouter()
 
@@ -441,3 +451,121 @@ def va_users(_manager: Manager, db: DbSession) -> Data[list[VaUserRow]]:
             for u in vas
         ]
     )
+
+
+def _va_row(db: Session, u: User) -> VaUserRow:
+    held = db.scalar(select(func.count()).select_from(Partner).where(Partner.assigned_team_member_id == u.id)) or 0
+    return VaUserRow(id=u.id, full_name=u.full_name, email=u.email, email_verified=u.email_verified,
+                     is_active=u.deactivated_at is None, created_at=u.created_at, partners_assigned=held)
+
+
+def _va(db: Session, user_id: str, *, lock: bool = False) -> User:
+    """A Virtual Assistant's account, and nobody else's."""
+    query = select(User).where(User.id == user_id)
+    va = db.scalar(query.with_for_update() if lock else query)
+    if va is None or va.role is not Role.virtual_assistant:
+        raise ApiError(404, "not_found", "Virtual Assistant not found.")
+    return va
+
+
+class VaIn(BaseModel):
+    full_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=150)]
+    email: Email
+
+
+@router.post("/va-users", response_model=Notifying[VaUserRow], status_code=status.HTTP_201_CREATED)
+def add_va(body: VaIn, manager: Manager, request: Request, db: AuditedDb):
+    """POST /api/admin/va-users: a VA account with no password; the setup
+    email lets them set their own. An address in any case is one account
+    (upstream's DEF-001)."""
+    if email_taken(db, body.email):
+        raise ApiError(409, "duplicate", "A user with this email already exists.")
+    va = User(full_name=body.full_name, email=account_email(body.email), role=Role.virtual_assistant,
+              email_verified=False, created_by=manager.user_id)
+    db.add(va)
+    db.commit()
+    db.refresh(va)
+    record_account_email(request, va, "account_setup", actor_id=manager.user_id)
+    setup = AccountSetupEmail(email=va.email, full_name=va.full_name, token=sign_account_setup_token(va.id))
+    return {"data": _va_row(db, va), "notify": deliver(db, [setup])}
+
+
+class VaStateIn(BaseModel):
+    is_active: bool
+    # Deactivating: who takes over the partners (an active VA), or None to
+    # leave them unassigned.
+    reassign_to: str | None = None
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] | None = None
+
+
+class VaState(BaseModel):
+    id: str
+    is_active: bool
+    reassigned: int
+    reassign_to: str | None
+    ended: int  # sessions ended
+
+
+DEFAULT_REASON = "Virtual Assistant deactivated by a partner manager"
+
+
+@router.patch("/va-users/{va_id}", response_model=Data[VaState])
+def set_va_state(va_id: str, body: VaStateIn, manager: Manager, request: Request, db: AuditedDb):
+    """PATCH /api/admin/va-users/[id]: deactivate or reactivate a VA.
+    Deactivating moves every partner it holds to the replacement, or leaves
+    them unassigned: a deactivated VA never keeps a partner. Its sessions
+    end at once. Deactivating one already deactivated just moves what it
+    still holds."""
+    va = _va(db, va_id, lock=True)
+    if body.is_active:
+        if va.deactivated_at is not None:
+            previous = va.deactivation_reason
+            va.deactivated_at = va.deactivated_by = va.deactivation_reason = None
+            db.commit()
+            security_event(request, "account_reactivated", actor_id=manager.user_id, entity_type="User", entity_id=va.id,
+                           detail={"reason": body.reason, "deactivation_reason": previous, "role": va.role.value})
+        return {"data": VaState(id=va.id, is_active=True, reassigned=0, reassign_to=None, ended=0)}
+
+    if body.reassign_to is not None:
+        if body.reassign_to == va.id:
+            raise ApiError(422, "invalid_reassign", "Choose a different VA to take over the partners.")
+        replacement = db.get(User, body.reassign_to)
+        if replacement is None or replacement.role is not Role.virtual_assistant or replacement.deactivated_at is not None:
+            raise ApiError(422, "invalid_reassign", "The replacement must be an active Virtual Assistant.")
+    held = list(db.scalars(select(Partner).where(Partner.assigned_team_member_id == va.id).with_for_update()))
+    for partner in held:
+        partner.assigned_team_member_id = body.reassign_to  # audited: "Assigned VA: old -> new"
+    newly = va.deactivated_at is None
+    if newly:
+        va.deactivated_at = utc_now_ms()
+        va.deactivated_by = manager.user_id
+        va.deactivation_reason = body.reason or DEFAULT_REASON
+    db.flush()
+    ended = revoke_all_for_user(db, va.id, "deactivated")  # commits the moves and the account together
+    if newly:
+        security_event(request, "account_deactivated", actor_id=manager.user_id, entity_type="User", entity_id=va.id,
+                       detail={"reason": va.deactivation_reason, "role": va.role.value, "ended": ended,
+                               "partners_moved": len(held), "reassign_to": body.reassign_to})
+    return {"data": VaState(id=va.id, is_active=False, reassigned=len(held), reassign_to=body.reassign_to, ended=ended)}
+
+
+class SetupSent(BaseModel):
+    email: str
+
+
+@router.post("/va-users/{va_id}/reset-password", response_model=Notifying[SetupSent])
+def reset_va_password(va_id: str, manager: Manager, request: Request, db: AuditedDb):
+    """POST /api/admin/va-users/[id]/reset-password: the password is cleared,
+    so it stops working at once (its sessions end: the token_version
+    trigger), and the setup email goes out. Only a VA's: other staff are
+    an admin's to reset."""
+    va = _va(db, va_id, lock=True)
+    if va.deactivated_at is not None:
+        raise ApiError(409, "account_deactivated", "This account is deactivated. Reactivate it first.")
+    if not account_email_allowed(request, va.email, user_id=va.id, kind="account_setup", actor_id=manager.user_id):
+        raise ApiError(429, "email_limited", EMAIL_LIMITED)
+    va.password_hash = None
+    db.commit()
+    record_account_email(request, va, "account_setup", actor_id=manager.user_id)
+    setup = AccountSetupEmail(email=va.email, full_name=va.full_name, token=sign_account_setup_token(va.id))
+    return {"data": SetupSent(email=va.email), "notify": deliver(db, [setup])}

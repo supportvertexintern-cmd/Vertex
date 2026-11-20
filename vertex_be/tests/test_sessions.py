@@ -126,6 +126,26 @@ def test_an_unknown_account_and_a_wrong_password_get_the_same_answer(api, db, ca
     assert all(PASSWORD not in json.dumps(f) and "Wrong-Password-1" not in json.dumps(f) and user.email not in json.dumps(f) for f in failed)
 
 
+def test_an_address_signs_in_in_any_case(api, db):
+    # Upstream's DEF-001: only the exact spelling could sign in.
+    user = account(db)
+    user.email = f"Mixed.Case-{user.email}"
+    db.flush()
+    for typed in (user.email, user.email.upper(), user.email.lower(), f"  {user.email.lower()}  "):
+        assert api.post("/api/v1/auth/login", headers=svc(), json={"email": typed.strip(), "password": PASSWORD, "client": "web"}).status_code == 200, typed
+
+
+def test_of_two_accounts_differing_in_case_the_exact_spelling_signs_in(api, db):
+    # Possible only from before DEF-001; neither user is locked out by it.
+    first = account(db)
+    first.email = f"twin-{first.email}"
+    second = account(db, password="Other-Password-88")
+    second.email = first.email.upper()
+    db.flush()
+    assert api.post("/api/v1/auth/login", headers=svc(), json={"email": first.email, "password": PASSWORD, "client": "web"}).status_code == 200
+    assert api.post("/api/v1/auth/login", headers=svc(), json={"email": second.email, "password": "Other-Password-88", "client": "web"}).status_code == 200
+
+
 def test_an_unverified_account_is_refused_with_its_own_message(api, db):
     res = sign_in(api, account(db, verified=False))
     assert (res.status_code, res.json()["error"]["message"]) == (403, "Please verify your email before logging in.")

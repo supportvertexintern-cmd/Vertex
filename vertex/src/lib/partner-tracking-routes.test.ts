@@ -28,6 +28,8 @@ import * as report from "@/app/api/partner-reports/[id]/route";
 import * as followUps from "@/app/api/partner-follow-ups/route";
 import * as followUp from "@/app/api/partner-follow-ups/[id]/route";
 import * as vaUsers from "@/app/api/admin/va-users/route";
+import * as vaUser from "@/app/api/admin/va-users/[id]/route";
+import * as vaReset from "@/app/api/admin/va-users/[id]/reset-password/route";
 import * as statement from "@/app/api/management/partners/[id]/commission-statement/route";
 import * as performance from "@/app/api/management/partner-performance/route";
 import * as commissions from "@/app/api/admin/partner-commissions/route";
@@ -93,6 +95,16 @@ describe("passes each request on to FastAPI", () => {
     expect(callBackend).toHaveBeenCalledWith("/api/v1/va-users");
   });
 
+  it.each([
+    ["a new VA", () => vaUsers.POST(req("POST", '{"full_name":"New","email":"n@test.invalid"}')), ["/api/v1/va-users", { method: "POST", body: { full_name: "New", email: "n@test.invalid" } }]],
+    ["a VA deactivated", () => vaUser.PATCH(req("PATCH", '{"is_active":false,"reassign_to":"v2"}'), params("v/1")), ["/api/v1/va-users/v%2F1", { method: "PATCH", body: { is_active: false, reassign_to: "v2" } }]],
+    ["a VA's password reset", () => vaReset.POST(req("POST"), params("v1")), ["/api/v1/va-users/v1/reset-password", { method: "POST" }]],
+  ])("managing the team: %s", async (_name, call, expected) => {
+    state.role = "inhouse_supervisor";
+    await call();
+    expect(callBackend).toHaveBeenCalledWith(...expected);
+  });
+
   it("answers with FastAPI's refusal of another VA's partner", async () => {
     const error = { code: "forbidden", message: "This partner is not assigned to you." };
     callBackend.mockResolvedValueOnce({ ok: false, status: 403, error });
@@ -111,8 +123,11 @@ describe("refuses early, without calling FastAPI", () => {
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it("a VA from the team list, which is the managers'", async () => {
+  it("a VA from the team, which is the managers'", async () => {
     expect((await vaUsers.GET(req())).status).toBe(403);
+    expect((await vaUsers.POST(req("POST", "{}"))).status).toBe(403);
+    expect((await vaUser.PATCH(req("PATCH", "{}"), params("v1"))).status).toBe(403);
+    expect((await vaReset.POST(req("POST"), params("v1"))).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
   });
 
