@@ -11,6 +11,7 @@ commissions due.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
@@ -125,6 +126,33 @@ class VaOverview(BaseModel):
     recent_partners: list[RecentPartner]
 
 
+def flag_inputs(db: Session, partners: Sequence[Partner]) -> dict[str, FlagInput]:
+    """What partner_flags reads, for many partners in four queries. The VA
+    dashboard and Management's partner performance both build their flags
+    from this, so the two can never disagree (upstream's DEF-006)."""
+    ids = [p.id for p in partners]
+    activity: dict[str, list[datetime]] = {}
+    submissions: dict[str, int] = {}
+    reports: dict[str, list[str]] = {}
+    if ids:
+        for partner_id, submitted_at, updated_at in db.execute(
+            select(PartnerCandidate.partner_id, PartnerCandidate.submitted_at, PartnerCandidate.updated_at).where(PartnerCandidate.partner_id.in_(ids))
+        ):
+            submissions[partner_id] = submissions.get(partner_id, 0) + 1
+            activity.setdefault(partner_id, []).append(updated_at or submitted_at)
+        for partner_id, status in db.execute(select(PartnerReport.partner_id, PartnerReport.status).where(PartnerReport.partner_id.in_(ids))):
+            reports.setdefault(partner_id, []).append(status.value)
+    open_follow_ups = _counts(db, PartnerFollowUp, ids, PartnerFollowUp.status == PartnerFollowUpStatus.open)
+    return {
+        p.id: FlagInput(
+            status=p.status, mou_status=p.mou_status, sla_status=p.sla_status, documents_submitted_at=p.documents_submitted_at,
+            created_at=p.created_at, submissions=submissions.get(p.id, 0), activity=activity.get(p.id, []),
+            report_statuses=reports.get(p.id, []), open_follow_ups=open_follow_ups.get(p.id, 0),
+        )
+        for p in partners
+    }
+
+
 @router.get("/va/overview", response_model=Data[VaOverview])
 def va_overview(db: DbSession, user: Annotated[AuthUser, Depends(require_role(*VA_OVERVIEW_ROLES))]):
     """GET /api/va/overview: the dashboard, worked out on this read."""
@@ -132,19 +160,9 @@ def va_overview(db: DbSession, user: Annotated[AuthUser, Depends(require_role(*V
     ids = [p.id for p in partners]
     now = utc_now_ms()
     members = _members(db, {p.assigned_team_member_id for p in partners if p.assigned_team_member_id})
-    activity: dict[str, list[datetime]] = {}
-    submissions: dict[str, int] = {}
-    if ids:
-        for partner_id, submitted_at, updated_at in db.execute(
-            select(PartnerCandidate.partner_id, PartnerCandidate.submitted_at, PartnerCandidate.updated_at).where(PartnerCandidate.partner_id.in_(ids))
-        ):
-            submissions[partner_id] = submissions.get(partner_id, 0) + 1
-            activity.setdefault(partner_id, []).append(updated_at or submitted_at)
-    reports: dict[str, list[str]] = {}
-    if ids:
-        for partner_id, status in db.execute(select(PartnerReport.partner_id, PartnerReport.status).where(PartnerReport.partner_id.in_(ids))):
-            reports.setdefault(partner_id, []).append(status.value)
-    open_follow_ups = _counts(db, PartnerFollowUp, ids, PartnerFollowUp.status == PartnerFollowUpStatus.open)
+    inputs = flag_inputs(db, partners)
+    submissions = {pid: i.submissions for pid, i in inputs.items()}
+    reports = {pid: i.report_statuses for pid, i in inputs.items()}
     due: dict[str, Decimal] = {}
     if ids:
         for c in db.scalars(select(PartnerCommission).where(PartnerCommission.partner_id.in_(ids), PartnerCommission.status == CommissionStatus.approved)):
@@ -154,11 +172,7 @@ def va_overview(db: DbSession, user: Annotated[AuthUser, Depends(require_role(*V
     flagged: list[FlaggedPartner] = []
     quiet = 0
     for p in partners:
-        result = partner_flags(FlagInput(
-            status=p.status, mou_status=p.mou_status, sla_status=p.sla_status, documents_submitted_at=p.documents_submitted_at,
-            created_at=p.created_at, submissions=submissions.get(p.id, 0), activity=activity.get(p.id, []),
-            report_statuses=reports.get(p.id, []), open_follow_ups=open_follow_ups.get(p.id, 0),
-        ), now)
+        result = partner_flags(inputs[p.id], now)
         quiet += result.no_recent_activity
         if result.flags:
             member = members.get(p.assigned_team_member_id or "")

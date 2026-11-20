@@ -2829,6 +2829,29 @@ export interface paths {
         patch: operations["update_follow_up_api_v1_partner_follow_ups__follow_up_id__patch"];
         trace?: never;
     };
+    "/api/v1/partner-performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Partner Performance
+         * @description GET /api/management/partner-performance: onboarding, agreements,
+         *     reporting and application progress, partners ranked by what they've
+         *     earned, each team member's partners, flags and outstanding balance, and
+         *     the commission and admin-fee totals. Earned periods only.
+         */
+        get: operations["partner_performance_api_v1_partner_performance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/partner-reports": {
         parameters: {
             query?: never;
@@ -3047,6 +3070,30 @@ export interface paths {
          *     Suspending the partner deactivates its login (D2).
          */
         patch: operations["update_partner_api_v1_partners__partner_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/partners/{partner_id}/commission-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Commission Statement
+         * @description GET /api/management/partners/[id]/commission-statement: registered
+         *     and deployed candidates, registration and monthly earnings, outstanding,
+         *     pending and paid balances, the months still ahead, and the recent
+         *     ledger. Summed in the database (upstream's PERF-003: a large partner has
+         *     tens of thousands of rows).
+         */
+        get: operations["commission_statement_api_v1_partners__partner_id__commission_statement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/partners/{partner_id}/provision-account": {
@@ -5376,6 +5423,11 @@ export interface components {
          * @enum {string}
          */
         CandidateLifecycleStatus: "identified" | "screened" | "guided_to_apply" | "submitted" | "reported" | "verified" | "approved" | "rejected";
+        /** CandidateName */
+        CandidateName: {
+            /** Full Name */
+            full_name: string | null;
+        };
         /**
          * CandidateRow
          * @description Every column, as Prisma returns a candidate row.
@@ -5817,6 +5869,11 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /**
+         * CommissionStatus
+         * @enum {string}
+         */
+        CommissionStatus: "pending" | "approved" | "paid" | "rejected";
         /** CommissionSummary */
         CommissionSummary: {
             /** Currency */
@@ -5838,6 +5895,17 @@ export interface components {
             self_rating?: number;
             /** Supervisor Rating */
             supervisor_rating?: number;
+        };
+        /** Compliance */
+        Compliance: {
+            /** Agreements Signed */
+            agreements_signed: number;
+            /** Applications Started */
+            applications_started: number;
+            /** Onboarding Complete */
+            onboarding_complete: number;
+            /** Reports Received */
+            reports_received: number;
         };
         /**
          * ConsultationBookedEmail
@@ -6013,7 +6081,7 @@ export interface components {
             /** Pendingcommissiontotal */
             pendingCommissionTotal: number;
             /** Performance */
-            performance: components["schemas"]["Performance"][];
+            performance: components["schemas"]["app__api__v1__referral_reads__Performance"][];
         };
         /** CountryUpdate */
         CountryUpdate: {
@@ -6255,6 +6323,10 @@ export interface components {
         Data_PartnerSummary_: {
             data: components["schemas"]["PartnerSummary"];
         };
+        /** Data[Performance] */
+        Data_Performance_: {
+            data: components["schemas"]["app__api__v1__partner_performance__Performance"];
+        };
         /** Data[PositionOut] */
         Data_PositionOut_: {
             data: components["schemas"]["PositionOut"];
@@ -6322,6 +6394,10 @@ export interface components {
         /** Data[StaffKpiTargetOut] */
         Data_StaffKpiTargetOut_: {
             data: components["schemas"]["StaffKpiTargetOut"];
+        };
+        /** Data[Statement] */
+        Data_Statement_: {
+            data: components["schemas"]["Statement"];
         };
         /** Data[StatusOut] */
         Data_StatusOut_: {
@@ -6478,7 +6554,7 @@ export interface components {
         /** Data[list[Performance]] */
         Data_list_Performance__: {
             /** Data */
-            data: components["schemas"]["Performance"][];
+            data: components["schemas"]["app__api__v1__referral_reads__Performance"][];
         };
         /** Data[list[RecruiterTargetListItem]] */
         Data_list_RecruiterTargetListItem__: {
@@ -7222,6 +7298,30 @@ export interface components {
             /** Target */
             target?: number;
         };
+        /** LedgerRow */
+        LedgerRow: {
+            /** Amount */
+            amount: number;
+            /** Approved At */
+            approved_at: string | null;
+            candidate: components["schemas"]["CandidateName"] | null;
+            /** Candidate Id */
+            candidate_id: string;
+            /** Created At */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Id */
+            id: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Payment Reference */
+            payment_reference: string | null;
+            /** Period */
+            period: string;
+            rule_type: components["schemas"]["PartnerCommissionRuleType"];
+            status: components["schemas"]["CommissionStatus"];
+        };
         /** LimitedList */
         LimitedList: {
             /** Available */
@@ -7750,6 +7850,15 @@ export interface components {
              */
             notify: (components["schemas"]["InviteEmail"] | components["schemas"]["CommissionEmail"] | components["schemas"]["MessageEmail"] | components["schemas"]["PartnerReplyEmail"] | components["schemas"]["ApplicationConfirmationEmail"] | components["schemas"]["ApplicationStatusEmail"] | components["schemas"]["CandidateApprovedEmail"] | components["schemas"]["CaseStageEmail"] | components["schemas"]["PartnerCaseStageEmail"] | components["schemas"]["CaseRejectedEmail"] | components["schemas"]["PartnerCaseRejectedEmail"] | components["schemas"]["CaseReminderEmail"] | components["schemas"]["PartnerSubmittedEmail"] | components["schemas"]["PartnerCaseCreatedEmail"] | components["schemas"]["PartnerSubmissionRejectedEmail"] | components["schemas"]["CommissionApprovedEmail"] | components["schemas"]["CommissionPaidEmail"] | components["schemas"]["ConsultationBookedEmail"] | components["schemas"]["PaymentReceiptEmail"] | components["schemas"]["MilestonePaymentLinkEmail"] | components["schemas"]["VerificationEmail"] | components["schemas"]["PasswordResetEmail"] | components["schemas"]["AccountSetupEmail"] | components["schemas"]["ReferralAgentApplicationEmail"] | components["schemas"]["ReferralAgentAdminEmail"] | components["schemas"]["ReferralAgentApprovedEmail"] | components["schemas"]["ReferralAgentRejectedEmail"] | components["schemas"]["ReferralAgentSuspendedEmail"] | components["schemas"]["AccountLockedEmail"])[];
         };
+        /** Onboarding */
+        Onboarding: {
+            /** Documents Submitted */
+            documents_submitted: boolean;
+            /** Mou Signed */
+            mou_signed: boolean;
+            /** Sla Signed */
+            sla_signed: boolean;
+        };
         /** OpsReviewIn */
         OpsReviewIn: {
             /**
@@ -8198,6 +8307,11 @@ export interface components {
             partner_name: string;
             stage: components["schemas"]["CaseStage"];
         };
+        /**
+         * PartnerCommissionRuleType
+         * @enum {string}
+         */
+        PartnerCommissionRuleType: "registration" | "monthly_deployment";
         /** PartnerDetail */
         PartnerDetail: {
             /** Assigned Team Member Id */
@@ -8604,27 +8718,34 @@ export interface components {
          * @enum {string}
          */
         PaymentStatus: "pending" | "completed" | "failed" | "refunded";
-        /**
-         * Performance
-         * @description kpi.ts's ReferralAgentPerformance.
-         */
-        Performance: {
-            /** Countryname */
-            countryName: string | null;
-            /** Currency */
-            currency: string;
-            /** Deployed */
-            deployed: number;
-            /** Qualified */
-            qualified: number;
-            /** Referralagentid */
-            referralAgentId: string;
-            /** Referralagentname */
-            referralAgentName: string;
-            /** Totalcommissionearned */
-            totalCommissionEarned: number;
-            /** Totalreferrals */
-            totalReferrals: number;
+        /** PerformanceRow */
+        PerformanceRow: {
+            /** Assigned To */
+            assigned_to: string | null;
+            /** Commissions Earned */
+            commissions_earned: number;
+            /** Commissions Outstanding */
+            commissions_outstanding: number;
+            /** Commissions Paid */
+            commissions_paid: number;
+            /** Deployed Candidates */
+            deployed_candidates: number;
+            /** Flags */
+            flags: string[];
+            /** Follow Ups Open */
+            follow_ups_open: number;
+            /** Initiated */
+            initiated: number;
+            onboarding: components["schemas"]["Onboarding"];
+            /** Partner Id */
+            partner_id: string;
+            /** Partner Name */
+            partner_name: string;
+            /** Registered */
+            registered: number;
+            /** Reports */
+            reports: number;
+            status: components["schemas"]["PartnerStatus"];
         };
         /** Person */
         Person: {
@@ -9740,6 +9861,55 @@ export interface components {
             /** Synced Amount Gbp */
             synced_amount_gbp: number | null;
         };
+        /** Statement */
+        Statement: {
+            /** History */
+            history: components["schemas"]["LedgerRow"][];
+            partner: components["schemas"]["StatementPartner"];
+            summary: components["schemas"]["StatementSummary"];
+        };
+        /** StatementPartner */
+        StatementPartner: {
+            assigned_team_member: components["schemas"]["Person"] | null;
+            /** Assigned Team Member Id */
+            assigned_team_member_id: string | null;
+            /** Contact Email */
+            contact_email: string;
+            /** Id */
+            id: string;
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            sla_status: components["schemas"]["SlaStatus"];
+            status: components["schemas"]["PartnerStatus"];
+        };
+        /** StatementSummary */
+        StatementSummary: {
+            /** Approved */
+            approved: number;
+            /** Deployed Candidates */
+            deployed_candidates: number;
+            /** Monthly Deployment Commissions */
+            monthly_deployment_commissions: number;
+            /** Months Earned */
+            months_earned: number;
+            /** Months Scheduled */
+            months_scheduled: number;
+            /** Outstanding */
+            outstanding: number;
+            /** Paid */
+            paid: number;
+            /** Pending */
+            pending: number;
+            /** Registered Candidates */
+            registered_candidates: number;
+            /** Registration Commissions */
+            registration_commissions: number;
+            /** Scheduled Commissions */
+            scheduled_commissions: number;
+            /** Total Earned */
+            total_earned: number;
+        };
         /** Stats */
         Stats: {
             /** Approved */
@@ -10045,6 +10215,17 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** TeamRow */
+        TeamRow: {
+            /** Flagged */
+            flagged: number;
+            /** Outstanding */
+            outstanding: number;
+            /** Partners Assigned */
+            partners_assigned: number;
+            /** Team Member */
+            team_member: string;
+        };
         /** TemplateIn */
         TemplateIn: {
             /** Body Html */
@@ -10070,6 +10251,25 @@ export interface components {
             data: components["schemas"]["app__api__v1__users__Removed"];
             /** Temporarypassword */
             temporaryPassword: string;
+        };
+        /** Totals */
+        Totals: {
+            /** Admin Fee Collected */
+            admin_fee_collected: number;
+            /** Admin Fee Revenue */
+            admin_fee_revenue: number;
+            /** Commissions Approved */
+            commissions_approved: number;
+            /** Commissions Outstanding */
+            commissions_outstanding: number;
+            /** Commissions Paid */
+            commissions_paid: number;
+            /** Commissions Payable */
+            commissions_payable: number;
+            /** Open Follow Ups */
+            open_follow_ups: number;
+            /** Total Partners */
+            total_partners: number;
         };
         /** TrackedPartner */
         TrackedPartner: {
@@ -10555,6 +10755,15 @@ export interface components {
             sla_status?: components["schemas"]["SlaStatus"] | null;
             status?: components["schemas"]["PartnerStatus"] | null;
         };
+        /** Performance */
+        app__api__v1__partner_performance__Performance: {
+            compliance: components["schemas"]["Compliance"];
+            /** Ranked */
+            ranked: components["schemas"]["PerformanceRow"][];
+            /** Teamperformance */
+            teamPerformance: components["schemas"]["TeamRow"][];
+            totals: components["schemas"]["Totals"];
+        };
         /**
          * DetailsIn
          * @description updatePartnerCandidateDetailsSchema: corrections to a submission.
@@ -10814,6 +11023,28 @@ export interface components {
         app__api__v1__referral_agents__VerifyIn: {
             /** Token */
             token?: string | null;
+        };
+        /**
+         * Performance
+         * @description kpi.ts's ReferralAgentPerformance.
+         */
+        app__api__v1__referral_reads__Performance: {
+            /** Countryname */
+            countryName: string | null;
+            /** Currency */
+            currency: string;
+            /** Deployed */
+            deployed: number;
+            /** Qualified */
+            qualified: number;
+            /** Referralagentid */
+            referralAgentId: string;
+            /** Referralagentname */
+            referralAgentName: string;
+            /** Totalcommissionearned */
+            totalCommissionEarned: number;
+            /** Totalreferrals */
+            totalReferrals: number;
         };
         /** PersonRef */
         app__api__v1__referral_reads__PersonRef: {
@@ -15934,6 +16165,26 @@ export interface operations {
             };
         };
     };
+    partner_performance_api_v1_partner_performance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Performance_"];
+                };
+            };
+        };
+    };
     record_report_api_v1_partner_reports_post: {
         parameters: {
             query?: never;
@@ -16381,6 +16632,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_PartnerRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commission_statement_api_v1_partners__partner_id__commission_statement_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Statement_"];
                 };
             };
             /** @description Validation Error */
