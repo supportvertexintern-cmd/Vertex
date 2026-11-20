@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { canAccessPortal, homeFor, isStaffRole, PORTAL_ACCESS } from "./rbac";
 import type { Role } from "@/lib/enums";
+import { PROTECTED_PATHS } from "./session-constants";
 
 const ALL_ROLES: Role[] = [
   "candidate",
@@ -86,6 +87,14 @@ describe("canAccessPortal", () => {
   it("matches by prefix, not exact path", () => {
     expect(canAccessPortal("regional_recruiter", "/recruiter/candidates/123")).toBe(true);
     expect(canAccessPortal("candidate", "/admin/settings")).toBe(false);
+  });
+});
+
+describe("SEC-AUTHZ-005 every portal is behind the proxy's sign-in check", () => {
+  // /va was a portal in PORTAL_ACCESS but not a protected path (2026-11-13 to
+  // 11-20): its pages' shell reached signed-out visitors.
+  it("the protected paths are exactly the portals", () => {
+    expect([...PROTECTED_PATHS].sort()).toEqual(Object.keys(PORTAL_ACCESS).sort());
   });
 });
 

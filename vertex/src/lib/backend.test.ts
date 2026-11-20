@@ -37,6 +37,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("SEC-INF-001 SEC-INF-002 a server request goes only to FastAPI, on the path the route chose", () => {
+  it("refuses an absolute or protocol-relative path, so no value can point it at another host", async () => {
+    const { callBackend } = await load();
+    for (const path of ["https://attacker.example/x", "//attacker.example/x", "api/v1/me"]) {
+      await expect(callBackend(path)).rejects.toThrow(/takes a path like \/api\/v1/);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a client's value inside its own path segment", async () => {
+    fetchMock.mockResolvedValue(json(200, { data: {} }));
+    const { callBackend } = await load();
+    const { seg } = await import("./pipeline");
+    await callBackend(`/api/v1/partners/${seg("../../admin/users?x=1#y")}/tracking`, { query: { q: "a&b=c" } });
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.origin).toBe("http://backend:8000");
+    expect(url.pathname).toBe("/api/v1/partners/..%2F..%2Fadmin%2Fusers%3Fx%3D1%23y/tracking");
+    expect(url.searchParams.get("q")).toBe("a&b=c");
+    expect([...url.searchParams.keys()]).toEqual(["q"]);
+  });
+});
+
 describe("callBackend", () => {
   it("sends the service credential, the user's session and the request ID", async () => {
     const { callBackend } = await load();
