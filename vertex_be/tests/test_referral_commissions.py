@@ -3,12 +3,17 @@
 roles, states, messages and status codes, and the agent's email."""
 
 import secrets
+import threading
 
 import pytest
-from sqlalchemy import select, text
+from fastapi.testclient import TestClient
+from sqlalchemy import func, select, text
+from sqlalchemy.orm import Session
 
+from app.api.v1 import referral_commissions as module
+from app.core.audit import set_audit_actor
 from app.core.config import BASE_DIR
-from app.db.session import get_db
+from app.db.session import engine, get_db
 from app.main import app
 from app.models.audit import AuditLog
 from app.models.candidate import Candidate
@@ -73,6 +78,79 @@ def test_approve_then_mark_paid(api, db, commission, sent_notices):
     assert sent_notices[1:] == [{"kind": "referral_commission_paid", **email}]
     actions = db.scalars(select(AuditLog.action).where(AuditLog.entity_id == commission.id)).all()
     assert actions.count("update") == 2
+
+
+# --- simultaneous requests (upstream staging, 2026-11-11) ---------------------
+
+
+@pytest.fixture
+def committed_commission():
+    """Committed, so two requests on their own connections can race for it."""
+    with Session(engine) as s:
+        set_audit_actor(s, None)
+        boss = User(full_name="Race director", email=f"rc-race-{secrets.token_hex(4)}@test.invalid", role=Role.director)
+        agent = ReferralAgent(full_name="Race Agent", email=f"rc-agent-{secrets.token_hex(4)}@test.invalid", phone="1", country="Kenya", referral_code=f"R{secrets.token_hex(4)}")
+        s.add_all([boss, agent])
+        s.flush()
+        candidate = Candidate(full_name="Raced Person", referral_agent_id=agent.id)
+        s.add(candidate)
+        s.flush()
+        row = ReferralCommission(referral_agent_id=agent.id, candidate_id=candidate.id, milestone=ReferralMilestone.qualified, amount=50, currency="EUR", status=ReferralCommissionStatus.pending)
+        s.add(row)
+        s.commit()
+        family = add_session(s, boss.id)
+        s.commit()
+        s.refresh(boss)
+        headers = bearer(session_token(boss.id, family.family_id, boss.token_version))
+        ids = (row.id, candidate.id, agent.id, boss.id)
+    yield ids[0], headers
+    with Session(engine) as s:
+        set_audit_actor(s, None)
+        for model, row_id in zip((ReferralCommission, Candidate, ReferralAgent, User), ids):
+            if (found := s.get(model, row_id)) is not None:
+                s.delete(found)
+        s.commit()
+
+
+def race(monkeypatch, path: str, headers: dict, body: dict | None = None) -> list[int]:
+    """Two requests at once, both in before either has read the commission."""
+    barrier = threading.Barrier(2, timeout=20)
+    real = module._load_for_update
+
+    def both_in(db, commission_id):
+        barrier.wait()
+        return real(db, commission_id)
+
+    monkeypatch.setattr(module, "_load_for_update", both_in)
+    results: list[int] = []
+
+    def send() -> None:
+        with TestClient(app) as c:
+            results.append(c.post(path, headers=headers, json=body).status_code)
+
+    threads = [threading.Thread(target=send) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    return sorted(results)
+
+
+def test_two_approvals_at_once_approve_once(committed_commission, monkeypatch, sent_mail):
+    commission_id, headers = committed_commission
+    assert race(monkeypatch, f"{URL}/{commission_id}/approve", headers) == [200, 422]
+    assert [m.kind for m in sent_mail].count("referral_commission_approved") == 1
+    with Session(engine) as s:
+        updates = s.scalar(select(func.count()).select_from(AuditLog).where(AuditLog.entity_id == commission_id, AuditLog.action == "update"))
+        assert (s.get(ReferralCommission, commission_id).status, updates) == (ReferralCommissionStatus.approved, 1)
+
+
+def test_two_payments_at_once_pay_once(committed_commission, monkeypatch, sent_mail):
+    commission_id, headers = committed_commission
+    with TestClient(app) as c:
+        assert c.post(f"{URL}/{commission_id}/approve", headers=headers).status_code == 200
+    assert race(monkeypatch, f"{URL}/{commission_id}/mark-paid", headers, {"payment_reference": "BANK-RACE"}) == [200, 422]
+    assert [m.kind for m in sent_mail].count("referral_commission_paid") == 1
 
 
 def test_paying_needs_approval_first(api, db, commission):

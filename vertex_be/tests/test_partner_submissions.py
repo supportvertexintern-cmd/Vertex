@@ -6,14 +6,18 @@ and case they create, and the emails the website must send."""
 
 import re
 import secrets
+import threading
 
 import pytest
-from sqlalchemy import select, text
+from fastapi.testclient import TestClient
+from sqlalchemy import func, select, text
+from sqlalchemy.orm import Session
 
 from app.api.v1 import partner_submissions as module
 from app.api.v1.partner_submissions import DELETERS, REVIEWERS, SUBMITTERS
+from app.core.audit import set_audit_actor
 from app.core.config import BASE_DIR, settings
-from app.db.session import get_db
+from app.db.session import engine, get_db
 from app.main import app
 from app.models.audit import AuditLog
 from app.models.candidate import Application, Candidate, Document
@@ -209,6 +213,74 @@ def test_stored_passport_numbers_are_normalised_by_migration_0022(db):
     m0022.normalize(db.connection())
     db.expire_all()
     assert [db.get(Candidate, r.id).passport_number for r in rows] == [f"ZZ{tag}", f"ZZ{tag}", "  ", f"ZZ{tag}9"]
+
+
+def test_one_passport_submitted_twice_at_once_is_one_submission(monkeypatch):
+    # Upstream staging (2026-11-13): both used to find no duplicate. Committed
+    # data and two requests on their own connections, released together.
+    tag = secrets.token_hex(3)
+    with Session(engine) as s:
+        set_audit_actor(s, None)
+        region = Region(name=f"Race region {tag}")
+        s.add(region)
+        s.flush()
+        destination = Country(name=f"Raceland {tag}", region_id=region.id)
+        s.add(destination)
+        s.flush()
+        job = Job(title="Racer", country=destination.name.lower(), city="Town", job_description="d", requirements="r")
+        s.add(job)
+        user = User(full_name=f"Race partner {tag}", email=f"ps-race-{tag}@test.invalid", role=Role.partner)
+        s.add(user)
+        s.flush()
+        partner = Partner(name=f"Race Agency {tag}", partner_type=PartnerType.other, country_of_operation="Kenya", contact_name="Pat",
+                          contact_email=f"ps-race-{tag}@test.invalid", contact_phone="1", user_id=user.id)
+        s.add(partner)
+        s.commit()
+        family = add_session(s, user.id)
+        s.commit()
+        s.refresh(user)
+        headers = bearer(session_token(user.id, family.family_id, user.token_version))
+        required = sorted(k for k in s.scalars(select(DocumentRequirementType.key).where(DocumentRequirementType.is_universal.is_(True))) if not documents.is_non_programme_type(k))
+        ids = {"job": job.id, "partner": partner.id, "user": user.id, "destination": destination.id, "region": region.id}
+    world = {"job": job, "required": required}
+    body = form(world, passport_number=f"RACE{tag}".upper())
+
+    barrier = threading.Barrier(2, timeout=20)
+    real = module._finalize
+
+    def both_in(*args, **kwargs):
+        barrier.wait()
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, "_finalize", both_in)
+    results: list[int] = []
+
+    def send() -> None:
+        with TestClient(app) as c:
+            results.append(c.post(f"{URL}/partner/candidates", headers=headers, json=body).status_code)
+
+    try:
+        threads = [threading.Thread(target=send) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(30)
+        assert sorted(results) == [201, 422]
+        with Session(engine) as s:
+            assert s.scalar(select(func.count()).select_from(PartnerCandidate).where(PartnerCandidate.passport_number == body["passport_number"])) == 1
+    finally:
+        with Session(engine) as s:
+            set_audit_actor(s, None)
+            for pc in s.scalars(select(PartnerCandidate).where(PartnerCandidate.partner_id == ids["partner"])):
+                if pc.bridged_candidate_id and (candidate := s.get(Candidate, pc.bridged_candidate_id)) is not None:
+                    s.delete(candidate)
+                s.delete(pc)
+            s.flush()
+            for model, key in ((Job, "job"), (Partner, "partner"), (User, "user"), (Country, "destination"), (Region, "region")):
+                if (row := s.get(model, ids[key])) is not None:
+                    s.delete(row)
+                s.flush()
+            s.commit()
 
 
 def test_the_checks_before_anything_is_created(api, db, world):

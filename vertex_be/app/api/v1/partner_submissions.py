@@ -29,7 +29,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.api.notices import Notice, Notifying, PartnerCaseCreatedEmail, PartnerSubmissionRejectedEmail, PartnerSubmittedEmail
@@ -54,6 +54,10 @@ from app.services.case_lifecycle import open_case
 from app.services.documents import is_non_programme_type, required_types_by_country
 
 router = APIRouter()
+
+# The advisory-lock namespace for passport numbers (pg_advisory_xact_lock's
+# first key), so these locks never collide with another use of hashtext.
+PASSPORT_LOCK_SPACE = 4127
 
 # A partner, or staff entering a partner's paper-form backlog for it.
 SUBMITTERS: tuple[Role, ...] = (Role.partner, Role.hr, Role.operations_team, Role.operations_director, Role.admin)
@@ -283,6 +287,10 @@ def _finalize(db, partner: Partner, body: SubmitIn, submitted_by: str, draft: Pa
 
     # One live submission per passport, across every partner: a draft was
     # never submitted, and a rejection can be corrected and resubmitted.
+    # Locked per passport until this transaction ends (upstream staging,
+    # 2026-11-13): two submissions of one person at once both found no
+    # duplicate. The second now waits, then finds the first.
+    db.execute(text("SELECT pg_advisory_xact_lock(:space, hashtext(:passport))"), {"space": PASSPORT_LOCK_SPACE, "passport": body.passport_number})
     duplicate = select(PartnerCandidate.id).where(
         PartnerCandidate.passport_number == body.passport_number,
         PartnerCandidate.status.not_in([PartnerCandidateStatus.draft, PartnerCandidateStatus.rejected]),
