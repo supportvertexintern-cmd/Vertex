@@ -2787,6 +2787,89 @@ export interface paths {
         patch: operations["reject_api_v1_partner_candidates__submission_id__reject_patch"];
         trace?: never;
     };
+    "/api/v1/partner-follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Follow Up
+         * @description POST /api/partner-follow-ups: an action to take for the partner,
+         *     assigned to whoever records it unless they name an active colleague.
+         */
+        post: operations["add_follow_up_api_v1_partner_follow_ups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partner-follow-ups/{follow_up_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Follow Up
+         * @description PATCH /api/partner-follow-ups/[id]: done (stamped) or reopened, or
+         *     its action or due date changed. A due date sent as null clears it.
+         */
+        patch: operations["update_follow_up_api_v1_partner_follow_ups__follow_up_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/partner-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Report
+         * @description POST /api/partner-reports: a report the VA records for the partner
+         *     (partners still report over WhatsApp and email).
+         */
+        post: operations["record_report_api_v1_partner_reports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partner-reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Report
+         * @description PATCH /api/partner-reports/[id]: its status, notes or date.
+         */
+        patch: operations["update_report_api_v1_partner_reports__report_id__patch"];
+        trace?: never;
+    };
     "/api/v1/partner/candidates": {
         parameters: {
             query?: never;
@@ -3004,6 +3087,28 @@ export interface paths {
          *     emails for now (login protection G3).
          */
         post: operations["reset_password_api_v1_partners__partner_id__reset_password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/partners/{partner_id}/tracking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tracking
+         * @description GET /api/management/partners/[id]/tracking: onboarding (documents,
+         *     MOU, SLA, assigned VA), submissions by stage, first and last activity,
+         *     reports, follow-ups and the activity feed. Computed when read.
+         */
+        get: operations["tracking_api_v1_partners__partner_id__tracking_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4140,6 +4245,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/va-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Va Users
+         * @description GET /api/admin/va-users: every Virtual Assistant and how many
+         *     partners each holds (a deactivated VA may still hold some until they
+         *     are reassigned).
+         */
+        get: operations["va_users_api_v1_va_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/va/overview": {
         parameters: {
             query?: never;
@@ -4392,6 +4519,21 @@ export interface components {
             evidence?: string;
             /** Label */
             label: string;
+        };
+        /** ActivityEntry */
+        ActivityEntry: {
+            /** Action */
+            action: string;
+            /** Actor */
+            actor: string | null;
+            /** At */
+            at: string;
+            /** Entity */
+            entity: string;
+            /** Id */
+            id: string;
+            /** Summary */
+            summary: string;
         };
         /** ActivityRow */
         ActivityRow: {
@@ -5976,6 +6118,10 @@ export interface components {
         Data_FinalizedOut_: {
             data: components["schemas"]["FinalizedOut"];
         };
+        /** Data[FollowUpRow] */
+        Data_FollowUpRow_: {
+            data: components["schemas"]["FollowUpRow"];
+        };
         /** Data[IntakeReceipt] */
         Data_IntakeReceipt_: {
             data: components["schemas"]["IntakeReceipt"];
@@ -6088,10 +6234,6 @@ export interface components {
         Data_RegionOut_: {
             data: components["schemas"]["RegionOut"];
         };
-        /** Data[ReportRow] */
-        Data_ReportRow_: {
-            data: components["schemas"]["ReportRow"];
-        };
         /** Data[Restored] */
         Data_Restored_: {
             data: components["schemas"]["Restored"];
@@ -6147,6 +6289,10 @@ export interface components {
         /** Data[TemplateOut] */
         Data_TemplateOut_: {
             data: components["schemas"]["TemplateOut"];
+        };
+        /** Data[Tracking] */
+        Data_Tracking_: {
+            data: components["schemas"]["Tracking"];
         };
         /** Data[Union[list[PartnerListRow], list[PartnerName]]] */
         Data_Union_list_PartnerListRow___list_PartnerName___: {
@@ -6326,6 +6472,11 @@ export interface components {
         Data_list_VaPartnerRow__: {
             /** Data */
             data: components["schemas"]["VaPartnerRow"][];
+        };
+        /** Data[list[VaUserRow]] */
+        Data_list_VaUserRow__: {
+            /** Data */
+            data: components["schemas"]["VaUserRow"][];
         };
         /** Data[list[dict[str, Any]]] */
         Data_list_dict_str__Any___: {
@@ -6697,6 +6848,47 @@ export interface components {
             partner_id: string;
             /** Partner Name */
             partner_name: string;
+        };
+        /** FollowUpIn */
+        FollowUpIn: {
+            /** Action */
+            action: string;
+            /** Assigned Team Member */
+            assigned_team_member?: string | null;
+            /** Due At */
+            due_at?: string | null;
+            /** Partner Id */
+            partner_id: string;
+        };
+        /** FollowUpPatch */
+        FollowUpPatch: {
+            /** Action */
+            action?: string | null;
+            /** Due At */
+            due_at?: string | null;
+            /** Status */
+            status?: ("open" | "done") | null;
+        };
+        /** FollowUpRow */
+        FollowUpRow: {
+            /** Action */
+            action: string;
+            /** Assigned Team Member */
+            assigned_team_member: string | null;
+            assignee: components["schemas"]["Name"] | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Created At */
+            created_at: string;
+            /** Due At */
+            due_at: string | null;
+            /** Id */
+            id: string;
+            /** Partner Id */
+            partner_id: string;
+            status: components["schemas"]["PartnerFollowUpStatus"];
+            /** Updated At */
+            updated_at: string;
         };
         /** ForceReset */
         ForceReset: {
@@ -7263,6 +7455,11 @@ export interface components {
          * @enum {string}
          */
         MouStatus: "none" | "sent" | "signed";
+        /** Name */
+        Name: {
+            /** Full Name */
+            full_name: string;
+        };
         /** NoteIn */
         NoteIn: {
             /** Message */
@@ -7729,7 +7926,7 @@ export interface components {
         /** Page[ReportRow] */
         Page_ReportRow_: {
             /** Data */
-            data: components["schemas"]["ReportRow"][];
+            data: components["schemas"]["app__api__v1__dashboards__ReportRow"][];
             /** Page */
             page: number;
             /** Pagesize */
@@ -7987,6 +8184,11 @@ export interface components {
             user_id: string | null;
         };
         /**
+         * PartnerFollowUpStatus
+         * @enum {string}
+         */
+        PartnerFollowUpStatus: "open" | "done";
+        /**
          * PartnerListRow
          * @description A manager's row: the partner and its candidate count (Prisma's _count).
          */
@@ -8134,6 +8336,11 @@ export interface components {
             /** View Path */
             view_path: string;
         };
+        /**
+         * PartnerReportStatus
+         * @enum {string}
+         */
+        PartnerReportStatus: "pending" | "submitted" | "returned" | "closed";
         /** PartnerRow */
         PartnerRow: {
             /** Assigned Team Member Id */
@@ -8978,33 +9185,36 @@ export interface components {
          */
         ReportCycle: "daily" | "weekly" | "monthly";
         /**
-         * ReportRow
-         * @description The report as the website's report pages select it.
+         * ReportIn
+         * @description createPartnerReportSchema. Notes are required (upstream's DEF-011: an
+         *     empty report saved a blank row).
          */
-        ReportRow: {
-            /** Child Reports */
-            child_reports: components["schemas"]["_Child"][];
+        ReportIn: {
             /** Content */
-            content: {
-                [key: string]: unknown;
-            };
-            country: components["schemas"]["_Place"] | null;
-            /** Created At */
-            created_at: string;
-            /** Id */
-            id: string;
-            /** Parent Report Id */
-            parent_report_id: string | null;
+            content: string;
+            /** Partner Id */
+            partner_id: string;
             /** Period End */
-            period_end: string;
+            period_end?: string | null;
             /** Period Start */
-            period_start: string;
-            /** Return Reason */
-            return_reason: string | null;
-            scope_level: components["schemas"]["ScopeLevel"];
-            status: components["schemas"]["ReportStatus"];
-            submitter: components["schemas"]["_Person"];
-            type: components["schemas"]["ReportCycle"];
+            period_start?: string | null;
+            /** Reported At */
+            reported_at?: string | null;
+            /**
+             * Status
+             * @default submitted
+             * @enum {string}
+             */
+            status: "pending" | "submitted" | "returned" | "closed";
+        };
+        /** ReportPatch */
+        ReportPatch: {
+            /** Content */
+            content?: string | null;
+            /** Reported At */
+            reported_at?: string | null;
+            /** Status */
+            status?: ("pending" | "submitted" | "returned" | "closed") | null;
         };
         /**
          * ReportStatus
@@ -9464,6 +9674,25 @@ export interface components {
             /** Synced Amount Gbp */
             synced_amount_gbp: number | null;
         };
+        /** Stats */
+        Stats: {
+            /** Approved */
+            approved: number;
+            /** First Activity At */
+            first_activity_at: string | null;
+            /** Initiated */
+            initiated: number;
+            /** Last Activity At */
+            last_activity_at: string | null;
+            /** Registered */
+            registered: number;
+            /** Rejected Or Withdrawn */
+            rejected_or_withdrawn: number;
+            /** Submitted */
+            submitted: number;
+            /** Under Review */
+            under_review: number;
+        };
         /**
          * StatusIn
          * @description updateCandidateStatusSchema.
@@ -9776,6 +10005,36 @@ export interface components {
             /** Temporarypassword */
             temporaryPassword: string;
         };
+        /** TrackedPartner */
+        TrackedPartner: {
+            assigned_team_member: components["schemas"]["Person"] | null;
+            /** Assigned Team Member Id */
+            assigned_team_member_id: string | null;
+            /** Documents Submitted At */
+            documents_submitted_at: string | null;
+            /** Id */
+            id: string;
+            /** Mou Signed At */
+            mou_signed_at: string | null;
+            mou_status: components["schemas"]["MouStatus"];
+            /** Name */
+            name: string;
+            /** Sla Signed At */
+            sla_signed_at: string | null;
+            sla_status: components["schemas"]["SlaStatus"];
+            status: components["schemas"]["PartnerStatus"];
+        };
+        /** Tracking */
+        Tracking: {
+            /** Activity */
+            activity: components["schemas"]["ActivityEntry"][];
+            /** Follow Ups */
+            follow_ups: components["schemas"]["FollowUpRow"][];
+            partner: components["schemas"]["TrackedPartner"];
+            /** Reports */
+            reports: components["schemas"]["app__api__v1__partner_tracking__ReportRow"][];
+            stats: components["schemas"]["Stats"];
+        };
         /** UnlockIn */
         UnlockIn: {
             /** Reason */
@@ -9831,6 +10090,26 @@ export interface components {
             status: string;
             /** Submissions */
             submissions: number;
+        };
+        /** VaUserRow */
+        VaUserRow: {
+            /** Created At */
+            created_at: string;
+            /** Email */
+            email: string;
+            /** Email Verified */
+            email_verified: boolean;
+            /** Full Name */
+            full_name: string;
+            /** Id */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Partners Assigned
+             * @description Partners this VA is responsible for
+             */
+            partners_assigned: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -10044,6 +10323,35 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /**
+         * ReportRow
+         * @description The report as the website's report pages select it.
+         */
+        app__api__v1__dashboards__ReportRow: {
+            /** Child Reports */
+            child_reports: components["schemas"]["_Child"][];
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            };
+            country: components["schemas"]["_Place"] | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Parent Report Id */
+            parent_report_id: string | null;
+            /** Period End */
+            period_end: string;
+            /** Period Start */
+            period_start: string;
+            /** Return Reason */
+            return_reason: string | null;
+            scope_level: components["schemas"]["ScopeLevel"];
+            status: components["schemas"]["ReportStatus"];
+            submitter: components["schemas"]["_Person"];
+            type: components["schemas"]["ReportCycle"];
+        };
         /** VerifyIn */
         app__api__v1__documents__VerifyIn: {
             /**
@@ -10129,6 +10437,8 @@ export interface components {
          *     business_registration_number and notes may be cleared with null.
          */
         app__api__v1__partner_agencies__UpdateIn: {
+            /** Assigned Team Member Id */
+            assigned_team_member_id?: string | null;
             /** Business Registration Number */
             business_registration_number?: string | null;
             /** Contact Email */
@@ -10139,12 +10449,15 @@ export interface components {
             contact_phone?: string | null;
             /** Country Of Operation */
             country_of_operation?: string | null;
+            /** Documents Submitted */
+            documents_submitted?: boolean | null;
             mou_status?: components["schemas"]["MouStatus"] | null;
             /** Name */
             name?: string | null;
             /** Notes */
             notes?: string | null;
             partner_type?: components["schemas"]["PartnerType"] | null;
+            sla_status?: components["schemas"]["SlaStatus"] | null;
             status?: components["schemas"]["PartnerStatus"] | null;
         };
         /**
@@ -10365,6 +10678,29 @@ export interface components {
              */
             willing_to_start_within_30_days: boolean;
         };
+        /** ReportRow */
+        app__api__v1__partner_tracking__ReportRow: {
+            /** Content */
+            content: unknown;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Partner Id */
+            partner_id: string;
+            /** Period End */
+            period_end: string | null;
+            /** Period Start */
+            period_start: string | null;
+            /** Reported At */
+            reported_at: string;
+            status: components["schemas"]["PartnerReportStatus"];
+            /** Submitted By */
+            submitted_by: string | null;
+            submitter: components["schemas"]["Name"] | null;
+            /** Updated At */
+            updated_at: string;
+        };
         /** SectorIn */
         app__api__v1__reference__SectorIn: {
             /** Name */
@@ -10489,6 +10825,14 @@ export interface components {
         /** Data[Removed] */
         app__core__api__Data_Removed___2: {
             data: components["schemas"]["app__api__v1__users__Removed"];
+        };
+        /** Data[ReportRow] */
+        app__core__api__Data_ReportRow___1: {
+            data: components["schemas"]["app__api__v1__dashboards__ReportRow"];
+        };
+        /** Data[ReportRow] */
+        app__core__api__Data_ReportRow___2: {
+            data: components["schemas"]["app__api__v1__partner_tracking__ReportRow"];
         };
         /** Data[SectorOut] */
         app__core__api__Data_SectorOut___1: {
@@ -15427,6 +15771,142 @@ export interface operations {
             };
         };
     };
+    add_follow_up_api_v1_partner_follow_ups_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowUpIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_FollowUpRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_follow_up_api_v1_partner_follow_ups__follow_up_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                follow_up_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FollowUpPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_FollowUpRow_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_report_api_v1_partner_reports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__api__Data_ReportRow___2"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_report_api_v1_partner_reports__report_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__api__Data_ReportRow___2"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     partner_submissions_api_v1_partner_candidates_get: {
         parameters: {
             query?: never;
@@ -15872,6 +16352,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Notifying_LoginAddress_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tracking_api_v1_partners__partner_id__tracking_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                partner_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_Tracking_"];
                 };
             };
             /** @description Validation Error */
@@ -17021,7 +17532,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Data_ReportRow_"];
+                    "application/json": components["schemas"]["app__core__api__Data_ReportRow___1"];
                 };
             };
             /** @description Validation Error */
@@ -17910,6 +18421,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    va_users_api_v1_va_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_VaUserRow__"];
                 };
             };
         };
