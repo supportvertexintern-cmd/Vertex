@@ -11,12 +11,13 @@ Vertex is an international recruitment and worker-mobility platform. It replaces
 - Reporting, KPI targets, campaigns, exceptions, and scorecards.
 - Work-permit, visa, payment, contract, departure, and retention case management.
 
-The repository contains two projects:
+The repository contains three application components:
 
-1. `vertex/` is the implemented web platform.
-2. `vertex_app/` is a Flutter multi-platform scaffold that currently contains the default counter example, not a connected Vertex mobile application.
+1. `vertex/` is the Next.js web application.
+2. `vertex_be/` is the FastAPI backend and owner of application data.
+3. `vertex_app/` is a Flutter client with app navigation, screens, tests, and API integrations; some routes are placeholders and some data stores remain local/mock implementations.
 
-The web application is the production product. It is a Next.js App Router application with React and TypeScript on the frontend and backend, PostgreSQL behind the FastAPI backend (`vertex_be`), JWT authentication, role-based access control, private Cloudflare R2 document storage, email notifications, Stripe and PayPal payments, and Vitest/Playwright tests.
+The web application is a Next.js 16 App Router application with React 19 and TypeScript. It uses FastAPI (`vertex_be`) for application data and PostgreSQL persistence, JWT authentication, role-based access control, private S3-compatible object storage, email notifications, Stripe and PayPal payments, and Vitest/Playwright tests.
 
 ## 2. Repository Map
 
@@ -33,13 +34,17 @@ Vertex/
 │   ├── docs/                         Product, architecture, operations, and deployment docs
 │   ├── package.json                  Scripts and dependencies
 │   ├── next.config.ts                Next.js security/build configuration
-│   ├── build-cpanel.mjs              cPanel standalone packaging script
+│   ├── build-cpanel.mjs              Standalone packaging utility
 │   ├── proxy.ts                      Authentication and portal redirects
 │   └── configuration files            TypeScript, ESLint, Tailwind/PostCSS, Vitest, Playwright
-└── vertex_app/                       Flutter application scaffold
-    ├── lib/main.dart                 Default Flutter counter application
-    ├── test/widget_test.dart          Default counter widget test
-    └── platform folders               Android, iOS, web, Windows, macOS, and Linux runners
+├── vertex_be/                        FastAPI backend and database owner
+│   ├── app/                           API, services, models, and configuration
+│   ├── alembic/                       Database migration history
+│   └── tests/                         Backend tests
+└── vertex_app/                        Flutter client
+    ├── lib/                            App, presentation, data, and core layers
+    ├── test/                           Flutter tests
+    └── platform folders                Android, iOS, web, Windows, macOS, and Linux runners
 ```
 
 ## 3. Runtime Architecture
@@ -59,7 +64,7 @@ Route handlers under src/app/api
           +--> FastAPI (callBackend)
                     |
                     +--> PostgreSQL
-                    +--> Cloudflare R2 for private documents
+                    +--> S3-compatible object storage for private documents
                     +--> SMTP for email
                     +--> Stripe / PayPal for payments
                     +--> Google/OpenAI through the AI SDK for chat
@@ -229,7 +234,7 @@ Shared components provide reusable UI and keep route pages focused on compositio
 - `api-auth.ts`: authenticated API request helpers and current-user resolution.
 - `rbac.ts`: central role permissions, portal access, and role home paths.
 - `audit.ts`: records security events through FastAPI.
-- `upload.ts`: R2 storage, MIME and size validation, private file handling, and signed access.
+- `upload.ts`: S3-compatible object storage, MIME and size validation, private file handling, and signed access.
 - `validations.ts`: Zod request and form schemas.
 - `candidateLifecycleStatus.ts`, `partnerCandidateStatus.ts`, `documentTypes.ts`: domain status and document definitions.
 - `reportPeriods.ts`, `reportTemplates.ts`: reporting periods and role/cadence-specific report shapes.
@@ -320,7 +325,7 @@ The schema uses enums for roles, statuses, report cycles, case stages, payment s
 - Portal access is checked at the proxy and API/service layers.
 - Row-level scope prevents users from reading unrelated candidates, cases, reports, or partner data.
 - Public mutating endpoints are rate limited.
-- Documents are stored privately in Cloudflare R2 and read through short-lived signed tokens, never permanent public URLs.
+- Documents are stored privately in S3-compatible object storage and read through short-lived signed tokens, never permanent public URLs.
 - MIME type and file-size checks protect the upload path.
 - Security headers include frame protection, MIME sniffing protection, strict referrer policy, permissions policy, and HSTS.
 - Audit records capture actor, action, entity, and before/after state.
@@ -352,7 +357,7 @@ The portal shell carries the same brand into dense operational screens: dark nav
 
 ## 10. Configuration and Integrations
 
-- `package.json`: development, build, seed, lint, unit-test, and E2E scripts; dependencies for Next.js, React, payments, AI, email, uploads, icons, animation, and testing.
+- `package.json`: development, build, lint, unit-test, and E2E scripts; dependencies for Next.js, React, payments, AI, uploads, icons, animation, and testing.
 - `tsconfig.json`: TypeScript compiler and `@/*` source alias.
 - `eslint.config.mjs`: ESLint rules.
 - `postcss.config.mjs`: Tailwind/PostCSS integration.
@@ -360,16 +365,15 @@ The portal shell carries the same brand into dense operational screens: dark nav
 - `playwright.config.ts`: Chromium E2E configuration, web server, and test setup.
 - `next-env.d.ts`: generated Next.js type declarations.
 - `next.config.ts`: security response headers and self-hosted standalone output behavior.
-- `vercel.json`: legacy/interim Vercel region configuration; cPanel is the documented production target.
-- `build-cpanel.mjs`: builds the standalone app, relocates static assets for Passenger, and creates `app.js`.
-- `probe.js`: legacy diagnostic file; it is excluded from deployment and should not contain live credentials.
+- `vercel.json`: deployment configuration retained in the web project; consult active workflows and deployment documentation for the current release process.
+- `build-cpanel.mjs`: standalone packaging utility; its presence does not define the active deployment target.
 
 External integrations are isolated behind library modules:
 
-- SMTP/Nodemailer for transactional email.
+- SMTP for transactional email.
 - Stripe for checkout, payment links, prices, and webhooks.
 - PayPal for supported candidate payments.
-- Cloudflare R2 through the AWS S3 client for document storage and backup.
+- S3-compatible object storage through the AWS S3 client for private documents.
 - Google Gemini/OpenAI through the Vercel AI SDK for chat.
 - Google OAuth backend support for account authentication.
 
@@ -378,39 +382,37 @@ External integrations are isolated behind library modules:
 - **Unit tests:** `src/lib` and `src/server/services` cover RBAC, scopes, lifecycle rules, fees, upload validation, screening, document completeness, reports, cases, KPIs, exceptions, scorecards, and payment behavior.
 - **Integration tests:** validate service interactions such as cases, document completeness, and KPI aggregation.
 - **Playwright E2E:** `e2e/candidate-lifecycle.spec.ts`, `case-lifecycle.spec.ts`, `partner-crm.spec.ts`, `rbac.spec.ts`, `report-workflow.spec.ts`, and `self-application.spec.ts` exercise complete browser workflows.
-- **Flutter test:** `vertex_app/test/widget_test.dart` currently tests the generated counter app and does not cover Vertex behavior.
+- **Flutter tests:** `vertex_app/test/` covers client authentication, exception filtering, fee policy, management screens, and widget behavior.
 
 Common web commands from `vertex/`:
 
 ```bash
-npm install
+npm ci
 npm run dev
 npm run lint
-npm run test
+npm test
+npx tsc --noEmit
 npm run test:e2e
 npm run build
-npm run db:seed
 ```
 
-The website has no database setup. For a new database, run the backend's `alembic upgrade head`, then `python -m scripts.seed.reference`.
+The website has no database setup or seed command. The backend owns migrations
+and seeding; see `vertex_be/deploy/README.md` for the supported environment and
+test procedures. The local integration scripts require Docker and Git Bash.
 
 ## 12. Deployment
 
-The current production deployment target is cPanel Node hosting with Passenger:
-
-1. Run `node build-cpanel.mjs` from `vertex/`.
-2. Upload the generated standalone package without `.env`.
-3. Set environment variables in cPanel, including database, JWT, SMTP, payment, R2, AI, and rate-limit settings.
-4. Configure `app.js` as the Passenger startup file.
-5. Restart the application and verify CSS/static assets, login, database access, uploads, and payments.
-
-The app uses `output: 'standalone'` so it can run as a self-hosted Node process. Older README/PRD text mentions Vercel, but the dedicated cPanel deployment guide and current storage architecture are the authoritative production path.
+CI builds the application images and the repository's deployment workflows
+control promotion and deployment. See `vertex_be/deploy/README.md` and
+`.github/workflows/`; workflow controls take precedence over older deployment
+references in this guide. Do not infer the active production target from the
+presence of the cPanel packaging utility or `vercel.json`.
 
 ## 13. Current Status and Boundaries
 
 Implemented web capabilities are broad and cover the full recruitment-to-mobility workflow. The following boundaries are important when explaining the repository:
 
-- The Flutter project is not yet a mobile client; it is generated platform scaffolding plus the default counter screen.
+- The Flutter client has app flows and API integrations, but some data stores remain mock implementations; consult its source before assuming a workflow is fully backend-connected.
 - `docs/PLATFORM_ARCHITECTURE.md` is a delivery plan and contains superseded decisions. Use the backend's models and the implementation files for current behavior.
 - The public forms can be configured for CRM persistence or notification-email intake through admin settings.
 - Partner candidates intentionally use a separate pipeline from internally sourced candidates.
@@ -418,12 +420,11 @@ Implemented web capabilities are broad and cover the full recruitment-to-mobilit
 
 ## 14. Recommended Reading Order
 
-1. `README.md` for the shortest setup path.
-2. `docs/PRD.md` for business requirements and user workflows.
-3. `prisma/schema.prisma` for the authoritative data model.
-4. `src/lib/rbac.ts` and `src/proxy.ts` for access control.
-5. `src/server/scope.ts` for row-level authorization.
-6. `src/server/services/` for domain behavior.
-7. `src/app/` and `src/components/portal/` for user interfaces.
-8. `docs/CPANEL_DEPLOYMENT.md` for production operations.
-9. `e2e/` and service tests for executable workflow examples.
+1. `vertex/docs/SOURCE_AUTHORITY.md` for evidence hierarchy and known limitations.
+2. The root `README.md` for repository setup and architecture.
+3. `vertex_be/app/models/` and `vertex_be/alembic/` for schema and migration authority.
+4. `vertex/src/lib/rbac.ts` and `vertex/src/proxy.ts` for web access control.
+5. `vertex/src/server/scope.ts` and `vertex/src/server/services/` for web authorization and domain behavior.
+6. `vertex/src/app/` and `vertex/src/components/portal/` for web interfaces.
+7. `vertex_be/deploy/README.md` and `.github/workflows/` for operational procedures and active release controls.
+8. The relevant tests under `vertex_be/tests/`, `vertex/src/`, `vertex/e2e/`, and `vertex_app/test/`.

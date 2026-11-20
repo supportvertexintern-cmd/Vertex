@@ -3,11 +3,12 @@
 A modern, full-stack recruitment platform built for international job placements.
 
 ## Tech Stack
-- **Frontend:** Next.js 14, React, TypeScript, TailwindCSS v4
+- **Frontend:** Next.js 16, React 19, TypeScript, TailwindCSS v4
 - **Backend:** FastAPI (`vertex_be`); the Next.js API routes check the session and pass requests on
 - **Database:** PostgreSQL, owned by FastAPI (SQLAlchemy models, Alembic migrations)
 - **Authentication:** Custom JWT-based auth + bcrypt hashing
-- **Email:** Nodemailer (SMTP)
+- **Email:** SMTP
+- **File storage:** Private S3-compatible object storage
 - **Validation:** Zod
 
 ## Local Setup Instructions
@@ -41,8 +42,7 @@ Files\Git\bin\bash.exe" -c "cd '/d/Django Projects/vertex_main/vertex_be' && ...
    | pgAdmin (on demand, below) | http://localhost:5050 |
 
 3. **Seed** (on a new database): reference data (regions, countries,
-   sectors, job programmes) and one test account per role, e.g.
-   `admin@test.local`, all with password `TestPassword123!`.
+   sectors, job programmes) and development test accounts.
    ```bash
    ENV_FILE=.env.dev sh deploy/seed-dev.sh vertex-dev
    ```
@@ -65,26 +65,23 @@ swaps the stack's backend for your working tree with live reload (see that
 file). `bash deploy/verify-stack.sh dev` (from `vertex_be/deploy`) checks the
 stack's security conditions.
 
-Tests run against throwaway databases, never this stack:
+Tests run against throwaway databases and services, not this stack:
 `vertex_be/scripts/test.sh`, `vertex/scripts/test.sh` (Vitest) and
 `vertex/scripts/test-e2e.sh` (Playwright).
 
 ## Project Architecture
-- `src/app/*`: Next.js App Router pages and layouts.
-- `src/app/api/*`: Backend REST API routes.
-- `src/components/*`: Reusable React components (Navbar, Footer).
-- `src/lib/*`: Core utilities (the FastAPI client, JWT, Auth, Rate limiting, File upload).
+- `vertex/`: Next.js web application and Flutter web client is under `vertex_app/`.
+- `vertex_be/`: FastAPI application, SQLAlchemy models, and Alembic migrations.
+- `vertex_app/`: Flutter client that consumes the backend API.
+- The backend owns PostgreSQL access and application schema; web and mobile clients use APIs.
 
 ## Deployment
 
-**Frontend (Vercel)**
-- Push the code to GitHub.
-- Connect the repository to Vercel.
-- Add all environment variables (including `DATABASE_URL`) to Vercel's Edge Environment settings.
-
-**Database (PostgreSQL)**
-- The schema comes from the backend's Alembic migrations; see `vertex_be/deploy/README.md`.
-- Paste the connection string into the `DATABASE_URL` environment variable. Never commit it (see `docs/secrets.md`).
+The active CI, image build, promotion, and deployment process is documented in
+[`vertex_be/deploy/README.md`](vertex_be/deploy/README.md) and implemented in
+[`.github/workflows/`](.github/workflows/). Follow those controls; do not treat
+this README as authorization to deploy or promote a release.
 
 ## Notes
-- **File Uploads:** Uploads are stored locally in `public/uploads/` by default. For production (e.g., Vercel), you must change this to use AWS S3, Cloudinary, or Vercel Blob, as Vercel's filesystem is read-only and ephemeral.
+- For source hierarchy and known documentation limitations, see
+  [`vertex/docs/SOURCE_AUTHORITY.md`](vertex/docs/SOURCE_AUTHORITY.md).
