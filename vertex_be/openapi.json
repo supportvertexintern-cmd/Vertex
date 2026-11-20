@@ -708,6 +708,51 @@
     "title": "AchievementRow",
     "type": "object"
    },
+   "ActivityEntry": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "actor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor"
+     },
+     "at": {
+      "title": "At",
+      "type": "string"
+     },
+     "entity": {
+      "title": "Entity",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "at",
+     "actor",
+     "action",
+     "entity",
+     "summary"
+    ],
+    "title": "ActivityEntry",
+    "type": "object"
+   },
    "ActivityRow": {
     "properties": {
      "action_completed": {
@@ -6202,6 +6247,18 @@
     "title": "Data[FinalizedOut]",
     "type": "object"
    },
+   "Data_FollowUpRow_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/FollowUpRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[FollowUpRow]",
+    "type": "object"
+   },
    "Data_IntakeReceipt_": {
     "properties": {
      "data": {
@@ -6538,18 +6595,6 @@
     "title": "Data[RegionOut]",
     "type": "object"
    },
-   "Data_ReportRow_": {
-    "properties": {
-     "data": {
-      "$ref": "#/components/schemas/ReportRow"
-     }
-    },
-    "required": [
-     "data"
-    ],
-    "title": "Data[ReportRow]",
-    "type": "object"
-   },
    "Data_Restored_": {
     "properties": {
      "data": {
@@ -6716,6 +6761,18 @@
      "data"
     ],
     "title": "Data[TemplateOut]",
+    "type": "object"
+   },
+   "Data_Tracking_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Tracking"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Tracking]",
     "type": "object"
    },
    "Data_Union_list_PartnerListRow___list_PartnerName___": {
@@ -7280,6 +7337,22 @@
      "data"
     ],
     "title": "Data[list[VaPartnerRow]]",
+    "type": "object"
+   },
+   "Data_list_VaUserRow__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/VaUserRow"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[VaUserRow]]",
     "type": "object"
    },
    "Data_list_dict_str__Any___": {
@@ -8450,6 +8523,179 @@
      "commissions_due"
     ],
     "title": "FlaggedPartner",
+    "type": "object"
+   },
+   "FollowUpIn": {
+    "properties": {
+     "action": {
+      "maxLength": 500,
+      "minLength": 2,
+      "title": "Action",
+      "type": "string"
+     },
+     "assigned_team_member": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member"
+     },
+     "due_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due At"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "partner_id",
+     "action"
+    ],
+    "title": "FollowUpIn",
+    "type": "object"
+   },
+   "FollowUpPatch": {
+    "properties": {
+     "action": {
+      "anyOf": [
+       {
+        "maxLength": 500,
+        "minLength": 2,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Action"
+     },
+     "due_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due At"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "enum": [
+         "open",
+         "done"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     }
+    },
+    "title": "FollowUpPatch",
+    "type": "object"
+   },
+   "FollowUpRow": {
+    "properties": {
+     "action": {
+      "title": "Action",
+      "type": "string"
+     },
+     "assigned_team_member": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member"
+     },
+     "assignee": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Name"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "completed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Completed At"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "due_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerFollowUpStatus"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "partner_id",
+     "action",
+     "status",
+     "due_at",
+     "completed_at",
+     "assigned_team_member",
+     "assignee",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "FollowUpRow",
     "type": "object"
    },
    "ForceReset": {
@@ -10106,6 +10352,19 @@
     ],
     "title": "MouStatus",
     "type": "string"
+   },
+   "Name": {
+    "properties": {
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "full_name"
+    ],
+    "title": "Name",
+    "type": "object"
    },
    "NoteIn": {
     "properties": {
@@ -14179,7 +14438,7 @@
     "properties": {
      "data": {
       "items": {
-       "$ref": "#/components/schemas/ReportRow"
+       "$ref": "#/components/schemas/app__api__v1__dashboards__ReportRow"
       },
       "title": "Data",
       "type": "array"
@@ -15128,6 +15387,14 @@
     "title": "PartnerDetail",
     "type": "object"
    },
+   "PartnerFollowUpStatus": {
+    "enum": [
+     "open",
+     "done"
+    ],
+    "title": "PartnerFollowUpStatus",
+    "type": "string"
+   },
    "PartnerListRow": {
     "description": "A manager's row: the partner and its candidate count (Prisma's _count).",
     "properties": {
@@ -15601,6 +15868,16 @@
     ],
     "title": "PartnerReplyEmail",
     "type": "object"
+   },
+   "PartnerReportStatus": {
+    "enum": [
+     "pending",
+     "submitted",
+     "returned",
+     "closed"
+    ],
+    "title": "PartnerReportStatus",
+    "type": "string"
    },
    "PartnerRow": {
     "properties": {
@@ -17973,98 +18250,119 @@
     "title": "ReportCycle",
     "type": "string"
    },
-   "ReportRow": {
-    "description": "The report as the website's report pages select it.",
+   "ReportIn": {
+    "description": "createPartnerReportSchema. Notes are required (upstream's DEF-011: an\nempty report saved a blank row).",
     "properties": {
-     "child_reports": {
-      "items": {
-       "$ref": "#/components/schemas/_Child"
-      },
-      "title": "Child Reports",
-      "type": "array"
-     },
      "content": {
-      "additionalProperties": true,
+      "maxLength": 10000,
+      "minLength": 2,
       "title": "Content",
-      "type": "object"
-     },
-     "country": {
-      "anyOf": [
-       {
-        "$ref": "#/components/schemas/_Place"
-       },
-       {
-        "type": "null"
-       }
-      ]
-     },
-     "created_at": {
-      "title": "Created At",
       "type": "string"
      },
-     "id": {
-      "title": "Id",
+     "partner_id": {
+      "title": "Partner Id",
       "type": "string"
-     },
-     "parent_report_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Parent Report Id"
      },
      "period_end": {
-      "title": "Period End",
-      "type": "string"
-     },
-     "period_start": {
-      "title": "Period Start",
-      "type": "string"
-     },
-     "return_reason": {
       "anyOf": [
        {
+        "format": "date-time",
         "type": "string"
        },
        {
         "type": "null"
        }
       ],
-      "title": "Return Reason"
+      "title": "Period End"
      },
-     "scope_level": {
-      "$ref": "#/components/schemas/ScopeLevel"
+     "period_start": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period Start"
+     },
+     "reported_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reported At"
      },
      "status": {
-      "$ref": "#/components/schemas/ReportStatus"
-     },
-     "submitter": {
-      "$ref": "#/components/schemas/_Person"
-     },
-     "type": {
-      "$ref": "#/components/schemas/ReportCycle"
+      "default": "submitted",
+      "enum": [
+       "pending",
+       "submitted",
+       "returned",
+       "closed"
+      ],
+      "title": "Status",
+      "type": "string"
      }
     },
     "required": [
-     "id",
-     "type",
-     "scope_level",
-     "status",
-     "period_start",
-     "period_end",
-     "return_reason",
-     "content",
-     "submitter",
-     "country",
-     "parent_report_id",
-     "child_reports",
-     "created_at"
+     "partner_id",
+     "content"
     ],
-    "title": "ReportRow",
+    "title": "ReportIn",
+    "type": "object"
+   },
+   "ReportPatch": {
+    "properties": {
+     "content": {
+      "anyOf": [
+       {
+        "maxLength": 10000,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Content"
+     },
+     "reported_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reported At"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "enum": [
+         "pending",
+         "submitted",
+         "returned",
+         "closed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     }
+    },
+    "title": "ReportPatch",
     "type": "object"
    },
    "ReportStatus": {
@@ -19525,6 +19823,68 @@
     "title": "StagePriceOut",
     "type": "object"
    },
+   "Stats": {
+    "properties": {
+     "approved": {
+      "title": "Approved",
+      "type": "integer"
+     },
+     "first_activity_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Activity At"
+     },
+     "initiated": {
+      "title": "Initiated",
+      "type": "integer"
+     },
+     "last_activity_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Activity At"
+     },
+     "registered": {
+      "title": "Registered",
+      "type": "integer"
+     },
+     "rejected_or_withdrawn": {
+      "title": "Rejected Or Withdrawn",
+      "type": "integer"
+     },
+     "submitted": {
+      "title": "Submitted",
+      "type": "integer"
+     },
+     "under_review": {
+      "title": "Under Review",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "registered",
+     "initiated",
+     "submitted",
+     "under_review",
+     "approved",
+     "rejected_or_withdrawn",
+     "first_activity_at",
+     "last_activity_at"
+    ],
+    "title": "Stats",
+    "type": "object"
+   },
    "StatusIn": {
     "description": "updateCandidateStatusSchema.",
     "properties": {
@@ -20872,6 +21232,135 @@
     "title": "TemporaryPassword",
     "type": "object"
    },
+   "TrackedPartner": {
+    "properties": {
+     "assigned_team_member": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
+     "documents_submitted_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Documents Submitted At"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mou Signed At"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sla_signed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sla Signed At"
+     },
+     "sla_status": {
+      "$ref": "#/components/schemas/SlaStatus"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status",
+     "mou_status",
+     "mou_signed_at",
+     "sla_status",
+     "sla_signed_at",
+     "documents_submitted_at",
+     "assigned_team_member_id",
+     "assigned_team_member"
+    ],
+    "title": "TrackedPartner",
+    "type": "object"
+   },
+   "Tracking": {
+    "properties": {
+     "activity": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityEntry"
+      },
+      "title": "Activity",
+      "type": "array"
+     },
+     "follow_ups": {
+      "items": {
+       "$ref": "#/components/schemas/FollowUpRow"
+      },
+      "title": "Follow Ups",
+      "type": "array"
+     },
+     "partner": {
+      "$ref": "#/components/schemas/TrackedPartner"
+     },
+     "reports": {
+      "items": {
+       "$ref": "#/components/schemas/app__api__v1__partner_tracking__ReportRow"
+      },
+      "title": "Reports",
+      "type": "array"
+     },
+     "stats": {
+      "$ref": "#/components/schemas/Stats"
+     }
+    },
+    "required": [
+     "partner",
+     "stats",
+     "reports",
+     "follow_ups",
+     "activity"
+    ],
+    "title": "Tracking",
+    "type": "object"
+   },
    "UnlockIn": {
     "properties": {
      "reason": {
@@ -21032,6 +21521,50 @@
      "submissions"
     ],
     "title": "VaPartnerRow",
+    "type": "object"
+   },
+   "VaUserRow": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "email": {
+      "title": "Email",
+      "type": "string"
+     },
+     "email_verified": {
+      "title": "Email Verified",
+      "type": "boolean"
+     },
+     "full_name": {
+      "title": "Full Name",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "is_active": {
+      "title": "Is Active",
+      "type": "boolean"
+     },
+     "partners_assigned": {
+      "description": "Partners this VA is responsible for",
+      "title": "Partners Assigned",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "full_name",
+     "email",
+     "email_verified",
+     "is_active",
+     "created_at",
+     "partners_assigned"
+    ],
+    "title": "VaUserRow",
     "type": "object"
    },
    "ValidationError": {
@@ -21922,6 +22455,100 @@
     "title": "RejectIn",
     "type": "object"
    },
+   "app__api__v1__dashboards__ReportRow": {
+    "description": "The report as the website's report pages select it.",
+    "properties": {
+     "child_reports": {
+      "items": {
+       "$ref": "#/components/schemas/_Child"
+      },
+      "title": "Child Reports",
+      "type": "array"
+     },
+     "content": {
+      "additionalProperties": true,
+      "title": "Content",
+      "type": "object"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/_Place"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "parent_report_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Parent Report Id"
+     },
+     "period_end": {
+      "title": "Period End",
+      "type": "string"
+     },
+     "period_start": {
+      "title": "Period Start",
+      "type": "string"
+     },
+     "return_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Return Reason"
+     },
+     "scope_level": {
+      "$ref": "#/components/schemas/ScopeLevel"
+     },
+     "status": {
+      "$ref": "#/components/schemas/ReportStatus"
+     },
+     "submitter": {
+      "$ref": "#/components/schemas/_Person"
+     },
+     "type": {
+      "$ref": "#/components/schemas/ReportCycle"
+     }
+    },
+    "required": [
+     "id",
+     "type",
+     "scope_level",
+     "status",
+     "period_start",
+     "period_end",
+     "return_reason",
+     "content",
+     "submitter",
+     "country",
+     "parent_report_id",
+     "child_reports",
+     "created_at"
+    ],
+    "title": "ReportRow",
+    "type": "object"
+   },
    "app__api__v1__documents__VerifyIn": {
     "properties": {
      "verification_status": {
@@ -22145,6 +22772,17 @@
    "app__api__v1__partner_agencies__UpdateIn": {
     "description": "updatePartnerSchema: a field left out is left alone. Only\nbusiness_registration_number and notes may be cleared with null.",
     "properties": {
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
      "business_registration_number": {
       "anyOf": [
        {
@@ -22207,6 +22845,17 @@
       ],
       "title": "Country Of Operation"
      },
+     "documents_submitted": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Documents Submitted"
+     },
      "mou_status": {
       "anyOf": [
        {
@@ -22246,6 +22895,16 @@
       "anyOf": [
        {
         "$ref": "#/components/schemas/PartnerType"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "sla_status": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SlaStatus"
        },
        {
         "type": "null"
@@ -23292,6 +23951,94 @@
     "title": "SubmitIn",
     "type": "object"
    },
+   "app__api__v1__partner_tracking__ReportRow": {
+    "properties": {
+     "content": {
+      "title": "Content"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "period_end": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period End"
+     },
+     "period_start": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period Start"
+     },
+     "reported_at": {
+      "title": "Reported At",
+      "type": "string"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerReportStatus"
+     },
+     "submitted_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Submitted By"
+     },
+     "submitter": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Name"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "partner_id",
+     "status",
+     "reported_at",
+     "period_start",
+     "period_end",
+     "content",
+     "submitted_by",
+     "submitter",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "ReportRow",
+    "type": "object"
+   },
    "app__api__v1__reference__SectorIn": {
     "properties": {
      "name": {
@@ -23670,6 +24417,30 @@
      "data"
     ],
     "title": "Data[Removed]",
+    "type": "object"
+   },
+   "app__core__api__Data_ReportRow___1": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__dashboards__ReportRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ReportRow]",
+    "type": "object"
+   },
+   "app__core__api__Data_ReportRow___2": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__partner_tracking__ReportRow"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[ReportRow]",
     "type": "object"
    },
    "app__core__api__Data_SectorOut___1": {
@@ -33311,6 +34082,216 @@
     ]
    }
   },
+  "/api/v1/partner-follow-ups": {
+   "post": {
+    "description": "POST /api/partner-follow-ups: an action to take for the partner,\nassigned to whoever records it unless they name an active colleague.",
+    "operationId": "add_follow_up_api_v1_partner_follow_ups_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FollowUpIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_FollowUpRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Add Follow Up",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-follow-ups/{follow_up_id}": {
+   "patch": {
+    "description": "PATCH /api/partner-follow-ups/[id]: done (stamped) or reopened, or\nits action or due date changed. A due date sent as null clears it.",
+    "operationId": "update_follow_up_api_v1_partner_follow_ups__follow_up_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "follow_up_id",
+      "required": true,
+      "schema": {
+       "title": "Follow Up Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FollowUpPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_FollowUpRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Update Follow Up",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-reports": {
+   "post": {
+    "description": "POST /api/partner-reports: a report the VA records for the partner\n(partners still report over WhatsApp and email).",
+    "operationId": "record_report_api_v1_partner_reports_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReportIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__core__api__Data_ReportRow___2"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Record Report",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/partner-reports/{report_id}": {
+   "patch": {
+    "description": "PATCH /api/partner-reports/[id]: its status, notes or date.",
+    "operationId": "update_report_api_v1_partner_reports__report_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "report_id",
+      "required": true,
+      "schema": {
+       "title": "Report Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReportPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/app__core__api__Data_ReportRow___2"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Update Report",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
   "/api/v1/partner/candidates": {
    "get": {
     "description": "The partner's submissions, newest first, each flagged when a document\nwas rejected or the last message came from Vertex's side.",
@@ -33993,6 +34974,54 @@
     "summary": "Reset Password",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/partners/{partner_id}/tracking": {
+   "get": {
+    "description": "GET /api/management/partners/[id]/tracking: onboarding (documents,\nMOU, SLA, assigned VA), submissions by stage, first and last activity,\nreports, follow-ups and the activity feed. Computed when read.",
+    "operationId": "tracking_api_v1_partners__partner_id__tracking_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Tracking_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Tracking",
+    "tags": [
+     "virtual assistants"
     ]
    }
   },
@@ -35918,7 +36947,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/Data_ReportRow_"
+         "$ref": "#/components/schemas/app__core__api__Data_ReportRow___1"
         }
        }
       },
@@ -37404,6 +38433,33 @@
     "summary": "Resend Setup Email",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/va-users": {
+   "get": {
+    "description": "GET /api/admin/va-users: every Virtual Assistant and how many\npartners each holds (a deactivated VA may still hold some until they\nare reassigned).",
+    "operationId": "va_users_api_v1_va_users_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_VaUserRow__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Va Users",
+    "tags": [
+     "virtual assistants"
     ]
    }
   },

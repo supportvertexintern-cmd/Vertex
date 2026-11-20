@@ -120,9 +120,16 @@ class UpdateIn(BaseModel):
     status: PartnerStatus | None = None
     mou_status: MouStatus | None = None
     notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    # Phase 6 onboarding (upstream staging, 2026-11-05): the SLA, whether the
+    # onboarding documents are in (a flag; documents_submitted_at is stamped
+    # the first time and cleared with false), and the responsible VA (an
+    # active user; null unassigns).
+    sla_status: SlaStatus | None = None
+    documents_submitted: bool | None = None
+    assigned_team_member_id: str | None = None
 
 
-NULLABLE = {"business_registration_number", "notes"}
+NULLABLE = {"business_registration_number", "notes", "assigned_team_member_id"}
 
 
 class LoginIn(BaseModel):
@@ -335,8 +342,21 @@ def update_partner(partner_id: str, body: UpdateIn, manager: Manager, request: R
     if login is not None and db.scalar(select(exists().where(User.email == changes["contact_email"], User.id != login.id))):
         raise _duplicate()
 
-    if changes.get("mou_status") is MouStatus.signed and partner.mou_status is not MouStatus.signed:
-        partner.mou_signed_at = utc_now_ms()
+    if changes.get("assigned_team_member_id"):
+        member = db.get(User, changes["assigned_team_member_id"])
+        if member is None or member.deactivated_at is not None:
+            raise ApiError(422, "validation_error", "Assigned team member must be an active user.")
+    # Signing stamps the date; moving away from signed clears it (upstream's
+    # DEF-003: the old date stayed on screen after a revert).
+    for field, stamp, signed in (("mou_status", "mou_signed_at", MouStatus.signed), ("sla_status", "sla_signed_at", SlaStatus.signed)):
+        if field in changes:
+            if changes[field] is signed and getattr(partner, field) is not signed:
+                setattr(partner, stamp, utc_now_ms())
+            elif changes[field] is not signed:
+                setattr(partner, stamp, None)
+    if "documents_submitted" in changes:
+        submitted = changes.pop("documents_submitted")
+        partner.documents_submitted_at = (partner.documents_submitted_at or utc_now_ms()) if submitted else None
     for field, value in changes.items():
         setattr(partner, field, value)
     notify: list[Notice] = []

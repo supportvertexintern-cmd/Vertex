@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import PortalShell from "@/components/portal/PortalShell";
 import { VA_NAV_ITEMS } from "@/components/portal/vaNav";
@@ -70,7 +71,9 @@ export default function VaPartnersPage() {
             <tbody>
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b border-midnight-900/5">
-                  <td className="px-4 py-3 font-semibold">{p.name}</td>
+                  <td className="px-4 py-3 font-semibold">
+                    <Link href={`/va/partners/${p.id}`} className="text-gold-700 hover:underline">{p.name}</Link>
+                  </td>
                   <td className="px-4 py-3"><span className="badge bg-midnight-100 text-midnight-800">{p.status}</span></td>
                   <td className="px-4 py-3">
                     <span className={`badge ${p.mou_status === "signed" ? "bg-emerald-100 text-emerald-800" : "bg-yellow-100 text-yellow-800"}`}>MOU {p.mou_status}</span>
