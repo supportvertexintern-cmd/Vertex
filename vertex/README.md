@@ -1,53 +1,41 @@
-# Vertex International Recruitment Platform
+# Vertex Web Application
 
-A modern, full-stack recruitment platform built for international job placements.
+The web client is a Next.js 16 App Router application using React 19 and
+TypeScript. Its server routes call the FastAPI service in `../vertex_be`; the
+backend owns application data, PostgreSQL access, and schema migrations.
 
-## Tech Stack
-- **Frontend:** Next.js 14, React, TypeScript, TailwindCSS v4
-- **Backend:** FastAPI (`vertex_be`); the Next.js API routes check the session and pass requests on
-- **Database:** PostgreSQL, owned by FastAPI (SQLAlchemy models, Alembic migrations)
-- **Authentication:** Custom JWT-based auth + bcrypt hashing
-- **Email:** Nodemailer (SMTP)
-- **Validation:** Zod
+## Local development
 
-## Local Setup Instructions
+Install dependencies and run the web development server from this directory:
 
-1. **Clone & Install**
-   ```bash
-   npm install
-   ```
+```bash
+npm ci
+npm run dev
+```
 
-2. **Environment Variables**
-   Create a `.env` file with the required values (get them from a maintainer;
-   it is gitignored and must never be committed — see `docs/secrets.md`).
+Open `http://localhost:3000`. To use API-backed features, configure the
+required environment values with a maintainer and run the FastAPI service; do
+not add database credentials or direct database access to this application.
+Keep local environment files out of version control (see
+[`../docs/secrets.md`](../docs/secrets.md)).
 
-3. **Database Setup**
-   The website has no database of its own: it calls FastAPI. Run the backend
-   (`vertex_be`), whose Alembic migrations create the tables and whose
-   `scripts/seed/` load the reference data.
+## Checks
 
-4. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
-   Open `http://localhost:3000` in your browser.
+```bash
+npm run lint
+npm test
+npx tsc --noEmit
+npm run build
+```
 
-## Project Architecture
-- `src/app/*`: Next.js App Router pages and layouts.
-- `src/app/api/*`: Backend REST API routes.
-- `src/components/*`: Reusable React components (Navbar, Footer).
-- `src/lib/*`: Core utilities (the FastAPI client, JWT, Auth, Rate limiting, File upload).
+The integration and browser-test scripts use disposable local services and
+require Docker and Git Bash:
 
-## Deployment
+```bash
+sh scripts/test.sh
+sh scripts/test-e2e.sh
+```
 
-**Frontend (Vercel)**
-- Push the code to GitHub.
-- Connect the repository to Vercel.
-- Add all environment variables (including `DATABASE_URL`) to Vercel's Edge Environment settings.
-
-**Database (PostgreSQL)**
-- The schema comes from the backend's Alembic migrations; see `vertex_be/deploy/README.md`.
-- Paste the connection string into the `DATABASE_URL` environment variable. Never commit it (see `docs/secrets.md`).
-
-## Notes
-- **File Uploads:** Uploads are stored locally in `public/uploads/` by default. For production (e.g., Vercel), you must change this to use AWS S3, Cloudinary, or Vercel Blob, as Vercel's filesystem is read-only and ephemeral.
+See [`../README.md`](../README.md) for the repository overview and
+[`../vertex_be/deploy/README.md`](../vertex_be/deploy/README.md) for the
+documented deployment process.
