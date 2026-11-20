@@ -13,6 +13,15 @@ import { newNonce, NONCE_HEADER, pageCsp } from "@/lib/csp";
 // lib/csp.ts). Next.js reads the nonce from the CSP request header set
 // here and puts it on every script it renders. A client-sent CSP or nonce
 // header is always replaced, so the caller can't choose the nonce.
+//
+// API answers and portal pages are per-user: they're marked "private,
+// no-store", so no shared cache (a CDN, a corporate proxy) keeps one user's
+// answer and serves it to another, and the browser doesn't keep it either
+// (the guide's SEC-NEXT-007/008; upstream staging marked portal pages; Next.js
+// sets no Cache-Control on a route handler's answer at all). Public pages
+// are left alone.
+export const PRIVATE_CACHE_CONTROL = "private, no-store";
+
 export function proxy(req: NextRequest) {
   const requestId = resolveRequestId(req.headers.get(REQUEST_ID_HEADER));
   const isApi = req.nextUrl.pathname.startsWith("/api/");
@@ -21,6 +30,7 @@ export function proxy(req: NextRequest) {
 
   const res = route(req, requestId, csp?.request ?? {});
   res.headers.set(REQUEST_ID_HEADER, requestId);
+  if (isApi || PROTECTED_PATHS.some((p) => req.nextUrl.pathname.startsWith(p))) res.headers.set("Cache-Control", PRIVATE_CACHE_CONTROL);
   // API and other responses keep next.config.ts's static policy.
   if (csp) for (const [name, value] of Object.entries(csp.response)) res.headers.set(name, value);
   return res;

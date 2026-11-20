@@ -89,6 +89,7 @@ def test_a_body_that_is_not_json_is_400_invalid_json(as_admin):
     assert error(res)["code"] == "invalid_json"
 
 
+@pytest.mark.proves("SEC-NEXT-009", "SEC-NEXT-010")
 def test_an_unexpected_error_is_500_without_its_text_and_keeps_the_request_id(as_admin):
     res = as_admin.get("/api/v1/probe/boom", headers={"X-Request-ID": "req-boom-12345"})
     assert res.status_code == 500
