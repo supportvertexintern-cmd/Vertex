@@ -88,7 +88,7 @@ def test_the_roles_match_next_js():
         assert next_roles(route) == {r.value for r in MANAGERS}, route
 
 
-@pytest.mark.proves("SEC-AUTHZ-009")
+@pytest.mark.proves("SEC-AUTHZ-001", "SEC-AUTHZ-009")
 def test_a_va_tracks_only_its_own_partners(api, team):
     assert api.get(f"{URL}/partners/{team['hers'].id}/tracking", headers=team["as_sarah"]).status_code == 200
     refused = api.get(f"{URL}/partners/{team['his'].id}/tracking", headers=team["as_sarah"])
@@ -105,7 +105,7 @@ def test_a_refusal_is_on_the_audit_trail(api, db, team):
     assert any(team["his"].id in (d.entity_id or "") for d in denied)
 
 
-@pytest.mark.proves("SEC-AUTHZ-007")
+@pytest.mark.proves("SEC-AUTHZ-001", "SEC-AUTHZ-007")
 def test_a_va_writes_only_for_its_own_partners(api, db, team):
     # Upstream's DEF-013: viewing and creating were scoped, editing wasn't.
     theirs = PartnerReport(partner_id=team["his"].id, reported_at=utc_now_ms(), content={"notes": "His"})

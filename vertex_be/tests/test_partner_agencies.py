@@ -102,6 +102,7 @@ def test_only_managers(api, db, role):
     assert [r.status_code for r in calls] == [403] * 5
 
 
+@pytest.mark.proves("SEC-AUTHZ-003")
 def test_no_session_is_401(api):
     assert api.post(URL, json=new_agency()).status_code == 401
 
