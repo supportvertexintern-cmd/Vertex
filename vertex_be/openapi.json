@@ -3647,6 +3647,26 @@
     "title": "CandidateLifecycleStatus",
     "type": "string"
    },
+   "CandidateName": {
+    "properties": {
+     "full_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Full Name"
+     }
+    },
+    "required": [
+     "full_name"
+    ],
+    "title": "CandidateName",
+    "type": "object"
+   },
    "CandidateRow": {
     "description": "Every column, as Prisma returns a candidate row.",
     "properties": {
@@ -5140,6 +5160,16 @@
     "title": "CommissionRow",
     "type": "object"
    },
+   "CommissionStatus": {
+    "enum": [
+     "pending",
+     "approved",
+     "paid",
+     "rejected"
+    ],
+    "title": "CommissionStatus",
+    "type": "string"
+   },
    "CommissionSummary": {
     "properties": {
      "currency": {
@@ -5197,6 +5227,34 @@
      "area"
     ],
     "title": "CompetencyRow",
+    "type": "object"
+   },
+   "Compliance": {
+    "properties": {
+     "agreements_signed": {
+      "title": "Agreements Signed",
+      "type": "integer"
+     },
+     "applications_started": {
+      "title": "Applications Started",
+      "type": "integer"
+     },
+     "onboarding_complete": {
+      "title": "Onboarding Complete",
+      "type": "integer"
+     },
+     "reports_received": {
+      "title": "Reports Received",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "onboarding_complete",
+     "agreements_signed",
+     "reports_received",
+     "applications_started"
+    ],
+    "title": "Compliance",
     "type": "object"
    },
    "ConsultationBookedEmail": {
@@ -5758,7 +5816,7 @@
      },
      "performance": {
       "items": {
-       "$ref": "#/components/schemas/Performance"
+       "$ref": "#/components/schemas/app__api__v1__referral_reads__Performance"
       },
       "title": "Performance",
       "type": "array"
@@ -6499,6 +6557,18 @@
     "title": "Data[PartnerSummary]",
     "type": "object"
    },
+   "Data_Performance_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/app__api__v1__partner_performance__Performance"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Performance]",
+    "type": "object"
+   },
    "Data_PositionOut_": {
     "properties": {
      "data": {
@@ -6701,6 +6771,18 @@
      "data"
     ],
     "title": "Data[StaffKpiTargetOut]",
+    "type": "object"
+   },
+   "Data_Statement_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Statement"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[Statement]",
     "type": "object"
    },
    "Data_StatusOut_": {
@@ -7167,7 +7249,7 @@
     "properties": {
      "data": {
       "items": {
-       "$ref": "#/components/schemas/Performance"
+       "$ref": "#/components/schemas/app__api__v1__referral_reads__Performance"
       },
       "title": "Data",
       "type": "array"
@@ -9538,6 +9620,99 @@
      "label"
     ],
     "title": "KpiRow",
+    "type": "object"
+   },
+   "LedgerRow": {
+    "properties": {
+     "amount": {
+      "title": "Amount",
+      "type": "number"
+     },
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "candidate": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CandidateName"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "candidate_id": {
+      "title": "Candidate Id",
+      "type": "string"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "paid_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Paid At"
+     },
+     "payment_reference": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Reference"
+     },
+     "period": {
+      "title": "Period",
+      "type": "string"
+     },
+     "rule_type": {
+      "$ref": "#/components/schemas/PartnerCommissionRuleType"
+     },
+     "status": {
+      "$ref": "#/components/schemas/CommissionStatus"
+     }
+    },
+    "required": [
+     "id",
+     "candidate_id",
+     "candidate",
+     "rule_type",
+     "period",
+     "amount",
+     "currency",
+     "status",
+     "approved_at",
+     "paid_at",
+     "payment_reference",
+     "created_at"
+    ],
+    "title": "LedgerRow",
     "type": "object"
    },
    "LimitedList": {
@@ -13680,6 +13855,29 @@
     "title": "Notifying[Submission]",
     "type": "object"
    },
+   "Onboarding": {
+    "properties": {
+     "documents_submitted": {
+      "title": "Documents Submitted",
+      "type": "boolean"
+     },
+     "mou_signed": {
+      "title": "Mou Signed",
+      "type": "boolean"
+     },
+     "sla_signed": {
+      "title": "Sla Signed",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "documents_submitted",
+     "mou_signed",
+     "sla_signed"
+    ],
+    "title": "Onboarding",
+    "type": "object"
+   },
    "OpsReviewIn": {
     "properties": {
      "decision": {
@@ -15193,6 +15391,14 @@
     "title": "PartnerCaseStageEmail",
     "type": "object"
    },
+   "PartnerCommissionRuleType": {
+    "enum": [
+     "registration",
+     "monthly_deployment"
+    ],
+    "title": "PartnerCommissionRuleType",
+    "type": "string"
+   },
    "PartnerDetail": {
     "properties": {
      "assigned_team_member_id": {
@@ -16384,10 +16590,9 @@
     "title": "PaymentStatus",
     "type": "string"
    },
-   "Performance": {
-    "description": "kpi.ts's ReferralAgentPerformance.",
+   "PerformanceRow": {
     "properties": {
-     "countryName": {
+     "assigned_to": {
       "anyOf": [
        {
         "type": "string"
@@ -16396,48 +16601,79 @@
         "type": "null"
        }
       ],
-      "title": "Countryname"
+      "title": "Assigned To"
      },
-     "currency": {
-      "title": "Currency",
-      "type": "string"
-     },
-     "deployed": {
-      "title": "Deployed",
-      "type": "integer"
-     },
-     "qualified": {
-      "title": "Qualified",
-      "type": "integer"
-     },
-     "referralAgentId": {
-      "title": "Referralagentid",
-      "type": "string"
-     },
-     "referralAgentName": {
-      "title": "Referralagentname",
-      "type": "string"
-     },
-     "totalCommissionEarned": {
-      "title": "Totalcommissionearned",
+     "commissions_earned": {
+      "title": "Commissions Earned",
       "type": "number"
      },
-     "totalReferrals": {
-      "title": "Totalreferrals",
+     "commissions_outstanding": {
+      "title": "Commissions Outstanding",
+      "type": "number"
+     },
+     "commissions_paid": {
+      "title": "Commissions Paid",
+      "type": "number"
+     },
+     "deployed_candidates": {
+      "title": "Deployed Candidates",
       "type": "integer"
+     },
+     "flags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
+     "follow_ups_open": {
+      "title": "Follow Ups Open",
+      "type": "integer"
+     },
+     "initiated": {
+      "title": "Initiated",
+      "type": "integer"
+     },
+     "onboarding": {
+      "$ref": "#/components/schemas/Onboarding"
+     },
+     "partner_id": {
+      "title": "Partner Id",
+      "type": "string"
+     },
+     "partner_name": {
+      "title": "Partner Name",
+      "type": "string"
+     },
+     "registered": {
+      "title": "Registered",
+      "type": "integer"
+     },
+     "reports": {
+      "title": "Reports",
+      "type": "integer"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
      }
     },
     "required": [
-     "referralAgentId",
-     "referralAgentName",
-     "countryName",
-     "totalReferrals",
-     "qualified",
-     "deployed",
-     "totalCommissionEarned",
-     "currency"
+     "partner_id",
+     "partner_name",
+     "status",
+     "assigned_to",
+     "onboarding",
+     "registered",
+     "initiated",
+     "deployed_candidates",
+     "reports",
+     "follow_ups_open",
+     "flags",
+     "commissions_earned",
+     "commissions_paid",
+     "commissions_outstanding"
     ],
-    "title": "Performance",
+    "title": "PerformanceRow",
     "type": "object"
    },
    "Person": {
@@ -19823,6 +20059,156 @@
     "title": "StagePriceOut",
     "type": "object"
    },
+   "Statement": {
+    "properties": {
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/LedgerRow"
+      },
+      "title": "History",
+      "type": "array"
+     },
+     "partner": {
+      "$ref": "#/components/schemas/StatementPartner"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/StatementSummary"
+     }
+    },
+    "required": [
+     "partner",
+     "summary",
+     "history"
+    ],
+    "title": "Statement",
+    "type": "object"
+   },
+   "StatementPartner": {
+    "properties": {
+     "assigned_team_member": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Person"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "assigned_team_member_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assigned Team Member Id"
+     },
+     "contact_email": {
+      "title": "Contact Email",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "mou_status": {
+      "$ref": "#/components/schemas/MouStatus"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sla_status": {
+      "$ref": "#/components/schemas/SlaStatus"
+     },
+     "status": {
+      "$ref": "#/components/schemas/PartnerStatus"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "status",
+     "mou_status",
+     "sla_status",
+     "contact_email",
+     "assigned_team_member_id",
+     "assigned_team_member"
+    ],
+    "title": "StatementPartner",
+    "type": "object"
+   },
+   "StatementSummary": {
+    "properties": {
+     "approved": {
+      "title": "Approved",
+      "type": "number"
+     },
+     "deployed_candidates": {
+      "title": "Deployed Candidates",
+      "type": "integer"
+     },
+     "monthly_deployment_commissions": {
+      "title": "Monthly Deployment Commissions",
+      "type": "number"
+     },
+     "months_earned": {
+      "title": "Months Earned",
+      "type": "integer"
+     },
+     "months_scheduled": {
+      "title": "Months Scheduled",
+      "type": "integer"
+     },
+     "outstanding": {
+      "title": "Outstanding",
+      "type": "number"
+     },
+     "paid": {
+      "title": "Paid",
+      "type": "number"
+     },
+     "pending": {
+      "title": "Pending",
+      "type": "number"
+     },
+     "registered_candidates": {
+      "title": "Registered Candidates",
+      "type": "integer"
+     },
+     "registration_commissions": {
+      "title": "Registration Commissions",
+      "type": "number"
+     },
+     "scheduled_commissions": {
+      "title": "Scheduled Commissions",
+      "type": "number"
+     },
+     "total_earned": {
+      "title": "Total Earned",
+      "type": "number"
+     }
+    },
+    "required": [
+     "registered_candidates",
+     "registration_commissions",
+     "deployed_candidates",
+     "monthly_deployment_commissions",
+     "scheduled_commissions",
+     "months_earned",
+     "months_scheduled",
+     "total_earned",
+     "outstanding",
+     "pending",
+     "approved",
+     "paid"
+    ],
+    "title": "StatementSummary",
+    "type": "object"
+   },
    "Stats": {
     "properties": {
      "approved": {
@@ -21145,6 +21531,34 @@
     "title": "TeamMember",
     "type": "object"
    },
+   "TeamRow": {
+    "properties": {
+     "flagged": {
+      "title": "Flagged",
+      "type": "integer"
+     },
+     "outstanding": {
+      "title": "Outstanding",
+      "type": "number"
+     },
+     "partners_assigned": {
+      "title": "Partners Assigned",
+      "type": "integer"
+     },
+     "team_member": {
+      "title": "Team Member",
+      "type": "string"
+     }
+    },
+    "required": [
+     "team_member",
+     "partners_assigned",
+     "flagged",
+     "outstanding"
+    ],
+    "title": "TeamRow",
+    "type": "object"
+   },
    "TemplateIn": {
     "properties": {
      "body_html": {
@@ -21230,6 +21644,54 @@
      "temporaryPassword"
     ],
     "title": "TemporaryPassword",
+    "type": "object"
+   },
+   "Totals": {
+    "properties": {
+     "admin_fee_collected": {
+      "title": "Admin Fee Collected",
+      "type": "number"
+     },
+     "admin_fee_revenue": {
+      "title": "Admin Fee Revenue",
+      "type": "number"
+     },
+     "commissions_approved": {
+      "title": "Commissions Approved",
+      "type": "number"
+     },
+     "commissions_outstanding": {
+      "title": "Commissions Outstanding",
+      "type": "number"
+     },
+     "commissions_paid": {
+      "title": "Commissions Paid",
+      "type": "number"
+     },
+     "commissions_payable": {
+      "title": "Commissions Payable",
+      "type": "number"
+     },
+     "open_follow_ups": {
+      "title": "Open Follow Ups",
+      "type": "integer"
+     },
+     "total_partners": {
+      "title": "Total Partners",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "total_partners",
+     "commissions_payable",
+     "commissions_approved",
+     "commissions_paid",
+     "commissions_outstanding",
+     "admin_fee_revenue",
+     "admin_fee_collected",
+     "open_follow_ups"
+    ],
+    "title": "Totals",
     "type": "object"
    },
    "TrackedPartner": {
@@ -22925,6 +23387,38 @@
     "title": "UpdateIn",
     "type": "object"
    },
+   "app__api__v1__partner_performance__Performance": {
+    "properties": {
+     "compliance": {
+      "$ref": "#/components/schemas/Compliance"
+     },
+     "ranked": {
+      "items": {
+       "$ref": "#/components/schemas/PerformanceRow"
+      },
+      "title": "Ranked",
+      "type": "array"
+     },
+     "teamPerformance": {
+      "items": {
+       "$ref": "#/components/schemas/TeamRow"
+      },
+      "title": "Teamperformance",
+      "type": "array"
+     },
+     "totals": {
+      "$ref": "#/components/schemas/Totals"
+     }
+    },
+    "required": [
+     "compliance",
+     "ranked",
+     "teamPerformance",
+     "totals"
+    ],
+    "title": "Performance",
+    "type": "object"
+   },
    "app__api__v1__partner_submissions__DetailsIn": {
     "description": "updatePartnerCandidateDetailsSchema: corrections to a submission.",
     "properties": {
@@ -24092,6 +24586,62 @@
      }
     },
     "title": "VerifyIn",
+    "type": "object"
+   },
+   "app__api__v1__referral_reads__Performance": {
+    "description": "kpi.ts's ReferralAgentPerformance.",
+    "properties": {
+     "countryName": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Countryname"
+     },
+     "currency": {
+      "title": "Currency",
+      "type": "string"
+     },
+     "deployed": {
+      "title": "Deployed",
+      "type": "integer"
+     },
+     "qualified": {
+      "title": "Qualified",
+      "type": "integer"
+     },
+     "referralAgentId": {
+      "title": "Referralagentid",
+      "type": "string"
+     },
+     "referralAgentName": {
+      "title": "Referralagentname",
+      "type": "string"
+     },
+     "totalCommissionEarned": {
+      "title": "Totalcommissionearned",
+      "type": "number"
+     },
+     "totalReferrals": {
+      "title": "Totalreferrals",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "referralAgentId",
+     "referralAgentName",
+     "countryName",
+     "totalReferrals",
+     "qualified",
+     "deployed",
+     "totalCommissionEarned",
+     "currency"
+    ],
+    "title": "Performance",
     "type": "object"
    },
    "app__api__v1__referral_reads__PersonRef": {
@@ -34187,6 +34737,33 @@
     ]
    }
   },
+  "/api/v1/partner-performance": {
+   "get": {
+    "description": "GET /api/management/partner-performance: onboarding, agreements,\nreporting and application progress, partners ranked by what they've\nearned, each team member's partners, flags and outstanding balance, and\nthe commission and admin-fee totals. Earned periods only.",
+    "operationId": "partner_performance_api_v1_partner_performance_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Performance_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Partner Performance",
+    "tags": [
+     "virtual assistants"
+    ]
+   }
+  },
   "/api/v1/partner-reports": {
    "post": {
     "description": "POST /api/partner-reports: a report the VA records for the partner\n(partners still report over WhatsApp and email).",
@@ -34868,6 +35445,54 @@
     "summary": "Update Partner",
     "tags": [
      "users and sessions"
+    ]
+   }
+  },
+  "/api/v1/partners/{partner_id}/commission-statement": {
+   "get": {
+    "description": "GET /api/management/partners/[id]/commission-statement: registered\nand deployed candidates, registration and monthly earnings, outstanding,\npending and paid balances, the months still ahead, and the recent\nledger. Summed in the database (upstream's PERF-003: a large partner has\ntens of thousands of rows).",
+    "operationId": "commission_statement_api_v1_partners__partner_id__commission_statement_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "partner_id",
+      "required": true,
+      "schema": {
+       "title": "Partner Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_Statement_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Commission Statement",
+    "tags": [
+     "virtual assistants"
     ]
    }
   },

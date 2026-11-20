@@ -11,6 +11,8 @@ import { usePagination } from "@/lib/usePagination";
 import { formatCandidateLifecycleStatus } from "@/lib/candidateLifecycleStatus";
 import { CheckCircle, ClockCounterClockwise, PencilSimple, Trash, Key } from "@phosphor-icons/react";
 import { useDialog } from "@/components/ui/DialogProvider";
+import PartnerCommissionStatement from "@/components/portal/PartnerCommissionStatement";
+import PartnerTrackingPanel from "@/components/portal/PartnerTrackingPanel";
 
 const PARTNER_TYPE_LABELS: Record<string, string> = {
   travel_agency: "Travel Agency",
@@ -419,6 +421,12 @@ export default function PartnerDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-xs text-emerald-700">Signed {new Date(partner.mou_signed_at).toLocaleDateString()}</p>
           )}
         </div>
+      </div>
+
+      <PartnerCommissionStatement partnerId={id} />
+
+      <div className="mb-8">
+        <PartnerTrackingPanel partnerId={id} />
       </div>
 
       <h2 className="text-sm font-semibold text-midnight-900/50 uppercase tracking-wider mb-3">Candidates sourced</h2>

@@ -58,6 +58,7 @@ Manager = Annotated[AuthUser, Depends(require_role(*MANAGERS))]
 
 NOT_YOURS = "This partner is not assigned to you."
 FEED_SIZE = 50
+CHANGE_ACTIONS = ("create", "update", "delete", "restore")
 
 
 def reachable_partner(db: Session, user: AuthUser, partner_id: str) -> Partner:
@@ -235,7 +236,9 @@ def _activity(db: Session, partner_id: str, reports: list[str], follow_ups: list
         "PartnerCommission": _ids(db, PartnerCommission, partner_id), "AdminFee": _ids(db, AdminFee, partner_id),
     }
     clauses = [(AuditLog.entity_type == kind) & AuditLog.entity_id.in_(ids) for kind, ids in owned.items() if ids]
-    entries = list(db.scalars(select(AuditLog).where(or_(*clauses)).order_by(AuditLog.created_at.desc()).limit(FEED_SIZE)))
+    # Changes only: a read on the trail (statement_viewed) isn't the partner's history.
+    changes = AuditLog.action.in_(CHANGE_ACTIONS)
+    entries = list(db.scalars(select(AuditLog).where(or_(*clauses), changes).order_by(AuditLog.created_at.desc()).limit(FEED_SIZE)))
     actor_ids = {e.actor_id for e in entries if e.actor_id}
     actors = dict(db.execute(select(User.id, User.full_name).where(User.id.in_(actor_ids))).all()) if actor_ids else {}
     return [summarise(e, actors) for e in entries]

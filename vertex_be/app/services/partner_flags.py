@@ -8,7 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
-from app.models.enums import MouStatus, PartnerCommissionRuleType, PartnerStatus, SlaStatus
+from sqlalchemy import ColumnElement, or_
+
+from app.models.enums import AdminFeeType, CommissionStatus, MouStatus, PartnerCommissionRuleType, PartnerStatus, SlaStatus
+from app.models.partner_tracking import PartnerCommission
 
 RECENT_ACTIVITY_DAYS = 14
 
@@ -70,3 +73,18 @@ def commission_due(rule_type: PartnerCommissionRuleType, period: str, now: datet
     """Only months that have arrived are payable (QA-41): a new deployment
     schedules six monthly rows, and the five future ones aren't due yet."""
     return rule_type is not PartnerCommissionRuleType.monthly_deployment or period <= current_period(now)
+
+
+def admin_fee_due(fee_type: AdminFeeType, period: str, now: datetime) -> bool:
+    """Vertex's own fees follow the schedule they accompany: the application
+    fee once, each monthly deployment fee when its month arrives."""
+    return fee_type is not AdminFeeType.deployment_monthly or period <= current_period(now)
+
+
+def earned_commission_clause(now: datetime) -> ColumnElement[bool]:
+    """commission_due in SQL, for sums the database does: earned so far is
+    not rejected (QA-46) and not a month still ahead (QA-41)."""
+    return (PartnerCommission.status != CommissionStatus.rejected) & or_(
+        PartnerCommission.rule_type != PartnerCommissionRuleType.monthly_deployment,
+        PartnerCommission.period <= current_period(now),
+    )

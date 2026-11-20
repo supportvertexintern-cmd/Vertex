@@ -28,6 +28,8 @@ import * as report from "@/app/api/partner-reports/[id]/route";
 import * as followUps from "@/app/api/partner-follow-ups/route";
 import * as followUp from "@/app/api/partner-follow-ups/[id]/route";
 import * as vaUsers from "@/app/api/admin/va-users/route";
+import * as statement from "@/app/api/management/partners/[id]/commission-statement/route";
+import * as performance from "@/app/api/management/partner-performance/route";
 
 const req = (method = "GET", body?: string) =>
   new NextRequest("http://localhost/api/x", { method, body, headers: body ? { "content-type": "application/json" } : {} });
@@ -49,6 +51,13 @@ describe("passes each request on to FastAPI", () => {
   ])("%s", async (_name, call, expected) => {
     await call();
     expect(callBackend).toHaveBeenCalledWith(...expected);
+  });
+
+  it("the money views, for a manager", async () => {
+    state.role = "inhouse_supervisor";
+    await statement.GET(req(), params("p/1"));
+    await performance.GET(req());
+    expect(callBackend.mock.calls).toEqual([["/api/v1/partners/p%2F1/commission-statement"], ["/api/v1/partner-performance"]]);
   });
 
   it("the VA team, for a manager", async () => {
@@ -77,6 +86,12 @@ describe("refuses early, without calling FastAPI", () => {
 
   it("a VA from the team list, which is the managers'", async () => {
     expect((await vaUsers.GET(req())).status).toBe(403);
+    expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it("a VA from the commission money", async () => {
+    expect((await statement.GET(req(), params("p1"))).status).toBe(403);
+    expect((await performance.GET(req())).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
   });
 
