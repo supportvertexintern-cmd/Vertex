@@ -24,10 +24,12 @@ from scripts.seed.common import database_url, first, hash_password, purge, run, 
 from app.models.campaign import RecruiterTarget  # noqa: E402  (after common sets the path)
 from app.models.candidate import Application, Candidate  # noqa: E402
 from app.models.cases import Case  # noqa: E402
-from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, CandidateSource, JobStatus, PartnerStatus, PartnerType, Role  # noqa: E402
+from app.models.enums import ApplicationStatus, CandidateLifecycleStatus, CandidateSource, JobStatus, PartnerCandidateStatus, PartnerStatus, PartnerType, Role  # noqa: E402
 from app.models.identity import Country, InhouseCountryAssignment, Region, User  # noqa: E402
 from app.models.jobs import Job  # noqa: E402
 from app.models.partners import Partner, PartnerCandidate  # noqa: E402
+from app.models.partner_tracking import AdminFee, PartnerCommission  # noqa: E402
+from app.core.clock import utc_now_ms  # noqa: E402
 from app.models.reference import SystemSetting  # noqa: E402
 from app.models.security import SecurityAlert  # noqa: E402
 from app.db.base import new_id  # noqa: E402
@@ -102,7 +104,8 @@ def setup(db: Session) -> None:
 
 def teardown(db: Session) -> None:
     e2e_users = select(User.id).where(User.email.startswith("e2e-", autoescape=True), User.email.endswith("@test.local", autoescape=True))
-    partners = select(Partner.id).where(Partner.name == PARTNER)
+    # The VA agencies too: the story journeys bridge a submission from one.
+    partners = select(Partner.id).where(Partner.name.in_((PARTNER, *VA_AGENCIES)))
     # A candidate only loses its recruiter or partner when those go, so
     # candidates go first, or every run leaves one behind.
     purge(db, delete(Candidate).where(Candidate.recruiter_id.in_(e2e_users)))
@@ -165,7 +168,56 @@ def alert(db: Session, email: str) -> dict:
     return {"id": row["id"]}
 
 
-COMMANDS = {"setup": setup, "teardown": teardown, "candidate": candidate, "partner-login": partner_login, "claim": claim, "alert": alert}
+def user_id(db: Session, email: str) -> dict:
+    row = first(db, User, email=email)
+    return {"id": row.id if row else None}
+
+
+def partner(db: Session, name: str) -> dict:
+    row = first(db, Partner, name=name)
+    if row is None:
+        raise SystemExit(f"No partner named {name!r}")
+    return {"id": row.id, "assigned_team_member_id": row.assigned_team_member_id}
+
+
+def bridged_submission(db: Session, partner_name: str, candidate_name: str) -> dict:
+    """A partner's submission as finalizeSubmission leaves it: a bridged,
+    partner-sourced candidate with an application on the e2e job, the
+    submission waiting for HR. (The story journeys' "Kebede submission".)"""
+    agency = first(db, Partner, name=partner_name)
+    job = first(db, Job, title=JOB)
+    if agency is None or job is None:
+        raise SystemExit("Run setup first")
+    person = Candidate(full_name=candidate_name, source=CandidateSource.partner_sourced, partner_id=agency.id,
+                       lifecycle_status=CandidateLifecycleStatus.submitted)
+    db.add(person)
+    db.flush()
+    db.add(Application(candidate_id=person.id, job_id=job.id))
+    submission = PartnerCandidate(partner_id=agency.id, full_name=candidate_name, status=PartnerCandidateStatus.submitted,
+                                  bridged_candidate_id=person.id, submitted_at=utc_now_ms(), drafted_at=utc_now_ms())
+    db.add(submission)
+    db.flush()
+    return {"candidate_id": person.id, "submission_id": submission.id}
+
+
+def ledger(db: Session, candidate_name: str) -> dict:
+    """The commission and fee rows for a candidate: what the engine recorded."""
+    person = first(db, Candidate, full_name=candidate_name)
+    if person is None:
+        raise SystemExit(f"No candidate named {candidate_name!r}")
+    commissions = db.scalars(select(PartnerCommission).where(PartnerCommission.candidate_id == person.id)).all()
+    fees = db.scalars(select(AdminFee).where(AdminFee.candidate_id == person.id)).all()
+    return {
+        "commissions": [{"id": c.id, "rule_type": c.rule_type.value, "amount": float(c.amount), "status": c.status.value,
+                         "approved_by": c.approved_by, "paid_by": c.paid_by} for c in commissions],
+        "fees": [{"fee_type": f.fee_type.value, "amount": float(f.amount)} for f in fees],
+    }
+
+
+COMMANDS = {
+    "setup": setup, "teardown": teardown, "candidate": candidate, "partner-login": partner_login, "claim": claim, "alert": alert,
+    "user-id": user_id, "partner": partner, "bridged-submission": bridged_submission, "ledger": ledger,
+}
 
 
 if __name__ == "__main__":

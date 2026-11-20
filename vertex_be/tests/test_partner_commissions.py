@@ -179,7 +179,7 @@ def test_the_list_shows_what_is_due(api, db, world):
     assert api.get(f"{URL}/partner-commissions", headers=world["va"]).status_code == 403
 
 
-@pytest.mark.proves("SEC-BIZ-004", "SEC-BIZ-012")
+@pytest.mark.proves("SEC-BIZ-002", "SEC-BIZ-004", "SEC-BIZ-012")
 def test_approving_and_paying(api, db, world, sent_mail):
     row = commission(db, world, current_period(utc_now_ms()))
     d = world["director"]
@@ -203,10 +203,12 @@ def test_a_month_ahead_is_neither_approved_nor_paid(api, db, world):
     assert api.post(f"{URL}/partner-commissions/{early.id}/mark-paid", headers=world["director"], json={}).json()["error"]["code"] == "not_due"
 
 
-@pytest.mark.proves("SEC-AUTHZ-004")
+@pytest.mark.proves("SEC-AUTHZ-004", "SEC-BIZ-002")
 def test_moving_money_is_the_directors_and_admins(api, db, world):
     row = commission(db, world, current_period(utc_now_ms()))
     assert api.post(f"{URL}/partner-commissions/{row.id}/approve", headers=world["inhouse"]).status_code == 403
+    # A VA can't pay either (BIZ-002).
+    assert api.post(f"{URL}/partner-commissions/{row.id}/mark-paid", headers=world["va"], json={}).status_code == 403
     assert api.get(f"{URL}/partner-commission-rules", headers=world["inhouse"]).status_code == 403
 
 
