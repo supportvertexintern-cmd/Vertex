@@ -94,6 +94,9 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         "SystemSetting",
         "KnowledgeArticle",
         "EmailTemplate",
+        # The landing pages' content (the landing CMS): drafts, publishes, revisions.
+        "ContentBlock",
+        "ContentRevision",
         "Job",
         "JobPaymentStage",
         "JobMilestonePrice",

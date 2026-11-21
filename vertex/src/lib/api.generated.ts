@@ -1208,6 +1208,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/content/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Blocks
+         * @description Every block, in page order, with its published version and any draft.
+         */
+        get: operations["list_blocks_api_v1_content_blocks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Block */
+        get: operations["get_block_api_v1_content_blocks__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard
+         * @description Drops the draft; the published version stays.
+         */
+        post: operations["discard_api_v1_content_blocks__key__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Draft
+         * @description Saves the draft: checked against the block's shape, not yet shown.
+         */
+        put: operations["save_draft_api_v1_content_blocks__key__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish
+         * @description Makes the draft what visitors see, and keeps it as a revision.
+         */
+        post: operations["publish_api_v1_content_blocks__key__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Revisions
+         * @description Every publish of the block, newest first.
+         */
+        get: operations["revisions_api_v1_content_blocks__key__revisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/blocks/{key}/revisions/{number}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore
+         * @description Copies an earlier revision into the draft, to review and publish.
+         */
+        post: operations["restore_api_v1_content_blocks__key__revisions__number__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/landing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Landing
+         * @description What an app's landing page shows, block by block, in page order.
+         */
+        get: operations["landing_api_v1_content_landing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/countries": {
         parameters: {
             query?: never;
@@ -5351,6 +5508,26 @@ export interface components {
             /** Full Name */
             full_name: string;
         };
+        /** BlockOut */
+        BlockOut: {
+            /** Default */
+            default: {
+                [key: string]: unknown;
+            };
+            draft: components["schemas"]["Draft"] | null;
+            /**
+             * Group
+             * @enum {string}
+             */
+            group: "web" | "mobile" | "shared";
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            published: components["schemas"]["Published"];
+            /** Version */
+            version: number;
+        };
         /** Bridged */
         Bridged: {
             case: components["schemas"]["CaseRow"];
@@ -6233,6 +6410,10 @@ export interface components {
         Data_AssistantOut_: {
             data: components["schemas"]["AssistantOut"];
         };
+        /** Data[BlockOut] */
+        Data_BlockOut_: {
+            data: components["schemas"]["BlockOut"];
+        };
         /** Data[CampaignDetail] */
         Data_CampaignDetail_: {
             data: components["schemas"]["CampaignDetail"];
@@ -6332,6 +6513,10 @@ export interface components {
         /** Data[JobOut] */
         Data_JobOut_: {
             data: components["schemas"]["JobOut"];
+        };
+        /** Data[LandingOut] */
+        Data_LandingOut_: {
+            data: components["schemas"]["LandingOut"];
         };
         /** Data[LimitedList] */
         Data_LimitedList_: {
@@ -6564,6 +6749,11 @@ export interface components {
             /** Data */
             data: components["schemas"]["ArticleOut"][];
         };
+        /** Data[list[BlockOut]] */
+        Data_list_BlockOut__: {
+            /** Data */
+            data: components["schemas"]["BlockOut"][];
+        };
         /** Data[list[CampaignListItem]] */
         Data_list_CampaignListItem__: {
             /** Data */
@@ -6658,6 +6848,11 @@ export interface components {
         Data_list_RequirementOut__: {
             /** Data */
             data: components["schemas"]["RequirementOut"][];
+        };
+        /** Data[list[RevisionOut]] */
+        Data_list_RevisionOut__: {
+            /** Data */
+            data: components["schemas"]["RevisionOut"][];
         };
         /** Data[list[RuleListRow]] */
         Data_list_RuleListRow__: {
@@ -6821,6 +7016,19 @@ export interface components {
         Done: {
             /** Message */
             message: string;
+        };
+        /** Draft */
+        Draft: {
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /** Updated At */
+            updated_at: string | null;
+            /** Updated By */
+            updated_by: string | null;
+            /** Visible */
+            visible: boolean;
         };
         /** DraftOut */
         DraftOut: {
@@ -7417,6 +7625,31 @@ export interface components {
             label: string;
             /** Target */
             target?: number;
+        };
+        /** LandingBlock */
+        LandingBlock: {
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            } | null;
+            /** Key */
+            key: string;
+            /** Revision */
+            revision: number;
+            /** Visible */
+            visible: boolean;
+        };
+        /** LandingOut */
+        LandingOut: {
+            /**
+             * App
+             * @enum {string}
+             */
+            app: "web" | "mobile";
+            /** Blocks */
+            blocks: components["schemas"]["LandingBlock"][];
+            /** Version */
+            version: number;
         };
         /** LedgerRow */
         LedgerRow: {
@@ -9168,6 +9401,21 @@ export interface components {
             /** Updated At */
             updated_at: string;
         };
+        /** Published */
+        Published: {
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /** Published At */
+            published_at: string | null;
+            /** Published By */
+            published_by: string | null;
+            /** Revision */
+            revision: number;
+            /** Visible */
+            visible: boolean;
+        };
         /**
          * RaiseIn
          * @description raiseExceptionSchema.
@@ -9674,6 +9922,21 @@ export interface components {
             full_name: string;
             /** Id */
             id: string;
+        };
+        /** RevisionOut */
+        RevisionOut: {
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /** Number */
+            number: number;
+            /** Published At */
+            published_at: string;
+            /** Published By */
+            published_by: string | null;
+            /** Visible */
+            visible: boolean;
         };
         /**
          * Role
@@ -10831,6 +11094,18 @@ export interface components {
             sector: string;
             /** Updated At */
             updated_at: string;
+        };
+        /** DraftIn */
+        app__api__v1__landing__DraftIn: {
+            /** Body */
+            body: {
+                [key: string]: unknown;
+            };
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
         };
         /** ReviewIn */
         app__api__v1__monitoring__ReviewIn: {
@@ -13704,6 +13979,260 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    list_blocks_api_v1_content_blocks_get: {
+        parameters: {
+            query?: {
+                group?: ("web" | "mobile" | "shared") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_BlockOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_block_api_v1_content_blocks__key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_BlockOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_api_v1_content_blocks__key__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_BlockOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_draft_api_v1_content_blocks__key__draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__v1__landing__DraftIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_BlockOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_v1_content_blocks__key__publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_BlockOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revisions_api_v1_content_blocks__key__revisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_list_RevisionOut__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_api_v1_content_blocks__key__revisions__number__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_BlockOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    landing_api_v1_content_landing_get: {
+        parameters: {
+            query: {
+                app: "web" | "mobile";
+                preview?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_LandingOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
