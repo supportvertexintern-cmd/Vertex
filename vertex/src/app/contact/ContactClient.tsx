@@ -135,8 +135,9 @@ export default function ContactClient({ contact }: { contact: ContactDetails }) 
                     <h3 className="font-semibold text-midnight-900 tracking-tight">Email</h3>
                     <div className="space-y-1 mt-2">
                       <a href={`mailto:${contact.email}`} className="block text-midnight-700 hover:text-gold-600 text-sm font-mono transition-colors">{contact.email}</a>
-                      <a href="mailto:inquiries@vertexintern.com" className="block text-midnight-700 hover:text-gold-600 text-sm font-mono transition-colors">inquiries@vertexintern.com</a>
-                      <a href="mailto:support@vertexintern.com" className="block text-midnight-700 hover:text-gold-600 text-sm font-mono transition-colors">support@vertexintern.com</a>
+                      {contact.other_emails.map((email) => (
+                        <a key={email} href={`mailto:${email}`} className="block text-midnight-700 hover:text-gold-600 text-sm font-mono transition-colors">{email}</a>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -148,10 +149,9 @@ export default function ContactClient({ contact }: { contact: ContactDetails }) 
                   </div>
                   <div>
                     <h3 className="font-semibold text-midnight-900 tracking-tight">Registered Offices</h3>
-                    <p className="text-midnight-900/60 text-sm mt-2 leading-relaxed max-w-sm">
-                     
-                      Regus House, Herons Way, Chester Business Park, Chester, Cheshire CH4 9QR, United Kingdom
-                    </p>
+                    {contact.address && (
+                      <p className="text-midnight-900/60 text-sm mt-2 leading-relaxed max-w-sm whitespace-pre-line">{contact.address}</p>
+                    )}
                     <p className="text-midnight-900/40 text-xs mt-2 uppercase tracking-[0.1em]">
                       Company No. 16943308
                     </p>

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
-import { List, X, SignOut, Devices, Browser } from "@phosphor-icons/react";
+import { List, X, SignOut, Devices, Browser, Briefcase, ClipboardText } from "@phosphor-icons/react";
 import SessionsPanel from "./SessionsPanel";
+import { useMe } from "./me";
+import type { Role } from "@/lib/enums";
 
 export interface PortalNavItem {
   href: string;
@@ -28,20 +30,13 @@ interface PortalShellProps {
 // Pages a role reaches by a permission the admin gave it (role management,
 // 2026-11-21), added to whichever portal's nav it has. Showing the link is
 // all this does: the page and FastAPI check the permission themselves.
-const PERMISSION_NAV: { permissions: string[]; item: PortalNavItem }[] = [
+// Admin holds every permission, but its nav keeps to system concerns
+// (adminNav.ts), so jobs and sectors aren't added to it.
+const PERMISSION_NAV: { permissions: string[]; item: PortalNavItem; notFor?: Role[] }[] = [
   { permissions: ["landing.edit", "landing.publish"], item: { href: "/content/landing", label: "Landing pages", icon: Browser, section: "Content" } },
+  { permissions: ["jobs.manage"], item: { href: "/marketing/jobs", label: "Jobs", icon: Briefcase, section: "Content" }, notFor: ["admin"] },
+  { permissions: ["reference.manage"], item: { href: "/marketing/sectors", label: "Sectors & Requirements", icon: ClipboardText, section: "Content" }, notFor: ["admin"] },
 ];
-
-// The signed-in user's permissions, asked once per page load (a client
-// navigation keeps it); none if the answer fails.
-let permissionsRequest: Promise<string[]> | null = null;
-function myPermissions(): Promise<string[]> {
-  permissionsRequest ??= fetch("/api/auth/me")
-    .then((r) => (r.ok ? r.json() : null))
-    .then((body) => (Array.isArray(body?.data?.permissions) ? (body.data.permissions as string[]) : []))
-    .catch(() => []);
-  return permissionsRequest;
-}
 
 /**
  * Shared shell for every internal, role-based portal (SRS FR-5.1 "role-based
@@ -55,20 +50,16 @@ export default function PortalShell({ roleLabel, navItems: ownItems, children, w
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [badges, setBadges] = useState<Record<string, number>>({});
-  const [permissions, setPermissions] = useState<string[]>([]);
-
-  useEffect(() => {
-    let live = true;
-    myPermissions().then((held) => live && setPermissions(held));
-    return () => {
-      live = false;
-    };
-  }, []);
+  const me = useMe();
+  const permissions = me?.permissions ?? [];
 
   const navItems = [
     ...ownItems,
     ...PERMISSION_NAV.filter(
-      (p) => p.permissions.some((x) => permissions.includes(x)) && !ownItems.some((i) => i.href === p.item.href),
+      (p) =>
+        p.permissions.some((x) => permissions.includes(x)) &&
+        !(me && p.notFor?.includes(me.role)) &&
+        !ownItems.some((i) => i.href === p.item.href),
     ).map((p) => p.item),
   ];
 

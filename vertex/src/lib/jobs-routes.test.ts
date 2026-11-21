@@ -141,16 +141,21 @@ describe("sector and position writes go to FastAPI", () => {
     expect([res.status, await res.json()]).toEqual([409, { error }]);
   });
 
-  it("refuses other roles without calling FastAPI", async () => {
-    state.role = "hr";
+  it("refuses an external role without calling FastAPI; an internal one is FastAPI's to decide (jobs.manage)", async () => {
+    state.role = "partner";
     expect((await sectors.POST(req("POST", "{}"), params("j1"))).status).toBe(403);
     expect((await position.DELETE(req("DELETE"), ids("j1", "s1", "p1"))).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
+    state.role = "hr";
+    await sectors.POST(req("POST", "{}"), params("j1"));
+    expect(callBackend).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("refuses early, without calling FastAPI", () => {
-  it.each([["director"], ["finance"], ["partner"]])("%s can't write jobs or sync pricing", async (role) => {
+  // Role management (2026-11-21): any internal role is passed on, and FastAPI
+  // decides by jobs.manage; the accounts outside Vertex stop here.
+  it.each([["partner"], ["candidate"], ["referral_agent"]])("%s can't write jobs or sync pricing", async (role) => {
     state.role = role;
     const calls = [jobs.POST(req("POST", "{}")), job.PUT(req("PUT", "{}"), params("j1")), job.DELETE(req("DELETE"), params("j1")), sync.POST(req("POST"), params("j1"))];
     for (const res of await Promise.all(calls)) expect(res.status).toBe(403);

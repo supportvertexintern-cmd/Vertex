@@ -17334,7 +17334,9 @@
    "Permission": {
     "enum": [
      "landing.edit",
-     "landing.publish"
+     "landing.publish",
+     "jobs.manage",
+     "reference.manage"
     ],
     "title": "Permission",
     "type": "string"

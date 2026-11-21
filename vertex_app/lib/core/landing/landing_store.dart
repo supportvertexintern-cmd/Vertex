@@ -45,7 +45,8 @@ class LandingStore extends ChangeNotifier {
       if (block['visible'] == false) {
         out[key] = null;
       } else if (block['body'] is Map) {
-        out[key] = Map<String, dynamic>.from(block['body'] as Map);
+        // Over the built-in body: a field added since it was published shows its built-in text.
+        out[key] = {...?out[key], ...Map<String, dynamic>.from(block['body'] as Map)};
       }
     }
     return out;

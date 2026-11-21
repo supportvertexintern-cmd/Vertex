@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { backendResponse, callBackend } from "@/lib/backend";
 
-// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
-const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
+// Who may try: any internal role. FastAPI decides by the jobs.manage
+// permission the admin gives roles (role management; marketing by
+// default, admin always): vertex_be/app/api/v1/jobs.py.
+const JOB_MANAGER_ROLES = INTERNAL_ROLES;
 
 // POST /api/jobs/:id/sync-stripe-pricing — manual retry for the case a
 // provisioning attempt failed (e.g. Stripe was unreachable) and needs

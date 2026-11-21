@@ -207,6 +207,9 @@ class Contact(Shape):
     whatsapp: Phone
     office: Phone
     email: Email
+    # The contact page's further addresses and its registered office (2026-11-21).
+    other_emails: list[Email] = Field(default_factory=list, max_length=4)
+    address: OptionalText(300) = ""
 
 
 class Service(Shape):
@@ -477,6 +480,8 @@ SHARED_CONTACT = {
     "whatsapp": "+44 7438 613251",
     "office": "+44 20 3026 3403",
     "email": "vertex@vertexintern.com",
+    "other_emails": ["inquiries@vertexintern.com", "support@vertexintern.com"],
+    "address": "Regus House, Herons Way, Chester Business Park, Chester, Cheshire CH4 9QR, United Kingdom",
 }
 
 MOBILE_HERO = {

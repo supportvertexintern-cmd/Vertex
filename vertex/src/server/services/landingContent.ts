@@ -88,7 +88,15 @@ export interface WebLanding {
   "shared.contact": ContactDetails & { eyebrow: string; title: string };
 }
 
-export interface ContactDetails { whatsapp: string; office: string; email: string }
+export interface ContactDetails {
+  whatsapp: string;
+  office: string;
+  email: string;
+  /** The contact page's further addresses (inquiries@, support@). */
+  other_emails: string[];
+  /** The registered office, on the contact page. */
+  address: string;
+}
 
 export type BlockKey = keyof WebLanding;
 
@@ -182,7 +190,9 @@ export function merge(answer: Answer): LandingPage {
     for (const block of answer.blocks) {
       if (!isKey(block?.key)) continue;
       if (block.visible === false) (blocks as Record<BlockKey, unknown>)[block.key] = null;
-      else if (isObject(block.body)) (blocks as Record<BlockKey, unknown>)[block.key] = block.body;
+      // Over the built-in body: a field added since it was published (as the
+      // contact page's addresses were) shows its built-in text.
+      else if (isObject(block.body)) (blocks as Record<BlockKey, unknown>)[block.key] = { ...BUILT_IN[block.key], ...block.body };
     }
   }
   const contact = blocks["shared.contact"];
@@ -190,7 +200,7 @@ export function merge(answer: Answer): LandingPage {
 }
 
 function contactOf(c: ContactDetails): ContactDetails {
-  return { whatsapp: c.whatsapp, office: c.office, email: c.email };
+  return { whatsapp: c.whatsapp, office: c.office, email: c.email, other_emails: c.other_emails ?? [], address: c.address ?? "" };
 }
 
 const isKey = (key: unknown): key is BlockKey => typeof key === "string" && (KEYS as string[]).includes(key);

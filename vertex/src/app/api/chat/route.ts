@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { callBackend } from "@/lib/backend";
 import { limitByIp } from "@/lib/rate-limit";
 import { z } from "zod";
+import { getLandingPage, type ContactDetails } from "@/server/services/landingContent";
 
 import { log } from "@/lib/log";
 export const maxDuration = 30;
@@ -52,12 +53,21 @@ COMPLIANCE:
 - No hidden fees, no opaque processes
 
 CONTACT:
-- WhatsApp: +44 7438 613251
-- Office: +44 20 3026 3403
-- Email: vertex@vertexintern.com (general), inquiries@vertexintern.com, support@vertexintern.com
-- Address: 5 Brayford Square, London, E1 0SG, United Kingdom / Chester, International House, Kingsfield Court, United Kingdom
 - Company Registration Number: 16943308
 `;
+
+// The phone numbers, emails and registered office marketing publishes (the landing CMS's
+// shared.contact; built-in ones if FastAPI can't answer), so the assistant
+// never gives out old ones. Added whichever knowledge base is used.
+function contactSection(c: ContactDetails): string {
+  const emails = [`${c.email} (general)`, ...c.other_emails].join(", ");
+  const address = c.address ? `
+- Registered office: ${c.address}` : "";
+  return `--- CONTACT DETAILS (current) ---
+- WhatsApp: ${c.whatsapp}
+- Office: ${c.office}
+- Email: ${emails}${address}`;
+}
 
 // Only the visitor's own turns and the assistant's replies: a client-sent
 // "system" message would let anyone rewrite the assistant's instructions.
@@ -106,6 +116,8 @@ export async function POST(req: Request) {
         .join("\n\n");
     }
 
+    const { contact } = await getLandingPage();
+
     const systemPrompt = `You are the official AI Assistant for Vertex International Recruitment Ltd.
 Answer user questions about jobs, the application process, visas, and documentation professionally and concisely.
 
@@ -113,11 +125,13 @@ Rules:
 - Be polite, professional, and concise.
 - Use the Knowledge Base below for specific process questions.
 - Never invent information not in the Knowledge Base.
-- If unsure, direct users to WhatsApp +44 7438 613251 or email vertex@vertexintern.com.
+- If unsure, direct users to WhatsApp ${contact.whatsapp} or email ${contact.email}.
 - Do NOT screen CVs or make hiring decisions.
 
 --- VERTEX KNOWLEDGE BASE ---
-${kbText || FALLBACK_KB}`;
+${kbText || FALLBACK_KB}
+
+${contactSection(contact)}`;
 
     // 3. Generate response using Google Gemini
     const { text } = await generateText({

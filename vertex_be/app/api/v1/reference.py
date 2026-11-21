@@ -27,7 +27,7 @@ from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser
-from app.core.rbac import require_role
+from app.core.permissions import Permission, require_permission
 from app.models.enums import Role
 from app.models.identity import Country
 from app.models.reference import CountryDocumentRequirement, DocumentRequirementType, Sector
@@ -51,10 +51,18 @@ REQUIREMENT_READERS: tuple[Role, ...] = (Role.candidate, *SECTOR_READERS)
 DOCUMENT_TYPE_READERS: tuple[Role, ...] = (*SECTOR_READERS, Role.hr, Role.operations_team, Role.operations_director)
 
 # Who adds and removes sectors and document types, and sets a country's
-# required documents: admin, and marketing since 2026-11-06 (its Sectors &
-# Requirements page). The website's routes must match (tests check it).
-REFERENCE_EDITORS: tuple[Role, ...] = (Role.admin, Role.marketing)
-Editor = Annotated[AuthUser, Depends(require_role(*REFERENCE_EDITORS))]
+# required documents: the roles holding reference.manage, which the admin
+# assigns (role management; marketing by default, as since 2026-11-06, and
+# admin always).
+Editor = Annotated[AuthUser, Depends(require_permission(Permission.reference_manage))]
+# The sector list: the roles above, and whoever edits sectors or posts jobs
+# (a job's sectors are chosen from it).
+SectorReader = Annotated[
+    AuthUser, Depends(require_permission(Permission.jobs_manage, Permission.reference_manage, roles=SECTOR_READERS))
+]
+# What the Sectors & Requirements page reads: these roles, and whoever edits it.
+RequirementReader = Annotated[AuthUser, Depends(require_permission(Permission.reference_manage, roles=REQUIREMENT_READERS))]
+DocumentTypeReader = Annotated[AuthUser, Depends(require_permission(Permission.reference_manage, roles=DOCUMENT_TYPE_READERS))]
 
 UNIQUE_VIOLATION = "23505"
 FOREIGN_KEY_VIOLATION = "23503"
@@ -84,7 +92,7 @@ def _sector_duplicate() -> ApiError:
 
 
 @router.get("/sectors")
-def list_sectors(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(*SECTOR_READERS))]) -> Data[list[SectorOut]]:
+def list_sectors(db: DbSession, _user: SectorReader) -> Data[list[SectorOut]]:
     """Every sector, by name."""
     return Data(data=[SectorOut.model_validate(s) for s in db.scalars(select(Sector).order_by(Sector.name))])
 
@@ -150,7 +158,7 @@ def _requirements(db: DbSession, country_id: str) -> list[RequirementOut]:
 
 @router.get("/countries/{country_id}/document-requirements")
 def list_requirements(
-    country_id: str, db: DbSession, _user: Annotated[AuthUser, Depends(require_role(*REQUIREMENT_READERS))]
+    country_id: str, db: DbSession, _user: RequirementReader
 ) -> Data[list[RequirementOut]]:
     """The documents this destination requires beyond the universal set
     (passport, photo, CV): the form's "Required for: X". An unknown country
@@ -209,7 +217,7 @@ def _slug(label: str) -> str:
 
 
 @router.get("/document-types")
-def list_document_types(db: DbSession, _user: Annotated[AuthUser, Depends(require_role(*DOCUMENT_TYPE_READERS))]) -> Data[list[DocumentTypeOut]]:
+def list_document_types(db: DbSession, _user: DocumentTypeReader) -> Data[list[DocumentTypeOut]]:
     """Every document requirement type, in the admin's order."""
     rows = db.scalars(select(DocumentRequirementType).order_by(DocumentRequirementType.sort_order, DocumentRequirementType.created_at))
     return Data(data=[DocumentTypeOut.model_validate(t) for t in rows])

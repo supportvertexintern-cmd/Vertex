@@ -65,3 +65,24 @@ test("only the admin reaches the page and its API", async ({ page }) => {
   await page.goto("/admin/roles");
   await expect(page).not.toHaveURL(/\/admin\/roles/);
 });
+
+test("a role given jobs.manage posts jobs from its own portal", async ({ page, browser }) => {
+  const hrContext = await browser.newContext();
+  const hr = await hrContext.newPage();
+  await signIn(page, "e2e-admin@test.local");
+  try {
+    const granted = await page.request.put("/api/admin/roles/hr/permissions", { data: { permissions: ["jobs.manage"] } });
+    expect(granted.status()).toBe(200);
+
+    await signIn(hr, "e2e-hr@test.local");
+    await hr.getByRole("link", { name: "Jobs", exact: true }).first().click();
+    await expect(hr).toHaveURL(/\/marketing\/jobs$/);
+    await expect(hr.getByRole("link", { name: /new job/i }).first()).toBeVisible();
+    // Sectors & Requirements stays shut: HR holds jobs.manage only.
+    await hr.goto("/marketing/sectors");
+    await expect(hr.getByText("Your role doesn't have permission for this page.")).toBeVisible();
+  } finally {
+    expect((await page.request.put("/api/admin/roles/hr/permissions", { data: { permissions: [] } })).status()).toBe(200);
+    await hrContext.close();
+  }
+});

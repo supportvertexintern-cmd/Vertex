@@ -311,7 +311,12 @@
    "title": "One message away, always.",
    "whatsapp": "+44 7438 613251",
    "office": "+44 20 3026 3403",
-   "email": "vertex@vertexintern.com"
+   "email": "vertex@vertexintern.com",
+   "other_emails": [
+    "inquiries@vertexintern.com",
+    "support@vertexintern.com"
+   ],
+   "address": "Regus House, Herons Way, Chester Business Park, Chester, Cheshire CH4 9QR, United Kingdom"
   }
  }
 }

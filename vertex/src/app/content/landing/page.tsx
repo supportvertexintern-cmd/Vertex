@@ -67,13 +67,17 @@ export default function LandingEditorPage() {
   const canPublish = permissions?.includes("landing.publish") ?? false;
   const block = blocks.find((b) => b.key === selected) ?? null;
 
-  // The version being worked on: the draft, else what's published.
-  const base = useMemo(() => (block ? { body: block.draft?.body ?? block.published.body, visible: block.draft?.visible ?? block.published.visible } : null), [block]);
+  // The version being worked on: the draft, else what's published, over the
+  // built-in text (a field added since it was saved starts from it).
+  const base = useMemo(
+    () => (block ? { body: { ...block.default, ...(block.draft?.body ?? block.published.body) }, visible: block.draft?.visible ?? block.published.visible } : null),
+    [block],
+  );
   const dirty = !!base && body !== null && (!same(body, base.body) || visible !== base.visible);
 
   const pick = useCallback((b: Block) => {
     setSelected(b.key);
-    setBody(structuredClone(b.draft?.body ?? b.published.body));
+    setBody(structuredClone({ ...b.default, ...(b.draft?.body ?? b.published.body) }));
     setVisible(b.draft?.visible ?? b.published.visible);
     setIssues({});
     setRevisions(null);

@@ -9205,7 +9205,7 @@ export interface components {
          * Permission
          * @enum {string}
          */
-        Permission: "landing.edit" | "landing.publish";
+        Permission: "landing.edit" | "landing.publish" | "jobs.manage" | "reference.manage";
         /** PermissionOut */
         PermissionOut: {
             /** Description */
