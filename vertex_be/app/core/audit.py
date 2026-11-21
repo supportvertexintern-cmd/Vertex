@@ -97,6 +97,8 @@ AUDITED_MODELS: frozenset[str] = frozenset(
         # The landing pages' content (the landing CMS): drafts, publishes, revisions.
         "ContentBlock",
         "ContentRevision",
+        # Role management: which roles hold which permissions.
+        "RolePermission",
         "Job",
         "JobPaymentStage",
         "JobMilestonePrice",

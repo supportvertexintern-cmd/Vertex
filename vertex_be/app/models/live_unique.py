@@ -34,6 +34,7 @@ LIVE_UNIQUE = {
     "ReferralCommissionRule_country_id_milestone_key": ("ReferralCommissionRule", ('country_id', 'milestone')),
     "Region_name_key": ("Region", ('name',)),
     "RetentionFollowUp_case_id_key": ("RetentionFollowUp", ('case_id',)),
+    "RolePermission_role_permission_key": ("RolePermission", ('role', 'permission')),
     "Sector_name_key": ("Sector", ('name',)),
     "StaffKpiTarget_staff_id_cycle_kpi_label_key": ("StaffKpiTarget", ('staff_id', 'cycle', 'kpi_label')),
     "StaffScorecard_staff_id_period_month_key": ("StaffScorecard", ('staff_id', 'period_month')),
