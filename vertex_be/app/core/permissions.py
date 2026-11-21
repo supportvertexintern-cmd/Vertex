@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.core.audit import record_security_event
 from app.core.auth import AuthUser, current_user
+from app.core.rbac import INTERNAL_ROLES
 from app.db.session import get_db
 from app.models.enums import Role
 
@@ -72,10 +73,11 @@ PERMISSIONS: dict[Permission, PermissionSpec] = {
     )
 }
 
-# Accounts outside Vertex: never given a permission.
-EXTERNAL_ROLES: frozenset[Role] = frozenset({Role.candidate, Role.partner, Role.referral_agent})
+# Accounts outside Vertex: never given a permission (every role not in
+# INTERNAL_ROLES, which matches rbac.ts).
+EXTERNAL_ROLES: frozenset[Role] = frozenset(Role) - INTERNAL_ROLES
 # The roles the admin can tick (admin itself holds everything).
-ASSIGNABLE_ROLES: tuple[Role, ...] = tuple(r for r in Role if r not in EXTERNAL_ROLES and r is not Role.admin)
+ASSIGNABLE_ROLES: tuple[Role, ...] = tuple(r for r in Role if r in INTERNAL_ROLES and r is not Role.admin)
 
 
 def role_permissions(db: Session, role: Role) -> frozenset[Permission]:

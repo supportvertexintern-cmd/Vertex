@@ -42,6 +42,16 @@ HR_ROLES: frozenset[Role] = frozenset({Role.hr, Role.director, Role.admin})
 # Referral agent system admin controls (2026-08-29): director/admin only.
 REFERRAL_AGENT_MANAGER_ROLES: frozenset[Role] = frozenset({Role.director, Role.admin})
 
+# Every role but the external accounts (candidate, partner, referral agent):
+# the roles the admin can give a permission (role management, 2026-11-21;
+# app/core/permissions.py), and the ones /content pages are open to.
+INTERNAL_ROLES: frozenset[Role] = frozenset(
+    {
+        Role.regional_recruiter, Role.country_supervisor, Role.inhouse_supervisor, Role.director, Role.admin,
+        Role.marketing, Role.hr, Role.operations_team, Role.operations_director, Role.finance, Role.virtual_assistant,
+    }
+)  # fmt: skip
+
 
 def is_staff_role(role: Role) -> bool:
     return role in STAFF_ROLES
