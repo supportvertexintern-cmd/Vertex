@@ -15,7 +15,8 @@ import type { IssuedSession } from "@/lib/session";
  * cookie for raw tokens.
  *
  * CORS is allowed here only, for the origins in APP_ORIGINS (the Flutter web
- * build; native apps send no Origin), and without credentials.
+ * build; native apps send no Origin), and without credentials. The app's
+ * one public read, /api/public/landing, answers GET with the same helpers.
  */
 
 function allowedOrigins(): Set<string> {
@@ -27,12 +28,14 @@ function allowedOrigins(): Set<string> {
   );
 }
 
-function corsHeaders(req: NextRequest): Record<string, string> {
+type AppMethods = "POST, OPTIONS" | "GET, OPTIONS";
+
+function corsHeaders(req: NextRequest, methods: AppMethods = "POST, OPTIONS"): Record<string, string> {
   const origin = req.headers.get("origin");
   if (!origin || !allowedOrigins().has(origin)) return { Vary: "Origin" };
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": methods,
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "600",
     Vary: "Origin",
@@ -40,13 +43,13 @@ function corsHeaders(req: NextRequest): Record<string, string> {
 }
 
 /** The response for an OPTIONS preflight. */
-export function appPreflight(req: NextRequest): NextResponse {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
+export function appPreflight(req: NextRequest, methods?: AppMethods): NextResponse {
+  return new NextResponse(null, { status: 204, headers: corsHeaders(req, methods) });
 }
 
 /** Adds the CORS headers (for an allowed origin) and keeps tokens out of caches. */
-export function appResponse(req: NextRequest, res: NextResponse): NextResponse {
-  for (const [k, v] of Object.entries(corsHeaders(req))) res.headers.set(k, v);
+export function appResponse(req: NextRequest, res: NextResponse, methods?: AppMethods): NextResponse {
+  for (const [k, v] of Object.entries(corsHeaders(req, methods))) res.headers.set(k, v);
   res.headers.set("Cache-Control", "no-store");
   return res;
 }

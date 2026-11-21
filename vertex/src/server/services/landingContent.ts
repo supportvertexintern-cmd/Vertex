@@ -104,12 +104,16 @@ export interface LandingPage {
 export const BUILT_IN = DEFAULTS.blocks as unknown as WebLanding;
 const KEYS = Object.keys(BUILT_IN) as BlockKey[];
 
-interface Answer {
+export interface Answer {
+  app?: string;
   version: number;
   blocks: { key: string; visible: boolean; body: Record<string, unknown> | null; revision: number }[];
 }
 
-const store = globalThis as typeof globalThis & { __vertexLandingCache?: { page: LandingPage; until: number } | null };
+const store = globalThis as typeof globalThis & {
+  __vertexLandingCache?: { page: LandingPage; until: number } | null;
+  __vertexMobileLandingCache?: { answer: Answer | null; until: number } | null;
+};
 
 /** The website's landing blocks, as visitors see them. */
 export async function getLandingPage(): Promise<LandingPage> {
@@ -146,6 +150,24 @@ export async function getLandingPreview(): Promise<LandingPage & { previewing: b
 /** For tests, and after a publish: forget the cached answer. */
 export function resetLandingCache(): void {
   store.__vertexLandingCache = null;
+  store.__vertexMobileLandingCache = null;
+}
+
+/**
+ * The mobile app's blocks as FastAPI sends them (GET /api/public/landing,
+ * for the app's home screen before sign-in), kept as the website's are.
+ * The app merges them over its own built-in text; null when FastAPI can't
+ * answer.
+ */
+export async function getMobileLanding(): Promise<Answer | null> {
+  const now = Date.now();
+  const cached = store.__vertexMobileLandingCache;
+  if (cached && cached.until > now) return cached.answer;
+  const result = await callBackend<Answer>("/api/v1/content/landing", { query: { app: "mobile" }, asUser: false, timeoutMs: TIMEOUT_MS });
+  const answer = result.ok ? result.body.data : null;
+  if (!result.ok) log.warn("landing.fallback", { app: "mobile", status: result.status, code: result.error.code });
+  store.__vertexMobileLandingCache = { answer, until: now + (result.ok ? CACHE_MS : RETRY_MS) };
+  return answer;
 }
 
 export function builtIn(): LandingPage {

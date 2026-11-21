@@ -66,12 +66,13 @@ def test_every_block_is_named_for_its_group_and_its_icons_are_known():
         assert set(icons(spec.default)) <= set(ICONS), spec.key
 
 
-def test_the_websites_fallback_is_the_built_in_text():
-    # The website shows vertex/src/server/services/landing.defaults.json when FastAPI can't answer.
+def test_the_apps_fallbacks_are_the_built_in_text():
+    # The website and the mobile app show these when FastAPI can't answer.
     spec = importlib.util.spec_from_file_location("export_landing_defaults", BASE_DIR / "scripts" / "export_landing_defaults.py")
     exporter = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(exporter)
-    assert exporter.OUT.read_text(encoding="utf-8") == exporter.defaults_text(), "run: python scripts/export_landing_defaults.py"
+    assert exporter._read(exporter.OUT) == exporter.defaults_text(), "run: python scripts/export_landing_defaults.py"
+    assert exporter._read(exporter.MOBILE_OUT) == exporter.mobile_defaults_text(), "run: python scripts/export_landing_defaults.py"
 
 
 def test_each_app_gets_its_own_blocks_and_the_shared_ones():

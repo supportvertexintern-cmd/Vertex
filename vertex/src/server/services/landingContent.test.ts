@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const callBackend = vi.fn();
 vi.mock("@/lib/backend", () => ({ callBackend: (...args: unknown[]) => callBackend(...args) }));
 
-import { BLOCK_VERSION, BUILT_IN, builtIn, getLandingPage, getLandingPreview, merge, resetLandingCache } from "./landingContent";
+import { BLOCK_VERSION, BUILT_IN, builtIn, getLandingPage, getLandingPreview, getMobileLanding, merge, resetLandingCache } from "./landingContent";
 
 const ok = (blocks: unknown[], version = BLOCK_VERSION) => ({ ok: true, status: 200, body: { data: { app: "web", version, blocks } } });
 const contact = { ...BUILT_IN["shared.contact"], whatsapp: "+44 7000 000001", email: "hello@example.org" };
@@ -97,6 +97,26 @@ describe("the preview (/?preview=1)", () => {
     expect(page.previewing).toBe(false);
     expect(page.blocks).toEqual(builtIn().blocks);
     expect(callBackend).toHaveBeenLastCalledWith("/api/v1/content/landing", { query: { app: "web" }, asUser: false, timeoutMs: 3_000 });
+  });
+});
+
+describe("the mobile app's read (/api/public/landing)", () => {
+  it("passes FastAPI's answer on as the website itself, kept like the website's", async () => {
+    vi.useFakeTimers();
+    const answer = { app: "mobile", version: BLOCK_VERSION, blocks: [] };
+    callBackend.mockResolvedValue({ ok: true, status: 200, body: { data: answer } });
+    expect(await getMobileLanding()).toEqual(answer);
+    await getMobileLanding();
+    expect(callBackend).toHaveBeenCalledTimes(1);
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/content/landing", { query: { app: "mobile" }, asUser: false, timeoutMs: 3_000 });
+    resetLandingCache(); // a publish
+    await getMobileLanding();
+    expect(callBackend).toHaveBeenCalledTimes(2);
+  });
+
+  it("is null when FastAPI can't answer", async () => {
+    callBackend.mockResolvedValue({ ok: false, status: 502, error: { code: "backend_unavailable", message: "x" } });
+    expect(await getMobileLanding()).toBeNull();
   });
 });
 
