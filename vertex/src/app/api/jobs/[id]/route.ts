@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { limitByIp } from "@/lib/rate-limit";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { callBackend, legacyErrorResponse } from "@/lib/backend";
 export const dynamic = "force-dynamic";
 
-// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
-const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
+// Who may try: any internal role. FastAPI decides by the jobs.manage
+// permission the admin gives roles (role management; marketing by
+// default, admin always): vertex_be/app/api/v1/jobs.py.
+const JOB_MANAGER_ROLES = INTERNAL_ROLES;
 
 // GET /api/jobs/[id] — public, read from FastAPI since reads handover R1.
 // Active or closed jobs, never drafts; partner-only ones as for the listing

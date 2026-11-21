@@ -27,7 +27,13 @@ describe("the built-in text", () => {
       "web.faq", "web.ending", "shared.why_vertex", "shared.contact",
     ]);
     expect(blocks["web.hero"]?.headline).toBe("Your gateway to");
-    expect(details).toEqual({ whatsapp: "+44 7438 613251", office: "+44 20 3026 3403", email: "vertex@vertexintern.com" });
+    expect(details).toEqual({
+      whatsapp: "+44 7438 613251",
+      office: "+44 20 3026 3403",
+      email: "vertex@vertexintern.com",
+      other_emails: ["inquiries@vertexintern.com", "support@vertexintern.com"],
+      address: "Regus House, Herons Way, Chester Business Park, Chester, Cheshire CH4 9QR, United Kingdom",
+    });
   });
 });
 
@@ -54,7 +60,16 @@ describe("marketing's blocks over the built-in text", () => {
 
   it("takes the published contact details for the footer, the WhatsApp button and the contact page", () => {
     const page = merge({ version: BLOCK_VERSION, blocks: [{ key: "shared.contact", visible: true, body: contact, revision: 1 }] });
-    expect(page.contact).toEqual({ whatsapp: "+44 7000 000001", office: "+44 20 3026 3403", email: "hello@example.org" });
+    expect(page.contact).toMatchObject({ whatsapp: "+44 7000 000001", office: "+44 20 3026 3403", email: "hello@example.org" });
+  });
+
+  it("fills a field the published body lacks from the built-in text (one published before the field existed)", () => {
+    const { other_emails: _o, address: _a, ...old } = BUILT_IN["shared.contact"];
+    const page = merge({ version: BLOCK_VERSION, blocks: [{ key: "shared.contact", visible: true, body: { ...old, email: "old@example.org" }, revision: 1 }] });
+    expect(page.contact.email).toBe("old@example.org");
+    expect(page.contact.other_emails).toEqual(BUILT_IN["shared.contact"].other_emails);
+    const emptied = merge({ version: BLOCK_VERSION, blocks: [{ key: "shared.contact", visible: true, body: { ...BUILT_IN["shared.contact"], other_emails: [], address: "" }, revision: 2 }] });
+    expect([emptied.contact.other_emails, emptied.contact.address]).toEqual([[], ""]);
   });
 
   it("keeps the built-in text for a newer format, an unknown block, or a body that isn't one", () => {

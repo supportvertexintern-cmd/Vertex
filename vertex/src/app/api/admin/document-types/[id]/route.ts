@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // DELETE /api/admin/document-types/:id — blocked (409 in_use) while any real
@@ -9,7 +10,9 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // early and passes the request on.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["admin", "marketing"]);
+  // Any internal role; FastAPI decides by the reference.manage permission
+  // (role management; marketing by default, admin always).
+  const guardRes = requireRole(user, INTERNAL_ROLES);
   if (guardRes) return guardRes;
 
   const { id } = await params;

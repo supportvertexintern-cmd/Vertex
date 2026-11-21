@@ -82,18 +82,26 @@ describe("refuses early, without calling FastAPI", () => {
     expect(callBackend).toHaveBeenCalledTimes(1);
   });
 
-  it.each([["hr"], ["finance"], ["partner"]])("%s reads neither", async (role) => {
+  // Role management (2026-11-21): an internal role is passed on, and FastAPI
+  // decides by its reader roles and reference.manage / jobs.manage.
+  it.each([["partner"], ["referral_agent"]])("%s reads neither", async (role) => {
     state.role = role;
     expect((await sectors.GET(req())).status).toBe(403);
     expect((await requirements.GET(req(), params("c1"))).status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
   });
 
-  it.each([["director"], ["hr"], ["inhouse_supervisor"]])("writes for %s (only admin and marketing write)", async (role) => {
+  it.each([["candidate"], ["partner"], ["referral_agent"]])("writes for %s (an account outside Vertex)", async (role) => {
     state.role = role;
     const writes = [sectors.POST(req("POST", "{}")), sector.DELETE(req("DELETE"), params("s1")), requirements.PUT(req("PUT", "{}"), params("c1"))];
     for (const res of await Promise.all(writes)) expect(res.status).toBe(403);
     expect(callBackend).not.toHaveBeenCalled();
+  });
+
+  it.each([["hr"], ["finance"], ["director"]])("%s's reads and writes are FastAPI's to decide (reference.manage)", async (role) => {
+    state.role = role;
+    await Promise.all([sectors.GET(req()), sectors.POST(req("POST", "{}")), requirements.PUT(req("PUT", "{}"), params("c1"))]);
+    expect(callBackend).toHaveBeenCalledTimes(3);
   });
 
   it("marketing writes, passed on to FastAPI (2026-11-06)", async () => {

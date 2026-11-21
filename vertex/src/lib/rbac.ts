@@ -30,7 +30,10 @@ export const PORTAL_ACCESS: Record<string, Role[]> = {
   "/supervisor": ["country_supervisor", "admin"],
   "/inhouse": ["inhouse_supervisor", "admin"],
   "/management": ["director", "admin"],
-  "/marketing": ["marketing", "admin"],
+  // Jobs and sectors: any internal role may open them; each page shows its
+  // work only to a role holding its permission (jobs.manage,
+  // reference.manage), which FastAPI checks on every request.
+  "/marketing": INTERNAL_ROLES,
   "/partner": ["partner", "admin"],
   "/hr": ["hr", "admin"],
   "/operations": ["operations_team", "operations_director", "admin"],

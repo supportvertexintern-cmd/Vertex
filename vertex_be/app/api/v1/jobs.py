@@ -46,7 +46,7 @@ from app.api.deps import DbSession
 from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser, CurrentUser, WebsiteOrUser
-from app.core.rbac import require_role
+from app.core.permissions import Permission, has_permission, require_permission
 from app.db.session import SessionLocal
 from app.models.candidate import Application
 from app.models.enums import CaseStage, JobStatus, Role
@@ -64,13 +64,14 @@ from app.services.stripe_pricing import (
 
 router = APIRouter()
 
-# Job postings are Marketing's; admin keeps override access.
-JOB_MANAGERS: tuple[Role, ...] = (Role.marketing, Role.admin)
+# Who posts and edits jobs: the roles holding jobs.manage, which the admin
+# assigns (role management; marketing by default, admin always).
+JOBS = Permission.jobs_manage
 # Who sees a partner-only job when asking for the partner audience: the
 # roles that submit candidates for a partner. Must match
 # PARTNER_JOB_VISIBILITY_ROLES in vertex/src/app/api/jobs/route.ts.
 PARTNER_JOB_VIEWERS: tuple[Role, ...] = (Role.partner, Role.hr, Role.operations_team, Role.operations_director, Role.admin)
-JobManager = Annotated[AuthUser, Depends(require_role(*JOB_MANAGERS))]
+JobManager = Annotated[AuthUser, Depends(require_permission(JOBS))]
 
 # Editing any of these leaves Stripe pricing stale, so they trigger a sync.
 FEE_RELEVANT_FIELDS = frozenset({"service_fee_gbp", "country", "visa_type", "duration_permit", "payment_stages"})
@@ -355,15 +356,15 @@ class ApplicationFeeOut(BaseModel):
     application_fee: float | None
 
 
-def _is_job_manager(user: AuthUser | None) -> bool:
-    return user is not None and user.role in JOB_MANAGERS
+def _is_job_manager(db: DbSession, user: AuthUser | None) -> bool:
+    return has_permission(db, user, JOBS)
 
 
-def _partner_only_visible(user: AuthUser | None, audience: str | None) -> bool:
+def _partner_only_visible(db: DbSession, user: AuthUser | None, audience: str | None) -> bool:
     """A job manager always sees partner-only jobs (they maintain them);
     anyone else only in a partner context (audience=partner) and in a role
     that submits for partners."""
-    return _is_job_manager(user) or (audience == "partner" and user is not None and user.role in PARTNER_JOB_VIEWERS)
+    return _is_job_manager(db, user) or (audience == "partner" and user is not None and user.role in PARTNER_JOB_VIEWERS)
 
 
 def _public_jobs(db: DbSession, model: type[PublicJobOut], jobs: list[Job]) -> list[PublicJobOut]:
@@ -410,7 +411,7 @@ def list_public_jobs(
     default; "public" (the /jobs page) adds closed ones. A job manager's
     own list may also ask for draft, closed or all, and sort by title or
     application count."""
-    manager = _is_job_manager(user)
+    manager = _is_job_manager(db, user)
     wanted = status if status == "public" or (manager and status in ("draft", "active", "closed", "all")) else None
     page_n = max(1, _int(page, 1))
     limit_n = min(200 if wanted and wanted != "public" else 50, max(1, _int(limit, 10)))
@@ -428,7 +429,7 @@ def list_public_jobs(
         where.append(Job.category == category)
     if q:
         where.append(or_(Job.title.icontains(q, autoescape=True), Job.job_description.icontains(q, autoescape=True)))
-    if not _partner_only_visible(user, audience):
+    if not _partner_only_visible(db, user, audience):
         where.append(Job.partner_only.is_(False))
 
     sort = sortBy if manager else None
@@ -458,7 +459,7 @@ def find_public_job(db, job_id: str, user: AuthUser | None, audience: str | None
     """A public job: active or closed (closed ones stay reachable from old
     links), never a draft. Partner-only as for the listing."""
     where = [Job.id == job_id, Job.status.in_([JobStatus.active, JobStatus.closed])]
-    if not _partner_only_visible(user, audience):
+    if not _partner_only_visible(db, user, audience):
         where.append(Job.partner_only.is_(False))
     return db.scalars(select(Job).where(*where).options(*_PUBLIC_LOADS)).first()
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Role } from "@/lib/enums";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { callBackend, legacyErrorResponse } from "@/lib/backend";
 import { limitByIp } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
@@ -8,8 +9,10 @@ export const dynamic = "force-dynamic";
 // Job postings are Marketing's sole responsibility — a role deliberately
 // kept outside the three-tier operational hierarchy (Regional Supervisory
 // Operational Workflow). Admin keeps override access.
-// Must match JOB_MANAGERS in vertex_be/app/api/v1/jobs.py (tests check it).
-const JOB_MANAGER_ROLES = ["marketing", "admin"] as const;
+// Who may try: any internal role. FastAPI decides by the jobs.manage
+// permission the admin gives roles (role management; marketing by
+// default, admin always): vertex_be/app/api/v1/jobs.py.
+const JOB_MANAGER_ROLES = INTERNAL_ROLES;
 
 // Who sees a partner-only job when asking for the partner audience: the
 // roles already allowed to submit a candidate for a partner. Must match

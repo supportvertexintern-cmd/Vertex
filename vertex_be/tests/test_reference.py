@@ -8,7 +8,9 @@ import secrets
 import pytest
 from sqlalchemy import select, text
 
-from app.api.v1.reference import REFERENCE_EDITORS, REQUIREMENT_READERS, SECTOR_READERS
+from app.api.v1.reference import DOCUMENT_TYPE_READERS, REQUIREMENT_READERS, SECTOR_READERS
+from app.core.rbac import INTERNAL_ROLES
+from app.models.permissions import RolePermission
 from app.core.config import BASE_DIR
 from app.db.session import get_db
 from app.main import app
@@ -67,15 +69,20 @@ def doc_types(db):
     return [t.key for t in types]
 
 
-def next_readers(route: str) -> set[str]:
+def next_guard(route: str, method: str) -> str:
     src = (NEXT_API / route / "route.ts").read_text(encoding="utf-8")
-    get = src[src.index("export async function GET"):]
-    return set(re.findall(r'"(\w+)"', re.search(r"requireRole\(user, \[(.*?)\]\)", get, re.S).group(1)))
+    handler = src[src.index(f"export async function {method}"):]
+    return re.search(r"requireRole\(user, (.*?)\);", handler, re.S).group(1)
 
 
-def test_the_reader_roles_match_next_js():
-    assert next_readers("sectors") == {r.value for r in SECTOR_READERS}
-    assert next_readers("countries/[id]/document-requirements") == {r.value for r in REQUIREMENT_READERS}
+def test_the_website_lets_every_reader_through_to_fastapi():
+    # Any internal role (and the candidate, for requirements) may try; FastAPI
+    # decides by its reader roles and the reference.manage / jobs.manage permissions.
+    assert next_guard("sectors", "GET") == "INTERNAL_ROLES"
+    assert next_guard("document-types", "GET") == "INTERNAL_ROLES"
+    assert next_guard("countries/[id]/document-requirements", "GET") == '["candidate", ...INTERNAL_ROLES]'
+    assert set(SECTOR_READERS) <= INTERNAL_ROLES and set(DOCUMENT_TYPE_READERS) <= INTERNAL_ROLES
+    assert set(REQUIREMENT_READERS) - INTERNAL_ROLES == {Role.candidate}
 
 
 # --- sectors -----------------------------------------------------------------
@@ -266,24 +273,42 @@ def test_only_admin_writes_document_types(api, db, doc_types):
 # --- who edits (marketing since 2026-11-06) ----------------------------------
 
 
-def next_editors(route: str, method: str) -> set[str]:
-    src = (NEXT_API / route / "route.ts").read_text(encoding="utf-8")
-    handler = src[src.index(f"export async function {method}"):]
-    return set(re.findall(r'"(\w+)"', re.search(r"requireRole\(user, \[(.*?)\]\)", handler, re.S).group(1)))
+# Who holds reference.manage before the admin changes anything (migration 0028).
+DEFAULT_EDITORS = {Role.admin, Role.marketing}
 
 
-def test_the_editor_roles_match_next_js():
-    editors = {r.value for r in REFERENCE_EDITORS}
-    assert editors == {"admin", "marketing"}
+def test_the_website_leaves_reference_edits_to_fastapi():
     for route, method in (("sectors", "POST"), ("sectors/[id]", "DELETE"), ("document-types", "POST"),
                           ("document-types/[id]", "DELETE"), ("countries/[id]/document-requirements", "PUT")):
-        assert next_editors(route, method) == editors, (route, method)
+        assert next_guard(route, method) == "INTERNAL_ROLES", (route, method)
+
+
+def test_a_role_given_reference_manage_edits_and_reads_it(api, db, country, doc_types):
+    finance = as_role(db, Role.finance)  # no reader role of its own
+    assert api.post("/api/v1/sectors", headers=finance, json={"name": unique("Fin")}).status_code == 403
+    assert api.get("/api/v1/document-types", headers=finance).status_code == 403
+    db.add(RolePermission(role=Role.finance, permission="reference.manage"))
+    db.flush()
+    assert api.post("/api/v1/sectors", headers=finance, json={"name": unique("Fin")}).status_code == 201
+    assert api.get("/api/v1/sectors", headers=finance).status_code == 200
+    assert api.get("/api/v1/document-types", headers=finance).status_code == 200
+    assert api.put(url(country.id), headers=finance, json={"document_types": doc_types}).status_code == 200
+    assert api.get(url(country.id), headers=finance).status_code == 200
+
+
+def test_a_role_given_jobs_manage_reads_the_sectors(api, db):
+    hr = as_role(db, Role.hr)
+    assert api.get("/api/v1/sectors", headers=hr).status_code == 403
+    db.add(RolePermission(role=Role.hr, permission="jobs.manage"))
+    db.flush()
+    assert api.get("/api/v1/sectors", headers=hr).status_code == 200
+    assert api.post("/api/v1/sectors", headers=hr, json={"name": unique("Hr")}).status_code == 403
 
 
 @pytest.mark.parametrize("role", list(Role))
 def test_admin_and_marketing_edit_the_reference_data(api, db, role, doc_types):
     headers = as_role(db, role)
-    allowed = role in REFERENCE_EDITORS
+    allowed = role in DEFAULT_EDITORS
     created = api.post("/api/v1/sectors", headers=headers, json={"name": unique("Edit")})
     assert created.status_code == (201 if allowed else 403)
     doc_type = api.post("/api/v1/document-types", headers=headers, json={"label": unique("Edit doc")})

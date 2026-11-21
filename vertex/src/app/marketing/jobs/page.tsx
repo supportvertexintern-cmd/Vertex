@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import PortalShell from "@/components/portal/PortalShell";
-import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
+// jobs.manage, which the admin gives roles (role management): the page opens in the user's own portal.
+import PermissionShell from "@/components/portal/PermissionShell";
 import SearchableSelect from "@/components/SearchableSelect";
 import SortableTh from "@/components/SortableTh";
 import Pagination from "@/components/Pagination";
@@ -86,7 +86,7 @@ export default function AdminJobsPage() {
   };
 
   return (
-    <PortalShell roleLabel="Marketing" navItems={MARKETING_NAV_ITEMS}>
+    <PermissionShell permission="jobs.manage">
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="eyebrow mb-3">
@@ -152,6 +152,6 @@ export default function AdminJobsPage() {
           </div>
         </div>
       )}
-    </PortalShell>
+    </PermissionShell>
   );
 }

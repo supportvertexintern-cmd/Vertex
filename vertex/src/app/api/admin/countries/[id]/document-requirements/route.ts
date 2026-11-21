@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // FastAPI owns sectors and country document requirements since backend
@@ -17,7 +18,8 @@ const path = (id: string) => `/api/v1/countries/${encodeURIComponent(id)}/docume
 // REQUIREMENT_READERS in reference.py (tests check it).
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["candidate", "regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "marketing", "admin"]);
+  // The candidate and any internal role: FastAPI lets in REQUIREMENT_READERS and whoever holds reference.manage.
+  const guardRes = requireRole(user, ["candidate", ...INTERNAL_ROLES]);
   if (guardRes) return guardRes;
 
   const { id } = await params;
@@ -28,7 +30,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 // country's whole list (the admin ticks a checklist). Admin only.
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["admin", "marketing"]);
+  // Any internal role; FastAPI decides by the reference.manage permission
+  // (role management; marketing by default, admin always).
+  const guardRes = requireRole(user, INTERNAL_ROLES);
   if (guardRes) return guardRes;
 
   const { id } = await params;

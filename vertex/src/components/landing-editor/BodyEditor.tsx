@@ -18,7 +18,7 @@ export type Issues = Record<string, string[]>; // "cards.0.title" -> messages
 const ICON_NAMES = Object.keys(LANDING_ICONS);
 
 // Fields that read better as a paragraph box.
-const LONG_FIELDS = new Set(["intro", "text", "a", "subtitle", "existing_text", "video_fallback", "empty_text"]);
+const LONG_FIELDS = new Set(["intro", "text", "a", "subtitle", "existing_text", "video_fallback", "empty_text", "address"]);
 
 const LABELS: Record<string, string> = {
   q: "Question",
@@ -38,6 +38,8 @@ const LABELS: Record<string, string> = {
   seconds: "Starts at (seconds)",
   whatsapp: "WhatsApp number",
   office: "Office number",
+  other_emails: "Other email addresses (contact page)",
+  address: "Registered office (contact page)",
   marker: "Marker",
 };
 

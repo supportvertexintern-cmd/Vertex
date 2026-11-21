@@ -42,6 +42,8 @@ from app.models.enums import Role
 class Permission(str, enum.Enum):
     landing_edit = "landing.edit"
     landing_publish = "landing.publish"
+    jobs_manage = "jobs.manage"
+    reference_manage = "reference.manage"
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,20 @@ PERMISSIONS: dict[Permission, PermissionSpec] = {
             "Landing pages",
             "Publish",
             "Make a draft what visitors see.",
+            frozenset({Role.marketing}),
+        ),
+        PermissionSpec(
+            Permission.jobs_manage,
+            "Jobs",
+            "Post and edit",
+            "Post, edit, close and delete job listings, with their sectors, positions and payment stages, and see drafts.",
+            frozenset({Role.marketing}),
+        ),
+        PermissionSpec(
+            Permission.reference_manage,
+            "Sectors & requirements",
+            "Edit",
+            "Add and remove sectors and document types, and set the documents each country requires.",
             frozenset({Role.marketing}),
         ),
     )
@@ -99,19 +115,21 @@ def has_permission(db: Session, user: AuthUser | None, *permissions: Permission)
     return user is not None and not role_permissions(db, user.role).isdisjoint(permissions)
 
 
-def require_permission(*permissions: Permission) -> Callable[..., AuthUser]:
+def require_permission(*permissions: Permission, roles: frozenset[Role] | tuple[Role, ...] = ()) -> Callable[..., AuthUser]:
     """A dependency that admits a live session whose role holds any of
-    permissions, as require_role() does for a fixed list: 401 without a
-    session, 403 (and an audit row) without one of them."""
+    permissions (or is one of roles, for a read some roles have by their
+    work), as require_role() does for a fixed list: 401 without a session,
+    403 (and an audit row) otherwise."""
     if not permissions:
         raise ValueError("require_permission() needs at least one permission")
+    fixed = frozenset(roles)
 
     def check_permission(
         request: Request,
         user: Annotated[AuthUser, Depends(current_user)],
         db: Annotated[Session, Depends(get_db)],
     ) -> AuthUser:
-        if has_permission(db, user, *permissions):
+        if user.role in fixed or has_permission(db, user, *permissions):
             return user
         record_security_event(
             "access_denied",

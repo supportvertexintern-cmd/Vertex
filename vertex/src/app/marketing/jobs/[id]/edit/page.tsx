@@ -3,8 +3,8 @@
 import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import PortalShell from "@/components/portal/PortalShell";
-import { MARKETING_NAV_ITEMS } from "@/components/portal/marketingNav";
+// jobs.manage, which the admin gives roles (role management): the page opens in the user's own portal.
+import PermissionShell from "@/components/portal/PermissionShell";
 import SearchableSelect from "@/components/SearchableSelect";
 import PaymentStageBuilder, { type PaymentStageDraft } from "@/components/portal/PaymentStageBuilder";
 import { Plus, Trash, PencilSimple, Check, X } from "@phosphor-icons/react";
@@ -320,7 +320,7 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
   };
 
   return (
-    <PortalShell roleLabel="Marketing" navItems={MARKETING_NAV_ITEMS}>
+    <PermissionShell permission="jobs.manage">
       <div className="flex items-center justify-between mb-8">
         <div>
           <p className="eyebrow mb-3">
@@ -637,6 +637,6 @@ const stagesTotal = paymentStages.reduce((sum, s) => sum + (Number(s.percent) ||
           )}
         </div>
       )}
-    </PortalShell>
+    </PermissionShell>
   );
 }

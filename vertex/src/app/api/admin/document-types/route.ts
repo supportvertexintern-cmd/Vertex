@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser, requireRole } from "@/lib/api-auth";
+import { INTERNAL_ROLES } from "@/lib/rbac";
 import { backendResponse, callBackend } from "@/lib/backend";
 
 // GET /api/admin/document-types — every admin-managed document requirement
@@ -10,7 +11,8 @@ import { backendResponse, callBackend } from "@/lib/backend";
 // vertex_be/app/api/v1/reference.py (tests check it).
 export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["regional_recruiter", "country_supervisor", "inhouse_supervisor", "director", "marketing", "hr", "operations_team", "operations_director", "admin"]);
+  // Any internal role: FastAPI lets in DOCUMENT_TYPE_READERS and whoever holds reference.manage.
+  const guardRes = requireRole(user, INTERNAL_ROLES);
   if (guardRes) return guardRes;
 
   return backendResponse(await callBackend("/api/v1/document-types"));
@@ -25,7 +27,9 @@ export async function GET(req: NextRequest) {
 // passes the request on.
 export async function POST(req: NextRequest) {
   const user = await getAuthUser(req);
-  const guardRes = requireRole(user, ["admin", "marketing"]);
+  // Any internal role; FastAPI decides by the reference.manage permission
+  // (role management; marketing by default, admin always).
+  const guardRes = requireRole(user, INTERNAL_ROLES);
   if (guardRes) return guardRes;
 
   let body: unknown;

@@ -11,7 +11,8 @@ import pytest
 from sqlalchemy import select, text
 
 from app.api.v1 import jobs
-from app.api.v1.jobs import JOB_MANAGERS, PAYMENT_RECEIPT_TYPE_PREFIX
+from app.api.v1.jobs import PAYMENT_RECEIPT_TYPE_PREFIX
+from app.models.permissions import RolePermission
 from app.core.config import BASE_DIR
 from app.db.session import get_db
 from app.main import app
@@ -102,7 +103,12 @@ def stages_of(db, job_id: str) -> list[JobPaymentStage]:
     return list(db.scalars(select(JobPaymentStage).where(JobPaymentStage.job_id == job_id).order_by(JobPaymentStage.order)))
 
 
-def test_the_managers_match_next_js():
+# Who holds jobs.manage before the admin changes anything (migration 0028).
+DEFAULT_JOB_MANAGERS = {Role.marketing, Role.admin}
+
+
+def test_the_website_leaves_job_writes_to_fastapi():
+    # Any internal role may try; FastAPI decides by jobs.manage (role management).
     for route in (
         "route.ts",
         "[id]/route.ts",
@@ -113,8 +119,7 @@ def test_the_managers_match_next_js():
         "[id]/sectors/[sectorId]/positions/[positionId]/route.ts",
     ):
         src = (NEXT_JOBS / route).read_text(encoding="utf-8")
-        roles = re.search(r"const JOB_MANAGER_ROLES = \[(.*?)\]", src).group(1)
-        assert set(re.findall(r'"(\w+)"', roles)) == {r.value for r in JOB_MANAGERS}, route
+        assert "const JOB_MANAGER_ROLES = INTERNAL_ROLES;" in src, route
 
 
 # --- create ------------------------------------------------------------------
@@ -175,8 +180,27 @@ def test_an_unknown_employer_is_a_validation_error(api, marketing):
 @pytest.mark.parametrize("role", list(Role))
 def test_only_marketing_and_admin_write_jobs(api, db, role):
     _, headers = as_role(db, role)
-    expected = 201 if role in JOB_MANAGERS else 403
+    expected = 201 if role in DEFAULT_JOB_MANAGERS else 403
     assert api.post("/api/v1/jobs", headers=headers, json=new_job()).status_code == expected
+
+
+def test_a_role_given_jobs_manage_posts_jobs_and_sees_drafts(api, db):
+    _, hr = as_role(db, Role.hr)
+    assert api.post("/api/v1/jobs", headers=hr, json=new_job()).status_code == 403
+    db.add(RolePermission(role=Role.hr, permission="jobs.manage"))
+    db.flush()
+    created = api.post("/api/v1/jobs", headers=hr, json=new_job(status="draft"))
+    assert created.status_code == 201, created.text
+    listed = api.get("/api/v1/jobs", headers=hr, params={"status": "draft", "limit": 200}).json()["data"]["jobs"]
+    assert created.json()["data"]["id"] in [j["id"] for j in listed]
+
+
+def test_unticking_marketing_ends_its_job_writes(api, db):
+    _, marketing = as_role(db, Role.marketing)
+    for row in db.scalars(select(RolePermission).where(RolePermission.role == Role.marketing, RolePermission.permission == "jobs.manage")):
+        db.delete(row)
+    db.flush()
+    assert api.post("/api/v1/jobs", headers=marketing, json=new_job()).status_code == 403
 
 
 # --- update ------------------------------------------------------------------
