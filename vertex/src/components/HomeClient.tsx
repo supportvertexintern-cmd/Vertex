@@ -9,34 +9,28 @@ import {
   ArrowRight,
   ArrowUpRight,
   Buildings,
-  Certificate,
-  ChatCircleText,
   Check,
   CheckCircle,
-  ClipboardText,
+  ChatCircleText,
   EnvelopeSimple,
   Factory,
-  FileText,
   ForkKnife,
-  GlobeHemisphereWest,
-  GraduationCap,
-  HandCoins,
   Handshake,
   HardHat,
   MapPin,
   Package,
   Phone,
   Plus,
-  QrCode,
   SealCheck,
-  ShareNetwork,
   ShieldCheck,
   Users,
   Wrench,
 } from "@phosphor-icons/react";
 import { LANDING_VIDEO } from "@/lib/media";
+import { LandingAnchor, Lines, iconFor, phoneDigits, timeLabel } from "@/components/LandingParts";
+import type { Landing } from "@/server/services/landingContent";
 
-/* ===== Static content — sourced from Vertex International company documentation ===== */
+/* ===== Not shown on the page (kept from the earlier design) ===== */
 
 const STATS = [
   { value: "3", label: "Global Regional Hubs" },
@@ -116,176 +110,6 @@ const SERVICES = [
   },
 ];
 
-const PROCESS_STEPS = [
-  {
-    icon: ClipboardText,
-    title: "Sourcing & Screening",
-    text: "Candidates are sourced through secure channels and screened for baseline alignment with employer requirements and institutional standards.",
-  },
-  {
-    icon: FileText,
-    title: "Documentation & Verification",
-    text: "Dossiers are prepared and reviewed through authentication protocols, licence validation, and reference verification.",
-  },
-  {
-    icon: HandCoins,
-    title: "Offer & Permit Processing",
-    text: "Formal job offers and contracts are coordinated alongside work permit, visa, and immigration authority processes.",
-  },
-  {
-    icon: GlobeHemisphereWest,
-    title: "Travel & Settlement",
-    text: "Flight booking, airport reception, and accommodation are arranged, followed by a structured 90-day post-arrival support loop.",
-  },
-];
-
-const AUDIENCES = [
-  {
-    icon: Buildings,
-    title: "Employers & Corporate Clients",
-    text: "Reliable, verified, deployment-ready international talent across workforce categories and project requirements.",
-  },
-  {
-    icon: SealCheck,
-    title: "Sovereign & Institutional Stakeholders",
-    text: "Structured workforce mobility and overseas employment coordination within compliant, ethical, transparent frameworks.",
-  },
-  {
-    icon: Handshake,
-    title: "Recruitment Agencies & Manpower Suppliers",
-    text: "Collaboration on sourcing, screening, shortlisting, credential verification, and shared deployment workflows.",
-  },
-  {
-    icon: GlobeHemisphereWest,
-    title: "Travel & Visa Partners",
-    text: "Cooperation on flight booking, group travel, route optimization, documentation checklists, and compliance updates.",
-  },
-  {
-    icon: Users,
-    title: "Candidates & Professionals",
-    text: "Support through registration, screening, documentation, offer coordination, visa guidance, and settlement.",
-  },
-];
-
-const WHY_VERTEX = [
-  {
-    icon: Handshake,
-    title: "Strategic Institutional Partnership",
-    text: "Not a transactional staffing vendor — a long-term partner coordinating recruitment, mobility, compliance, travel and settlement through one accountable structure.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Compliance by Design",
-    text: "Governed by UK corporate governance, anti-trafficking protocols, modern slavery safeguards, and ethical recruitment principles.",
-  },
-  {
-    icon: CheckCircle,
-    title: "Transparent Processes",
-    text: "No hidden fees, no opaque processes — structured communication, verified documentation, and auditable compliance support.",
-  },
-  {
-    icon: Phone,
-    title: "24/7 Multi-Hub Support",
-    text: "A multi-hub operational model across Europe, the Middle East and Africa supports service continuity across time zones.",
-  },
-];
-
-const WORKFORCE_CATEGORIES = [
-  { icon: GraduationCap, title: "Unskilled & General Workforce", text: "Agriculture, logistics, facilities management, manufacturing, food processing, construction support." },
-  { icon: Certificate, title: "Semi-Skilled & Vocational Trades", text: "Plumbers, electricians, welders, machinery operators, hospitality professionals." },
-  { icon: Buildings, title: "Technical & Engineering", text: "Civil, mechanical, electrical, petroleum, project supervision, EPC-related talent." },
-];
-
-const REQUIREMENTS = [
-  "Valid passport",
-  "CV & educational records",
-  "Professional credentials & experience certificates",
-  "Police clearance & medical checks",
-];
-
-const FAQS = [
-  {
-    q: "Who can Vertex place internationally?",
-    a: "We support candidates across unskilled, semi-skilled, and technical/engineering workforce categories — matched to employer requirements and institutional standards.",
-  },
-  {
-    q: "What documents do I need?",
-    a: "A valid passport, CV, educational records, professional credentials, police clearance, and medical checks. Our team reviews your dossier and guides you through any gaps.",
-  },
-  {
-    q: "Where does Vertex operate?",
-    a: "We are headquartered in London, United Kingdom, with regional hubs in the UAE and across Africa, and a global network reaching Europe, Canada, Australia, South Korea, New Zealand, the USA and beyond.",
-  },
-  {
-    q: "How does Vertex work with agencies and employers?",
-    a: "We collaborate with recruitment agencies, manpower suppliers, travel agencies, and visa consultancies on sourcing, screening, documentation, and shared deployment workflows — reducing time-to-fill and administrative friction.",
-  },
-  {
-    q: "What compliance standards does Vertex follow?",
-    a: "Our Quality Management approach is aligned with ISO 9001:2015. We operate under UK corporate governance, with anti-bribery, anti-corruption, modern slavery and anti-human trafficking safeguards built into every placement.",
-  },
-];
-
-// Partner-focused content (2026-11-05)
-const PARTNER_BENEFITS = [
-  {
-    icon: Handshake,
-    title: "Discuss sourcing and workforce requirements",
-    text: "Tell us about your organisation, the markets you serve, and the cooperation you have in mind.",
-  },
-  {
-    icon: FileText,
-    title: "Understand programme and submission processes",
-    text: "Get clarity on how we work together, from initial enquiry to candidate deployment.",
-  },
-  {
-    icon: CheckCircle,
-    title: "Agree responsibilities before onboarding",
-    text: "Clear terms and structured processes ensure both parties know what to expect.",
-  },
-];
-
-const PARTNER_PROCESS = [
-  {
-    step: "01",
-    title: "Company review",
-    text: "The team reviews your organisation and cooperation requirements.",
-  },
-  {
-    step: "02",
-    title: "Proposal & introductory meeting",
-    text: "Discuss the proposed services, operating process and responsibilities.",
-  },
-  {
-    step: "03",
-    title: "Agreement & onboarding",
-    text: "Suitable partnerships move to agreed terms and portal onboarding.",
-  },
-];
-
-const PARTNER_FAQS = [
-  {
-    q: "What should I include in my first enquiry?",
-    a: "A brief company introduction, the markets and sectors you serve, and the cooperation you want to explore. Use the optional business details section for a company profile link or meeting preference. Clear information helps the team prepare a relevant response.",
-  },
-  {
-    q: "Can I request a proposal or an introductory meeting?",
-    a: "Yes. Mention your request in the cooperation field. The team will review your requirements and discuss an appropriate next step. A meeting date is confirmed separately.",
-  },
-  {
-    q: "Does a partnership enquiry create an agreement?",
-    a: "No. The enquiry starts a discussion. Partnership terms and onboarding are confirmed separately after review.",
-  },
-  {
-    q: "Can I submit candidates through this form?",
-    a: "Please use the official application process or your existing partner portal. This form is for business enquiries.",
-  },
-  {
-    q: "How will the team contact me?",
-    a: "Provide an email address you monitor. The team will contact you to discuss your requirements and, where appropriate, arrange an introductory meeting.",
-  },
-];
-
 /* ===== Motion helper ===== */
 
 function FadeIn({
@@ -312,13 +136,6 @@ function FadeIn({
 
 /* ===== Page ===== */
 
-// Landing-page player — the shared VideoPlayer with the audience chapter
-// buttons (timestamps per the supplied cut) framing the 16:9 cut.
-const VIDEO_CHAPTERS = [
-  { label: "For partners", timeLabel: "2:53", seconds: 173 },
-  { label: "For individual applicants", timeLabel: "4:20", seconds: 260 },
-];
-
 // The fields of a public job (server/services/publicJobs.ts) this page shows.
 interface FeaturedJob {
   id: string;
@@ -329,10 +146,26 @@ interface FeaturedJob {
   created_at: string | Date;
 }
 
-export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
+// The page's text is marketing's (the landing CMS; app/page.tsx reads it
+// through server/services/landingContent.ts). A block marketing hid is
+// null, and its section isn't shown.
+export default function HomeClient({ jobs, content }: { jobs: FeaturedJob[]; content: Landing }) {
+  const hero = content["web.hero"];
+  const partner = content["web.partner_enquiry"];
+  const process = content["web.process"];
+  const audiences = content["web.audiences"];
+  const featured = content["web.jobs"];
+  const why = content["shared.why_vertex"];
+  const workforce = content["web.workforce"];
+  const referral = content["web.referral"];
+  const faq = content["web.faq"];
+  const contact = content["shared.contact"];
+  const ending = content["web.ending"];
+
   return (
     <div className="overflow-x-hidden">
       {/* ===== Hero ===== */}
+      {hero && (
       <section className="relative bg-midnight-950 text-ivory-50">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-1/4 right-0 w-[600px] h-[600px] rounded-full bg-midnight-600/15 blur-[130px]" />
@@ -342,70 +175,88 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           <div className="max-w-2xl">
             <p className="eyebrow-dark mb-6">
               <span className="eyebrow-rule" />
-              Global Talent · Trusted Partnerships · Reliable Results
+              {hero.eyebrow}
             </p>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.05] tracking-tight mb-8">
-              Your gateway to <span className="text-gold-300">global careers.</span>
+              <Lines text={hero.headline} />
+              {hero.highlight && (
+                <>
+                  {" "}
+                  <span className="text-gold-300">{hero.highlight}</span>
+                </>
+              )}
             </h1>
 
             <p className="text-lg text-ivory-50/65 leading-relaxed mb-10 max-w-xl font-light">
-              Vertex International Recruitment Ltd. connects talented professionals, employers, agencies and
-              institutional partners through ethical recruitment, compliant mobility solutions, and dedicated
-              end-to-end support.
+              <Lines text={hero.intro} />
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-10">
-              <Link href="/jobs" className="btn-gold px-8 py-3.5">
-                Explore Opportunities <ArrowRight size={16} weight="bold" />
-              </Link>
-              <a href="#partner-form" className="btn-ghost-dark px-8 py-3.5">
-                Start a Partnership Discussion
-              </a>
-            </div>
+            {hero.buttons.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-4 mb-10">
+                {hero.buttons.map((button, idx) =>
+                  idx === 0 ? (
+                    <LandingAnchor key={idx} link={button} className="btn-gold px-8 py-3.5">
+                      {button.label} <ArrowRight size={16} weight="bold" />
+                    </LandingAnchor>
+                  ) : (
+                    <LandingAnchor key={idx} link={button} className="btn-ghost-dark px-8 py-3.5" />
+                  ),
+                )}
+              </div>
+            )}
 
-            <div className="flex items-center gap-3 text-ivory-50/50">
-              <SealCheck size={18} weight="fill" className="text-gold-400" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">
-                UK-Incorporated Human Capital & Mobility Enterprise
-              </span>
-            </div>
+            {hero.trust_line && (
+              <div className="flex items-center gap-3 text-ivory-50/50">
+                <SealCheck size={18} weight="fill" className="text-gold-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">{hero.trust_line}</span>
+              </div>
+            )}
           </div>
 
           {/* Landing video */}
           <FadeIn delay={0.1}>
             <VideoPlayer
               src={LANDING_VIDEO}
-              alt="Vertex International — how we move talent around the world"
-              chapters={VIDEO_CHAPTERS}
-              fallback="Take a tour in person — book a consultation with our team."
+              alt={hero.video_alt}
+              chapters={hero.video_chapters.map((ch) => ({ ...ch, timeLabel: timeLabel(ch.seconds) }))}
+              fallback={hero.video_fallback}
             />
           </FadeIn>
         </div>
       </section>
+      )}
 
       {/* ===== Partner enquiry form ===== */}
+      {/* The section stays without marketing's text: other links on the site lead to #partner-form. */}
       <section id="partner-form" className="bg-midnight-900 text-ivory-50 py-16 md:py-24 scroll-mt-20">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 lg:grid lg:grid-cols-[1fr_1fr] lg:gap-10 lg:gap-16 lg:items-start">
           {/* Left column: Benefits + Process + Already a Partner */}
+          {partner ? (
           <FadeIn className="mb-10 lg:mb-0">
             <p className="eyebrow-dark mb-4">
               <span className="eyebrow-rule" />
-              For partners & employers
+              {partner.eyebrow}
             </p>
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">
-              Good partnerships start with a <span className="text-gold-300">clear conversation.</span>
+              <Lines text={partner.title} />
+              {partner.highlight && (
+                <>
+                  {" "}
+                  <span className="text-gold-300">{partner.highlight}</span>
+                </>
+              )}
             </h2>
             <p className="text-ivory-50/65 leading-relaxed font-light mb-8">
-              Tell us about your organisation, the markets you serve and the cooperation you have in mind.
+              <Lines text={partner.intro} />
             </p>
 
             {/* Benefits */}
             <div className="space-y-4 mb-10">
-              {PARTNER_BENEFITS.map((benefit, idx) => {
-                const Icon = benefit.icon;
+              {partner.benefits.map((benefit, idx) => {
+                const Icon = iconFor(benefit.icon, CheckCircle);
                 return (
-                  <div key={benefit.title} className="flex items-start gap-4">
+                  <div key={idx} className="flex items-start gap-4">
                     <div className="w-10 h-10 rounded-full border border-white/15 flex items-center justify-center text-gold-300 shrink-0">
                       <Icon size={18} weight="regular" />
                     </div>
@@ -421,13 +272,13 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
             {/* Process Steps */}
             <div className="mb-10">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-ivory-50/50 mb-4">
-                What happens next
+                {partner.steps_title}
               </h3>
               <div className="space-y-4">
-                {PARTNER_PROCESS.map((step, idx) => (
-                  <div key={step.step} className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                {partner.steps.map((step, idx) => (
+                  <div key={idx} className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
                     <div className="text-2xl font-semibold text-gold-400 tracking-tight shrink-0">
-                      {step.step}
+                      {step.marker || String(idx + 1).padStart(2, "0")}
                     </div>
                     <div>
                       <h4 className="font-semibold text-ivory-50 mb-1 text-sm">{step.title}</h4>
@@ -440,44 +291,46 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
 
             {/* Already a Partner */}
             <div className="p-5 rounded-xl border border-white/10 bg-white/5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-ivory-50/50 mb-2">Already a Vertex partner?</p>
-              <p className="text-sm text-ivory-50/60 mb-3">Use the portal for candidate submissions and existing cases.</p>
-              <Link href="/auth/login" className="text-gold-400 hover:text-gold-300 text-sm font-semibold inline-flex items-center gap-1">
-                Go to the partner portal <ArrowRight size={14} weight="bold" />
-              </Link>
+              <p className="text-xs font-semibold uppercase tracking-wider text-ivory-50/50 mb-2">{partner.existing_title}</p>
+              <p className="text-sm text-ivory-50/60 mb-3">{partner.existing_text}</p>
+              <LandingAnchor link={partner.existing_link} className="text-gold-400 hover:text-gold-300 text-sm font-semibold inline-flex items-center gap-1">
+                {partner.existing_link.label} <ArrowRight size={14} weight="bold" />
+              </LandingAnchor>
             </div>
           </FadeIn>
+          ) : (
+            <div />
+          )}
 
           {/* Right column: Form */}
           <FadeIn delay={0.1}>
-            <PartnerEnquiryForm variant="dark" />
+            <PartnerEnquiryForm variant="dark" email={contact?.email} />
           </FadeIn>
         </div>
       </section>
 
       {/* ===== How it works ===== */}
+      {process && (
       <section id="process" className="bg-ivory-50 py-20 md:py-28 scroll-mt-20">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-14 max-w-2xl">
             <p className="eyebrow mb-4">
               <span className="eyebrow-rule" />
-              The Vertex delivery framework
+              {process.eyebrow}
             </p>
-            <h2 className="section-title">From first enquiry to settlement.</h2>
-            <p className="section-subtitle">
-              An operating model built to institutionalize quality control across the cross-border placement cycle.
-            </p>
+            <h2 className="section-title"><Lines text={process.title} /></h2>
+            {process.subtitle && <p className="section-subtitle">{process.subtitle}</p>}
           </FadeIn>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {PROCESS_STEPS.map((step, idx) => {
-              const Icon = step.icon;
+            {process.cards.map((step, idx) => {
+              const Icon = iconFor(step.icon, CheckCircle);
               return (
-                <FadeIn key={step.title} delay={idx * 0.06} className="h-full">
+                <FadeIn key={idx} delay={idx * 0.06} className="h-full">
                   <div className="bg-white border border-midnight-900/10 rounded-2xl p-7 h-full flex flex-col">
                     <div className="flex items-center gap-3 mb-5">
                       <span className="text-xs font-semibold text-gold-600 tracking-[0.15em]">
-                        {String(idx + 1).padStart(2, "0")}
+                        {step.marker || String(idx + 1).padStart(2, "0")}
                       </span>
                       <div className="w-10 h-10 rounded-full border border-midnight-900/15 flex items-center justify-center text-midnight-800">
                         <Icon size={18} weight="regular" />
@@ -492,23 +345,26 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Who we serve ===== */}
+      {audiences && (
       <section className="bg-ivory-100 py-20 md:py-28">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-14 max-w-2xl">
             <p className="eyebrow mb-4">
               <span className="eyebrow-rule" />
-              Who we serve
+              {audiences.eyebrow}
             </p>
-            <h2 className="section-title">One institution, five stakeholders.</h2>
+            <h2 className="section-title"><Lines text={audiences.title} /></h2>
+            {audiences.subtitle && <p className="section-subtitle">{audiences.subtitle}</p>}
           </FadeIn>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {AUDIENCES.map((a, idx) => {
-              const Icon = a.icon;
+            {audiences.cards.map((a, idx) => {
+              const Icon = iconFor(a.icon, Users);
               return (
-                <FadeIn key={a.title} delay={idx * 0.05} className="h-full">
+                <FadeIn key={idx} delay={idx * 0.05} className="h-full">
                   <div className="bg-white border border-midnight-900/10 rounded-2xl p-7 h-full hover:border-gold-500/50 transition-colors">
                     <div className="w-11 h-11 rounded-full border border-midnight-900/15 flex items-center justify-center text-midnight-800 mb-5">
                       <Icon size={20} weight="regular" />
@@ -522,31 +378,33 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Featured jobs ===== */}
+      {featured && (
       <section className="bg-ivory-50 py-20 md:py-28">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div className="max-w-2xl">
               <p className="eyebrow mb-4">
                 <span className="eyebrow-rule" />
-                Open positions
+                {featured.eyebrow}
               </p>
-              <h2 className="section-title">Live opportunities.</h2>
+              <h2 className="section-title"><Lines text={featured.title} /></h2>
             </div>
-            <Link
-              href="/jobs"
+            <LandingAnchor
+              link={featured.view_all}
               className="group inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-midnight-800 hover:text-gold-600 transition-colors shrink-0"
             >
-              View all jobs
+              {featured.view_all.label}
               <ArrowRight size={16} weight="bold" className="transition-transform group-hover:translate-x-1" />
-            </Link>
+            </LandingAnchor>
           </FadeIn>
 
           {jobs.length === 0 ? (
             <FadeIn>
               <div className="text-center py-16 border border-midnight-900/10 rounded-2xl bg-white text-midnight-900/50">
-                <p className="font-light">No jobs available yet. Check back soon.</p>
+                <p className="font-light">{featured.empty_text}</p>
               </div>
             </FadeIn>
           ) : (
@@ -584,25 +442,28 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           )}
         </div>
       </section>
+      )}
 
       {/* ===== Why Vertex ===== */}
+      {why && (
       <section className="bg-midnight-950 text-ivory-50 py-20 md:py-28">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-12 max-w-2xl">
             <p className="eyebrow-dark mb-4">
               <span className="eyebrow-rule" />
-              Why choose Vertex
+              {why.eyebrow}
             </p>
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-ivory-50">
-              End-to-end accountability, by design.
+              <Lines text={why.title} />
             </h2>
+            {why.subtitle && <p className="text-ivory-50/50 font-light leading-relaxed mt-4">{why.subtitle}</p>}
           </FadeIn>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {WHY_VERTEX.map((item, idx) => {
-              const Icon = item.icon;
+            {why.cards.map((item, idx) => {
+              const Icon = iconFor(item.icon, CheckCircle);
               return (
-                <FadeIn key={item.title} delay={idx * 0.06} className="h-full">
+                <FadeIn key={idx} delay={idx * 0.06} className="h-full">
                   <div className="border border-white/10 rounded-2xl p-7 h-full hover:border-gold-400/40 transition-colors">
                     <Icon size={24} weight="light" className="text-gold-300 mb-5" />
                     <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">{item.title}</h3>
@@ -614,23 +475,25 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Workforce categories & eligibility ===== */}
+      {workforce && (
       <section className="bg-ivory-50 py-20 md:py-28">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-14 lg:gap-20">
             <FadeIn>
               <p className="eyebrow mb-4">
                 <span className="eyebrow-rule" />
-                Workforce categories
+                {workforce.eyebrow}
               </p>
-              <h2 className="section-title mb-6">Matched to the right tier.</h2>
+              <h2 className="section-title mb-6"><Lines text={workforce.title} /></h2>
               <div className="space-y-4">
-                {WORKFORCE_CATEGORIES.map((tier) => {
-                  const Icon = tier.icon;
+                {workforce.tiers.map((tier, idx) => {
+                  const Icon = iconFor(tier.icon, Buildings);
                   return (
                     <div
-                      key={tier.title}
+                      key={idx}
                       className="flex items-start gap-4 bg-white border border-midnight-900/10 rounded-2xl p-5 hover:border-gold-500/50 transition-colors"
                     >
                       <div className="w-11 h-11 rounded-full border border-midnight-900/15 flex items-center justify-center text-midnight-800 shrink-0">
@@ -649,161 +512,142 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
             <FadeIn delay={0.1}>
               <p className="eyebrow mb-4">
                 <span className="eyebrow-rule" />
-                Before you apply
+                {workforce.requirements_eyebrow}
               </p>
-              <h2 className="section-title mb-6">What you&apos;ll need.</h2>
+              <h2 className="section-title mb-6"><Lines text={workforce.requirements_title} /></h2>
               <ul className="space-y-4 mb-8">
-                {REQUIREMENTS.map((req) => (
-                  <li key={req} className="flex items-center gap-4 text-midnight-900">
+                {workforce.requirements.map((req, idx) => (
+                  <li key={idx} className="flex items-center gap-4 text-midnight-900">
                     <CheckCircle size={20} weight="fill" className="text-midnight-600 shrink-0" />
                     <span className="font-medium text-sm">{req}</span>
                   </li>
                 ))}
               </ul>
-              <Link
-                href="/apply"
+              <LandingAnchor
+                link={workforce.cta}
                 className="group flex items-center justify-between bg-midnight-900 text-ivory-50 rounded-2xl p-6 hover:bg-midnight-800 transition-colors"
               >
-                <span className="font-semibold">Ready? Start your application</span>
+                <span className="font-semibold">{workforce.cta.label}</span>
                 <ArrowRight size={20} weight="bold" className="text-gold-300 transition-transform group-hover:translate-x-1" />
-              </Link>
+              </LandingAnchor>
             </FadeIn>
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Referral Agents ===== */}
+      {referral && (
       <section className="bg-midnight-900 text-ivory-50 py-20 md:py-28">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
             <FadeIn>
               <p className="eyebrow-dark mb-4">
                 <span className="eyebrow-rule" />
-                Referral Agents
+                {referral.eyebrow}
               </p>
               <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mb-6">
-                Know someone ready to work abroad?
-                <br />
-                Earn by referring them to Vertex.
+                <Lines text={referral.title} />
               </h2>
               <p className="text-ivory-50/50 font-light leading-relaxed mb-8 max-w-lg">
-                Register as a Vertex Referral Agent, get your own referral link and QR code, and earn a
-                commission as the candidates you refer progress through our work permit and visa programmes —
-                from registration all the way to deployment.
+                <Lines text={referral.intro} />
               </p>
-              <Link href="/become-a-referral-agent" className="btn-gold px-8 py-3.5 inline-flex items-center gap-2">
-                Become a Referral Agent
+              <LandingAnchor link={referral.cta} className="btn-gold px-8 py-3.5 inline-flex items-center gap-2">
+                {referral.cta.label}
                 <ArrowRight size={18} weight="bold" />
-              </Link>
+              </LandingAnchor>
             </FadeIn>
 
             <FadeIn delay={0.1}>
               <div className="grid grid-cols-2 gap-4">
-                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors">
-                  <ShareNetwork size={24} weight="light" className="text-gold-300 mb-4" />
-                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">Your own referral link</h3>
-                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
-                    A unique code and link you can share anywhere.
-                  </p>
-                </div>
-                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors">
-                  <QrCode size={24} weight="light" className="text-gold-300 mb-4" />
-                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">A QR code to scan</h3>
-                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
-                    Print it, post it, or send it — instant attribution.
-                  </p>
-                </div>
-                <div className="border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors col-span-2">
-                  <HandCoins size={24} weight="light" className="text-gold-300 mb-4" />
-                  <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">Milestone-based commission</h3>
-                  <p className="text-sm text-ivory-50/50 font-light leading-relaxed">
-                    Earn as each referral progresses — from registration through to deployment — tracked live
-                    on your own dashboard.
-                  </p>
-                </div>
+                {referral.cards.map((card, idx) => {
+                  const Icon = iconFor(card.icon, CheckCircle);
+                  // An odd last card spans the row, as the third one always has.
+                  const wide = idx === referral.cards.length - 1 && referral.cards.length % 2 === 1;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border border-white/10 rounded-2xl p-6 hover:border-gold-400/40 transition-colors${wide ? " col-span-2" : ""}`}
+                    >
+                      <Icon size={24} weight="light" className="text-gold-300 mb-4" />
+                      <h3 className="font-semibold text-ivory-50 mb-2 tracking-tight text-sm">{card.title}</h3>
+                      <p className="text-sm text-ivory-50/50 font-light leading-relaxed">{card.text}</p>
+                    </div>
+                  );
+                })}
               </div>
             </FadeIn>
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== FAQ ===== */}
+      {faq && (
       <section className="bg-ivory-100 py-20 md:py-28">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-12 text-center">
             <p className="eyebrow mb-4 justify-center">
               <span className="eyebrow-rule" />
-              Common questions
+              {faq.eyebrow}
             </p>
-            <h2 className="section-title">Answers, upfront.</h2>
+            <h2 className="section-title"><Lines text={faq.title} /></h2>
           </FadeIn>
 
           <FadeIn>
-            {/* Partner FAQs */}
-            <div className="mb-10">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-midnight-900/60 mb-4 flex items-center gap-2">
-                <Handshake size={16} weight="regular" className="text-gold-600" />
-                For partners & employers
-              </h3>
-              <div className="border-t border-midnight-900/10">
-                {PARTNER_FAQS.map((faq) => (
-                  <details key={faq.q} className="group border-b border-midnight-900/10">
-                    <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                      <span className="font-semibold text-midnight-900 text-lg tracking-tight">{faq.q}</span>
-                      <Plus
-                        size={20}
-                        weight="bold"
-                        className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
-                      />
-                    </summary>
-                    <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">{faq.a}</p>
-                  </details>
-                ))}
-              </div>
-            </div>
+            {faq.groups.map((group, gIdx) => {
+              const Icon = iconFor(group.icon, ChatCircleText);
+              return (
+                <div key={gIdx} className={gIdx < faq.groups.length - 1 ? "mb-10" : undefined}>
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-midnight-900/60 mb-4 flex items-center gap-2">
+                    <Icon size={16} weight="regular" className="text-gold-600" />
+                    {group.title}
+                  </h3>
+                  <div className="border-t border-midnight-900/10">
+                    {group.items.map((item, idx) => (
+                      <details key={idx} className="group border-b border-midnight-900/10">
+                        <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                          <span className="font-semibold text-midnight-900 text-lg tracking-tight">{item.q}</span>
+                          <Plus
+                            size={20}
+                            weight="bold"
+                            className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
+                          />
+                        </summary>
+                        <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">
+                          <Lines text={item.a} />
+                        </p>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
 
-            {/* General FAQs */}
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-midnight-900/60 mb-4 flex items-center gap-2">
-                <ChatCircleText size={16} weight="regular" className="text-gold-600" />
-                General enquiries
-              </h3>
-              <div className="border-t border-midnight-900/10">
-                {FAQS.map((faq) => (
-                  <details key={faq.q} className="group border-b border-midnight-900/10">
-                    <summary className="flex items-center justify-between gap-6 py-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-                      <span className="font-semibold text-midnight-900 text-lg tracking-tight">{faq.q}</span>
-                      <Plus
-                        size={20}
-                        weight="bold"
-                        className="text-gold-600 shrink-0 transition-transform duration-300 group-open:rotate-45"
-                      />
-                    </summary>
-                    <p className="pb-6 text-midnight-900/60 font-light leading-relaxed max-w-2xl">{faq.a}</p>
-                  </details>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-center mt-10 text-sm text-midnight-900/50 font-light">
-              More questions?{" "}
-              <Link href="/help" className="font-semibold text-midnight-800 hover:text-gold-600 transition-colors">
-                Visit the Help Center →
-              </Link>
-            </p>
+            {(faq.more_text || faq.more_link) && (
+              <p className="text-center mt-10 text-sm text-midnight-900/50 font-light">
+                {faq.more_text}
+                {faq.more_text && faq.more_link && " "}
+                {faq.more_link && (
+                  <LandingAnchor link={faq.more_link} className="font-semibold text-midnight-800 hover:text-gold-600 transition-colors" />
+                )}
+              </p>
+            )}
           </FadeIn>
         </div>
       </section>
+      )}
 
       {/* ===== Contact strip ===== */}
+      {contact && (
       <section className="bg-midnight-900 text-ivory-50 py-16 border-b border-white/10">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
           <FadeIn className="mb-10">
             <p className="eyebrow-dark mb-4">
               <span className="eyebrow-rule" />
-              Reach us directly
+              {contact.eyebrow}
             </p>
-            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight">One message away, always.</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight"><Lines text={contact.title} /></h2>
           </FadeIn>
 
           <div className="grid md:grid-cols-3 gap-px bg-white/10 border border-white/10 rounded-2xl overflow-hidden">
@@ -812,12 +656,12 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
                 <ChatCircleText size={24} weight="light" className="text-gold-300 mb-4" />
                 <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ivory-50/40 mb-3">WhatsApp</div>
                 <a
-                  href="https://wa.me/447438613251"
+                  href={`https://wa.me/${phoneDigits(contact.whatsapp)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-ivory-50/80 hover:text-gold-300 text-sm font-mono transition-colors"
                 >
-                  +44 7438 613251
+                  {contact.whatsapp}
                 </a>
               </div>
             </FadeIn>
@@ -826,10 +670,10 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
                 <Phone size={24} weight="light" className="text-gold-300 mb-4" />
                 <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ivory-50/40 mb-3">Office</div>
                 <a
-                  href="tel:+442030263403"
+                  href={`tel:+${phoneDigits(contact.office)}`}
                   className="text-ivory-50/80 hover:text-gold-300 text-sm font-mono transition-colors"
                 >
-                  +44 20 3026 3403
+                  {contact.office}
                 </a>
               </div>
             </FadeIn>
@@ -838,45 +682,48 @@ export default function HomeClient({ jobs }: { jobs: FeaturedJob[] }) {
                 <EnvelopeSimple size={24} weight="light" className="text-gold-300 mb-4" />
                 <div className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ivory-50/40 mb-3">Email</div>
                 <a
-                  href="mailto:vertex@vertexintern.com"
+                  href={`mailto:${contact.email}`}
                   className="text-ivory-50/80 hover:text-gold-300 text-sm font-mono transition-colors"
                 >
-                  vertex@vertexintern.com
+                  {contact.email}
                 </a>
               </div>
             </FadeIn>
           </div>
         </div>
       </section>
+      )}
 
       {/* ===== Final CTA ===== */}
+      {ending && (
       <section className="bg-midnight-950 text-ivory-50 py-24 md:py-28">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <FadeIn>
             <p className="eyebrow-dark mb-6 justify-center">
               <span className="eyebrow-rule" />
-              Begin today
+              {ending.eyebrow}
             </p>
             <h2 className="text-3xl md:text-5xl font-semibold tracking-tight leading-[1.05] mb-6">
-              Build across borders.
-              <br />
-              Move with confidence.
+              <Lines text={ending.title} />
             </h2>
             <p className="text-ivory-50/50 text-lg font-light mb-10 max-w-xl mx-auto">
-              Whether you&apos;re an employer, a licensed agency, a travel or visa partner, or a candidate ready
-              to pursue opportunities abroad — Vertex provides the institutional platform to move forward.
+              <Lines text={ending.text} />
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/apply" className="btn-gold px-8 py-3.5">
-                Apply Now
-              </Link>
-              <a href="#partner-form" className="btn-ghost-dark px-8 py-3.5">
-                Partner With Vertex
-              </a>
-            </div>
+            {ending.buttons.length > 0 && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {ending.buttons.map((button, idx) => (
+                  <LandingAnchor
+                    key={idx}
+                    link={button}
+                    className={idx === 0 ? "btn-gold px-8 py-3.5" : "btn-ghost-dark px-8 py-3.5"}
+                  />
+                ))}
+              </div>
+            )}
           </FadeIn>
         </div>
       </section>
+      )}
     </div>
   );
 }

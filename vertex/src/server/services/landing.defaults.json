@@ -1,0 +1,317 @@
+{
+ "version": 1,
+ "blocks": {
+  "web.hero": {
+   "eyebrow": "Global Talent · Trusted Partnerships · Reliable Results",
+   "headline": "Your gateway to",
+   "highlight": "global careers.",
+   "intro": "Vertex International Recruitment Ltd. connects talented professionals, employers, agencies and institutional partners through ethical recruitment, compliant mobility solutions, and dedicated end-to-end support.",
+   "buttons": [
+    {
+     "label": "Explore Opportunities",
+     "href": "/jobs"
+    },
+    {
+     "label": "Start a Partnership Discussion",
+     "href": "#partner-form"
+    }
+   ],
+   "trust_line": "UK-Incorporated Human Capital & Mobility Enterprise",
+   "video_alt": "Vertex International — how we move talent around the world",
+   "video_fallback": "Take a tour in person — book a consultation with our team.",
+   "video_chapters": [
+    {
+     "label": "For partners",
+     "seconds": 173
+    },
+    {
+     "label": "For individual applicants",
+     "seconds": 260
+    }
+   ]
+  },
+  "web.partner_enquiry": {
+   "eyebrow": "For partners & employers",
+   "title": "Good partnerships start with a",
+   "highlight": "clear conversation.",
+   "intro": "Tell us about your organisation, the markets you serve and the cooperation you have in mind.",
+   "benefits": [
+    {
+     "icon": "handshake",
+     "title": "Discuss sourcing and workforce requirements",
+     "text": "Tell us about your organisation, the markets you serve, and the cooperation you have in mind."
+    },
+    {
+     "icon": "document",
+     "title": "Understand programme and submission processes",
+     "text": "Get clarity on how we work together, from initial enquiry to candidate deployment."
+    },
+    {
+     "icon": "check",
+     "title": "Agree responsibilities before onboarding",
+     "text": "Clear terms and structured processes ensure both parties know what to expect."
+    }
+   ],
+   "steps_title": "What happens next",
+   "steps": [
+    {
+     "title": "Company review",
+     "text": "The team reviews your organisation and cooperation requirements."
+    },
+    {
+     "title": "Proposal & introductory meeting",
+     "text": "Discuss the proposed services, operating process and responsibilities."
+    },
+    {
+     "title": "Agreement & onboarding",
+     "text": "Suitable partnerships move to agreed terms and portal onboarding."
+    }
+   ],
+   "existing_title": "Already a Vertex partner?",
+   "existing_text": "Use the portal for candidate submissions and existing cases.",
+   "existing_link": {
+    "label": "Go to the partner portal",
+    "href": "/auth/login"
+   }
+  },
+  "web.process": {
+   "eyebrow": "The Vertex delivery framework",
+   "title": "From first enquiry to settlement.",
+   "subtitle": "An operating model built to institutionalize quality control across the cross-border placement cycle.",
+   "cards": [
+    {
+     "icon": "clipboard",
+     "title": "Sourcing & Screening",
+     "text": "Candidates are sourced through secure channels and screened for baseline alignment with employer requirements and institutional standards."
+    },
+    {
+     "icon": "document",
+     "title": "Documentation & Verification",
+     "text": "Dossiers are prepared and reviewed through authentication protocols, licence validation, and reference verification."
+    },
+    {
+     "icon": "coins",
+     "title": "Offer & Permit Processing",
+     "text": "Formal job offers and contracts are coordinated alongside work permit, visa, and immigration authority processes."
+    },
+    {
+     "icon": "globe",
+     "title": "Travel & Settlement",
+     "text": "Flight booking, airport reception, and accommodation are arranged, followed by a structured 90-day post-arrival support loop."
+    }
+   ]
+  },
+  "web.audiences": {
+   "eyebrow": "Who we serve",
+   "title": "One institution, five stakeholders.",
+   "subtitle": "",
+   "cards": [
+    {
+     "icon": "building",
+     "title": "Employers & Corporate Clients",
+     "text": "Reliable, verified, deployment-ready international talent across workforce categories and project requirements."
+    },
+    {
+     "icon": "seal",
+     "title": "Sovereign & Institutional Stakeholders",
+     "text": "Structured workforce mobility and overseas employment coordination within compliant, ethical, transparent frameworks."
+    },
+    {
+     "icon": "handshake",
+     "title": "Recruitment Agencies & Manpower Suppliers",
+     "text": "Collaboration on sourcing, screening, shortlisting, credential verification, and shared deployment workflows."
+    },
+    {
+     "icon": "globe",
+     "title": "Travel & Visa Partners",
+     "text": "Cooperation on flight booking, group travel, route optimization, documentation checklists, and compliance updates."
+    },
+    {
+     "icon": "users",
+     "title": "Candidates & Professionals",
+     "text": "Support through registration, screening, documentation, offer coordination, visa guidance, and settlement."
+    }
+   ]
+  },
+  "web.jobs": {
+   "eyebrow": "Open positions",
+   "title": "Live opportunities.",
+   "view_all": {
+    "label": "View all jobs",
+    "href": "/jobs"
+   },
+   "empty_text": "No jobs available yet. Check back soon."
+  },
+  "web.workforce": {
+   "eyebrow": "Workforce categories",
+   "title": "Matched to the right tier.",
+   "tiers": [
+    {
+     "icon": "graduation",
+     "title": "Unskilled & General Workforce",
+     "text": "Agriculture, logistics, facilities management, manufacturing, food processing, construction support."
+    },
+    {
+     "icon": "certificate",
+     "title": "Semi-Skilled & Vocational Trades",
+     "text": "Plumbers, electricians, welders, machinery operators, hospitality professionals."
+    },
+    {
+     "icon": "building",
+     "title": "Technical & Engineering",
+     "text": "Civil, mechanical, electrical, petroleum, project supervision, EPC-related talent."
+    }
+   ],
+   "requirements_eyebrow": "Before you apply",
+   "requirements_title": "What you'll need.",
+   "requirements": [
+    "Valid passport",
+    "CV & educational records",
+    "Professional credentials & experience certificates",
+    "Police clearance & medical checks"
+   ],
+   "cta": {
+    "label": "Ready? Start your application",
+    "href": "/apply"
+   }
+  },
+  "web.referral": {
+   "eyebrow": "Referral Agents",
+   "title": "Know someone ready to work abroad?\nEarn by referring them to Vertex.",
+   "intro": "Register as a Vertex Referral Agent, get your own referral link and QR code, and earn a commission as the candidates you refer progress through our work permit and visa programmes — from registration all the way to deployment.",
+   "cta": {
+    "label": "Become a Referral Agent",
+    "href": "/become-a-referral-agent"
+   },
+   "cards": [
+    {
+     "icon": "share",
+     "title": "Your own referral link",
+     "text": "A unique code and link you can share anywhere."
+    },
+    {
+     "icon": "qr",
+     "title": "A QR code to scan",
+     "text": "Print it, post it, or send it — instant attribution."
+    },
+    {
+     "icon": "coins",
+     "title": "Milestone-based commission",
+     "text": "Earn as each referral progresses — from registration through to deployment — tracked live on your own dashboard."
+    }
+   ]
+  },
+  "web.faq": {
+   "eyebrow": "Common questions",
+   "title": "Answers, upfront.",
+   "groups": [
+    {
+     "title": "For partners & employers",
+     "icon": "handshake",
+     "items": [
+      {
+       "q": "What should I include in my first enquiry?",
+       "a": "A brief company introduction, the markets and sectors you serve, and the cooperation you want to explore. Use the optional business details section for a company profile link or meeting preference. Clear information helps the team prepare a relevant response."
+      },
+      {
+       "q": "Can I request a proposal or an introductory meeting?",
+       "a": "Yes. Mention your request in the cooperation field. The team will review your requirements and discuss an appropriate next step. A meeting date is confirmed separately."
+      },
+      {
+       "q": "Does a partnership enquiry create an agreement?",
+       "a": "No. The enquiry starts a discussion. Partnership terms and onboarding are confirmed separately after review."
+      },
+      {
+       "q": "Can I submit candidates through this form?",
+       "a": "Please use the official application process or your existing partner portal. This form is for business enquiries."
+      },
+      {
+       "q": "How will the team contact me?",
+       "a": "Provide an email address you monitor. The team will contact you to discuss your requirements and, where appropriate, arrange an introductory meeting."
+      }
+     ]
+    },
+    {
+     "title": "General enquiries",
+     "icon": "chat",
+     "items": [
+      {
+       "q": "Who can Vertex place internationally?",
+       "a": "We support candidates across unskilled, semi-skilled, and technical/engineering workforce categories — matched to employer requirements and institutional standards."
+      },
+      {
+       "q": "What documents do I need?",
+       "a": "A valid passport, CV, educational records, professional credentials, police clearance, and medical checks. Our team reviews your dossier and guides you through any gaps."
+      },
+      {
+       "q": "Where does Vertex operate?",
+       "a": "We are headquartered in London, United Kingdom, with regional hubs in the UAE and across Africa, and a global network reaching Europe, Canada, Australia, South Korea, New Zealand, the USA and beyond."
+      },
+      {
+       "q": "How does Vertex work with agencies and employers?",
+       "a": "We collaborate with recruitment agencies, manpower suppliers, travel agencies, and visa consultancies on sourcing, screening, documentation, and shared deployment workflows — reducing time-to-fill and administrative friction."
+      },
+      {
+       "q": "What compliance standards does Vertex follow?",
+       "a": "Our Quality Management approach is aligned with ISO 9001:2015. We operate under UK corporate governance, with anti-bribery, anti-corruption, modern slavery and anti-human trafficking safeguards built into every placement."
+      }
+     ]
+    }
+   ],
+   "more_text": "More questions?",
+   "more_link": {
+    "label": "Visit the Help Center →",
+    "href": "/help"
+   }
+  },
+  "web.ending": {
+   "eyebrow": "Begin today",
+   "title": "Build across borders.\nMove with confidence.",
+   "text": "Whether you're an employer, a licensed agency, a travel or visa partner, or a candidate ready to pursue opportunities abroad — Vertex provides the institutional platform to move forward.",
+   "buttons": [
+    {
+     "label": "Apply Now",
+     "href": "/apply"
+    },
+    {
+     "label": "Partner With Vertex",
+     "href": "#partner-form"
+    }
+   ]
+  },
+  "shared.why_vertex": {
+   "eyebrow": "Why choose Vertex",
+   "title": "End-to-end accountability, by design.",
+   "subtitle": "",
+   "cards": [
+    {
+     "icon": "handshake",
+     "title": "Strategic Institutional Partnership",
+     "text": "Not a transactional staffing vendor — a long-term partner coordinating recruitment, mobility, compliance, travel and settlement through one accountable structure."
+    },
+    {
+     "icon": "shield",
+     "title": "Compliance by Design",
+     "text": "Governed by UK corporate governance, anti-trafficking protocols, modern slavery safeguards, and ethical recruitment principles."
+    },
+    {
+     "icon": "check",
+     "title": "Transparent Processes",
+     "text": "No hidden fees, no opaque processes — structured communication, verified documentation, and auditable compliance support."
+    },
+    {
+     "icon": "phone",
+     "title": "24/7 Multi-Hub Support",
+     "text": "A multi-hub operational model across Europe, the Middle East and Africa supports service continuity across time zones."
+    }
+   ]
+  },
+  "shared.contact": {
+   "eyebrow": "Reach us directly",
+   "title": "One message away, always.",
+   "whatsapp": "+44 7438 613251",
+   "office": "+44 20 3026 3403",
+   "email": "vertex@vertexintern.com"
+  }
+ }
+}

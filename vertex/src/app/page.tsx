@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import HomeClient from "@/components/HomeClient";
+import { getLandingPage } from "@/server/services/landingContent";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,8 @@ async function getFeaturedJobs() {
 }
 
 export default async function HomePage() {
-  const jobs = await getFeaturedJobs();
+  // The text is marketing's (the landing CMS), or the built-in text.
+  const [jobs, landing] = await Promise.all([getFeaturedJobs(), getLandingPage()]);
 
-  return <HomeClient jobs={jobs} />;
+  return <HomeClient jobs={jobs} content={landing.blocks} />;
 }

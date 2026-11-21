@@ -38,12 +38,16 @@ import Script from "next/script";
 import { headers } from "next/headers";
 import { NONCE_HEADER } from "@/lib/csp";
 import { MAX_UPLOAD_MB_ATTRIBUTE, maxUploadMb } from "@/lib/uploadPolicy";
+import { getLandingPage } from "@/server/services/landingContent";
 
 // Reading the request's CSP nonce (set by src/proxy.ts) also makes every
 // page render per request, which nonces require: a page prerendered at
 // build time would carry no nonce (E3).
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
+  // The contact details marketing publishes (the landing CMS), kept for
+  // 30 seconds; the built-in ones if FastAPI can't answer.
+  const { contact } = await getLandingPage();
   // The upload size limit, read here at run time so the browser's check
   // (lib/uploadPolicy.ts) agrees with the FastAPI this site runs beside.
   return (
@@ -53,9 +57,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SessionRefresh />
         <Navbar />
         <main className="flex-1">{children}</main>
-        <Footer />
+        <Footer email={contact.email} />
         <AIChatWidget />
-        <WhatsAppButton />
+        <WhatsAppButton whatsapp={contact.whatsapp} />
         <WelcomePopup />
         </DialogProvider>
 
