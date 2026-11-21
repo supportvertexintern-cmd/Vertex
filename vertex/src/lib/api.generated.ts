@@ -159,6 +159,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Roles
+         * @description The grid: permissions in their order, and the internal roles with admin first.
+         */
+        get: operations["list_roles_api_v1_admin_roles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/roles/{role}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Permissions
+         * @description Sets exactly what a role holds: ticks what's new, unticks what's left out.
+         */
+        put: operations["set_permissions_api_v1_admin_roles__role__permissions_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/applications": {
         parameters: {
             query?: never;
@@ -6638,6 +6678,14 @@ export interface components {
         Data_ReturnedOut_: {
             data: components["schemas"]["ReturnedOut"];
         };
+        /** Data[RoleOut] */
+        Data_RoleOut_: {
+            data: components["schemas"]["RoleOut"];
+        };
+        /** Data[RolesOut] */
+        Data_RolesOut_: {
+            data: components["schemas"]["RolesOut"];
+        };
         /** Data[Sent] */
         Data_Sent_: {
             data: components["schemas"]["Sent"];
@@ -7876,6 +7924,8 @@ export interface components {
             email: string;
             /** Id */
             id: string;
+            /** Permissions */
+            permissions: components["schemas"]["Permission"][];
             role: components["schemas"]["Role"];
         };
         /** Message */
@@ -9151,6 +9201,26 @@ export interface components {
             reports: number;
             status: components["schemas"]["PartnerStatus"];
         };
+        /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "landing.edit" | "landing.publish";
+        /** PermissionOut */
+        PermissionOut: {
+            /** Description */
+            description: string;
+            /** Group */
+            group: string;
+            key: components["schemas"]["Permission"];
+            /** Label */
+            label: string;
+        };
+        /** PermissionsIn */
+        PermissionsIn: {
+            /** Permissions */
+            permissions: components["schemas"]["Permission"][];
+        };
         /** Person */
         Person: {
             /** Full Name */
@@ -9943,6 +10013,21 @@ export interface components {
          * @enum {string}
          */
         Role: "candidate" | "regional_recruiter" | "country_supervisor" | "inhouse_supervisor" | "director" | "admin" | "marketing" | "partner" | "hr" | "operations_team" | "operations_director" | "finance" | "referral_agent" | "virtual_assistant";
+        /** RoleOut */
+        RoleOut: {
+            /** Editable */
+            editable: boolean;
+            /** Permissions */
+            permissions: components["schemas"]["Permission"][];
+            role: components["schemas"]["Role"];
+        };
+        /** RolesOut */
+        RolesOut: {
+            /** Permissions */
+            permissions: components["schemas"]["PermissionOut"][];
+            /** Roles */
+            roles: components["schemas"]["RoleOut"][];
+        };
         /** RuleListRow */
         RuleListRow: {
             /** Amount */
@@ -12049,6 +12134,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Data_list_FeeRow__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_roles_api_v1_admin_roles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_RolesOut_"];
+                };
+            };
+        };
+    };
+    set_permissions_api_v1_admin_roles__role__permissions_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                role: components["schemas"]["Role"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PermissionsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Data_RoleOut_"];
                 };
             };
             /** @description Validation Error */

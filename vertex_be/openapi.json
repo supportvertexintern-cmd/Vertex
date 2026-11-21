@@ -6665,6 +6665,30 @@
     "title": "Data[ReturnedOut]",
     "type": "object"
    },
+   "Data_RoleOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/RoleOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[RoleOut]",
+    "type": "object"
+   },
+   "Data_RolesOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/RolesOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[RolesOut]",
+    "type": "object"
+   },
    "Data_Sent_": {
     "properties": {
      "data": {
@@ -10580,6 +10604,13 @@
       "title": "Id",
       "type": "string"
      },
+     "permissions": {
+      "items": {
+       "$ref": "#/components/schemas/Permission"
+      },
+      "title": "Permissions",
+      "type": "array"
+     },
      "role": {
       "$ref": "#/components/schemas/Role"
      }
@@ -10587,7 +10618,8 @@
     "required": [
      "id",
      "email",
-     "role"
+     "role",
+     "permissions"
     ],
     "title": "Me",
     "type": "object"
@@ -17299,6 +17331,57 @@
     "title": "PerformanceRow",
     "type": "object"
    },
+   "Permission": {
+    "enum": [
+     "landing.edit",
+     "landing.publish"
+    ],
+    "title": "Permission",
+    "type": "string"
+   },
+   "PermissionOut": {
+    "properties": {
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "group": {
+      "title": "Group",
+      "type": "string"
+     },
+     "key": {
+      "$ref": "#/components/schemas/Permission"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "group",
+     "label",
+     "description"
+    ],
+    "title": "PermissionOut",
+    "type": "object"
+   },
+   "PermissionsIn": {
+    "properties": {
+     "permissions": {
+      "items": {
+       "$ref": "#/components/schemas/Permission"
+      },
+      "title": "Permissions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "permissions"
+    ],
+    "title": "PermissionsIn",
+    "type": "object"
+   },
    "Person": {
     "properties": {
      "full_name": {
@@ -19625,6 +19708,55 @@
     ],
     "title": "Role",
     "type": "string"
+   },
+   "RoleOut": {
+    "properties": {
+     "editable": {
+      "title": "Editable",
+      "type": "boolean"
+     },
+     "permissions": {
+      "items": {
+       "$ref": "#/components/schemas/Permission"
+      },
+      "title": "Permissions",
+      "type": "array"
+     },
+     "role": {
+      "$ref": "#/components/schemas/Role"
+     }
+    },
+    "required": [
+     "role",
+     "editable",
+     "permissions"
+    ],
+    "title": "RoleOut",
+    "type": "object"
+   },
+   "RolesOut": {
+    "properties": {
+     "permissions": {
+      "items": {
+       "$ref": "#/components/schemas/PermissionOut"
+      },
+      "title": "Permissions",
+      "type": "array"
+     },
+     "roles": {
+      "items": {
+       "$ref": "#/components/schemas/RoleOut"
+      },
+      "title": "Roles",
+      "type": "array"
+     }
+    },
+    "required": [
+     "permissions",
+     "roles"
+    ],
+    "title": "RolesOut",
+    "type": "object"
    },
    "RuleListRow": {
     "properties": {
@@ -27142,6 +27274,90 @@
     "summary": "List Admin Fees",
     "tags": [
      "virtual assistants"
+    ]
+   }
+  },
+  "/api/v1/admin/roles": {
+   "get": {
+    "description": "The grid: permissions in their order, and the internal roles with admin first.",
+    "operationId": "list_roles_api_v1_admin_roles_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_RolesOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Roles",
+    "tags": [
+     "roles"
+    ]
+   }
+  },
+  "/api/v1/admin/roles/{role}/permissions": {
+   "put": {
+    "description": "Sets exactly what a role holds: ticks what's new, unticks what's left out.",
+    "operationId": "set_permissions_api_v1_admin_roles__role__permissions_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "role",
+      "required": true,
+      "schema": {
+       "$ref": "#/components/schemas/Role"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PermissionsIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_RoleOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Set Permissions",
+    "tags": [
+     "roles"
     ]
    }
   },

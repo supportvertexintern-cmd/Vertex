@@ -58,6 +58,13 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('ContentRevision', 'published_at', 'grant'),   -- business timestamp
   ('ContentRevision', 'deleted_at', 'grant'),   -- business timestamp
   ('ContentRevision', 'deleted_links', 'exclude'), -- soft delete bookkeeping
+  ('RolePermission', 'id', 'grant'),   -- identifier/link
+  ('RolePermission', 'role', 'grant'),   -- status/type value
+  ('RolePermission', 'permission', 'grant'),   -- status/type value
+  ('RolePermission', 'granted_by', 'grant'),   -- identifier/link
+  ('RolePermission', 'created_at', 'grant'),   -- business timestamp
+  ('RolePermission', 'deleted_at', 'grant'),   -- business timestamp
+  ('RolePermission', 'deleted_links', 'exclude'), -- soft delete bookkeeping
   ('Contract', 'deleted_at', 'grant'),   -- business timestamp
   ('Contract', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
   ('Country', 'deleted_at', 'grant'),   -- business timestamp

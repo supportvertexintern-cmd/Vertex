@@ -6,9 +6,13 @@ One read for the pages, and marketing's editor:
   or built-in, for anyone the website calls for (WebsiteOrUser; the website
   rate-limits anonymous visitors, and the mobile app's home screen reads
   through it before sign-in). preview=true shows the drafts instead, for
-  marketing and admin only.
-- /content/blocks...: marketing and admin edit a block's draft, publish it,
-  discard it, and restore an earlier revision into the draft.
+  the roles that edit or publish them.
+- /content/blocks...: a block's draft is saved, discarded, and restored
+  from an earlier revision with the landing.edit permission, and published
+  with landing.publish; either one reads the blocks.
+
+The admin assigns both to roles (app/core/permissions.py; role management,
+2026-11-21). They start with marketing, as before; admin holds them always.
 
 The blocks and their shapes are app/services/landing_content.py; the rows
 app/models/content.py. Every change is on the audit trail.
@@ -28,17 +32,17 @@ from app.core.api import ApiError, Data, UtcDateTime
 from app.core.audit import AuditedDb
 from app.core.auth import AuthUser, WebsiteOrUser
 from app.core.clock import utc_now_ms
-from app.core.rbac import require_role
+from app.core.permissions import Permission, has_permission, require_permission
 from app.models.content import ContentBlock, ContentRevision
-from app.models.enums import Role
 from app.models.identity import User
 from app.services.landing_content import BLOCK_VERSION, BLOCKS, App, BlockSpec, Group, blocks_for, validate_body
 
 router = APIRouter()
 
-# Marketing owns the landing pages; admin can step in, as with jobs.
-CONTENT_EDITORS: tuple[Role, ...] = (Role.marketing, Role.admin)
-Editor = Annotated[AuthUser, Depends(require_role(*CONTENT_EDITORS))]
+EDIT, PUBLISH = Permission.landing_edit, Permission.landing_publish
+Editor = Annotated[AuthUser, Depends(require_permission(EDIT))]
+Publisher = Annotated[AuthUser, Depends(require_permission(PUBLISH))]
+Reader = Annotated[AuthUser, Depends(require_permission(EDIT, PUBLISH))]
 
 
 # --- the pages' read ---------------------------------------------------------
@@ -65,8 +69,8 @@ def landing(
     preview: Annotated[bool, Query()] = False,
 ) -> Data[LandingOut]:
     """What an app's landing page shows, block by block, in page order."""
-    if preview and (caller is None or caller.role not in CONTENT_EDITORS):
-        raise ApiError(403, "forbidden", "Only marketing can preview drafts.")
+    if preview and not has_permission(db, caller, EDIT, PUBLISH):
+        raise ApiError(403, "forbidden", "Only the roles that edit the landing pages can preview drafts.")
     specs = blocks_for(app)
     rows = {r.key: r for r in db.scalars(select(ContentBlock).where(ContentBlock.key.in_([s.key for s in specs])))}
     out = []
@@ -167,14 +171,14 @@ def _locked(db: AuditedDb, key: str) -> ContentBlock | None:
 
 
 @router.get("/content/blocks")
-def list_blocks(db: DbSession, _editor: Editor, group: Annotated[Group | None, Query()] = None) -> Data[list[BlockOut]]:
+def list_blocks(db: DbSession, _reader: Reader, group: Annotated[Group | None, Query()] = None) -> Data[list[BlockOut]]:
     """Every block, in page order, with its published version and any draft."""
     rows = {r.key: r for r in db.scalars(select(ContentBlock))}
     return Data(data=[_out(db, s, rows.get(s.key)) for s in BLOCKS.values() if group is None or s.group == group])
 
 
 @router.get("/content/blocks/{key}")
-def get_block(key: str, db: DbSession, _editor: Editor) -> Data[BlockOut]:
+def get_block(key: str, db: DbSession, _reader: Reader) -> Data[BlockOut]:
     spec = _spec(key)
     return Data(data=_out(db, spec, db.get(ContentBlock, key)))
 
@@ -210,7 +214,7 @@ def _write_draft(db: AuditedDb, key: str, body: dict[str, Any], visible: bool, u
 
 
 @router.post("/content/blocks/{key}/publish")
-def publish(key: str, db: AuditedDb, editor: Editor) -> Data[BlockOut]:
+def publish(key: str, db: AuditedDb, editor: Publisher) -> Data[BlockOut]:
     """Makes the draft what visitors see, and keeps it as a revision."""
     spec = _spec(key)
     row = _locked(db, key)
@@ -253,7 +257,7 @@ def discard(key: str, db: AuditedDb, _editor: Editor) -> Data[BlockOut]:
 
 
 @router.get("/content/blocks/{key}/revisions")
-def revisions(key: str, db: DbSession, _editor: Editor) -> Data[list[RevisionOut]]:
+def revisions(key: str, db: DbSession, _reader: Reader) -> Data[list[RevisionOut]]:
     """Every publish of the block, newest first."""
     _spec(key)
     rows = db.scalars(select(ContentRevision).where(ContentRevision.block_key == key).order_by(ContentRevision.number.desc()))

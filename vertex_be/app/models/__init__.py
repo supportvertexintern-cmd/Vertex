@@ -19,6 +19,7 @@ from app.models.jobs import EmployerClient, Job, JobMilestonePrice, JobPaymentSt
 from app.models.partner_tracking import AdminFee, PartnerCommission, PartnerCommissionRule, PartnerFollowUp, PartnerReport
 from app.models.partners import Partner, PartnerCandidate
 from app.models.payments import ConsultationBooking, Payment
+from app.models.permissions import RolePermission
 from app.models.reference import (
     CountryDocumentRequirement,
     DocumentRequirementType,
@@ -100,6 +101,7 @@ __all__ = [
     "Region",
     "Report",
     "RetentionFollowUp",
+    "RolePermission",
     "Sector",
     "StaffKpiTarget",
     "StaffScorecard",

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import accounts, applications, audit_events, backup, campaigns, candidates, deleted, case_payments, case_reads, cases, content, dashboards, documents, exceptions, fee_policy, geography, health, jobs, landing, me, monitoring, partner_agencies, partner_ledgers, partner_performance, partner_submissions, partner_tracking, partners, payment_reads, payments, pipeline_reads, public, public_forms, reference, referral_agents, referral_commissions, referral_reads, reports, scorecards, sessions, settings, targets, users, va
+from app.api.v1 import accounts, applications, audit_events, backup, campaigns, candidates, deleted, case_payments, case_reads, cases, content, dashboards, documents, exceptions, fee_policy, geography, health, jobs, landing, me, monitoring, partner_agencies, partner_ledgers, partner_performance, partner_submissions, partner_tracking, partners, payment_reads, payments, pipeline_reads, public, public_forms, reference, referral_agents, referral_commissions, referral_reads, reports, roles, scorecards, sessions, settings, targets, users, va
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -13,6 +13,7 @@ api_router.include_router(reference.router, tags=["reference data"])
 api_router.include_router(settings.router, tags=["reference data"])
 api_router.include_router(content.router, tags=["content"])
 api_router.include_router(landing.router, tags=["content"])
+api_router.include_router(roles.router, tags=["roles"])
 api_router.include_router(public.router, tags=["content"])
 api_router.include_router(public_forms.router, tags=["content"])
 api_router.include_router(jobs.router, tags=["jobs"])

@@ -319,6 +319,12 @@ def on_privilege_granted(actor_id: str | None, user_id: str, was: str | None, no
     raise_alert(PRIVILEGE_GRANTED, f"user:{user_id}", summary, {"actor_id": actor_id, "user_id": user_id, "from": was, "to": now})
 
 
+def on_permissions_granted(actor_id: str | None, role: str, granted: list[str]) -> None:
+    # Role management: a role given more, as a user given a higher role is.
+    summary = f"The {role} role was given {', '.join(granted)}"
+    raise_alert(PRIVILEGE_GRANTED, f"role:{role}", summary, {"actor_id": actor_id, "role": role, "granted": granted})
+
+
 def on_audit_write_failed(what: str, err: BaseException) -> None:
     # The trail itself is failing: no row (that's what's broken), just the
     # log line and the email.
