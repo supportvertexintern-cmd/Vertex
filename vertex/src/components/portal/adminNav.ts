@@ -1,5 +1,5 @@
 import type { PortalNavItem } from "./PortalShell";
-import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, ClockCounterClockwise, EnvelopeSimple, Handshake, LockKey, Prohibit, ShieldCheck, SignIn, SlidersHorizontal, UserList, Warning } from "@phosphor-icons/react";
+import { Gauge, GearSix, GlobeHemisphereWest, IdentificationBadge, Briefcase, Key, ClockCounterClockwise, EnvelopeSimple, Handshake, LockKey, Prohibit, ShieldCheck, SignIn, SlidersHorizontal, UserList, Warning } from "@phosphor-icons/react";
 
 // System Administrator is restricted to system-level concerns — account
 // provisioning, reference-data taxonomy, technical settings — not
@@ -16,6 +16,8 @@ export const ADMIN_NAV_ITEMS: PortalNavItem[] = [
   { href: "/admin/regions", label: "Regions & Countries", icon: GlobeHemisphereWest },
   { href: "/admin/sectors", label: "Sectors & Requirements", icon: Briefcase },
   { href: "/admin/users", label: "Staff & Roles", icon: IdentificationBadge },
+  // Role management (2026-11-21): which roles hold each permission.
+  { href: "/admin/roles", label: "Roles & Permissions", icon: Key },
   { href: "/admin/settings", label: "Settings", icon: GearSix },
   // Admin → Monitoring (owner's requirements, 2026-11-07). Admins only (D1).
   { href: "/admin/monitoring", label: "Security Overview", icon: ShieldCheck, section: "Monitoring" },
