@@ -22,7 +22,7 @@ from tests.test_auth import add_session, bearer, session_token, utcnow
 
 RBAC_TS = BASE_DIR.parent / "vertex" / "src" / "lib" / "rbac.ts"
 
-PORTED = ["STAFF_ROLES", "OPERATIONS_ROLES", "FINANCE_ROLES", "HR_ROLES", "REFERRAL_AGENT_MANAGER_ROLES"]
+PORTED = ["STAFF_ROLES", "OPERATIONS_ROLES", "FINANCE_ROLES", "HR_ROLES", "REFERRAL_AGENT_MANAGER_ROLES", "INTERNAL_ROLES"]
 
 
 def ts_role_groups() -> dict[str, set[str]]:
@@ -36,6 +36,13 @@ def test_every_role_group_in_rbac_ts_is_ported_value_for_value():
     assert sorted(ts) == sorted(PORTED), "a role group was added to or removed from rbac.ts: port it here"
     for name in PORTED:
         assert {r.value for r in getattr(rbac, name)} == ts[name], f"{name} differs from rbac.ts"
+
+
+def test_the_external_roles_are_the_rest():
+    # Role management gives permissions to internal roles only (app/core/permissions.py).
+    from app.core.permissions import EXTERNAL_ROLES
+
+    assert {r.value for r in EXTERNAL_ROLES} == {"candidate", "partner", "referral_agent"}
 
 
 def test_admin_keeps_override_in_every_group():

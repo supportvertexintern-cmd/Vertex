@@ -14,6 +14,7 @@ import 'core/config/app_config.dart';
 import 'data/repositories/fee_policy_repository.dart';
 import 'data/services/api_service.dart';
 import 'data/services/auth_api.dart';
+import 'core/landing/landing_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +22,15 @@ Future<void> main() async {
   // Sessions come from the web app; FastAPI is called with them.
   final authManager = AuthManager(api: AuthApi(baseUrl: config.authBaseUrl))..hydrate();
   final api = ApiService(baseUrl: config.apiBaseUrl, auth: authManager);
+  // The home screen's text, from the web app's public read of the landing CMS.
+  final landing = LandingStore(LandingApi(baseUrl: config.authBaseUrl))..load();
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: authManager),
         Provider.value(value: api),
+        ChangeNotifierProvider.value(value: landing),
         ChangeNotifierProvider(create: (_) => CandidateStore()),
         ChangeNotifierProvider(create: (_) => CaseStore()),
         ChangeNotifierProvider(create: (_) => ReportStore()),

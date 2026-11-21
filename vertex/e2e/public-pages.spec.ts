@@ -36,3 +36,17 @@ test("a partner enquiry from the landing page reaches the team", async ({ page }
   await form.getByRole("button", { name: "Submit partnership enquiry" }).click();
   await expect(page.getByText("Thank you for your enquiry")).toBeVisible({ timeout: 25_000 });
 });
+
+// The mobile app's home screen (the landing CMS, part 4): its published
+// blocks, through the real FastAPI, without a session.
+test("the mobile app's home screen text is public, and only the app's", async ({ request }) => {
+  const res = await request.get("/api/public/landing?app=mobile");
+  expect(res.status()).toBe(200);
+  const { data } = await res.json();
+  expect(data.app).toBe("mobile");
+  const keys = data.blocks.map((b: { key: string }) => b.key);
+  expect(keys).toContain("mobile.hero");
+  expect(keys).toContain("shared.contact");
+  expect(keys.some((k: string) => k.startsWith("web."))).toBe(false);
+  expect((await request.get("/api/public/landing?app=web")).status()).toBe(400);
+});
