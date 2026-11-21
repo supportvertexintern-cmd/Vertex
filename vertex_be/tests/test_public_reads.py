@@ -11,6 +11,7 @@ import pytest
 from app.api.v1.jobs import PARTNER_JOB_VIEWERS
 from app.api.v1.reference import DOCUMENT_TYPE_READERS
 from app.core.config import BASE_DIR, settings
+from app.core.rbac import INTERNAL_ROLES
 from app.db.session import get_db
 from app.main import app
 from app.models.candidate import Application, Candidate
@@ -295,11 +296,13 @@ def test_the_assistant_is_on_unless_turned_off(api, db, value, enabled):
 # --- document types ----------------------------------------------------------
 
 
-def test_the_document_type_readers_match_the_website():
+def test_the_website_lets_document_type_readers_through_to_fastapi():
+    # Any internal role may try; FastAPI lets in DOCUMENT_TYPE_READERS and
+    # whoever holds reference.manage (role management).
     src = (NEXT_API / "admin" / "document-types" / "route.ts").read_text(encoding="utf-8")
     get = src[src.index("export async function GET"):]
-    roles = re.search(r"requireRole\(user, \[(.*?)\]\)", get, re.S).group(1)
-    assert set(re.findall(r'"(\w+)"', roles)) == {r.value for r in DOCUMENT_TYPE_READERS}
+    assert re.search(r"requireRole\(user, (.*?)\);", get, re.S).group(1) == "INTERNAL_ROLES"
+    assert {r.value for r in DOCUMENT_TYPE_READERS} <= {r.value for r in INTERNAL_ROLES}
 
 
 def test_the_document_types(api, db, places):
