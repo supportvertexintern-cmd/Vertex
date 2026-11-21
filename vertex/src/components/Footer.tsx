@@ -28,7 +28,8 @@ const FOOTER_LINKS = {
   ],
 };
 
-export default function Footer() {
+// email: the address marketing publishes (the landing CMS's shared.contact; app/layout.tsx).
+export default function Footer({ email }: { email: string }) {
   const pathname = usePathname();
   if (isInternalPortalPath(pathname)) return null;
 
@@ -107,10 +108,10 @@ export default function Footer() {
             © {new Date().getFullYear()} Vertex International Recruitment Ltd. All rights reserved. · Company No. 16943308
           </p>
           <a
-            href="mailto:vertex@vertexintern.com"
+            href={`mailto:${email}`}
             className="text-xs tracking-wide text-ivory-50/40 hover:text-ivory-50 transition-colors"
           >
-            vertex@vertexintern.com
+            {email}
           </a>
         </div>
       </div>

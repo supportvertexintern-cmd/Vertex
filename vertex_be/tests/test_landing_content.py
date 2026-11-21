@@ -3,11 +3,12 @@ landing pages' blocks; visitors see only what is published, or the built-in
 text; drafts stay private; every body is plain text with checked links."""
 
 import copy
+import importlib.util
 
 import pytest
 from sqlalchemy import select, text
 
-from app.core.config import settings
+from app.core.config import BASE_DIR, settings
 from app.models.audit import AuditLog
 from app.models.content import ContentBlock, ContentRevision
 from app.models.enums import Role
@@ -63,6 +64,14 @@ def test_every_block_is_named_for_its_group_and_its_icons_are_known():
                 yield from icons(v)
     for spec in BLOCKS.values():
         assert set(icons(spec.default)) <= set(ICONS), spec.key
+
+
+def test_the_websites_fallback_is_the_built_in_text():
+    # The website shows vertex/src/server/services/landing.defaults.json when FastAPI can't answer.
+    spec = importlib.util.spec_from_file_location("export_landing_defaults", BASE_DIR / "scripts" / "export_landing_defaults.py")
+    exporter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(exporter)
+    assert exporter.OUT.read_text(encoding="utf-8") == exporter.defaults_text(), "run: python scripts/export_landing_defaults.py"
 
 
 def test_each_app_gets_its_own_blocks_and_the_shared_ones():

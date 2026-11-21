@@ -5,9 +5,11 @@ import { CheckCircle, EnvelopeSimple } from "@phosphor-icons/react";
 
 interface PartnerEnquiryFormProps {
   variant?: "dark" | "light";
+  /** The contact email marketing publishes (the landing CMS's shared.contact). */
+  email?: string;
 }
 
-export default function PartnerEnquiryForm({ variant = "dark" }: PartnerEnquiryFormProps) {
+export default function PartnerEnquiryForm({ variant = "dark", email = "vertex@vertexintern.com" }: PartnerEnquiryFormProps) {
   const [form, setForm] = useState({
     organisation: "",
     organisation_type: "",
@@ -449,8 +451,8 @@ export default function PartnerEnquiryForm({ variant = "dark" }: PartnerEnquiryF
 
         <p className={`text-xs text-center ${isDark ? "text-ivory-50/40" : "text-midnight-900/40"}`}>
           Prefer email?{" "}
-          <a href="mailto:vertex@vertexintern.com" className={isDark ? "text-gold-400 hover:underline" : "text-midnight-600 hover:underline"}>
-            vertex@vertexintern.com
+          <a href={`mailto:${email}`} className={isDark ? "text-gold-400 hover:underline" : "text-midnight-600 hover:underline"}>
+            {email}
           </a>
         </p>
       </div>

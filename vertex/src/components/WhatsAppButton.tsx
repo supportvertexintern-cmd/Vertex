@@ -2,10 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { isInternalPortalPath } from "@/lib/rbac";
+import { phoneDigits } from "@/components/LandingParts";
 
-export default function WhatsAppButton() {
+// whatsapp: the number marketing publishes (the landing CMS's shared.contact; app/layout.tsx).
+export default function WhatsAppButton({ whatsapp }: { whatsapp: string }) {
   const pathname = usePathname();
-  const phoneNumber = "447438613251"; // +44 7438 613251 formatted for wa.me API
+  const phoneNumber = phoneDigits(whatsapp); // "+44 7438 613251" -> "447438613251" for the wa.me API
   const defaultMessage = encodeURIComponent("Hi Vertex Recruitment, I need some assistance.");
 
   if (isInternalPortalPath(pathname)) return null;
