@@ -132,12 +132,11 @@ class DirectorDashboard extends StatelessWidget {
 
   Widget _caseFlow(List<CaseRecord> cases) {
     final active = cases.where((c) => c.status == CaseStatus.active).length;
-    final pending = cases.where((c) => c.status == CaseStatus.pending).length;
-    final closed = cases.where((c) => c.status == CaseStatus.closed).length;
+    final rejected = cases.where((c) => c.status == CaseStatus.rejected).length;
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: VertexColors.ivory200)),
-      child: Column(children: [_flowRow('Active', active, VertexColors.midnight700), _flowRow('Pending', pending, VertexColors.gold600), _flowRow('Closed', closed, VertexColors.gray600)]),
+      child: Column(children: [_flowRow('Active', active, VertexColors.midnight700), _flowRow('Rejected', rejected, VertexColors.gray600)]),
     );
   }
 

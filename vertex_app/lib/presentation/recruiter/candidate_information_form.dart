@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../app/theme/colors.dart';
 import '../../core/auth/candidate_store.dart';
+import '../../data/repositories/intake_repository.dart';
+import '../../data/services/api_service.dart';
 import '../shared/recruiter_drawer.dart';
 import '../shared/vertex_app_bar_leading.dart';
 
@@ -28,7 +31,11 @@ class _DocumentItem {
   String? fileName;
   String? fileSize;
 
-  bool get hasFile => fileName != null;
+  /// The upload's receipt (the web app's /api/upload?intake=1), sent with the form.
+  String? token;
+  bool uploading = false;
+
+  bool get hasFile => token != null;
 }
 
 class _Country {
@@ -138,13 +145,48 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
   bool submitting = false;
   bool _attemptedSubmit = false;
 
-  final List<_DocumentItem> documents = [
-    _DocumentItem(id: 'passport', label: 'Passport', required: true),
-    _DocumentItem(id: 'photo', label: 'Passport-size photo', required: true),
-    _DocumentItem(id: 'cv', label: 'CV / résumé'),
-    _DocumentItem(id: 'education', label: 'Education records'),
-    _DocumentItem(id: 'police', label: 'Police clearance'),
-  ];
+  // The programme's documents (the server's rule for the chosen job), the
+  // open jobs and the countries: GET /apply/options and /jobs.
+  List<_DocumentItem> documents = [];
+  IntakeOptions? _options;
+  List<JobOption> _jobs = const [];
+  String? _loadError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReferenceData();
+  }
+
+  Future<void> _loadReferenceData() async {
+    setState(() => _loadError = null);
+    try {
+      final repository = context.read<IntakeRepository>();
+      final results = await Future.wait([repository.options(), repository.jobs()]);
+      if (!mounted) return;
+      setState(() {
+        _options = results[0] as IntakeOptions;
+        _jobs = results[1] as List<JobOption>;
+      });
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _loadError = e.message);
+    }
+  }
+
+  JobOption? get _job => _jobs.where((j) => j.id == opportunity).firstOrNull;
+
+  void _chooseJob(String? label) {
+    final job = _jobs.where((j) => _jobLabel(j) == label).firstOrNull;
+    setState(() {
+      opportunity = job?.id;
+      documents = [
+        if (job != null && _options != null)
+          for (final type in _options!.requiredFor(job)) _DocumentItem(id: type.key, label: type.label, required: true)..available = true,
+      ];
+    });
+  }
+
+  String _jobLabel(JobOption job) => job.city.isEmpty ? job.label : '${job.label} (${job.city})';
 
   @override
   void dispose() {
@@ -197,8 +239,7 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
     }
   }
 
-  bool get _documentsComplete =>
-      documents.every((doc) => !doc.available || doc.hasFile);
+  bool get _documentsComplete => documents.isNotEmpty && documents.every((doc) => doc.hasFile);
 
   // ---------------------------------------------------------------------------
   // Submission
@@ -212,7 +253,7 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
 
     if (!formValid || !acknowledgementsValid || !documentsValid) {
       if (!documentsValid && mounted) {
-        _showSnackBar('Every checked document must have a file attached.');
+        _showSnackBar(documents.isEmpty ? 'Choose an opportunity to see its documents.' : 'Attach every document the programme requires.');
       }
       setState(() {});
       return;
@@ -231,26 +272,57 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
       return;
     }
 
+    String? iso(DateTime? d) => d == null
+        ? null
+        : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    String? text(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
+    // The website's Candidate Information Form, as FastAPI takes it (SubmissionIn).
+    final body = <String, dynamic>{
+      'job_id': opportunity,
+      'earliest_travel_date': iso(travel),
+      'current_location_country_name': currentLocation,
+      'preferred_contact_channel': contactChannel?.toLowerCase(),
+      'payment_plan_acknowledged': paymentAcknowledged,
+      'consent_given': declarationAccepted,
+      'full_name': text(fullName),
+      'date_of_birth': iso(dob),
+      'gender': gender?.toLowerCase(),
+      'nationality': nationality,
+      'passport_number': text(passportNumber),
+      'passport_expiry': iso(expiry),
+      'phone': phone.text.trim().isEmpty ? null : '${selectedCountry.dialCode} ${phone.text.trim()}',
+      'email': text(email),
+      'home_address': text(address),
+      'current_occupation': occupation,
+      'highest_education': educationLevel,
+      'prior_eu_visa_applied': priorEuVisa,
+      'holds_schengen_visa': schengenVisa,
+      'prior_visa_refusals': priorRefusal,
+      'available_for_embassy_appointment': embassyAvailable,
+      'willing_to_start_within_30_days': readyWithinThirtyDays,
+      'cover_letter': text(notes),
+      'documents_available': [for (final d in documents) d.id],
+      'document_tokens': [for (final d in documents) d.token],
+    };
+
+    final repository = context.read<IntakeRepository>();
+    final candidates = context.read<CandidateStore>();
+    final messenger = ScaffoldMessenger.of(context);
     setState(() => submitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 700));
+    try {
+      await repository.submit(body);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => submitting = false);
+      _showSnackBar(e.message);
+      return;
+    }
     if (!mounted) return;
-
-    context.read<CandidateStore>().add(
-          CandidateRecord(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            fullName: fullName.text.trim(),
-            nationality: nationality ?? '',
-            opportunity: opportunity ?? '',
-            gender: gender ?? '',
-            phone: '${selectedCountry.dialCode} ${phone.text.trim()}',
-            email: email.text.trim(),
-            registeredAt: DateTime.now(),
-          ),
-        );
-
     setState(() => submitting = false);
-    if (!mounted) return;
-    context.go('/recruiter');
+    // The new candidate is on the server; the list reloads to show it.
+    candidates.load();
+    messenger.showSnackBar(const SnackBar(content: Text('Candidate submitted.')));
+    context.go('/recruiter/candidates');
 
   }
 
@@ -326,15 +398,19 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
             // ---- 01 Programme selection -----------------------------------
             _sectionHeader('01', 'Programme selection',
                 'Choose the opportunity and travel readiness details.'),
+            if (_loadError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 13),
+                child: Row(children: [
+                  Expanded(child: Text(_loadError!, style: const TextStyle(color: VertexColors.error, fontSize: 12))),
+                  TextButton(onPressed: _loadReferenceData, child: const Text('Try again')),
+                ]),
+              ),
             _dropdown(
               'Opportunity *',
-              opportunity,
-              [
-                'Poland · Production & Construction',
-                'Germany · Engineering',
-                'Italy · Hospitality',
-              ],
-              (v) => setState(() => opportunity = v),
+              _job == null ? null : _jobLabel(_job!),
+              [for (final job in _jobs) _jobLabel(job)],
+              _chooseJob,
               required: true,
             ),
             _dateField(
@@ -462,10 +538,7 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
             _dropdown(
               'Current location country *',
               currentLocation,
-              [
-                'Ethiopia', 'Nigeria', 'Ghana', 'Kenya',
-                'United Arab Emirates', 'Other',
-              ],
+              _options?.locations ?? const [],
               (v) => setState(() => currentLocation = v),
               required: true,
             ),
@@ -929,14 +1002,18 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
             ),
             value: item.available,
             activeColor: VertexColors.midnight500,
-            onChanged: (checked) =>
-                setState(() => item.available = checked ?? false),
+            // A programme's documents are all required.
+            onChanged: item.required
+                ? null
+                : (checked) => setState(() => item.available = checked ?? false),
           ),
           if (item.available) ...[
             const Divider(height: 1, color: VertexColors.ivory200),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: item.hasFile
+              child: item.uploading
+                  ? const Column(children: [Text('Uploading and checking the file…', style: TextStyle(color: VertexColors.gray600, fontSize: 12)), SizedBox(height: 8), LinearProgressIndicator()])
+                  : item.hasFile
                   ? _filePreview(item)
                   : _uploadPrompt(item, error: missingFile),
             ),
@@ -1090,9 +1167,10 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
             IconButton(
               tooltip: 'Remove file',
               visualDensity: VisualDensity.compact,
-              onPressed: () => setState(() {
+              onPressed: item.uploading ? null : () => setState(() {
                 item.fileName = null;
                 item.fileSize = null;
+                item.token = null;
               }),
               icon: const Icon(
                 Icons.close,
@@ -1142,10 +1220,6 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
                 icon: Icons.photo_library_outlined,
                 label: 'Choose from gallery',
                 value: 'gallery'),
-            _sheetOption(sheetContext,
-                icon: Icons.folder_open_outlined,
-                label: 'Browse files',
-                value: 'files'),
             const SizedBox(height: 10),
           ],
         ),
@@ -1154,17 +1228,47 @@ class _CandidateInformationFormState extends State<CandidateInformationForm> {
 
     if (source == null || !mounted) return;
 
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    // A photo of the document, made small enough for the 5 MB limit, then
+    // uploaded at once: the server scans it and answers with a receipt.
+    final XFile? photo;
+    try {
+      photo = await ImagePicker().pickImage(
+        source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 2400,
+        maxHeight: 2400,
+        imageQuality: 82,
+      );
+    } catch (_) {
+      _showSnackBar("Couldn't open the ${source == 'camera' ? 'camera' : 'photos'}.");
+      return;
+    }
+    if (photo == null || !mounted) return;
+
+    final bytes = await photo.readAsBytes();
+    final name = photo.name.isNotEmpty ? photo.name : '${item.id}.jpg';
+    final mime = photo.mimeType ?? (name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
     if (!mounted) return;
-
-    final isImage = source == 'camera' || source == 'gallery';
-    final extension = isImage ? 'jpg' : 'pdf';
-    final stamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
-
+    final uploads = context.read<IntakeUploads>();
     setState(() {
-      item.fileName = '${item.id}_$stamp.$extension';
-      item.fileSize = isImage ? '1.8 MB' : '420 KB';
+      item.uploading = true;
+      item.token = null;
+      item.fileName = name;
+      item.fileSize = '${(bytes.length / 1024 / 1024).toStringAsFixed(1)} MB';
     });
+    try {
+      final receipt = await uploads.upload(type: item.id, bytes: bytes, fileName: name, mimeType: mime);
+      if (!mounted) return;
+      setState(() => item.token = receipt.token);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        item.fileName = null;
+        item.fileSize = null;
+      });
+      _showSnackBar(e.message);
+    } finally {
+      if (mounted) setState(() => item.uploading = false);
+    }
   }
 
   Widget _sheetOption(

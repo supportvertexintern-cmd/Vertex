@@ -53,8 +53,7 @@ class SupervisorDashboard extends StatelessWidget {
           const SizedBox(height: 14),
           _sectionCard(title: 'Case flow', icon: Icons.flight_takeoff_outlined, child: Column(children: [
             _flowRow('Active', cases.where((c) => c.status == CaseStatus.active).length, VertexColors.midnight700),
-            _flowRow('Pending', cases.where((c) => c.status == CaseStatus.pending).length, VertexColors.gold600),
-            _flowRow('Closed', cases.where((c) => c.status == CaseStatus.closed).length, VertexColors.gray600),
+            _flowRow('Rejected', cases.where((c) => c.status == CaseStatus.rejected).length, VertexColors.gray600),
           ])),
         ],
       ),

@@ -14,6 +14,9 @@ import 'core/config/app_config.dart';
 import 'data/repositories/fee_policy_repository.dart';
 import 'data/services/api_service.dart';
 import 'data/services/auth_api.dart';
+import 'data/repositories/candidate_repository.dart';
+import 'data/repositories/case_repository.dart';
+import 'data/repositories/intake_repository.dart';
 import 'core/landing/landing_store.dart';
 
 Future<void> main() async {
@@ -24,6 +27,25 @@ Future<void> main() async {
   final api = ApiService(baseUrl: config.apiBaseUrl, auth: authManager);
   // The home screen's text, from the web app's public read of the landing CMS.
   final landing = LandingStore(LandingApi(baseUrl: config.authBaseUrl))..load();
+  final candidates = CandidateStore(CandidateRepository(api));
+  final cases = CaseStore(CaseRepository(api));
+  // The server-backed lists follow the session: loaded for whoever signs in,
+  // emptied when they sign out.
+  var signedIn = false;
+  void followSession() {
+    if (authManager.isAuthenticated == signedIn) return;
+    signedIn = authManager.isAuthenticated;
+    if (signedIn) {
+      candidates.load();
+      cases.load();
+    } else {
+      candidates.clear();
+      cases.clear();
+    }
+  }
+
+  authManager.addListener(followSession);
+  followSession();
 
   runApp(
     MultiProvider(
@@ -31,8 +53,12 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: authManager),
         Provider.value(value: api),
         ChangeNotifierProvider.value(value: landing),
-        ChangeNotifierProvider(create: (_) => CandidateStore()),
-        ChangeNotifierProvider(create: (_) => CaseStore()),
+        // From FastAPI, scoped to the signed-in user (the recruiter's own, and so on).
+        ChangeNotifierProvider.value(value: candidates),
+        ChangeNotifierProvider.value(value: cases),
+        // The recruiter's Candidate Information Form: FastAPI, and the web app's scanned upload.
+        Provider.value(value: IntakeRepository(api)),
+        Provider.value(value: IntakeUploads(baseUrl: config.authBaseUrl)),
         ChangeNotifierProvider(create: (_) => ReportStore()),
         ChangeNotifierProvider(create: (_) => ExceptionStore()),
         ChangeNotifierProvider(create: (_) => SupervisorStore()),

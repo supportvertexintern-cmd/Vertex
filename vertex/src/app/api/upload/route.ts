@@ -3,6 +3,7 @@ import { getAuthUser, requireAuth } from "@/lib/api-auth";
 import { callBackend } from "@/lib/backend";
 import { clientKey } from "@/lib/client-ip";
 import { limitedResponse, rateLimit } from "@/lib/rate-limit";
+import { appPreflight, appResponse } from "@/lib/app-auth";
 
 // POST /api/upload?type=<key>[&candidate_id=...|&partner_candidate_id=...]
 // Documents are FastAPI's since the pipeline switch (step 6.7; owner's
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   if (intake) {
     const rl = await rateLimit(`upload-intake:${clientKey(req.headers)}`, INTAKE_LIMIT);
-    if (!rl.success) return limitedResponse(rl, { error: INTAKE_LIMITED });
+    if (!rl.success) return forApp(req, limitedResponse(rl, { error: INTAKE_LIMITED }));
   } else if (!fromForm) {
     const guardRes = requireAuth(await getAuthUser(req));
     if (guardRes) return guardRes;
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
 
   const contentType = req.headers.get("content-type");
   if (!contentType?.toLowerCase().startsWith("multipart/form-data")) {
-    return NextResponse.json({ error: "Invalid form data." }, { status: 400 });
+    const invalid = NextResponse.json({ error: "Invalid form data." }, { status: 400 });
+    return intake ? forApp(req, invalid) : invalid;
   }
   const raw = { body: await req.arrayBuffer(), contentType };
   const query = {
@@ -55,9 +57,9 @@ export async function POST(req: NextRequest) {
     const receipt = await callBackend("/api/v1/documents/intake", {
       method: "POST", raw, query: { type: query.type }, asUser: false, timeoutMs: UPLOAD_TIMEOUT_MS,
     });
-    if (!receipt.ok) return NextResponse.json({ error: receipt.error.message }, { status: receipt.status });
+    if (!receipt.ok) return forApp(req, NextResponse.json({ error: receipt.error.message }, { status: receipt.status }));
     const { id, intake_token } = receipt.body.data as { id: string; intake_token: string };
-    return NextResponse.json({ documentId: id, intake_token });
+    return forApp(req, NextResponse.json({ documentId: id, intake_token }));
   }
 
   const result = fromForm
@@ -71,4 +73,15 @@ export async function POST(req: NextRequest) {
   if (!result.ok) return NextResponse.json({ error: result.error.message }, { status: result.status });
   const document = result.body.data as { id: string; scan_status: string };
   return NextResponse.json({ documentId: document.id, message: "File uploaded successfully." });
+}
+
+// The mobile app's intake uploads (a recruiter's Candidate Information Form):
+// the Flutter web build calls from its own origin, so ?intake=1 answers carry
+// the app's CORS headers (lib/app-auth.ts: APP_ORIGINS only, no credentials).
+// Native apps send no Origin. The other uploads need the website's session
+// cookie and stay same-origin.
+const forApp = (req: NextRequest, res: Response) => appResponse(req, res instanceof NextResponse ? res : new NextResponse(res.body, res));
+
+export function OPTIONS(req: NextRequest) {
+  return appPreflight(req);
 }
