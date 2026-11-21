@@ -42,7 +42,16 @@ describe("GET /api/auth/me", () => {
     callBackend.mockResolvedValue({ ok: true, status: 200, body: { data: { id: "u1", email: "a@test.invalid", role: "hr" } } });
     const res = await ask();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ data: { userId: "u1", email: "a@test.invalid", role: "hr" } });
+    expect(await res.json()).toEqual({ data: { userId: "u1", email: "a@test.invalid", role: "hr", permissions: [] } });
+  });
+
+  it("passes on the permissions the role holds (role management)", async () => {
+    callBackend.mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: { data: { id: "u1", email: "a@test.invalid", role: "hr", permissions: ["landing.edit"] } },
+    });
+    expect((await (await ask()).json()).data.permissions).toEqual(["landing.edit"]);
   });
 
   it("FastAPI unreachable is its error, not signed out", async () => {

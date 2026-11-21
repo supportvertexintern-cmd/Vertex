@@ -12,12 +12,14 @@ export async function GET(req: NextRequest) {
   const user = await getAuthUser(req);
   if (!user) return NextResponse.json({ data: null }, { status: 401 });
 
-  const res = await callBackend<{ id: string; email: string; role: string }>("/api/v1/me");
+  const res = await callBackend<{ id: string; email: string; role: string; permissions: string[] }>("/api/v1/me");
   if (!res.ok) {
     return res.status === 401
       ? NextResponse.json({ data: null }, { status: 401 })
       : NextResponse.json({ error: res.error }, { status: res.status });
   }
-  const { id, email, role } = res.body.data;
-  return NextResponse.json({ data: { userId: id, email, role } });
+  // permissions: what the role holds (role management), for showing pages;
+  // FastAPI checks them again on every route that needs one.
+  const { id, email, role, permissions } = res.body.data;
+  return NextResponse.json({ data: { userId: id, email, role, permissions: permissions ?? [] } });
 }
