@@ -9,7 +9,6 @@ import '../presentation/home/home_screen.dart';
 import '../presentation/recruiter/recruiter_dashboard.dart';
 import '../presentation/recruiter/recruiter_overview.dart';
 import '../presentation/recruiter/candidate_information_form.dart';
-import '../presentation/recruiter/case_information_form.dart';
 import '../presentation/recruiter/my_cases_screen.dart';
 import '../presentation/recruiter/reports_screen.dart';
 import '../presentation/recruiter/new_report_form.dart';
@@ -61,7 +60,6 @@ GoRouter createRouter(AuthManager auth) => GoRouter(
     GoRoute(path: '/recruiter/candidates', builder: (_, state) => const MyCandidatesScreen()),
     GoRoute(path: '/recruiter/intake', builder: (_, state) => const CandidateInformationForm()),
     GoRoute(path: '/recruiter/cases', builder: (_, state) => const MyCasesScreen()),
-    GoRoute(path: '/recruiter/cases/new', builder: (_, state) => const CaseInformationForm()),
     GoRoute(path: '/recruiter/reports', builder: (_, state) => const ReportsScreen()),
     GoRoute(path: '/recruiter/reports/new', builder: (_, state) => const NewReportForm()),
     GoRoute(path: '/recruiter/exceptions', builder: (_, state) => const ExceptionsScreen()),

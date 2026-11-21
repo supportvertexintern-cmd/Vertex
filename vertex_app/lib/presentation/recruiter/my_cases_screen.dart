@@ -19,6 +19,13 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
   String? _selectedStatus = 'All statuses';
 
   @override
+  void initState() {
+    super.initState();
+    // The recruiter's cases, from the server (read-only: a case opens when an application is approved).
+    WidgetsBinding.instance.addPostFrameCallback((_) => context.read<CaseStore>().ensureLoaded());
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -26,7 +33,8 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allRecords = context.watch<CaseStore>().records;
+    final store = context.watch<CaseStore>();
+    final allRecords = store.records;
 
     final records = allRecords.where((r) {
       final matchesQuery = _query.isEmpty ||
@@ -88,10 +96,10 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                   _divider(),
                   _stat(
                     allRecords
-                        .where((r) => r.status == CaseStatus.pending)
+                        .where((r) => r.status == CaseStatus.rejected)
                         .length
                         .toString(),
-                    'PENDING',
+                    'REJECTED',
                   ),
                 ],
               ),
@@ -161,7 +169,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                         borderSide: const BorderSide(
                             color: VertexColors.gold600, width: 1.4)),
                   ),
-                  items: ['All statuses', 'Active', 'Pending', 'Closed']
+                  items: ['All statuses', 'Active', 'Rejected']
                       .map((s) => DropdownMenuItem(
                             value: s,
                             child: Text(s,
@@ -179,13 +187,20 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
           const SizedBox(height: 10),
           // List or empty state
           Expanded(
-            child: records.isEmpty
-                ? _empty(context, allRecords.isEmpty)
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
-                    itemCount: records.length,
-                    itemBuilder: (_, i) => _card(records[i]),
-                  ),
+            child: RefreshIndicator(
+              onRefresh: store.load,
+              child: store.isLoading && !store.hasLoaded
+                  ? const Center(child: CircularProgressIndicator())
+                  : store.loadError != null && !store.hasLoaded
+                      ? _failed(store)
+                      : records.isEmpty
+                          ? ListView(children: [_empty(context, allRecords.isEmpty)])
+                          : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                              itemCount: records.length,
+                              itemBuilder: (_, i) => _card(records[i]),
+                            ),
+            ),
           ),
         ],
       ),
@@ -219,7 +234,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
               const SizedBox(height: 8),
               Text(
                 noRecordsAtAll
-                    ? 'Cases are assigned to you by your supervisor.'
+                    ? "A case opens when one of your candidates' applications is approved."
                     : 'Try adjusting your search or filter.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
@@ -240,9 +255,8 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
             : '$daysAgo days ago';
 
     final (statusColor, statusLabel) = switch (r.status) {
-      CaseStatus.active => (VertexColors.midnight500, 'Active'),
-      CaseStatus.pending => (VertexColors.gold600, 'Pending'),
-      CaseStatus.closed => (VertexColors.gray400, 'Closed'),
+      CaseStatus.active => (VertexColors.midnight500, r.stage.isNotEmpty ? r.stage : 'Active'),
+      CaseStatus.rejected => (VertexColors.gray400, 'Rejected'),
     };
 
     return Container(
@@ -328,6 +342,17 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
       ),
     );
   }
+
+  Widget _failed(CaseStore store) => ListView(children: [
+        Padding(
+          padding: const EdgeInsets.all(36),
+          child: Column(children: [
+            Text(store.loadError!, textAlign: TextAlign.center, style: const TextStyle(color: VertexColors.gray600, fontSize: 13)),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: store.load, child: const Text('Try again')),
+          ]),
+        ),
+      ]);
 
   Widget _stat(String value, String label) => Expanded(
         child: Column(

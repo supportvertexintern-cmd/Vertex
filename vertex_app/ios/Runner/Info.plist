@@ -70,5 +70,9 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
-	</dict>
+		<key>NSCameraUsageDescription</key>
+	<string>Vertex uses the camera to photograph a candidate's documents for their application.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Vertex uses your photos to attach a candidate's documents to their application.</string>
+</dict>
 </plist>
