@@ -35,6 +35,29 @@ INSERT INTO readonly_columns (tbl, col, decision) VALUES
   ('CaseStageEvent', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
   ('ConsultationBooking', 'deleted_at', 'grant'),   -- business timestamp
   ('ConsultationBooking', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
+  ('ContentBlock', 'key', 'grant'),   -- identifier/link
+  ('ContentBlock', 'draft_body', 'exclude'), -- free text/JSON: landing-page copy
+  ('ContentBlock', 'draft_visible', 'grant'),   -- flag
+  ('ContentBlock', 'draft_updated_at', 'grant'),   -- business timestamp
+  ('ContentBlock', 'draft_updated_by', 'grant'),   -- identifier/link
+  ('ContentBlock', 'published_body', 'exclude'), -- free text/JSON: landing-page copy
+  ('ContentBlock', 'published_visible', 'grant'),   -- flag
+  ('ContentBlock', 'published_at', 'grant'),   -- business timestamp
+  ('ContentBlock', 'published_by', 'grant'),   -- identifier/link
+  ('ContentBlock', 'revision', 'grant'),   -- count/amount
+  ('ContentBlock', 'created_at', 'grant'),   -- business timestamp
+  ('ContentBlock', 'updated_at', 'grant'),   -- business timestamp
+  ('ContentBlock', 'deleted_at', 'grant'),   -- business timestamp
+  ('ContentBlock', 'deleted_links', 'exclude'), -- soft delete bookkeeping
+  ('ContentRevision', 'id', 'grant'),   -- identifier/link
+  ('ContentRevision', 'block_key', 'grant'),   -- identifier/link
+  ('ContentRevision', 'number', 'grant'),   -- count/amount
+  ('ContentRevision', 'body', 'exclude'), -- free text/JSON: landing-page copy
+  ('ContentRevision', 'visible', 'grant'),   -- flag
+  ('ContentRevision', 'published_by', 'grant'),   -- identifier/link
+  ('ContentRevision', 'published_at', 'grant'),   -- business timestamp
+  ('ContentRevision', 'deleted_at', 'grant'),   -- business timestamp
+  ('ContentRevision', 'deleted_links', 'exclude'), -- soft delete bookkeeping
   ('Contract', 'deleted_at', 'grant'),   -- business timestamp
   ('Contract', 'deleted_links', 'exclude'),   -- soft delete bookkeeping
   ('Country', 'deleted_at', 'grant'),   -- business timestamp

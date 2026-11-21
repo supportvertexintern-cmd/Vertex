@@ -3089,6 +3089,60 @@
     "title": "Author",
     "type": "object"
    },
+   "BlockOut": {
+    "properties": {
+     "default": {
+      "additionalProperties": true,
+      "title": "Default",
+      "type": "object"
+     },
+     "draft": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Draft"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "group": {
+      "enum": [
+       "web",
+       "mobile",
+       "shared"
+      ],
+      "title": "Group",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "published": {
+      "$ref": "#/components/schemas/Published"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "key",
+     "group",
+     "label",
+     "version",
+     "default",
+     "published",
+     "draft"
+    ],
+    "title": "BlockOut",
+    "type": "object"
+   },
    "Bridged": {
     "properties": {
      "case": {
@@ -5927,6 +5981,18 @@
     "title": "Data[AssistantOut]",
     "type": "object"
    },
+   "Data_BlockOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/BlockOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[BlockOut]",
+    "type": "object"
+   },
    "Data_CampaignDetail_": {
     "properties": {
      "data": {
@@ -6225,6 +6291,18 @@
      "data"
     ],
     "title": "Data[JobOut]",
+    "type": "object"
+   },
+   "Data_LandingOut_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/LandingOut"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[LandingOut]",
     "type": "object"
    },
    "Data_LimitedList_": {
@@ -6923,6 +7001,22 @@
     "title": "Data[list[ArticleOut]]",
     "type": "object"
    },
+   "Data_list_BlockOut__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/BlockOut"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[BlockOut]]",
+    "type": "object"
+   },
    "Data_list_CampaignListItem__": {
     "properties": {
      "data": {
@@ -7225,6 +7319,22 @@
      "data"
     ],
     "title": "Data[list[RequirementOut]]",
+    "type": "object"
+   },
+   "Data_list_RevisionOut__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/RevisionOut"
+      },
+      "title": "Data",
+      "type": "array"
+     }
+    },
+    "required": [
+     "data"
+    ],
+    "title": "Data[list[RevisionOut]]",
     "type": "object"
    },
    "Data_list_RuleListRow__": {
@@ -7739,6 +7849,49 @@
      "message"
     ],
     "title": "Done",
+    "type": "object"
+   },
+   "Draft": {
+    "properties": {
+     "body": {
+      "additionalProperties": true,
+      "title": "Body",
+      "type": "object"
+     },
+     "updated_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated At"
+     },
+     "updated_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated By"
+     },
+     "visible": {
+      "title": "Visible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "body",
+     "visible",
+     "updated_at",
+     "updated_by"
+    ],
+    "title": "Draft",
     "type": "object"
    },
    "DraftOut": {
@@ -9649,6 +9802,72 @@
      "label"
     ],
     "title": "KpiRow",
+    "type": "object"
+   },
+   "LandingBlock": {
+    "properties": {
+     "body": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Body"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "revision": {
+      "title": "Revision",
+      "type": "integer"
+     },
+     "visible": {
+      "title": "Visible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "key",
+     "visible",
+     "body",
+     "revision"
+    ],
+    "title": "LandingBlock",
+    "type": "object"
+   },
+   "LandingOut": {
+    "properties": {
+     "app": {
+      "enum": [
+       "web",
+       "mobile"
+      ],
+      "title": "App",
+      "type": "string"
+     },
+     "blocks": {
+      "items": {
+       "$ref": "#/components/schemas/LandingBlock"
+      },
+      "title": "Blocks",
+      "type": "array"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "app",
+     "version",
+     "blocks"
+    ],
+    "title": "LandingOut",
     "type": "object"
    },
    "LedgerRow": {
@@ -17927,6 +18146,54 @@
     "title": "PublicStageOut",
     "type": "object"
    },
+   "Published": {
+    "properties": {
+     "body": {
+      "additionalProperties": true,
+      "title": "Body",
+      "type": "object"
+     },
+     "published_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published At"
+     },
+     "published_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published By"
+     },
+     "revision": {
+      "title": "Revision",
+      "type": "integer"
+     },
+     "visible": {
+      "title": "Visible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "body",
+     "visible",
+     "revision",
+     "published_at",
+     "published_by"
+    ],
+    "title": "Published",
+    "type": "object"
+   },
    "RaiseIn": {
     "description": "raiseExceptionSchema.",
     "properties": {
@@ -19296,6 +19563,47 @@
      "full_name"
     ],
     "title": "ReviewerBrief",
+    "type": "object"
+   },
+   "RevisionOut": {
+    "properties": {
+     "body": {
+      "additionalProperties": true,
+      "title": "Body",
+      "type": "object"
+     },
+     "number": {
+      "title": "Number",
+      "type": "integer"
+     },
+     "published_at": {
+      "title": "Published At",
+      "type": "string"
+     },
+     "published_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published By"
+     },
+     "visible": {
+      "title": "Visible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "number",
+     "body",
+     "visible",
+     "published_at",
+     "published_by"
+    ],
+    "title": "RevisionOut",
     "type": "object"
    },
    "Role": {
@@ -23843,6 +24151,25 @@
      "positions"
     ],
     "title": "SectorOut",
+    "type": "object"
+   },
+   "app__api__v1__landing__DraftIn": {
+    "properties": {
+     "body": {
+      "additionalProperties": true,
+      "title": "Body",
+      "type": "object"
+     },
+     "visible": {
+      "default": true,
+      "title": "Visible",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "body"
+    ],
+    "title": "DraftIn",
     "type": "object"
    },
    "app__api__v1__monitoring__ReviewIn": {
@@ -30317,6 +30644,441 @@
     "summary": "Consultation Bookings",
     "tags": [
      "payments and finance"
+    ]
+   }
+  },
+  "/api/v1/content/blocks": {
+   "get": {
+    "description": "Every block, in page order, with its published version and any draft.",
+    "operationId": "list_blocks_api_v1_content_blocks_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "group",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "enum": [
+          "web",
+          "mobile",
+          "shared"
+         ],
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Group"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_BlockOut__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "List Blocks",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}": {
+   "get": {
+    "operationId": "get_block_api_v1_content_blocks__key__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_BlockOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Get Block",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}/discard": {
+   "post": {
+    "description": "Drops the draft; the published version stays.",
+    "operationId": "discard_api_v1_content_blocks__key__discard_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_BlockOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Discard",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}/draft": {
+   "put": {
+    "description": "Saves the draft: checked against the block's shape, not yet shown.",
+    "operationId": "save_draft_api_v1_content_blocks__key__draft_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/app__api__v1__landing__DraftIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_BlockOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Save Draft",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}/publish": {
+   "post": {
+    "description": "Makes the draft what visitors see, and keeps it as a revision.",
+    "operationId": "publish_api_v1_content_blocks__key__publish_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_BlockOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Publish",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}/revisions": {
+   "get": {
+    "description": "Every publish of the block, newest first.",
+    "operationId": "revisions_api_v1_content_blocks__key__revisions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_list_RevisionOut__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Revisions",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/blocks/{key}/revisions/{number}/restore": {
+   "post": {
+    "description": "Copies an earlier revision into the draft, to review and publish.",
+    "operationId": "restore_api_v1_content_blocks__key__revisions__number__restore_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "key",
+      "required": true,
+      "schema": {
+       "title": "Key",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "number",
+      "required": true,
+      "schema": {
+       "title": "Number",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_BlockOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "session": []
+     }
+    ],
+    "summary": "Restore",
+    "tags": [
+     "content"
+    ]
+   }
+  },
+  "/api/v1/content/landing": {
+   "get": {
+    "description": "What an app's landing page shows, block by block, in page order.",
+    "operationId": "landing_api_v1_content_landing_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "app",
+      "required": true,
+      "schema": {
+       "enum": [
+        "web",
+        "mobile"
+       ],
+       "title": "App",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "preview",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Preview",
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Data_LandingOut_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "security": [
+     {
+      "service": []
+     },
+     {
+      "service": [],
+      "session": []
+     },
+     {
+      "session": []
+     }
+    ],
+    "summary": "Landing",
+    "tags": [
+     "content"
     ]
    }
   },

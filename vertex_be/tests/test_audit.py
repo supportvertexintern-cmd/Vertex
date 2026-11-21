@@ -44,7 +44,7 @@ def test_the_audited_models_are_pinned():
     # model from the trail should be a deliberate change here too.
     assert audit.AUDITED_MODELS == {
         "Application", "Campaign", "CampaignTarget", "Candidate", "CandidateMessage", "Case", "CasePayment",
-        "CaseReminder", "CaseStageEvent", "ConsultationBooking", "Contract", "Country",
+        "CaseReminder", "CaseStageEvent", "ConsultationBooking", "ContentBlock", "ContentRevision", "Contract", "Country",
         "CountryDocumentRequirement", "Document", "DocumentRequirementType", "EmailTemplate",
         "EmployerClient", "Exception", "ExceptionCorrectiveAction", "FeePolicy", "InhouseCountryAssignment",
         "Job", "JobMilestonePrice", "JobPaymentStage", "JobPosition", "JobSector", "KnowledgeArticle",

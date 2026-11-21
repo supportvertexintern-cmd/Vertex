@@ -55,7 +55,7 @@ CATEGORIES: list[tuple[str, str, list[str]]] = [
     ("campaigns", "Campaigns", ["Campaign", "CampaignTarget"]),
     ("referrals", "Referral Agents", ["ReferralAgent", "ReferralCommission", "ReferralCommissionRule", "ReferralAgentTarget"]),
     ("reference", "Reference Data", ["Region", "Country", "Sector"]),
-    ("system", "System", ["SystemSetting", "KnowledgeArticle", "EmailTemplate"]),
+    ("system", "System", ["SystemSetting", "KnowledgeArticle", "EmailTemplate", "ContentBlock", "ContentRevision"]),
 ]
 
 MODEL_LABELS = {

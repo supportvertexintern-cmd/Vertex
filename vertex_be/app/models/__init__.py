@@ -4,6 +4,7 @@ by Alembic and by string-based relationship resolution)."""
 from app.models.audit import AuditLog
 from app.models.campaign import Campaign, CampaignTarget, RecruiterTarget
 from app.models.candidate import Application, Candidate, CandidateMessage, Document
+from app.models.content import ContentBlock, ContentRevision
 from app.models.cases import (
     Case,
     CasePayment,
@@ -64,6 +65,8 @@ __all__ = [
     "CaseReminder",
     "CaseStageEvent",
     "ConsultationBooking",
+    "ContentBlock",
+    "ContentRevision",
     "Contract",
     "Country",
     "CountryDocumentRequirement",
