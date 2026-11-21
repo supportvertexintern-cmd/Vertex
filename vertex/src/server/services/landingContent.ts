@@ -14,8 +14,11 @@ import DEFAULTS from "./landing.defaults.json";
  * scripts/export_landing_defaults.py). A block marketing hid is null.
  *
  * Every page reads the contact details, so the answer is kept for
- * CACHE_MS: a publish shows within that time. A failure is kept for
- * RETRY_MS, so FastAPI being down doesn't slow every page.
+ * CACHE_MS: a publish shows within that time (at once on the server that
+ * took it: the publish route clears the cache). A failure is kept for
+ * RETRY_MS, so FastAPI being down doesn't slow every page. The cache lives
+ * on globalThis: Next.js bundles each route and page with its own copy of
+ * this module, and the publish route must clear the pages' cache.
  */
 
 const CACHE_MS = 30_000;
@@ -106,11 +109,12 @@ interface Answer {
   blocks: { key: string; visible: boolean; body: Record<string, unknown> | null; revision: number }[];
 }
 
-let cached: { page: LandingPage; until: number } | null = null;
+const store = globalThis as typeof globalThis & { __vertexLandingCache?: { page: LandingPage; until: number } | null };
 
 /** The website's landing blocks, as visitors see them. */
 export async function getLandingPage(): Promise<LandingPage> {
   const now = Date.now();
+  const cached = store.__vertexLandingCache;
   if (cached && cached.until > now) return cached.page;
   const result = await callBackend<Answer>("/api/v1/content/landing", {
     query: { app: "web" },
@@ -119,13 +123,29 @@ export async function getLandingPage(): Promise<LandingPage> {
   });
   const page = result.ok ? merge(result.body.data) : builtIn();
   if (!result.ok) log.warn("landing.fallback", { status: result.status, code: result.error.code });
-  cached = { page, until: now + (result.ok ? CACHE_MS : RETRY_MS) };
+  store.__vertexLandingCache = { page, until: now + (result.ok ? CACHE_MS : RETRY_MS) };
   return page;
 }
 
-/** For tests: forget the cached answer. */
+/**
+ * The page with the drafts instead (/?preview=1, from the landing editor):
+ * the signed-in user's own read, never cached. FastAPI allows it only for a
+ * role that edits or publishes the landing pages; anyone else, or no
+ * answer, gets the published page and previewing false.
+ */
+export async function getLandingPreview(): Promise<LandingPage & { previewing: boolean }> {
+  const result = await callBackend<Answer>("/api/v1/content/landing", {
+    query: { app: "web", preview: true },
+    asUser: "if-signed-in",
+    timeoutMs: TIMEOUT_MS,
+  });
+  if (result.ok) return { ...merge(result.body.data), previewing: true };
+  return { ...(await getLandingPage()), previewing: false };
+}
+
+/** For tests, and after a publish: forget the cached answer. */
 export function resetLandingCache(): void {
-  cached = null;
+  store.__vertexLandingCache = null;
 }
 
 export function builtIn(): LandingPage {

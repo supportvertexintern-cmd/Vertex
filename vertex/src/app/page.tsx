@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import HomeClient from "@/components/HomeClient";
-import { getLandingPage } from "@/server/services/landingContent";
+import { getLandingPage, getLandingPreview } from "@/server/services/landingContent";
 import { getPublicJobsList } from "@/server/services/publicJobs";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +23,14 @@ async function getFeaturedJobs() {
   }
 }
 
-export default async function HomePage() {
-  // The text is marketing's (the landing CMS), or the built-in text.
-  const [jobs, landing] = await Promise.all([getFeaturedJobs(), getLandingPage()]);
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // The text is marketing's (the landing CMS), or the built-in text; with
+  // ?preview=1, the drafts, for a role that edits them (FastAPI decides).
+  const wantsPreview = (await searchParams).preview === "1";
+  const [jobs, landing] = await Promise.all([
+    getFeaturedJobs(),
+    wantsPreview ? getLandingPreview() : getLandingPage().then((page) => ({ ...page, previewing: false })),
+  ]);
 
-  return <HomeClient jobs={jobs} content={landing.blocks} />;
+  return <HomeClient jobs={jobs} content={landing.blocks} previewing={landing.previewing} />;
 }

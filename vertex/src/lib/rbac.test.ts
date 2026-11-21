@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canAccessPortal, homeFor, isStaffRole, PORTAL_ACCESS } from "./rbac";
+import { canAccessPortal, homeFor, INTERNAL_ROLES, isStaffRole, PORTAL_ACCESS } from "./rbac";
 import type { Role } from "@/lib/enums";
 import { PROTECTED_PATHS } from "./session-constants";
 
@@ -87,6 +87,17 @@ describe("canAccessPortal", () => {
   it("matches by prefix, not exact path", () => {
     expect(canAccessPortal("regional_recruiter", "/recruiter/candidates/123")).toBe(true);
     expect(canAccessPortal("candidate", "/admin/settings")).toBe(false);
+  });
+});
+
+describe("pages reached by permission (/content)", () => {
+  it("let in every internal role, and no external one", () => {
+    for (const role of INTERNAL_ROLES) expect(canAccessPortal(role, "/content/landing")).toBe(true);
+    for (const role of ["candidate", "partner", "referral_agent"] as const) expect(canAccessPortal(role, "/content/landing")).toBe(false);
+  });
+
+  it("don't catch the public contact page", () => {
+    expect(canAccessPortal("candidate", "/contact")).toBe(true);
   });
 });
 

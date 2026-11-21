@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Icon } from "@phosphor-icons/react";
-import { List, X, SignOut, Devices } from "@phosphor-icons/react";
+import { List, X, SignOut, Devices, Browser } from "@phosphor-icons/react";
 import SessionsPanel from "./SessionsPanel";
 
 export interface PortalNavItem {
@@ -25,18 +25,52 @@ interface PortalShellProps {
   wideContent?: boolean;
 }
 
+// Pages a role reaches by a permission the admin gave it (role management,
+// 2026-11-21), added to whichever portal's nav it has. Showing the link is
+// all this does: the page and FastAPI check the permission themselves.
+const PERMISSION_NAV: { permissions: string[]; item: PortalNavItem }[] = [
+  { permissions: ["landing.edit", "landing.publish"], item: { href: "/content/landing", label: "Landing pages", icon: Browser, section: "Content" } },
+];
+
+// The signed-in user's permissions, asked once per page load (a client
+// navigation keeps it); none if the answer fails.
+let permissionsRequest: Promise<string[]> | null = null;
+function myPermissions(): Promise<string[]> {
+  permissionsRequest ??= fetch("/api/auth/me")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((body) => (Array.isArray(body?.data?.permissions) ? (body.data.permissions as string[]) : []))
+    .catch(() => []);
+  return permissionsRequest;
+}
+
 /**
  * Shared shell for every internal, role-based portal (SRS FR-5.1 "role-based
  * sections/portals"). Reuses the same design tokens and utility classes as
  * the public site (midnight/gold/ivory, Outfit, Phosphor) rather than
  * inventing a separate visual language for internal pages.
  */
-export default function PortalShell({ roleLabel, navItems, children, wideContent = true }: PortalShellProps) {
+export default function PortalShell({ roleLabel, navItems: ownItems, children, wideContent = true }: PortalShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [badges, setBadges] = useState<Record<string, number>>({});
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    myPermissions().then((held) => live && setPermissions(held));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const navItems = [
+    ...ownItems,
+    ...PERMISSION_NAV.filter(
+      (p) => p.permissions.some((x) => permissions.includes(x)) && !ownItems.some((i) => i.href === p.item.href),
+    ).map((p) => p.item),
+  ];
 
   // Each badge's count, once per page: a failure just shows no badge.
   const badgeUrls = navItems.map((item) => item.badgeFrom).filter((url): url is string => Boolean(url)).join("|");
