@@ -6,6 +6,23 @@ import type { Role } from "@/lib/enums";
  * reimplementing "who can see what" locally.
  */
 
+// Every role but the external accounts: the roles the admin can give a
+// permission (role management, 2026-11-21; ASSIGNABLE_ROLES plus admin in
+// vertex_be/app/core/permissions.py).
+export const INTERNAL_ROLES: Role[] = [
+  "regional_recruiter",
+  "country_supervisor",
+  "inhouse_supervisor",
+  "director",
+  "admin",
+  "marketing",
+  "hr",
+  "operations_team",
+  "operations_director",
+  "finance",
+  "virtual_assistant",
+];
+
 // Portal path prefix -> roles allowed to access it.
 export const PORTAL_ACCESS: Record<string, Role[]> = {
   "/dashboard": ["candidate"],
@@ -21,6 +38,10 @@ export const PORTAL_ACCESS: Record<string, Role[]> = {
   "/admin": ["admin"],
   "/referral-agent": ["referral_agent", "admin"],
   "/va": ["virtual_assistant", "director", "admin"],
+  // Pages any internal role may open; what each shows depends on the
+  // permissions the admin gave the role, which FastAPI checks on every
+  // request. Today: the landing editor.
+  "/content": INTERNAL_ROLES,
 };
 
 // Where each role lands after login / when redirected away from a portal it can't access.
@@ -95,7 +116,7 @@ export function homeFor(role: Role): string {
 // rebuilt on PortalShell 2026-07-13 to match the others) renders its own
 // chrome and should NOT also get the public marketing Navbar/Footer/chat
 // widgets.
-const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard", "/referral-agent", "/va"];
+const INTERNAL_PORTAL_PREFIXES = ["/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/dashboard", "/referral-agent", "/va", "/content"];
 
 export function isInternalPortalPath(pathname: string): boolean {
   return INTERNAL_PORTAL_PREFIXES.some((p) => pathname.startsWith(p));

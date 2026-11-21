@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const callBackend = vi.fn();
 vi.mock("@/lib/backend", () => ({ callBackend: (...args: unknown[]) => callBackend(...args) }));
 
-import { BLOCK_VERSION, BUILT_IN, builtIn, getLandingPage, merge, resetLandingCache } from "./landingContent";
+import { BLOCK_VERSION, BUILT_IN, builtIn, getLandingPage, getLandingPreview, merge, resetLandingCache } from "./landingContent";
 
 const ok = (blocks: unknown[], version = BLOCK_VERSION) => ({ ok: true, status: 200, body: { data: { app: "web", version, blocks } } });
 const contact = { ...BUILT_IN["shared.contact"], whatsapp: "+44 7000 000001", email: "hello@example.org" };
@@ -70,6 +70,33 @@ describe("marketing's blocks over the built-in text", () => {
     });
     expect(odd.blocks).toEqual(builtIn().blocks);
     expect("mobile.hero" in odd.blocks).toBe(false);
+  });
+});
+
+describe("the preview (/?preview=1)", () => {
+  it("asks for the drafts with the viewer's own session, never cached", async () => {
+    const hero = { ...BUILT_IN["web.hero"], headline: "A draft headline" };
+    callBackend.mockResolvedValue(ok([{ key: "web.hero", visible: true, body: hero, revision: 1 }]));
+    const page = await getLandingPreview();
+    expect(page.previewing).toBe(true);
+    expect(page.blocks["web.hero"]?.headline).toBe("A draft headline");
+    expect(callBackend).toHaveBeenCalledWith("/api/v1/content/landing", {
+      query: { app: "web", preview: true },
+      asUser: "if-signed-in",
+      timeoutMs: 3_000,
+    });
+    await getLandingPreview();
+    expect(callBackend).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the published page to a viewer FastAPI refuses", async () => {
+    callBackend
+      .mockResolvedValueOnce({ ok: false, status: 403, error: { code: "forbidden", message: "x" } })
+      .mockResolvedValueOnce(ok([]));
+    const page = await getLandingPreview();
+    expect(page.previewing).toBe(false);
+    expect(page.blocks).toEqual(builtIn().blocks);
+    expect(callBackend).toHaveBeenLastCalledWith("/api/v1/content/landing", { query: { app: "web" }, asUser: false, timeoutMs: 3_000 });
   });
 });
 

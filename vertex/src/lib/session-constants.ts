@@ -16,4 +16,4 @@ export const SIGNED_IN_COOKIE = "vertex_signed_in";
 // Every portal in rbac.ts's PORTAL_ACCESS (rbac.test.ts checks they agree):
 // "/va" was missing from 2026-11-13 to 11-20, so a signed-out visitor got the
 // VA pages' shell instead of the sign-in page (the data stayed FastAPI's).
-export const PROTECTED_PATHS = ["/dashboard", "/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/referral-agent", "/va"];
+export const PROTECTED_PATHS = ["/dashboard", "/admin", "/recruiter", "/supervisor", "/inhouse", "/management", "/marketing", "/partner", "/hr", "/operations", "/finance", "/referral-agent", "/va", "/content"];

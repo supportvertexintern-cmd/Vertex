@@ -149,7 +149,7 @@ interface FeaturedJob {
 // The page's text is marketing's (the landing CMS; app/page.tsx reads it
 // through server/services/landingContent.ts). A block marketing hid is
 // null, and its section isn't shown.
-export default function HomeClient({ jobs, content }: { jobs: FeaturedJob[]; content: Landing }) {
+export default function HomeClient({ jobs, content, previewing = false }: { jobs: FeaturedJob[]; content: Landing; previewing?: boolean }) {
   const hero = content["web.hero"];
   const partner = content["web.partner_enquiry"];
   const process = content["web.process"];
@@ -164,6 +164,12 @@ export default function HomeClient({ jobs, content }: { jobs: FeaturedJob[]; con
 
   return (
     <div className="overflow-x-hidden">
+      {previewing && (
+        <div role="status" className="sticky top-0 z-30 bg-gold-400 text-midnight-950 text-sm font-semibold text-center px-4 py-2">
+          Preview: this page shows the saved drafts. Visitors still see the published version.
+        </div>
+      )}
+
       {/* ===== Hero ===== */}
       {hero && (
       <section className="relative bg-midnight-950 text-ivory-50">
